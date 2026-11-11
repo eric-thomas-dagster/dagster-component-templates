@@ -7,3 +7,11 @@
 #                            postgres: psycopg2-binary | mysql: pymysql | snowflake: snowflake-sqlalchemy
 #                            databricks: databricks-sqlalchemy | duckdb: duckdb-engine
 # A missing driver raises an ImportError naming exactly what to pip install.
+#
+# KnowledgeSearch (gateway.py) -- a gateway process (e.g. FastMCP server) needs:
+#   embed_provider: sentence_transformers -> sentence-transformers | openai -> openai
+#                   cohere -> cohere      | litellm -> litellm
+#   provider:       chromadb -> chromadb  | pinecone -> pinecone (NOT pinecone-client,
+#                   which is now just a compat shim depending on the real `pinecone` package)
+#                   qdrant -> qdrant-client
+# ReceiptMiddleware (examples/fastmcp_receipt_middleware.py) needs: fastmcp>=2.0

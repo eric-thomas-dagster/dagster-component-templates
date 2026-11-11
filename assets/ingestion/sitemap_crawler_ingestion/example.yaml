@@ -1,0 +1,32 @@
+type: dagster_community_components.SitemapCrawlerIngestionComponent
+attributes:
+  asset_name: docs_pages
+
+  # --- Sitemap-driven mode: follow every <loc> in a sitemap.xml (or sitemap index) ---
+  sitemap_url: "https://docs.example.com/sitemap.xml"
+
+  # --- Or: plain breadth-first crawl from one or more seed URLs instead ---
+  # start_urls: "https://example.com,https://example.com/blog"
+  # max_pages: 200
+  # max_depth: 3
+
+  # --- Scope to a section of the site (comma-separated substrings, both modes) ---
+  # include_patterns: "/docs/"
+  # exclude_patterns: "/docs/archive/,.pdf"
+
+  respect_robots_txt: true
+  request_delay_seconds: 0.5
+  user_agent: "dagster-community-components-sitemap-crawler/1.0"
+
+  group_name: sitemap_crawler_ingestion
+
+  # --- Feed into document_chunker for RAG ---
+  # In document_chunker's component.yaml:
+  #   upstream_asset_key: docs_pages
+  #   source_column: content
+  #   metadata_columns: "url,title,updated_at"
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: sitemap_crawler
+  # persist_only: true                 # see ../DESTINATIONS.md

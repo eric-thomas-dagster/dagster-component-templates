@@ -223,7 +223,7 @@
       "type": "boolean",
       "label": "Include Preview Metadata",
       "required": false,
-      "default": false
+      "default": true
     },
     "preview_rows": {
       "description": "Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head().",

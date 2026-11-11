@@ -1,0 +1,58 @@
+type: dagster_community_components.CloudDocumentsComponent
+attributes:
+  asset_name: s3_documents
+  provider: s3
+  source_path: "s3://my-bucket/docs/"
+  group_name: cloud_documents
+
+  # --- Other bucket-storage providers (same shape, different source_path scheme) ---
+  # provider: gcs
+  # source_path: "gs://my-bucket/docs/"
+  #
+  # provider: azure_blob
+  # source_path: "az://my-container/docs/"
+  #
+  # provider: webdav              # best-effort/unverified -- see component.py docstring
+  # webdav_base_url: "https://dav.example.com/remote.php/dav/files/user/"
+  # webdav_username: "myuser"
+  # webdav_password_env_var: WEBDAV_PASSWORD
+  # source_path: "/Documents/"     # relative to webdav_base_url
+
+  # --- OAuth-protected vendor APIs instead ---
+  # provider: onedrive
+  # tenant_id: "${AZURE_TENANT_ID}"
+  # client_id: "${AZURE_CLIENT_ID}"
+  # client_secret: "${AZURE_CLIENT_SECRET}"
+  # drive_id: "b!abc123..."
+  #
+  # provider: sharepoint
+  # tenant_id: "${AZURE_TENANT_ID}"
+  # client_id: "${AZURE_CLIENT_ID}"
+  # client_secret: "${AZURE_CLIENT_SECRET}"
+  # site_hostname: "contoso.sharepoint.com"
+  # site_path: "/sites/TeamSite"
+  #
+  # provider: box
+  # client_id: "${BOX_CLIENT_ID}"
+  # client_secret: "${BOX_CLIENT_SECRET}"
+  # box_subject_type: "enterprise"
+  # box_subject_id: "${BOX_ENTERPRISE_ID}"
+  # folder_id: "0"
+  #
+  # provider: dropbox
+  # client_id: "${DROPBOX_CLIENT_ID}"
+  # client_secret: "${DROPBOX_CLIENT_SECRET}"
+  # refresh_token: "${DROPBOX_REFRESH_TOKEN}"
+  # folder_path: ""
+  # recursive: true
+
+  # --- Feed into document_chunker for RAG ---
+  # In document_chunker's component.yaml:
+  #   upstream_asset_key: s3_documents
+  #   source_column: content
+  #   metadata_columns: "url,title,source_type,updated_at"
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: cloud_documents
+  # persist_only: true                 # see ../DESTINATIONS.md

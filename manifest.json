@@ -12294,6 +12294,46 @@
       "icon": "ShieldCheck"
     },
     {
+      "id": "cloud_documents",
+      "name": "Cloud Documents",
+      "category": "ingestion",
+      "description": "Extract document file content (real text extraction -- pdfplumber/python-docx/BeautifulSoup) from cloud storage and file-sharing providers for RAG pipelines. Generic bucket storage (s3/gcs/azure_blob/webdav) walks the source via fsspec; OAuth-protected vendor APIs (onedrive/sharepoint/box/dropbox) authenticate and list files the same way this repo's onedrive_ingestion/sharepoint_ingestion/box_ingestion/dropbox_ingestion components do, then fetch + extract each file's content. Every row carries the shared document source contract (doc_id, content, title, url, source_type, updated_at, content_hash) so document_chunker and other RAG components can treat every provider identically.",
+      "path": "assets/ingestion/cloud_documents",
+      "tags": [
+        "ingestion",
+        "cloud-storage",
+        "documents",
+        "rag",
+        "dlt"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_documents/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_documents/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_documents/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_documents/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_documents/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0",
+          "pdfplumber>=0.10.0",
+          "python-docx>=1.0.0",
+          "beautifulsoup4>=4.12.0",
+          "fsspec>=2023.1.0"
+        ]
+      },
+      "vertical": "data-platform",
+      "icon": "FileText",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "One row per cloud document (doc_id, content via real pdfplumber/python-docx/BeautifulSoup extraction, title, url, source_type=the provider name, updated_at, content_hash), across s3/gcs/azure_blob/webdav/onedrive/sharepoint/box/dropbox.",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0", "pdfplumber>=0.10.0", "python-docx>=1.0.0", "beautifulsoup4>=4.12.0", "fsspec>=2023.1.0"]
+      }
+    },
+    {
       "id": "cloud_functions_invoke_asset",
       "name": "Cloud Functions Invoke",
       "category": "infrastructure",
@@ -13313,6 +13353,44 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
+      }
+    },
+    {
+      "id": "confluence_documents",
+      "name": "Confluence Documents",
+      "category": "ingestion",
+      "description": "Extract full Confluence page body text (storage or view format, stripped to plain text) for RAG pipelines -- not just page metadata. List every page in a space, or every descendant of a page, and emit one row per page matching the document-source contract every RAG-source component in this repo shares (doc_id/content/title/url/source_type/updated_at/content_hash).",
+      "path": "assets/ingestion/confluence_documents",
+      "tags": [
+        "ingestion",
+        "confluence",
+        "documents",
+        "rag",
+        "dlt"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_documents/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_documents/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_documents/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_documents/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/confluence_documents/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "dagster",
+          "beautifulsoup4>=4.11.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "data-platform",
+      "icon": "FileText",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "One row per Confluence page (doc_id, content as extracted plain text, title, url, source_type='confluence', updated_at, content_hash), ready to feed document_chunker for a RAG pipeline.",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "dagster", "beautifulsoup4>=4.11.0", "tabulate>=0.9.0"]
       }
     },
     {
@@ -29731,6 +29809,43 @@
       "vertical": "security"
     },
     {
+      "id": "github_documents",
+      "name": "GitHub Documents",
+      "category": "ingestion",
+      "description": "Extract GitHub repo file content (README/markdown/text) and issue/PR text bodies, normalized to the document-source contract for RAG pipelines. Walks the repo's file tree (git/trees recursive), fetches matching files' content (Contents API), and reuses issue/PR text bodies (GET issues, tagged by the presence of a pull_request key).",
+      "path": "assets/ingestion/github_documents",
+      "tags": [
+        "ingestion",
+        "github",
+        "vcs",
+        "documents",
+        "rag",
+        "rest-api"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/github_documents/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/github_documents/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/github_documents/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/github_documents/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/github_documents/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "devops-observability",
+      "icon": "si:github",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "GitHub file/issue/PR text as document-contract rows (doc_id, content, title, url, source_type, updated_at, content_hash), single combined DataFrame or one asset per resource (asset_shape='multi_asset').",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+      }
+    },
+    {
       "id": "github_event_sensor",
       "name": "GithubEventSensor",
       "category": "sensor",
@@ -29920,6 +30035,43 @@
         "connection",
         "connect"
       ]
+    },
+    {
+      "id": "gitlab_documents",
+      "name": "GitLab Documents",
+      "category": "ingestion",
+      "description": "Extract GitLab repo file content (README/markdown/text) and issue/merge-request text bodies, normalized to the document-source contract for RAG pipelines. Walks the repo's file tree (repository/tree recursive), fetches matching files' raw content, and reuses issue/MR text bodies.",
+      "path": "assets/ingestion/gitlab_documents",
+      "tags": [
+        "ingestion",
+        "gitlab",
+        "vcs",
+        "documents",
+        "rag",
+        "rest-api"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_documents/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_documents/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_documents/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_documents/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_documents/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "devops-observability",
+      "icon": "si:gitlab",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "GitLab file/issue/merge_request text as document-contract rows (doc_id, content, title, url, source_type, updated_at, content_hash), single combined DataFrame or one asset per resource (asset_shape='multi_asset').",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+      }
     },
     {
       "id": "gitlab_event_sensor",
@@ -44985,6 +45137,43 @@
       }
     },
     {
+      "id": "notion_documents",
+      "name": "Notion Documents",
+      "category": "ingestion",
+      "description": "Extract full Notion page BODY TEXT (not just page metadata) for RAG pipelines. Set `database_id` to extract every page in a Notion database, or `root_page_ids` to walk one or more page trees by recursively following child_page blocks. Output rows follow the document-source contract shared by every document-source ingestion component in this repo -- ready to feed into document_chunker for a RAG pipeline.",
+      "path": "assets/ingestion/notion_documents",
+      "tags": [
+        "ingestion",
+        "notion",
+        "documents",
+        "rag",
+        "dlt"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_documents/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_documents/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_documents/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_documents/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_documents/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "requests>=2.28.0",
+          "pandas>=1.5.0",
+          "dagster",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "data-platform",
+      "icon": "si:notion",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "One row per Notion page (doc_id, content as markdown-rendered body, title, url, source_type='notion', updated_at, content_hash), ready to feed document_chunker for a RAG pipeline.",
+        "requires_pip": ["dlt>=1.0.0", "requests>=2.28.0", "pandas>=1.5.0", "dagster", "tabulate>=0.9.0"]
+      }
+    },
+    {
       "id": "notion_ingestion",
       "name": "Notion Ingestion",
       "category": "ingestion",
@@ -59034,6 +59223,44 @@
       ]
     },
     {
+      "id": "sitemap_crawler_ingestion",
+      "name": "Sitemap Crawler Ingestion",
+      "category": "ingestion",
+      "description": "Plain, free, no-paid-API HTTP/sitemap-based web crawler for RAG pipelines. Set `sitemap_url` to follow a sitemap.xml (or sitemap index) exhaustively, or `start_urls` to breadth-first crawl from one or more seed pages following same-domain links up to `max_pages`/`max_depth`. Respects robots.txt by default. Output rows are ready to feed into document_chunker for a RAG pipeline.",
+      "path": "assets/ingestion/sitemap_crawler_ingestion",
+      "tags": [
+        "ingestion",
+        "sitemap",
+        "web-crawl",
+        "rag",
+        "dlt"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sitemap_crawler_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sitemap_crawler_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sitemap_crawler_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sitemap_crawler_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sitemap_crawler_ingestion/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "requests>=2.28.0",
+          "pandas>=1.5.0",
+          "dagster>=1.8.0",
+          "beautifulsoup4>=4.12.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "data-platform",
+      "icon": "Globe",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "One row per crawled page (doc_id, content, title, url, source_type='sitemap_crawler', updated_at, content_hash), ready to feed document_chunker for a RAG pipeline. No API key required.",
+        "requires_pip": ["dlt>=1.0.0", "requests>=2.28.0", "pandas>=1.5.0", "dagster>=1.8.0", "beautifulsoup4>=4.12.0", "tabulate>=0.9.0"]
+      }
+    },
+    {
       "id": "sla_asset",
       "name": "SLA Asset",
       "category": "decorator",
@@ -71920,5 +72147,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1380
+  "total": 1386
 }

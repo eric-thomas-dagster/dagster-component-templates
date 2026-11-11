@@ -1,0 +1,25 @@
+type: dagster_community_components.NotionDocumentsComponent
+attributes:
+  asset_name: notion_documents
+  api_key_env_var: NOTION_API_KEY
+
+  # --- Extract every page in a Notion database (page body text, not just properties) ---
+  database_id: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+
+  # --- Or: walk one or more page trees instead (recursively follows child_page blocks) ---
+  # root_page_ids: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4,b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"
+  # include_child_databases: false   # also recurse into child_database blocks found while walking
+
+  rate_limit_delay: 0.34
+  group_name: notion_documents
+
+  # --- Feed into document_chunker for RAG ---
+  # In document_chunker's component.yaml:
+  #   upstream_asset_key: notion_documents
+  #   source_column: content
+  #   metadata_columns: "url,title,updated_at"
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: notion_documents
+  # persist_only: true                 # see ../DESTINATIONS.md

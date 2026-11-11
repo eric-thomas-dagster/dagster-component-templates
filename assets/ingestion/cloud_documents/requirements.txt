@@ -1,0 +1,23 @@
+dlt>=1.0.0
+pandas>=1.5.0
+requests>=2.28.0
+tabulate>=0.9.0
+pdfplumber>=0.10.0
+python-docx>=1.0.0
+beautifulsoup4>=4.12.0
+fsspec>=2023.1.0
+
+# --- Optional, per-provider fsspec backends -----------------------------------
+# Install ONLY the one(s) matching the provider(s) you actually use -- none of
+# these are required unless provider is set to the matching value.
+# s3fs>=2023.1.0        # provider: s3
+# gcsfs>=2023.1.0       # provider: gcs
+# adlfs>=2023.1.0       # provider: azure_blob
+# webdav4>=0.9.8        # provider: webdav -- fsspec's installed registry already
+#                        # maps the 'webdav' protocol to this package (confirmed via
+#                        # `fsspec.get_filesystem_class('webdav')` -> "Install webdav4
+#                        # to access WebDAV"), but it is NOT installed in this repo's
+#                        # environment and this path has not been exercised
+#                        # end-to-end here -- best-effort/unverified, see
+#                        # component.py's module docstring and the webdav_base_url
+#                        # field description.

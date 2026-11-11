@@ -1,0 +1,365 @@
+{
+  "component_type": "dagster_community_components.SitemapCrawlerIngestionComponent",
+  "description": "Plain, free, no-paid-API HTTP/sitemap-based web crawler for RAG pipelines. Set `sitemap_url` to follow a sitemap.xml (or sitemap index) exhaustively, or `start_urls` to breadth-first crawl from one or more seed pages following same-domain links up to `max_pages`/`max_depth`. Respects robots.txt by default. Output rows are ready to feed into document_chunker for a RAG pipeline.",
+  "summary": "Crawl a site via sitemap.xml or same-domain link-following, no API key required, ready for RAG pipelines.",
+  "category": "ingestion",
+  "vertical": "data-platform",
+  "icon": "Globe",
+  "name": "Sitemap Crawler Ingestion",
+  "tags": ["ingestion", "sitemap", "web-crawl", "rag", "dlt"],
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame with one row per crawled page (or MaterializeResult if destination is non-SQL / persist_only=true)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Name of the asset that will hold the data"
+    },
+    "sitemap_url": {
+      "type": "string",
+      "label": "Sitemap Url",
+      "description": "URL of a sitemap.xml (leaf <urlset>, or a <sitemapindex> listing child sitemaps -- followed one level deep) to crawl exhaustively. Every <loc> URL is fetched; max_pages/max_depth do not apply. Required unless start_urls is set (exactly one of the two, not both, not neither).",
+      "required": false
+    },
+    "start_urls": {
+      "type": "string",
+      "label": "Start Urls",
+      "description": "Comma-separated seed URL(s) to crawl breadth-first, following same-domain <a href> links up to max_pages/max_depth. Required unless sitemap_url is set.",
+      "required": false
+    },
+    "max_pages": {
+      "default": 100,
+      "type": "integer",
+      "label": "Max Pages",
+      "description": "Max total pages to fetch in plain-crawl mode (start_urls). Ignored (with a logged warning if left non-default) when sitemap_url is set -- a sitemap declares its own complete URL list.",
+      "required": false
+    },
+    "max_depth": {
+      "default": 3,
+      "type": "integer",
+      "label": "Max Depth",
+      "description": "Max link-following hops from the nearest seed URL in plain-crawl mode (start_urls). Ignored (with a logged warning if left non-default) when sitemap_url is set.",
+      "required": false
+    },
+    "include_patterns": {
+      "type": "string",
+      "label": "Include Patterns",
+      "description": "Comma-separated substrings (not regexes -- see component docstring for why) a candidate URL must contain at least one of, to be fetched. Applied in both modes, e.g. '/docs/' to scope a crawl or sitemap to one section of a site.",
+      "required": false
+    },
+    "exclude_patterns": {
+      "type": "string",
+      "label": "Exclude Patterns",
+      "description": "Comma-separated substrings; a candidate URL containing any of these is skipped. Applied after include_patterns, in both modes.",
+      "required": false
+    },
+    "respect_robots_txt": {
+      "default": true,
+      "type": "boolean",
+      "label": "Respect Robots Txt",
+      "description": "Check each domain's robots.txt (via urllib.robotparser) before fetching any page, skipping disallowed URLs. Set False only when you have explicit permission to crawl a site regardless of its robots.txt.",
+      "required": false
+    },
+    "request_delay_seconds": {
+      "default": 0.5,
+      "type": "number",
+      "label": "Request Delay Seconds",
+      "description": "Seconds to sleep between successive page fetches -- politeness, avoid hammering a site.",
+      "required": false
+    },
+    "user_agent": {
+      "default": "dagster-community-components-sitemap-crawler/1.0",
+      "type": "string",
+      "label": "User Agent",
+      "description": "User-Agent header sent with every request. Defaults to a string identifying this project (not a browser impersonation) -- change it to identify your own deployment if a site's robots.txt or access logs need that.",
+      "required": false
+    },
+    "hash_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Hash Columns",
+      "description": "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/pseudonymizing_columns). A column missing from a given row is skipped, not an error. Requires hash_salt or hash_salt_env_var.",
+      "required": false
+    },
+    "hash_salt": {
+      "type": "string",
+      "label": "Hash Salt",
+      "description": "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it stable across runs: changing it changes every hash.",
+      "required": false
+    },
+    "hash_salt_env_var": {
+      "type": "string",
+      "label": "Hash Salt Env Var",
+      "description": "Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+      "required": false
+    },
+    "on_schema_change": {
+      "type": "string",
+      "enum": [
+        "allow_all",
+        "allow_new_columns",
+        "block_all"
+      ],
+      "label": "On Schema Change",
+      "description": "What to do when incoming data's shape differs from the destination table's established schema (new columns, or a column's data type changing). 'allow_all' (default, today's behavior): accept any change. 'allow_new_columns': accept new columns, but reject (fail the run) a column whose data type would change. 'block_all': reject both new columns and data type changes. The first materialization can always create its initial schema in every mode -- 'block_all' only locks down an ALREADY-established table's columns/types. A rejected change fails the run with a clear error naming the table and column -- it is never silently dropped.",
+      "required": false
+    },
+    "exclude_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Columns",
+      "description": "Column names to drop from every row before it reaches the destination. Applied before hash_columns (so a column in both ends up excluded, not hashed-then-excluded). A column missing from a given row is skipped, not an error, matching hash_columns.",
+      "required": false
+    },
+    "max_rows_per_resource": {
+      "type": "integer",
+      "label": "Max Rows Per Resource",
+      "description": "Caps how many crawled-page rows load into the destination. Unset (default): no cap. This still loads real rows into the real destination -- it is not a dry run or a preview -- meant for a first run to check a connection and the shape of the data cheaply, not for routine use. Never applied unless you set it.",
+      "required": false
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode.",
+      "required": false
+    },
+    "dataset_name": {
+      "type": "string",
+      "label": "Dataset Name",
+      "description": "Target dataset/schema in the destination. Defaults to the asset name.",
+      "required": false
+    },
+    "persist_only": {
+      "type": "boolean",
+      "label": "Persist Only",
+      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult).",
+      "required": false
+    },
+    "destination_credentials_url": {
+      "type": "string",
+      "label": "Destination Credentials Url",
+      "description": "Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md.",
+      "required": false
+    },
+    "destination_credentials_env_var": {
+      "type": "string",
+      "label": "Destination Credentials Env Var",
+      "description": "Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time.",
+      "required": false
+    },
+    "bucket_url": {
+      "type": "string",
+      "label": "Bucket Url",
+      "description": "Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also used as the staging area when destination='databricks' or 'athena', both of which require an intermediate filesystem stage before the warehouse-side load -- dlt resolves the bucket's credentials from the destination-appropriate standard environment variables (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) unless destination_credentials_url/destination_credentials_env_var is set.",
+      "required": false
+    },
+    "athena_query_result_bucket": {
+      "type": "string",
+      "label": "Athena Query Result Bucket",
+      "description": "Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false
+    },
+    "backfill_policy": {
+      "type": "string",
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run. 'multi_run' launches one run per partition (optionally capped via backfill_policy_max_partitions_per_run). Leave unset for Dagster's default (one run per partition, uncapped). Ignored when partition_type is not set.",
+      "required": false
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Policy Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+      "required": false
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'chunk_text': ['content']}. The upstream asset is `upstream_asset_key`, or the only entry of `deps`; with several upstream assets, name each column '<asset_key>:<column>'. Ignored with a warning when no upstream asset can be resolved.",
+      "required": false
+    }
+  }
+}

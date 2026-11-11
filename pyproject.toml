@@ -115,9 +115,16 @@ include = [
 #   pip install dagster-community-components[tee]                  # no extra runtime deps; provided for symmetry
 #   pip install dagster-community-components[compute-log-managers] # bundle: splunk + otlp + tee
 #   pip install dagster-community-components[pii-redaction]        # log_redaction's enable_presidio=True option
+#   pip install dagster-community-components[gateway]              # KnowledgeSearch + ReceiptMiddleware, free/local default
 [project.optional-dependencies]
 splunk = ["requests>=2.28"]
 otlp = ["requests>=2.28"]
 tee = []
 compute-log-managers = ["requests>=2.28"]
 pii-redaction = ["presidio-analyzer", "presidio-anonymizer", "spacy"]
+# A gateway process's minimum deps: fastmcp (ReceiptMiddleware) + the free/local default
+# KnowledgeSearch pairing (sentence-transformers to embed, chromadb to query). Swap in
+# openai/cohere/litellm and/or pinecone/qdrant-client yourself for a different pairing --
+# installing every provider's client here would be a much larger, mostly-unused pull for
+# the common one-embedder-one-vector-store-at-a-time case a single gateway actually needs.
+gateway = ["fastmcp>=2.0", "sentence-transformers", "chromadb"]

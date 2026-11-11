@@ -1,0 +1,35 @@
+type: dagster_community_components.GitlabDocumentsComponent
+attributes:
+  asset_name: platform_docs
+  access_token_env_var: GITLAB_TOKEN
+  project_id: "my-group/platform"   # numeric ID also works, e.g. "42" (namespace path recommended -- see module docstring on 'url' for 'files' rows)
+  group_name: gitlab_documents
+
+  # --- What gets fetched (default: all three) ---
+  # resources: files,issues,merge_requests
+
+  # --- 'files': repo tree walk + raw content fetch, filtered by extension/path ---
+  file_extensions: ".md,.mdx,.rst"
+  path_prefix: docs/                   # omit to walk the whole tree
+  # ref: main                          # omit to use the project's default branch
+
+  # --- 'issues'/'merge_requests' filters ---
+  # issue_state: opened                 # opened | closed | merged (MRs only) | locked (MRs only)
+  # updated_after: "2024-01-01T00:00:00Z"
+
+  # --- Give each resource its own independently-materializable asset instead of
+  #     unioning them into one DataFrame tagged by a `_resource` column ---
+  # asset_shape: multi_asset           # produces platform_docs_files, platform_docs_issues, platform_docs_merge_requests
+  #                                     # materializing one does not fetch or persist the others
+
+  # --- Self-managed GitLab instance (default is GitLab.com SaaS) ---
+  # base_url: https://gitlab.mycompany.com/api/v4
+
+  # --- Rename specific destination tables ---
+  # table_name_map:
+  #   files: raw_docs
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: gitlab_docs
+  # persist_only: true                 # see ../DESTINATIONS.md

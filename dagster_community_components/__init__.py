@@ -232,6 +232,7 @@ _CLASS_PATHS: dict[str, str] = {
     "CloseCrmResourceComponent": "resources/close_crm_resource/component.py",
     "CloudDlpInspectAssetComponent": "assets/ai/cloud_dlp_inspect_asset/component.py",
     "CloudDlpPiiCheckComponent": "asset_checks/cloud_dlp_pii_check/component.py",
+    "CloudDocumentsComponent": "assets/ingestion/cloud_documents/component.py",
     "CloudFormationAssetComponent": "assets/infrastructure/cloudformation_asset/component.py",
     "CloudFunctionsInvokeAssetComponent": "assets/infrastructure/cloud_functions_invoke_asset/component.py",
     "CloudLoggingQueryAssetComponent": "assets/source/cloud_logging_query_asset/component.py",
@@ -255,6 +256,7 @@ _CLASS_PATHS: dict[str, str] = {
     "CommunityComponentInstallerComponent": "assets/infrastructure/community_component_installer/component.py",
     "ComposerAirflowAuthBackendResourceComponent": "resources/composer_airflow_auth_backend/component.py",
     "ConcurIngestionComponent": "assets/ingestion/concur_ingestion/component.py",
+    "ConfluenceDocumentsComponent": "assets/ingestion/confluence_documents/component.py",
     "ConfluenceIngestionComponent": "assets/ingestion/confluence_ingestion/component.py",
     "ConfluencePageUpsertComponent": "assets/reverse_etl/confluence_page_upsert/component.py",
     "ConfluenceResourceComponent": "resources/confluence_resource/component.py",
@@ -606,8 +608,10 @@ _CLASS_PATHS: dict[str, str] = {
     "GitHubIssueUpsertComponent": "assets/reverse_etl/github_issue_upsert/component.py",
     "GitHubResource": "resources/github_resource/component.py",
     "GithubAuditLogIngestionComponent": "ingestion/github_audit_log_ingestion/component.py",
+    "GithubDocumentsComponent": "assets/ingestion/github_documents/component.py",
     "GithubEventSensorComponent": "sensors/github_event_sensor/component.py",
     "GithubResourceComponent": "resources/github_resource/component.py",
+    "GitlabDocumentsComponent": "assets/ingestion/gitlab_documents/component.py",
     "GitlabEventSensorComponent": "sensors/gitlab_event_sensor/component.py",
     "GitlabIngestionComponent": "assets/ingestion/gitlab_ingestion/component.py",
     "GmailDraftCreateComponent": "assets/sinks/gmail_draft_create/component.py",
@@ -939,6 +943,7 @@ _CLASS_PATHS: dict[str, str] = {
     "NotionBriefPageComponent": "assets/reverse_etl/notion_brief_page/component.py",
     "NotionDatabaseSensorComponent": "sensors/notion_database_sensor/component.py",
     "NotionDatabaseUpsertComponent": "assets/reverse_etl/notion_database_upsert/component.py",
+    "NotionDocumentsComponent": "assets/ingestion/notion_documents/component.py",
     "NotionIngestionComponent": "assets/ingestion/notion_ingestion/component.py",
     "NotionPageSyncComponent": "assets/reverse_etl/notion_page_sync/component.py",
     "NotionResource": "resources/notion_resource/component.py",
@@ -1246,6 +1251,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SigmaResourceComponent": "resources/sigma_resource/component.py",
     "SigmaWorkbookIngestionComponent": "assets/ingestion/sigma_workbook_ingestion/component.py",
     "SimulationSamplingComponent": "assets/analytics/simulation_sampling/component.py",
+    "SitemapCrawlerIngestionComponent": "assets/ingestion/sitemap_crawler_ingestion/component.py",
     "SlaAssetComponent": "assets/infrastructure/sla_asset/component.py",
     "SlackApprovalGateComponent": "assets/ai/slack_approval_gate/component.py",
     "SlackAuditLogIngestionComponent": "ingestion/slack_audit_log_ingestion/component.py",
@@ -1809,6 +1815,10 @@ _HELPERS = {
         "dagster_community_components.resources.context_receipt_store.component:impacted_receipts",
     "new_receipt_id":
         "dagster_community_components.resources.context_receipt_store.component:new_receipt_id",
+    "ReceiptMiddleware":
+        "dagster_community_components.resources.context_receipt_store.examples.fastmcp_receipt_middleware:ReceiptMiddleware",
+    "KnowledgeSearch":
+        "dagster_community_components.resources.context_receipt_store.gateway:KnowledgeSearch",
     "apply_rules":
         "dagster_community_components.assets.infrastructure.automation_condition_applicator.component:apply_rules",
     "defs_with_automation_rules":

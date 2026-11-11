@@ -228,6 +228,81 @@ Both run against stock FastMCP (tested with 4.1.0); no fork is needed. They impo
   a `Middleware` that receipts any tool returning a `_receipt` dict, so tools
   stay receipt-agnostic.
 
+## Record receipts from a FastMCP server
+
+`KnowledgeSearch` and `ReceiptMiddleware` are both importable straight from the installed
+package -- no copying example files, no hand-written vector search code. `KnowledgeSearch`
+embeds a query with the SAME provider/model the index was built with, queries chromadb/
+pinecone/qdrant, drops chunks with `feedback_quarantined` set, optionally reorders by
+`rerank_with_priors`, and returns `{"chunks": [...], "_receipt": {...}}` -- the tool just
+returns that dict as-is, and `ReceiptMiddleware` records the `_receipt` automatically
+(`record_retrieval` is never called by the tool itself). `_receipt` never carries the query
+text or chunk content, only item IDs/source references/rank/score and a `query_hash`.
+
+```python
+from fastmcp import FastMCP
+from dagster_community_components import ContextReceiptStore, KnowledgeSearch, ReceiptMiddleware
+
+receipts = ContextReceiptStore("./var/context-receipts.sqlite3")
+knowledge = KnowledgeSearch(
+    provider="chromadb", connection_string="./chroma_db", collection_name="support_kb",
+    embed_provider="sentence_transformers", embed_model="all-MiniLM-L6-v2",
+)
+
+mcp = FastMCP("support-gateway")
+mcp.add_middleware(ReceiptMiddleware(receipts))
+
+
+@mcp.tool()
+async def search_knowledge(query: str, caller_id: str, purpose: str) -> dict:
+    return knowledge.search(query, context_name="support_kb", top_k=5, purpose=purpose)
+
+
+@mcp.tool()
+async def record_feedback(receipt_id: str, signal: float, user_id: str) -> None:
+    receipts.record_outcome(receipt_id, signal=signal, source="gateway", outcome_ref=user_id)
+```
+
+`embed_provider`/`provider` can be anything `KnowledgeSearch` supports (`sentence_transformers`/
+`openai`/`cohere`/`litellm` to embed; `chromadb`/`pinecone`/`qdrant` to query) -- match whatever
+`context_engineering_pipeline`'s `embed`/`write_vector_store` steps (or `vector_store_writer`)
+built the index with. `ReceiptMiddleware` needs `fastmcp>=2.0` (`pip install fastmcp`);
+`KnowledgeSearch` needs whichever embed/vector-store packages your two providers need (see
+`requirements.txt`).
+
+### Hosted/deployed gateways (Prefect Horizon and similar)
+
+A hosted platform builds from a clean checkout and keeps no local files -- a ChromaDB
+folder or a SQLite receipt file do not survive a redeploy there. Use `pinecone`/`qdrant`
+(or a Chroma *server*, not `PersistentClient`) for `KnowledgeSearch`'s `provider`, and
+`SqlContextReceiptStore`/`BigQueryContextReceiptStore` (not the default sqlite
+`ContextReceiptStore`) for receipts -- both constructed straight from env vars, same as a
+Dagster resource would be, no Dagster import required:
+
+```python
+import os
+from dagster_community_components import SqlContextReceiptStore, BigQueryContextReceiptStore
+
+# SQL (Postgres/MySQL/Snowflake/Databricks/DuckDB) -- `engine` takes a SQLAlchemy URL string
+# directly; needs SQLAlchemy + that dialect's driver installed (see requirements.txt).
+receipts = SqlContextReceiptStore(
+    engine=os.environ["RECEIPTS_SQL_URL"],       # e.g. "postgresql://user:pass@host/db"
+    schema=os.environ.get("RECEIPTS_SQL_SCHEMA", ""),
+)
+
+# BigQuery -- client_factory is a zero-arg callable returning a google.cloud.bigquery.Client
+# (or anything dagster-gcp's BigQueryResource.get_client() yields).
+from google.cloud import bigquery
+receipts = BigQueryContextReceiptStore(
+    dataset=os.environ["RECEIPTS_BQ_DATASET"],   # "project.dataset"
+    client_factory=lambda: bigquery.Client(),
+)
+```
+
+Minimum gateway dependency set, one line: `pip install "dagster-community-components[gateway]"`
+pulls in `fastmcp` + the SQL/BigQuery clients above, without the ~1,400-component library's
+own per-component optional deps.
+
 ## Declare context once: `@context_asset`
 
 The decorator is the contract between the asset that builds context and the gateway that serves it.

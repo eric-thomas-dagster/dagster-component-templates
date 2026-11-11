@@ -1,0 +1,29 @@
+type: dagster_community_components.ConfluenceDocumentsComponent
+attributes:
+  asset_name: confluence_docs
+  base_url: "https://yoursite.atlassian.net"
+  email_env_var: CONFLUENCE_EMAIL
+  api_token_env_var: CONFLUENCE_API_TOKEN
+
+  # --- List every page in a space ---
+  space_key: ENG
+
+  # --- Or: every descendant of a root page instead (set one, not both) ---
+  # ancestor_page_id: "123456"
+
+  body_format: storage      # or 'view' for server-rendered HTML (often cleaner extraction)
+  page_size: 25
+  # max_pages: 500
+
+  group_name: confluence_documents
+
+  # --- Feed into document_chunker for RAG ---
+  # In document_chunker's component.yaml:
+  #   upstream_asset_key: confluence_docs
+  #   source_column: content
+  #   metadata_columns: "url,title,updated_at"
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: confluence
+  # persist_only: true                 # see ../DESTINATIONS.md

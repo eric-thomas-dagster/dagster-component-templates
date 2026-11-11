@@ -1,0 +1,37 @@
+type: dagster_community_components.GithubDocumentsComponent
+attributes:
+  asset_name: dagster_docs
+  owner: dagster-io
+  repo: dagster
+  ref: master
+  access_token_env_var: GITHUB_TOKEN   # optional for public repos; required for private ones
+  group_name: github_documents
+
+  # --- What gets fetched (default: all three) ---
+  # resources: files,issues,prs
+
+  # --- 'files': repo tree walk + content fetch, filtered by extension/path ---
+  file_extensions: ".md,.mdx,.rst"
+  path_prefix: docs/                   # omit to walk the whole tree
+
+  # --- 'issues'/'prs': both come from GitHub's one /issues endpoint, tagged by
+  #     source_type (github_issue vs github_pr) via the 'pull_request' key ---
+  # issue_state: all                   # open | closed | all
+  # issues_since: "2024-01-01T00:00:00Z"
+
+  # --- Give each resource its own independently-materializable asset instead of
+  #     unioning them into one DataFrame tagged by a `_resource` column ---
+  # asset_shape: multi_asset           # produces dagster_docs_files, dagster_docs_issues, dagster_docs_prs
+  #                                     # materializing one does not fetch or persist the others
+
+  # --- GitHub Enterprise Server (default is github.com) ---
+  # api_base_url: https://github.mycompany.com/api/v3
+
+  # --- Rename specific destination tables ---
+  # table_name_map:
+  #   files: raw_docs
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: github_docs
+  # persist_only: true                 # see ../DESTINATIONS.md

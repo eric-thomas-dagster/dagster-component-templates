@@ -1,0 +1,300 @@
+{
+  "component_type": "dagster_community_components.GoogleDriveDocumentsComponent",
+  "description": "Extract RAG-ready document rows from every file in a Google Drive folder, any type (PDFs, Google Sheets, Google Slides, Google Docs, uploaded .docx/.pptx/.xlsx/images), via a service account. Native Google formats are exported (Docs/Slides -> text/plain, Sheets -> text/csv); everything else is downloaded and routed through pdfplumber/python-docx/BeautifulSoup/markitdown.",
+  "summary": "Extract RAG-ready document rows from every file in a Google Drive folder.",
+  "category": "source",
+  "vertical": "productivity",
+  "icon": "si:googlecloud",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per file with the document source contract: doc_id, content, title, url, source_type, updated_at, content_hash."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Output asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "credentials": {
+      "description": "Service account credentials as a dict. Set this OR credentials_path OR rely on GOOGLE_APPLICATION_CREDENTIALS.",
+      "type": "object",
+      "label": "Credentials (dict)",
+      "required": false,
+      "default": null
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "default": null,
+      "description": "Path to service-account JSON. Falls back to GOOGLE_APPLICATION_CREDENTIALS."
+    },
+    "drive_folder_id": {
+      "type": "string",
+      "label": "Drive Folder Id",
+      "required": true,
+      "description": "Google Drive folder ID to read every file from (any type -- PDFs, Google Sheets, Google Slides, uploaded .docx/.pptx/.xlsx/images/etc). The folder itself IS the source (like document_corpus/document_ingestion's own source_dir) -- there is no upstream_asset_key mode here."
+    },
+    "recursive": {
+      "type": "boolean",
+      "label": "Recursive",
+      "required": false,
+      "default": false,
+      "description": "Also walk subfolders (discovered via mimeType='application/vnd.google-apps.folder' entries in the same listing call) and extract files found inside them. Default False: only the immediate contents of drive_folder_id, matching this repo's non-recursive-by-default convention for Drive/cloud folder listings.",
+      "ui:widget": "checkbox"
+    },
+    "include_trashed": {
+      "type": "boolean",
+      "label": "Include Trashed",
+      "required": false,
+      "default": false,
+      "description": "Include trashed files in the listing.",
+      "ui:widget": "checkbox"
+    },
+    "max_files": {
+      "type": "integer",
+      "label": "Max Files",
+      "required": false,
+      "default": 500,
+      "description": "Stop after this many files total (across all subfolders if recursive) -- avoids accidental full-Drive scans."
+    },
+    "download_max_bytes": {
+      "type": "integer",
+      "label": "Download Max Bytes",
+      "required": false,
+      "default": 10485760,
+      "description": "Skip non-native (uploaded) files larger than this before downloading. Default 10 MB. Native Google-format exports have no `size` field and are instead bounded by the Drive API's own ~10MB export cap."
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "label": "Rate Limit Delay",
+      "required": false,
+      "default": 0.0,
+      "description": "Seconds to sleep between per-file export/download calls."
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "kinds": {
+      "description": "Asset kinds for the Dagster catalog. Defaults to ['google', 'drive', 'rag', 'documents'] when unset.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}. The upstream asset is the only entry of `deps` (there is no upstream_asset_key here). Ignored with a warning when no upstream asset can be resolved.",
+      "required": false
+    },
+    "partition_type": {
+      "x-dagster-group": "partitions",
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "x-dagster-group": "partitions",
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "x-dagster-group": "partitions",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "x-dagster-group": "partitions",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "x-dagster-group": "partitions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "type": "array",
+      "label": "Partition Dimensions",
+      "required": false
+    },
+    "partition_date_column": {
+      "x-dagster-group": "partitions",
+      "description": "Column used to filter the returned DataFrame to the current date partition (time partitions). E.g. 'updated_at'.",
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "x-dagster-group": "partitions",
+      "description": "Column used to filter the returned DataFrame to the current static/dynamic partition key.",
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "retry_policy_max_retries": {
+      "x-dagster-group": "advanced",
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "x-dagster-group": "advanced",
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "x-dagster-group": "advanced",
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "freshness_max_lag_minutes": {
+      "x-dagster-group": "advanced",
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "x-dagster-group": "advanced",
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "include_preview_metadata": {
+      "x-dagster-group": "advanced",
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the fetched rows in the materialization metadata.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows to include in the preview when include_preview_metadata is True.",
+      "required": false,
+      "default": 10
+    }
+  },
+  "tags": [
+    "ingestion",
+    "google",
+    "drive",
+    "documents",
+    "text-extraction",
+    "rag"
+  ],
+  "name": "Google Drive Documents"
+}

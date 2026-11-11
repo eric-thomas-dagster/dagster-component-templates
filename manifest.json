@@ -12322,7 +12322,8 @@
           "pdfplumber>=0.10.0",
           "python-docx>=1.0.0",
           "beautifulsoup4>=4.12.0",
-          "fsspec>=2023.1.0"
+          "fsspec>=2023.1.0",
+          "markitdown[pptx,xlsx,docx,pdf]>=0.1.0"
         ]
       },
       "vertical": "data-platform",
@@ -12330,7 +12331,16 @@
       "agent_hints": {
         "output_type": "pd.DataFrame",
         "outputs": "One row per cloud document (doc_id, content via real pdfplumber/python-docx/BeautifulSoup extraction, title, url, source_type=the provider name, updated_at, content_hash), across s3/gcs/azure_blob/webdav/onedrive/sharepoint/box/dropbox.",
-        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0", "pdfplumber>=0.10.0", "python-docx>=1.0.0", "beautifulsoup4>=4.12.0", "fsspec>=2023.1.0"]
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0",
+          "pdfplumber>=0.10.0",
+          "python-docx>=1.0.0",
+          "beautifulsoup4>=4.12.0",
+          "fsspec>=2023.1.0"
+        ]
       }
     },
     {
@@ -13390,7 +13400,14 @@
       "agent_hints": {
         "output_type": "pd.DataFrame",
         "outputs": "One row per Confluence page (doc_id, content as extracted plain text, title, url, source_type='confluence', updated_at, content_hash), ready to feed document_chunker for a RAG pipeline.",
-        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "dagster", "beautifulsoup4>=4.11.0", "tabulate>=0.9.0"]
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "dagster",
+          "beautifulsoup4>=4.11.0",
+          "tabulate>=0.9.0"
+        ]
       }
     },
     {
@@ -21229,7 +21246,9 @@
           "pandas>=2.0.0",
           "pdfplumber>=0.7.0",
           "python-docx>=1.0.0",
-          "beautifulsoup4>=4.12.0"
+          "beautifulsoup4>=4.12.0",
+          "markitdown[pptx,xlsx,docx,pdf]>=0.1.0",
+          "fsspec>=2023.1.0"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_corpus/README.md",
@@ -21277,6 +21296,7 @@
           "pdfplumber>=0.7.0",
           "python-docx>=1.0.0",
           "beautifulsoup4>=4.12.0",
+          "markitdown[pptx,xlsx,docx,pdf]>=0.1.0",
           "fsspec>=2023.1.0"
         ]
       },
@@ -28117,6 +28137,44 @@
       ]
     },
     {
+      "id": "forgejo_documents",
+      "name": "Forgejo Documents",
+      "category": "ingestion",
+      "description": "Extract Forgejo (or Gitea) repo file content (README/markdown/text) and issue/PR text bodies, normalized to the document-source contract for RAG pipelines. Walks the repo's file tree (git/trees recursive), fetches matching files' content (contents API, including a real per-file last-modified timestamp), and reuses issue text bodies (GET issues?type=issues) and pull request text bodies (GET pulls, Forgejo's own dedicated endpoint).",
+      "path": "assets/ingestion/forgejo_documents",
+      "tags": [
+        "ingestion",
+        "forgejo",
+        "gitea",
+        "vcs",
+        "documents",
+        "rag",
+        "rest-api"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/forgejo_documents/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/forgejo_documents/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/forgejo_documents/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/forgejo_documents/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/forgejo_documents/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "devops-observability",
+      "icon": "si:forgejo",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Forgejo/Gitea file/issue/PR text as document-contract rows (doc_id, content, title, url, source_type, updated_at, content_hash), single combined DataFrame or one asset per resource (asset_shape='multi_asset').",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+      }
+    },
+    {
       "id": "formula",
       "name": "Formula",
       "category": "transformation",
@@ -29842,7 +29900,12 @@
       "agent_hints": {
         "output_type": "pd.DataFrame",
         "outputs": "GitHub file/issue/PR text as document-contract rows (doc_id, content, title, url, source_type, updated_at, content_hash), single combined DataFrame or one asset per resource (asset_shape='multi_asset').",
-        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
       }
     },
     {
@@ -30070,7 +30133,12 @@
       "agent_hints": {
         "output_type": "pd.DataFrame",
         "outputs": "GitLab file/issue/merge_request text as document-contract rows (doc_id, content, title, url, source_type, updated_at, content_hash), single combined DataFrame or one asset per resource (asset_shape='multi_asset').",
-        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
       }
     },
     {
@@ -31110,6 +31178,64 @@
       ],
       "keywords": [
         "ingest",
+        "read from"
+      ],
+      "icon": "si:googlecloud",
+      "vertical": "productivity"
+    },
+    {
+      "id": "google_drive_documents",
+      "name": "Google Drive Documents",
+      "category": "source",
+      "description": "Extract RAG-ready document rows from every file in a Google Drive folder, any type (PDFs, Google Sheets, Google Slides, Google Docs, uploaded .docx/.pptx/.xlsx/images), via a service account. Native Google formats are exported (Docs/Slides -> text/plain, Sheets -> text/csv); everything else is downloaded and routed through pdfplumber/python-docx/BeautifulSoup/markitdown.",
+      "path": "assets/ingestion/google_drive_documents",
+      "tags": [
+        "ingestion",
+        "google",
+        "drive",
+        "documents",
+        "text-extraction",
+        "rag"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_documents/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_documents/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_documents/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_documents/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_documents/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-auth>=2.0.0",
+          "google-api-python-client>=2.0.0",
+          "pdfplumber>=0.7.0",
+          "python-docx>=1.0.0",
+          "beautifulsoup4>=4.12.0",
+          "markitdown[pptx,xlsx,docx,pdf]>=0.1.0"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) -- lists and extracts every file in a Drive folder.",
+        "outputs": "DataFrame with the document-source contract: doc_id, content, title, url, source_type='google_drive', updated_at, content_hash.",
+        "side_effects": "Read-only. Requires a Google service account with the folder (and each file) shared to it. Rate-limited per Google Drive's tier.",
+        "anti_uses": "For native Google Docs only, use google_docs_extractor. For a raw file listing (not RAG-contract rows), use google_drive_ingestion.",
+        "requires_resources": [
+          "gcp_credentials"
+        ],
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:google_drive"
+      ],
+      "keywords": [
+        "ingest",
+        "extract load",
+        "el",
         "read from"
       ],
       "icon": "si:googlecloud",
@@ -45170,7 +45296,13 @@
       "agent_hints": {
         "output_type": "pd.DataFrame",
         "outputs": "One row per Notion page (doc_id, content as markdown-rendered body, title, url, source_type='notion', updated_at, content_hash), ready to feed document_chunker for a RAG pipeline.",
-        "requires_pip": ["dlt>=1.0.0", "requests>=2.28.0", "pandas>=1.5.0", "dagster", "tabulate>=0.9.0"]
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "requests>=2.28.0",
+          "pandas>=1.5.0",
+          "dagster",
+          "tabulate>=0.9.0"
+        ]
       }
     },
     {
@@ -59249,7 +59381,8 @@
           "pandas>=1.5.0",
           "dagster>=1.8.0",
           "beautifulsoup4>=4.12.0",
-          "tabulate>=0.9.0"
+          "tabulate>=0.9.0",
+          "duckdb>=0.9.0"
         ]
       },
       "vertical": "data-platform",
@@ -59257,7 +59390,14 @@
       "agent_hints": {
         "output_type": "pd.DataFrame",
         "outputs": "One row per crawled page (doc_id, content, title, url, source_type='sitemap_crawler', updated_at, content_hash), ready to feed document_chunker for a RAG pipeline. No API key required.",
-        "requires_pip": ["dlt>=1.0.0", "requests>=2.28.0", "pandas>=1.5.0", "dagster>=1.8.0", "beautifulsoup4>=4.12.0", "tabulate>=0.9.0"]
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "requests>=2.28.0",
+          "pandas>=1.5.0",
+          "dagster>=1.8.0",
+          "beautifulsoup4>=4.12.0",
+          "tabulate>=0.9.0"
+        ]
       }
     },
     {
@@ -68352,10 +68492,11 @@
       "dependencies": {
         "pip": [
           "chromadb>=0.4.0",
-          "pinecone-client>=3.0.0",
+          "pinecone>=5.0.0",
           "qdrant-client>=1.7.0",
           "faiss-cpu>=1.7.4",
           "boto3>=1.43",
+          "lancedb>=0.13.0",
           "rank_bm25>=0.2.2",
           "litellm>=1.0.0",
           "pandas>=2.0.0"
@@ -72147,5 +72288,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1386
+  "total": 1388
 }

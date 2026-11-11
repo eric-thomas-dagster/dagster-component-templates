@@ -24,7 +24,7 @@ def test_helper_copies_are_byte_identical():
         s = p.read_text()
         blocks.setdefault(re.search(rf"{BEGIN}.*?{END}", s, re.S).group(0), []).append(p)
     assert len(blocks) == 1, {str(k)[:80]: [p.parent.name for p in v] for k, v in blocks.items()}
-    assert len(_users()) == 159
+    assert len(_users()) == 160
 
 
 def test_helper_is_never_nested_inside_another_inlined_helper():

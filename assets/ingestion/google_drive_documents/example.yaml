@@ -1,0 +1,11 @@
+type: dagster_community_components.GoogleDriveDocumentsComponent
+attributes:
+  asset_name: drive_documents
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+  drive_folder_id: "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456"
+
+  # Walk subfolders too (off by default).
+  recursive: false
+
+  description: RAG-ready document rows from every file in a Drive folder (PDFs, Sheets, Slides, Docs, uploads)
+  group_name: documents

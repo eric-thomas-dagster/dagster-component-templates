@@ -189,7 +189,7 @@ def test_helper_copies_identical_and_everything_is_wired():
         props = props.get("attributes") or props.get("properties")
         assert {"partition_date_column", "partition_static_column", "backfill_policy", "backfill_policy_max_partitions_per_run"} <= set(props), f
         assert "does not currently use the partition key" not in props["partition_type"]["description"], f
-    assert len(blocks) == 1 and len(_ported()) == 114
+    assert len(blocks) == 1 and len(_ported()) == 115
 
 
 @pytest.mark.parametrize("folder", _ported(), ids=lambda p: p.name)

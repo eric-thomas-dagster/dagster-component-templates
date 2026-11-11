@@ -1,0 +1,3 @@
+requests>=2.31.0
+pyyaml>=6.0.0
+fastmcp>=2.0  # optional, only for mode="mcp_server" -- lazily imported, see component.py docstring

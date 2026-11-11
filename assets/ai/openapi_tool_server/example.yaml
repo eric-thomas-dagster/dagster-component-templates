@@ -1,0 +1,12 @@
+type: dagster_community_components.OpenApiToolServerComponent
+attributes:
+  spec_url: "https://petstore3.swagger.io/api/v3/openapi.json"
+  api_base_url_env_var: PETSTORE_BASE_URL
+  api_key_env_var: PETSTORE_API_KEY
+  operation_ids:
+    - getPetById
+    - findPetsByStatus
+  operation_args:
+    findPetsByStatus:
+      status: available
+  group_name: openapi_tools

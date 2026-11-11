@@ -1,0 +1,302 @@
+{
+  "component_type": "dagster_community_components.OpenApiToolServerComponent",
+  "description": "Turn an OpenAPI/Swagger spec's operations into agent-callable tools, gated by an operationId allow-list.",
+  "summary": "Expose OpenAPI operations as agent-callable tools: one asset per operation, or a real MCP server built from the spec.",
+  "category": "ai",
+  "vertical": "internal",
+  "icon": "Workflow",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "mode='assets': one asset per allow-listed operation, each the operation's parsed HTTP response. mode='mcp_server': a resource exposing the built FastMCP server + a small inspection asset listing its tools."
+    }
+  },
+  "attributes": {
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "'assets' (default, simpler, more Dagster-native): one asset per allow-listed operation, each a direct HTTP call. 'mcp_server': build a real fastmcp.FastMCP server from the spec, exposed via a resource (resource_key) other code can host, plus a small inspection asset listing the server's resulting tools.",
+      "required": false,
+      "default": "assets",
+      "enum": ["assets", "mcp_server"],
+      "ui:widget": "select"
+    },
+    "spec_url": {
+      "type": "string",
+      "label": "Spec URL",
+      "description": "URL to fetch the OpenAPI/Swagger spec from (JSON or YAML). Takes precedence over spec_path if both are set.",
+      "required": false,
+      "default": null
+    },
+    "spec_path": {
+      "type": "string",
+      "label": "Spec Path",
+      "description": "Local file path to the OpenAPI/Swagger spec (JSON or YAML).",
+      "required": false,
+      "default": null
+    },
+    "api_base_url_env_var": {
+      "type": "string",
+      "label": "API Base URL Env Var",
+      "description": "Env var with the API base URL. Only used as a fallback when the spec has no servers[] entry with a URL.",
+      "required": false,
+      "default": "API_BASE_URL"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the API key/token for Authorization.",
+      "required": false,
+      "default": null
+    },
+    "auth_header": {
+      "type": "string",
+      "label": "Auth Header",
+      "description": "HTTP header name for the credential.",
+      "required": false,
+      "default": "Authorization"
+    },
+    "auth_prefix": {
+      "type": "string",
+      "label": "Auth Prefix",
+      "description": "Prefix before the credential value in the header, e.g. 'Bearer'. Set to empty string for none (raw key as the header value).",
+      "required": false,
+      "default": "Bearer"
+    },
+    "operation_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Operation IDs",
+      "description": "Allow-list of operationId values (the OpenAPI spec's own operationId field per operation). Operations NOT in this list are NEVER exposed, in either mode. Leave unset to expose every operation in the spec.",
+      "required": false,
+      "default": null
+    },
+    "asset_name_prefix": {
+      "type": "string",
+      "label": "Asset Name Prefix",
+      "description": "mode='assets' only. Prefix for emitted asset keys: '{asset_name_prefix}_{operation_id}' (sanitized). Useful to avoid collisions when two instances of this component target different specs.",
+      "required": false,
+      "default": null
+    },
+    "operation_args": {
+      "type": "object",
+      "label": "Operation Args",
+      "description": "mode='assets' only. Per-operationId call args, keyed by operationId. Each value is a flat dict of {param_name: value} -- matched against the operation's declared path/query/header parameters by name; any key that doesn't match a declared parameter is sent as a JSON request body field. String leaves get template substitution: {partition_key}, {partition_keys.<dim>}, {run_id}.",
+      "required": false,
+      "default": {}
+    },
+    "parse_as": {
+      "type": "string",
+      "label": "Parse As",
+      "description": "mode='assets' only. How to parse each operation's response body: 'json' (raise if not JSON), 'text' (raw string), 'auto' (try JSON, fall back to text).",
+      "required": false,
+      "default": "auto",
+      "enum": ["json", "text", "auto"],
+      "ui:widget": "select"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "mode='assets' only. Per-call HTTP timeout.",
+      "required": false,
+      "default": 30
+    },
+    "server_name": {
+      "type": "string",
+      "label": "Server Name",
+      "description": "mode='mcp_server' only. Name for the built FastMCP server.",
+      "required": false,
+      "default": "OpenAPI Tool Server"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "mode='mcp_server' only. Dagster resource key the built OpenApiMcpServerResource is registered under -- other code (a script, an ASGI mount, a sensor) reads it via context.resources.<resource_key>.build_server() to actually host the server.",
+      "required": false,
+      "default": "openapi_mcp_server"
+    },
+    "inspection_asset_name": {
+      "type": "string",
+      "label": "Inspection Asset Name",
+      "description": "mode='mcp_server' only. Name of the small inspection asset that lists the built server's resulting tools.",
+      "required": false,
+      "default": "openapi_mcp_tools"
+    },
+    "validate_output": {
+      "type": "boolean",
+      "label": "Validate Output",
+      "description": "mode='mcp_server' only. Passed through to FastMCP.from_openapi -- validate tool responses against the spec's output schema.",
+      "required": false,
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description. mode='assets': applied to every emitted operation asset unless the operation has its own OpenAPI summary.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Extra asset tags, applied to every emitted asset.",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog. Auto-includes 'api' if not set.",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Type",
+      "description": "mode='assets' only. 'daily' | 'weekly' | 'monthly' | 'hourly' | 'cron' | 'static' | 'multi' | 'dynamic'. Applied to every emitted operation asset.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "cron", "static", "multi", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false,
+      "default": "%Y-%m-%d"
+    },
+    "partition_end_offset": {
+      "x-dagster-group": "partitions",
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying time-based partitions definition. 0 means a time-based partition set only ever holds COMPLETED windows.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying time-based partitions definition (defaults to UTC when unset).",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Start",
+      "description": "ISO date for time-based partitions.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static/multi.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "x-dagster-group": "partitions",
+      "type": "array",
+      "items": {"type": "object"},
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values} dicts.",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "mode='assets' only. 'single_run' materializes an entire backfill range in one run (one HTTP call per partition in the range, each with its own {partition_key} substitution). 'multi_run' launches one run per partition. Leave unset for Dagster's default.",
+      "required": false,
+      "default": null,
+      "enum": ["single_run", "multi_run"],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "x-dagster-group": "partitions",
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run.",
+      "required": false,
+      "default": null
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "FreshnessPolicy max lag in minutes.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "FreshnessPolicy cron schedule.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "RetryPolicy max retries.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "'linear' or 'exponential'.",
+      "required": false,
+      "default": "exponential",
+      "enum": ["linear", "exponential"],
+      "ui:widget": "select"
+    }
+  },
+  "tags": ["ai", "openapi", "agent", "mcp", "tool", "asset"],
+  "name": "OpenAPI Tool Server"
+}

@@ -1818,7 +1818,7 @@ _HELPERS = {
     "ReceiptMiddleware":
         "dagster_community_components.resources.context_receipt_store.examples.fastmcp_receipt_middleware:ReceiptMiddleware",
     "KnowledgeSearch":
-        "dagster_community_components.resources.context_receipt_store.gateway:KnowledgeSearch",
+        "dagster_community_components.resources.context_receipt_store.component:KnowledgeSearch",
     "apply_rules":
         "dagster_community_components.assets.infrastructure.automation_condition_applicator.component:apply_rules",
     "defs_with_automation_rules":

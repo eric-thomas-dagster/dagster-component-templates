@@ -1,8 +1,13 @@
 """KnowledgeSearch: the gateway-side helper a FastMCP (or any) tool uses instead of
-hand-written vector search code. The chromadb + sentence_transformers path is exercised for
-real (both are free/local, no paid API, no mocking needed) end-to-end: real embeddings, a
-real chromadb collection, a real query. pinecone/qdrant are covered with their SDK client
-classes mocked (the one paid-API boundary for those two providers).
+hand-written vector search code. Lives in component.py itself (not a separate gateway.py --
+this repo's self-containment rule: a component dir holds component.py + __init__.py, nothing
+else). The chromadb + sentence_transformers path is exercised for real (both are free/local, no
+paid API, no mocking needed) end-to-end: real embeddings, a real chromadb collection, a real
+query. pinecone/qdrant are covered with their SDK client classes mocked (the one paid-API
+boundary for those two providers) -- skipped when the SDK itself isn't installed, since
+`patch("pinecone.Pinecone", ...)` / `patch("qdrant_client.QdrantClient", ...)` still need the
+real package importable to resolve the dotted patch target, even though the client itself gets
+replaced with a Mock.
 """
 import importlib.util
 import shutil
@@ -21,7 +26,7 @@ def _load(name, rel_path):
     return mod
 
 
-gateway = _load("context_receipt_store_gateway", "gateway.py")
+gateway = _load("context_receipt_store_component", "component.py")
 KnowledgeSearch = gateway.KnowledgeSearch
 
 
@@ -34,7 +39,25 @@ def _chromadb_available():
         return False
 
 
+def _pinecone_available():
+    try:
+        import pinecone  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _qdrant_client_available():
+    try:
+        import qdrant_client  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 requires_chromadb = pytest.mark.skipif(not _chromadb_available(), reason="requires chromadb + sentence-transformers")
+requires_pinecone = pytest.mark.skipif(not _pinecone_available(), reason="requires pinecone")
+requires_qdrant_client = pytest.mark.skipif(not _qdrant_client_available(), reason="requires qdrant-client")
 
 
 @requires_chromadb
@@ -107,6 +130,7 @@ def test_receipt_never_contains_query_text_or_chunk_content(tmp_path):
     assert result["_receipt"]["query_hash"] != query
 
 
+@requires_pinecone
 def test_pinecone_provider_mocked_sdk():
     fake_match = {"id": "c1", "score": 0.9, "metadata": {"chunk_id": "c1", "source_asset_key": "docs", "source_version": "v1", "source_code_version": "cv1", "text": "hello"}}
     fake_index = MagicMock()
@@ -124,6 +148,7 @@ def test_pinecone_provider_mocked_sdk():
     assert result["_receipt"]["items"][0]["score"] == 0.9
 
 
+@requires_qdrant_client
 def test_qdrant_provider_mocked_sdk():
     fake_hit = MagicMock(id="c1", score=0.8, payload={"chunk_id": "c1", "source_asset_key": "docs", "source_version": "v1", "source_code_version": "cv1", "text": "hi"})
     fake_client = MagicMock()

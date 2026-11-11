@@ -456,6 +456,20 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
+    include_preview_metadata: bool = Field(
+        default=True,
+        description="Include a sample of written rows (text/metadata columns, not the raw embedding vectors) in run metadata.",
+    )
+    preview_rows: int = Field(
+        default=20,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the sample preview when `include_preview_metadata` is True. For "
+            "long DataFrames (>10x preview_rows), a random sample is used so the preview reflects "
+            "the data distribution; otherwise head() is used."
+        ),
+    )
     upstream_asset_key: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Upstream asset key providing a DataFrame with embeddings to write. Mutually exclusive with `source` -- set exactly one.",
@@ -618,6 +632,8 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
 
         owners = self.owners or []
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
@@ -842,7 +858,21 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             _metadata = {
                 "dagster/row_count": MetadataValue.int(len(df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "chunk_count": MetadataValue.int(len(df)),
+                "store_type": MetadataValue.text(provider),
             }
+            if len(df) > 0 and embedding_column in df.columns:
+                _first_emb = df[embedding_column].iloc[0]
+                if hasattr(_first_emb, "__len__"):
+                    _metadata["embedding_dimension"] = MetadataValue.int(len(_first_emb))
+            if include_preview and len(df) > 0:
+                try:
+                    _prev_cols = [c for c in df.columns if c != embedding_column]
+                    _prev = df[_prev_cols]
+                    _prev = _prev.sample(min(preview_rows, len(_prev))) if len(_prev) > preview_rows * 10 else _prev.head(preview_rows)
+                    _metadata["sample_chunks"] = MetadataValue.md(_prev.to_markdown(index=False) or "")
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage
             if not _effective_lineage:

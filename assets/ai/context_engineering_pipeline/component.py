@@ -740,6 +740,42 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
     return out
 
 
+def _chunk_run_metadata(upstream_df: pd.DataFrame, df: pd.DataFrame, step: dict, id_column: str) -> Dict[str, Any]:
+    """document_count/chunk_count/chunking_settings/sample_chunks -- shared between the
+    per_step_ops=True op graph and the default single-asset path's own, separate step loop (which
+    don't otherwise share a code path for running the chunk step), so a UI reading these doesn't
+    need to know which mode the asset was built in. Kept out of the generic `df.attrs["stats"]` ->
+    `MetadataValue.text(str(v))` mechanism (see `_step_metadata`) deliberately: `chunking_settings`
+    (a dict) and `sample_chunks` (~20 rows) render properly as JSON/markdown this way instead of
+    one illegible str()'d blob."""
+    output_column = step.get("output_column", "chunk_text")
+    # Effective settings -- the same defaults _do_chunk itself resolves when a knob is left unset
+    # in YAML (e.g. strategy='fixed'), not just whatever the user happened to type. A UI showing
+    # "what ran" needs the real answer, not a blank for every default-left-alone knob.
+    _settings = {
+        "strategy": step.get("strategy", "fixed"),
+        "chunk_size": step.get("chunk_size", 500),
+        "chunk_overlap": step.get("chunk_overlap", 50),
+        "length_unit": step.get("length_unit", "chars"),
+        "chars_per_token": float(step.get("chars_per_token", 4.0)),
+        "preserve_sentences": step.get("preserve_sentences", True),
+        "min_chunk_chars": int(step.get("min_chunk_chars", 0)),
+        "chunk_id_mode": step.get("chunk_id_mode", "positional"),
+    }
+    for _k in ("max_chunks_per_source", "parent_chunk_size", "parent_chunk_overlap", "header_template"):
+        if step.get(_k) is not None:
+            _settings[_k] = step[_k]
+    md: Dict[str, Any] = {
+        "document_count": MetadataValue.int(int(upstream_df[id_column].nunique())),
+        "chunk_count": MetadataValue.int(len(df)),
+        "chunking_settings": MetadataValue.json(_settings),
+    }
+    if len(df) > 0:
+        _sample_cols = [c for c in (id_column, "chunk_id", "chunk_index", output_column) if c in df.columns]
+        md["sample_chunks"] = MetadataValue.md(df[_sample_cols].head(20).to_markdown(index=False) or "")
+    return md
+
+
 # ── filter / dedupe / sensitivity / stamp ops (python mode) ─────────────
 
 def _text_column(df: pd.DataFrame, step: dict) -> str:
@@ -1193,6 +1229,21 @@ def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     out = df.copy()
     texts = out[text_column].astype(str).tolist()
     embeddings: List[List[float]] = []
+    total_tokens: Optional[int] = 0
+    import time as _time
+    _t0 = _time.time()
+
+    def _accumulate_tokens(total, value):
+        """None once any batch's reported usage isn't a real number -- a mocked response (unit
+        tests), or a real SDK response that simply doesn't report usage, must never be silently
+        coerced into a token count (a MagicMock supports `+`/`__radd__` like any other magic
+        method, so an unchecked `total += resp.usage.total_tokens` would "succeed" with a
+        MagicMock value that then fails JSON serialization in the asset's own metadata -- this
+        was caught by this repo's own test_receipts_feedback.py fixture, which fakes
+        litellm.embedding() with a bare MagicMock() response)."""
+        if total is None or not isinstance(value, (int, float)):
+            return None
+        return total + value
 
     if provider == "sentence_transformers":
         try:
@@ -1202,6 +1253,7 @@ def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
         model_name = model or "all-MiniLM-L6-v2"
         context.log.info(f"embed: loading sentence-transformers model {model_name!r} for {len(out)} chunks")
         model_obj = SentenceTransformer(model_name)
+        total_tokens = None  # local model inference has no token-billing concept to report
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
             batch_embeddings = model_obj.encode(batch, normalize_embeddings=step.get("normalize_embeddings", True), show_progress_bar=False, batch_size=batch_size)
@@ -1220,6 +1272,7 @@ def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
             batch = texts[i:i + batch_size]
             resp = client.embeddings.create(model=model_name, input=batch)
             embeddings.extend([d.embedding for d in resp.data])
+            total_tokens = _accumulate_tokens(total_tokens, getattr(getattr(resp, "usage", None), "total_tokens", None))
 
     elif provider == "cohere":
         import os
@@ -1234,6 +1287,10 @@ def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
             batch = texts[i:i + batch_size]
             resp = client.embed(texts=batch, model=model_name, input_type="search_document")
             embeddings.extend(resp.embeddings)
+            # Cohere's embed-billing field isn't pinned to a verified SDK version here (cohere isn't
+            # installed in this dev environment) -- best-effort only, never fails the embed step.
+            _billed = getattr(getattr(resp, "meta", None), "billed_units", None)
+            total_tokens = _accumulate_tokens(total_tokens, getattr(_billed, "input_tokens", None))
 
     elif provider == "litellm":
         # Universal gateway -- one interface across OpenAI, Azure, Bedrock,
@@ -1254,11 +1311,20 @@ def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
             batch = texts[i:i + batch_size]
             resp = litellm.embedding(model=model_name, input=batch, api_key=api_key)
             embeddings.extend([d["embedding"] for d in resp.data])
+            # litellm normalizes every provider's response to an OpenAI-shaped `usage` -- verified
+            # against litellm.types.utils.EmbeddingResponse (installed version) -- but a provider
+            # litellm proxies to may not report usage at all, so this stays best-effort.
+            total_tokens = _accumulate_tokens(total_tokens, getattr(getattr(resp, "usage", None), "total_tokens", None))
     else:
         raise ValueError(f"embed op: unsupported provider {provider!r}. Valid: sentence_transformers, openai, cohere, litellm.")
 
     out[output_column] = embeddings
     out["embedding_model"] = model_name
+    out.attrs["embedding_stats"] = {
+        "embedding_model": model_name,
+        "embedding_time_seconds": round(_time.time() - _t0, 3),
+        "embedding_tokens": total_tokens,
+    }
     return out
 
 
@@ -1303,11 +1369,18 @@ def _do_embed(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     what changed); the stats report how many were reused."""
     output_column = step.get("output_column", "embedding")
     if not step.get("reuse_from"):
-        return _do_embed_raw(df, step, context)
+        out = _do_embed_raw(df, step, context)
+        out.attrs["stats"] = dict(out.attrs["embedding_stats"])
+        return out
     reused, todo = _reuse_embeddings(df, step, output_column, context)
-    computed = _do_embed_raw(todo, step, context) if len(todo) else todo.assign(**{output_column: [], "embedding_model": []})
+    if len(todo):
+        computed = _do_embed_raw(todo, step, context)
+        embedding_stats = dict(computed.attrs["embedding_stats"])
+    else:
+        computed = todo.assign(**{output_column: [], "embedding_model": []})
+        embedding_stats = {"embedding_model": None, "embedding_time_seconds": 0.0, "embedding_tokens": 0}
     out = pd.concat([reused, computed]).sort_index().reset_index(drop=True)
-    out.attrs["stats"] = {"embeddings_reused": len(reused), "embeddings_computed": len(todo)}
+    out.attrs["stats"] = {"embeddings_reused": len(reused), "embeddings_computed": len(todo), **embedding_stats}
     context.log.info(f"embed: reused {len(reused)} embedding(s), computed {len(todo)}")
     return out
 
@@ -1380,7 +1453,7 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
     ids = df[chunk_id_column].astype(str).tolist()
     new_ids = set(ids)
     source_ids = sorted(set(meta_df["source_id"]))
-    stats: Dict[str, Any] = {"upserted": len(df), "orphans_deleted": 0}
+    stats: Dict[str, Any] = {"upserted": len(df), "orphans_deleted": 0, "store_type": provider}
 
     if provider == "chromadb":
         import chromadb
@@ -4041,6 +4114,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             content_version: Optional[str] = None
             partition = context.partition_key if context.has_partition_key else None
             receipts_summary: Optional[Dict[str, Any]] = None
+            chunk_run_md: Dict[str, Any] = {}
 
             for step in steps_cfg:
                 import time as _time
@@ -4052,6 +4126,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
 
                 if op == "chunk":
                     df = _do_chunk(upstream, step, id_column, text_column, metadata_columns, context)
+                    chunk_run_md = _chunk_run_metadata(upstream, df, step, id_column)
                 elif op == "write_vector_store":
                     if source_id is None:
                         raise ValueError(f"step {step_id!r} (op=write_vector_store) has no source and is not preceded by another step.")
@@ -4082,6 +4157,19 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             if content_version is None and "chunk_id" in final_df.columns:
                 content_version = _content_version(final_df, "chunk_text" if "chunk_text" in final_df.columns else final_df.columns[0], steps_cfg)
 
+            # Promote embed/write_vector_store's own stats (nested per-step above) to top-level
+            # metadata too, alongside chunk_run_md -- a UI reading "the list/chunk view" needs
+            # these discoverable without parsing step_metadata's JSON blob for the right step id.
+            _top_level_promoted: Dict[str, Any] = {}
+            for _step, _sid in zip(steps_cfg, (s["id"] for s in steps_cfg)):
+                _sm = step_metadata.get(_sid, {})
+                if _step["op"] == "embed":
+                    for _k in ("embedding_model", "embedding_tokens", "embedding_time_seconds"):
+                        if _k in _sm:
+                            _top_level_promoted[_k] = MetadataValue.text(str(_sm[_k])) if _sm[_k] is not None else MetadataValue.text("none")
+                elif _step["op"] == "write_vector_store" and "store_type" in _sm:
+                    _top_level_promoted["store_type"] = MetadataValue.text(str(_sm["store_type"]))
+
             metadata: Dict[str, Any] = {
                 "dagster/row_count": MetadataValue.int(len(final_df)),
                 "source_rows": MetadataValue.int(len(upstream)),
@@ -4089,6 +4177,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 "n_steps": MetadataValue.int(len(steps_cfg)),
                 "step_chain": MetadataValue.text(" → ".join(s["id"] for s in steps_cfg)),
                 "step_metadata": MetadataValue.json(step_metadata),
+                **chunk_run_md,
+                **_top_level_promoted,
             }
             if content_version is not None:
                 metadata["context_version"] = MetadataValue.text(content_version)
@@ -4215,6 +4305,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                         df = _do_chunk(upstream_df, step, id_column, text_column, metadata_columns, context)
                         extra_md["source_rows"] = MetadataValue.int(len(upstream_df))
                         extra_md["source_rows_available"] = MetadataValue.int(source_rows_available)
+                        extra_md.update(_chunk_run_metadata(upstream_df, df, step, id_column))
                     elif op_kind == "write_vector_store":
                         write_input = upstream
                         local_step = step

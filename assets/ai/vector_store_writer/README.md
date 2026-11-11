@@ -140,6 +140,8 @@ Returns a dictionary with status information:
 | `metadata_columns` | `List[str]` | — | Additional metadata columns |
 | `upsert` | `bool` | `true` | Upsert if exists |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `include_preview_metadata` | `bool` | `true` | Include a sample of written rows (text/metadata columns, not the raw embedding vectors) in run metadata. |
+| `preview_rows` | `int` | `20` | Rows to include in the sample preview when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame with embeddings to write. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset -- e.g. embeddings already computed and stored in a warehouse table: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key m… _(full docs in schema.json + component README)_ |
 | `vector_bucket_name` | `str` | — | S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider. |

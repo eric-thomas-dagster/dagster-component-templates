@@ -137,7 +137,7 @@ Returns a Pandas DataFrame with search results containing:
 | `aws_region` | `str` | — | AWS region for the s3vectors client. Required when provider='s3vectors'. Ignored by every other provider. |
 | `demo_mode` | `bool` | `true` | Only affects provider='s3vectors' -- queries a local JSON-file-backed fake instead of a real AWS account (no effect on chromadb/pinecone/qdrant/faiss). Set false for a real S3 Vectors bucket. Point `connection_string` at… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
-| `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |
+| `include_preview_metadata` | `bool` | `true` | Include a sample of hits (first preview_rows rows, or a random sample for a large result set) in run metadata as 'sample_hits', alongside the always-present queries_count/hits_count/avg_distance/min_distance/max_distance… _(full docs in schema.json + component README)_ |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head(). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 

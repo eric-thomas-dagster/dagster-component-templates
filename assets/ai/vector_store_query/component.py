@@ -416,10 +416,13 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     )
 
     include_preview_metadata: bool = Field(
-        default=False,
+        default=True,
         description=(
-            "Include a preview of the output data in metadata (first 25 "
-            "rows or a sample) for builder UIs."
+            "Include a sample of hits (first preview_rows rows, or a random sample for a large "
+            "result set) in run metadata as 'sample_hits', alongside the always-present "
+            "queries_count/hits_count/avg_distance/min_distance/max_distance summary stats -- so "
+            "retrieval testing (did this change in top_k/rerank/score_threshold improve or worsen "
+            "results) doesn't require querying the output table directly."
         ),
     )
 
@@ -802,7 +805,15 @@ group_name=group_name,
             _metadata = {
                 "dagster/row_count": MetadataValue.int(len(result_df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "queries_count": MetadataValue.int(len(input_df)),
+                "hits_count": MetadataValue.int(len(result_df)),
             }
+            if "distance" in result_df.columns and len(result_df) > 0:
+                _distances = pd.to_numeric(result_df["distance"], errors="coerce").dropna()
+                if len(_distances) > 0:
+                    _metadata["avg_distance"] = MetadataValue.float(round(float(_distances.mean()), 4))
+                    _metadata["min_distance"] = MetadataValue.float(round(float(_distances.min()), 4))
+                    _metadata["max_distance"] = MetadataValue.float(round(float(_distances.max()), 4))
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage
             if not _effective_lineage:
@@ -829,7 +840,7 @@ group_name=group_name,
             if include_preview and len(result_df) > 0:
                 try:
                     _prev = result_df.sample(min(preview_rows, len(result_df))) if len(result_df) > preview_rows * 10 else result_df.head(preview_rows)
-                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    _metadata["sample_hits"] = MetadataValue.md(_prev.to_markdown(index=False))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")
             context.add_output_metadata(_metadata)

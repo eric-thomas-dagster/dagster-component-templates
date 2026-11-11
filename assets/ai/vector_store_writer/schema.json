@@ -326,6 +326,18 @@
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a sample of written rows (text/metadata columns, not the raw embedding vectors) in run metadata.",
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the sample preview when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
+      "required": false
     }
   },
   "tags": [

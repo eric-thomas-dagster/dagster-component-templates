@@ -1075,10 +1075,15 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
             }
 
             if include_preview and len(result_df) > 0:
-                context.add_output_metadata({
-                        **metadata,
-                        "preview": MetadataValue.md(result_df.head(10).to_markdown())
-                    })
+                try:
+                    _prev = result_df.sample(min(preview_rows, len(result_df))) if len(result_df) > preview_rows * 10 else result_df.head(preview_rows)
+                    context.add_output_metadata({
+                            **metadata,
+                            "sample_chunks": MetadataValue.md(_prev.to_markdown(index=False) or ""),
+                        })
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
+                    context.add_output_metadata(metadata)
                 return result_df
             else:
                 context.add_output_metadata(metadata)

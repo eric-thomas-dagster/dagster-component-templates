@@ -65,7 +65,6 @@ Returns a Pandas DataFrame with search results containing:
 | `asset_name` | `str` | Name of the asset |
 | `provider` | `str` | Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors' |
 | `collection_name` | `str` | Collection/index name |
-| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with query embeddings |
 
 ### Connection
 
@@ -147,6 +146,11 @@ Returns a Pandas DataFrame with search results containing:
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include a sample of hits (first preview_rows rows, or a random sample for a large result set) in run metadata as 'sample_hits', alongside the always-present queries_count/hits_count/avg_distance/min_distance/max_distance… _(full docs in schema.json + component README)_ |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head(). |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame with query embeddings (and/or per-row query text via query_text_column). Optional when query_text is set (as a static field, or per-run via VectorStoreQueryRunConfig) -- an ad-hoc… _(full docs in schema.json + component README)_ |
+| `embed_provider` | `str` | — | Embeds query_text/query_text_column with this provider ('sentence_transformers', 'openai', 'cohere', 'litellm') when no embedding_column is present on upstream (or there is no upstream at all) -- e.g. for an ad-hoc retri… _(full docs in schema.json + component README)_ |
+| `embed_model` | `str` | — | Model name for embed_provider (e.g. 'all-MiniLM-L6-v2', 'text-embedding-3-small'). Each provider has its own sane default if unset. |
+| `embed_api_key_env_var` | `str` | — | Env var holding embed_provider's API key (openai/cohere/litellm only; sentence_transformers needs none). |
+| `knowledge_asset_key` | `str` | — | Infers embed_model from this asset's own last materialization metadata (the `embedding_model` key context_engineering_pipeline/vector_store_writer already promote to top-level metadata), so an ad-hoc retrieval test doesn… _(full docs in schema.json + component README)_ |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)

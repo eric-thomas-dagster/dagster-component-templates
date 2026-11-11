@@ -400,6 +400,30 @@
       "label": "Track Retrieval Count",
       "description": "Opt-in write side-effect on an otherwise read-only component: after each query, increments a 'retrieval_count' metadata field on every returned hit's own vector in the store (starting from 0 if absent), persisted via each provider's partial-metadata-update API. Lets vector_store_writer's enabled_column (or any downstream job) surface which documents are actually being retrieved. Adds one extra write call per hit per query -- leave false for pure read-only querying.",
       "required": false
+    },
+    "embed_provider": {
+      "type": "string",
+      "label": "Embed Provider",
+      "description": "Embeds query_text/query_text_column with this provider ('sentence_transformers', 'openai', 'cohere', 'litellm') when no embedding_column is present on upstream (or there is no upstream at all) -- e.g. for an ad-hoc retrieval test. Must match the provider/model the index was actually built with (context_engineering_pipeline's embed step, or vector_store_writer's upstream) or the query vector won't be comparable to what's indexed. Leave unset when upstream already supplies a real embedding_column (the normal, non-ad-hoc pipeline shape).",
+      "required": false
+    },
+    "embed_model": {
+      "type": "string",
+      "label": "Embed Model",
+      "description": "Model name for embed_provider (e.g. 'all-MiniLM-L6-v2', 'text-embedding-3-small'). Each provider has its own sane default if unset.",
+      "required": false
+    },
+    "embed_api_key_env_var": {
+      "type": "string",
+      "label": "Embed Api Key Env Var",
+      "description": "Env var holding embed_provider's API key (openai/cohere/litellm only; sentence_transformers needs none).",
+      "required": false
+    },
+    "knowledge_asset_key": {
+      "type": "string",
+      "label": "Knowledge Asset Key",
+      "description": "Infers embed_model from this asset's own last materialization metadata (the `embedding_model` key context_engineering_pipeline/vector_store_writer already promote to top-level metadata), so an ad-hoc retrieval test doesn't need to repeat a model name that asset already recorded -- only applied when embed_model is itself unset. Best-effort: silently skipped if the asset has no materialization yet or no such key. Does NOT infer provider/connection_string/collection_name -- those aren't stamped as asset metadata today and must still be set explicitly.",
+      "required": false
     }
   },
   "tags": [

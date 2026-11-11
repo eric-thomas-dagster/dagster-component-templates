@@ -12,6 +12,7 @@ from dagster import (
     AssetKey,
     Component,
     ComponentLoadContext,
+    Config,
     Definitions,
     AssetExecutionContext,
     asset,
@@ -20,6 +21,80 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+class VectorStoreQueryRunConfig(Config):
+    """Launchpad/API-settable overrides for a single run -- an ad-hoc retrieval test without
+    editing the component's own (YAML/definition-time) config. All fields default to a no-op
+    (None = use the component's own static value) so an unconfigured run behaves exactly as
+    before. `query_text` is the one field that also makes `upstream_asset_key` unnecessary for
+    a single test run: set it alone (with `provider`/`connection_string`/`collection_name`
+    already configured on the component) to query without any upstream dependency at all."""
+
+    query_text: Optional[str] = Field(
+        default=None,
+        description="Run this query instead of (or in addition to, if upstream_asset_key is also set) the component's own query_text/upstream rows.",
+    )
+    top_k: Optional[int] = Field(default=None, description="Override the component's own top_k for this run only.")
+    search_mode: Optional[str] = Field(default=None, description="Override the component's own search_mode ('vector'/'full_text'/'hybrid') for this run only.")
+    score_threshold: Optional[float] = Field(default=None, description="Override the component's own score_threshold for this run only.")
+
+
+def _embed_query_text(text: str, provider: str, model: Optional[str], api_key_env_var: Optional[str]) -> List[float]:
+    """Embeds ONE query string with the given provider/model -- same dispatch convention as
+    `context_engineering_pipeline`'s `_do_embed_raw` and `resources/context_receipt_store/
+    gateway.py`'s `KnowledgeSearch._embed_query` (single query, not batched, since this runs
+    once per asset materialization, not once per upstream row)."""
+    if provider == "sentence_transformers":
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise ImportError("embed_provider='sentence_transformers' requires: pip install sentence-transformers")
+        return SentenceTransformer(model or "all-MiniLM-L6-v2").encode([text], normalize_embeddings=True, show_progress_bar=False)[0].tolist()
+    if provider == "openai":
+        try:
+            import openai
+        except ImportError:
+            raise ImportError("embed_provider='openai' requires: pip install openai")
+        client = openai.OpenAI(api_key=os.environ.get(api_key_env_var or "OPENAI_API_KEY"))
+        return client.embeddings.create(model=model or "text-embedding-3-small", input=[text]).data[0].embedding
+    if provider == "cohere":
+        try:
+            import cohere
+        except ImportError:
+            raise ImportError("embed_provider='cohere' requires: pip install cohere")
+        client = cohere.Client(api_key=os.environ.get(api_key_env_var or "COHERE_API_KEY"))
+        return client.embed(texts=[text], model=model or "embed-english-v3.0", input_type="search_query").embeddings[0]
+    if provider == "litellm":
+        try:
+            import litellm
+        except ImportError:
+            raise ImportError("embed_provider='litellm' requires: pip install litellm")
+        api_key = os.environ.get(api_key_env_var) if api_key_env_var else None
+        return litellm.embedding(model=model or "text-embedding-3-small", input=[text], api_key=api_key).data[0]["embedding"]
+    raise ValueError(f"VectorStoreQueryComponent: unsupported embed_provider {provider!r}. Valid: sentence_transformers, openai, cohere, litellm.")
+
+
+def _infer_embed_model_from_asset(instance, asset_key_str: str) -> Optional[str]:
+    """Best-effort: reads `embedding_model` off another asset's LAST materialization metadata
+    (the same key context_engineering_pipeline/vector_store_writer promote to top-level
+    metadata) -- so a user doesn't have to repeat a model name that asset already recorded.
+    Returns None (never raises) if the asset has no materialization yet, or no such key --
+    this is a convenience default, not a hard requirement."""
+    try:
+        from dagster import AssetKey as _AssetKey
+
+        event = instance.get_latest_materialization_event(_AssetKey.from_user_string(asset_key_str))
+        if not event or not event.asset_materialization:
+            return None
+        md = event.asset_materialization.metadata or {}
+        value = md.get("embedding_model")
+        if value is None:
+            return None
+        text = str(getattr(value, "value", value) or getattr(value, "text", "") or value)
+        return text if text and text != "none" else None
+    except Exception:
+        return None
 
 
 def _build_partitions_def(
@@ -744,7 +819,47 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
             "(>10x preview_rows), a random sample is used; otherwise head()."
         ),
     )
-    upstream_asset_key: Union[str, List[str]] = Field(description="Upstream asset key providing a DataFrame with query embeddings")
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description=(
+            "Upstream asset key providing a DataFrame with query embeddings (and/or per-row query "
+            "text via query_text_column). Optional when query_text is set (as a static field, or "
+            "per-run via VectorStoreQueryRunConfig) -- an ad-hoc retrieval test needs no upstream "
+            "dependency at all, just a single query string embedded on the fly (see embed_provider)."
+        ),
+    )
+    embed_provider: Optional[str] = Field(
+        default=None,
+        description=(
+            "Embeds query_text/query_text_column with this provider ('sentence_transformers', "
+            "'openai', 'cohere', 'litellm') when no embedding_column is present on upstream (or "
+            "there is no upstream at all) -- e.g. for an ad-hoc retrieval test. Must match the "
+            "provider/model the index was actually built with (context_engineering_pipeline's "
+            "embed step, or vector_store_writer's upstream) or the query vector won't be "
+            "comparable to what's indexed. Leave unset when upstream already supplies a real "
+            "embedding_column (the normal, non-ad-hoc pipeline shape)."
+        ),
+    )
+    embed_model: Optional[str] = Field(
+        default=None,
+        description="Model name for embed_provider (e.g. 'all-MiniLM-L6-v2', 'text-embedding-3-small'). Each provider has its own sane default if unset.",
+    )
+    embed_api_key_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding embed_provider's API key (openai/cohere/litellm only; sentence_transformers needs none).",
+    )
+    knowledge_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Infers embed_model from this asset's own last materialization metadata (the "
+            "`embedding_model` key context_engineering_pipeline/vector_store_writer already "
+            "promote to top-level metadata), so an ad-hoc retrieval test doesn't need to repeat a "
+            "model name that asset already recorded -- only applied when embed_model is itself "
+            "unset. Best-effort: silently skipped if the asset has no materialization yet or no "
+            "such key. Does NOT infer provider/connection_string/collection_name -- those aren't "
+            "stamped as asset metadata today and must still be set explicitly."
+        ),
+    )
 
     backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
         default=None,
@@ -808,7 +923,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
-        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
+        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     @model_validator(mode="after")
     def _validate_s3vectors_config(self):
@@ -845,6 +960,10 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
         score_threshold = self.score_threshold
         exclude_disabled = self.exclude_disabled
         track_retrieval_count = self.track_retrieval_count
+        embed_provider = self.embed_provider
+        embed_model = self.embed_model
+        embed_api_key_env_var = self.embed_api_key_env_var
+        knowledge_asset_key = self.knowledge_asset_key
         if search_mode != "vector" and not query_text and not query_text_column:
             raise ValueError(
                 "VectorStoreQueryComponent: search_mode='full_text'/'hybrid' needs query text to "
@@ -947,7 +1066,11 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
-        _asset_deco = asset(retry_policy=_retry_policy, 
+        _ins_kwargs: Dict[str, Any] = {}
+        if upstream_asset_key:
+            _ins_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+
+        _asset_deco = asset(retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
@@ -955,12 +1078,31 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            **_ins_kwargs,
         )
-        def _vector_store_query_asset_impl(context: AssetExecutionContext, upstream: pd.DataFrame, _pk=None) -> pd.DataFrame:
+        def _vector_store_query_asset_impl(
+            context: AssetExecutionContext, config: VectorStoreQueryRunConfig,
+            upstream: Optional[pd.DataFrame] = None, _pk=None,
+        ) -> pd.DataFrame:
+            # Run-config overrides (None = use the component's own static value). SEPARATE
+            # names, not reassignments of query_text/top_k/search_mode/score_threshold
+            # themselves -- those are closure-captured from build_defs, and reassigning a
+            # closure-captured name anywhere in this function body makes Python treat it as
+            # local to the WHOLE function, breaking any earlier read of it (the exact
+            # UnboundLocalError class this component's own tests already caught once for
+            # top_k/_fetch_k -- see the comment a few lines below).
+            _query_text = config.query_text or query_text
+            _top_k = config.top_k if config.top_k is not None else top_k
+            _search_mode = config.search_mode if config.search_mode is not None else search_mode
+            _score_threshold = config.score_threshold if config.score_threshold is not None else score_threshold
+
+            _embed_model = embed_model
+            if _embed_model is None and knowledge_asset_key:
+                _embed_model = _infer_embed_model_from_asset(context.instance, knowledge_asset_key)
+
             # Filter to current partition if partitioned
-            if _pk is not None:
+            if _pk is not None and upstream is not None:
                 _is_multi = hasattr(_pk, "keys_by_dimension")
                 _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
                 _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
@@ -973,15 +1115,22 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             """Query vector store using embeddings from each row of upstream DataFrame."""
 
-            input_df = upstream
+            if upstream is None:
+                if not _query_text:
+                    raise ValueError(
+                        "VectorStoreQueryComponent: no upstream_asset_key and no query_text "
+                        "(static field or VectorStoreQueryRunConfig.query_text) -- nothing to query with."
+                    )
+                input_df = pd.DataFrame({embedding_column: [None]})
+            else:
+                input_df = upstream
+                if embedding_column not in input_df.columns and not _query_text:
+                    raise ValueError(
+                        f"Embedding column '{embedding_column}' not found in upstream DataFrame "
+                        f"and no query_text provided. Available: {list(input_df.columns)}"
+                    )
 
-            if embedding_column not in input_df.columns and not query_text:
-                raise ValueError(
-                    f"Embedding column '{embedding_column}' not found in upstream DataFrame "
-                    f"and no query_text provided. Available: {list(input_df.columns)}"
-                )
-
-            context.log.info(f"Querying {provider} for top {top_k} results for {len(input_df)} rows")
+            context.log.info(f"Querying {provider} for top {_top_k} results for {len(input_df)} rows")
 
             # Expand environment variables in API key (supports ${VAR_NAME} pattern)
             expanded_api_key = None
@@ -1002,7 +1151,25 @@ group_name=group_name,
                     elif hasattr(emb, 'tolist'):
                         query_embedding = emb.tolist()
 
-                _row_query_text = query_text or (str(row[query_text_column]) if query_text_column and query_text_column in input_df.columns else None)
+                _row_query_text = _query_text or (str(row[query_text_column]) if query_text_column and query_text_column in input_df.columns else None)
+
+                # No real embedding on this row (no embedding_column, or an ad-hoc run with no
+                # upstream at all) -- embed _row_query_text ourselves with embed_provider,
+                # rather than letting chromadb silently fall back to ITS OWN default embedder
+                # via query_texts= (a real, reported gap: that fallback embeds with whatever
+                # chromadb defaults to, not necessarily the model the index was actually built
+                # with, so the query vector may not even be comparable to what's indexed).
+                if query_embedding is None and _row_query_text and embed_provider:
+                    query_embedding = _embed_query_text(_row_query_text, embed_provider, _embed_model, embed_api_key_env_var)
+
+                if query_embedding is None and provider != "chromadb":
+                    raise ValueError(
+                        f"VectorStoreQueryComponent: no embedding for this query (no embedding_column "
+                        f"on upstream, and either no query_text or no embed_provider set) -- "
+                        f"provider={provider!r} requires a real query vector (only chromadb can fall "
+                        f"back to its own default embedder via query_texts=)."
+                    )
+
                 # full_text/hybrid re-rank a larger candidate pool client-side (see search_mode's
                 # own field description for why) -- fetch more than top_k from the provider, then
                 # truncate back down after re-ranking. A SEPARATE name, not a reassignment of
@@ -1011,7 +1178,7 @@ group_name=group_name,
                 # it as local to the whole function, not the closure-captured value from
                 # build_defs -- that earlier read would then raise UnboundLocalError (caught by
                 # this component's own tests; this is a lesson, not a hypothetical).
-                _fetch_k = (top_k * oversample_factor) if (search_mode != "vector" or exclude_disabled) else top_k
+                _fetch_k = (_top_k * oversample_factor) if (_search_mode != "vector" or exclude_disabled) else _top_k
 
                 results = []
 
@@ -1022,7 +1189,9 @@ group_name=group_name,
 
                     query_results = collection.query(
                         query_embeddings=[query_embedding] if query_embedding else None,
-                        query_texts=[query_text] if query_text else None,
+                        # Only chromadb's own default embedder as a last resort -- never reached
+                        # when embed_provider produced a real query_embedding above.
+                        query_texts=[_row_query_text] if query_embedding is None and _row_query_text else None,
                         n_results=_fetch_k
                     )
 
@@ -1127,9 +1296,9 @@ group_name=group_name,
                     raise ValueError(f"Unsupported provider: {provider}")
 
                 results = _rerank_and_filter_results(
-                    results, provider=provider, query_text=_row_query_text, search_mode=search_mode,
-                    text_metadata_key=text_metadata_key, top_k=self.top_k, rerank_model=rerank_model,
-                    rerank_api_key_env_var=rerank_api_key_env_var, score_threshold=score_threshold,
+                    results, provider=provider, query_text=_row_query_text, search_mode=_search_mode,
+                    text_metadata_key=text_metadata_key, top_k=_top_k, rerank_model=rerank_model,
+                    rerank_api_key_env_var=rerank_api_key_env_var, score_threshold=_score_threshold,
                     exclude_disabled=exclude_disabled,
                 )
 
@@ -1167,7 +1336,7 @@ group_name=group_name,
                     _metadata["max_distance"] = MetadataValue.float(round(float(_distances.max()), 4))
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage
-            if not _effective_lineage:
+            if not _effective_lineage and upstream is not None:
                 try:
                     _upstream_cols = set(upstream.columns)
                     _effective_lineage = {
@@ -1194,17 +1363,55 @@ group_name=group_name,
                     _metadata["sample_hits"] = MetadataValue.md(_prev.to_markdown(index=False))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")
+
+            # Full hit detail as JSON -- a retrieval-test run (query_text/VectorStoreQueryRunConfig)
+            # needs the actual text back, not just counts/distance stats. Capped the same way
+            # sample_hits already is (preview_rows) to keep this from growing unbounded on a
+            # real multi-row upstream query batch.
+            try:
+                _hits = []
+                for _rank, _r in enumerate(all_results[:preview_rows] if include_preview else all_results):
+                    _container = _r.get("payload") if provider == "qdrant" else _r.get("metadata")
+                    _container = _container or {}
+                    _hits.append({
+                        "rank": _rank,
+                        "score": _r.get("score") if _r.get("score") is not None else _r.get("distance"),
+                        "chunk_id": _container.get("chunk_id", _r.get("id") or _r.get("key")),
+                        "doc_id": _container.get("source_id", _container.get("doc_id")),
+                        "text": _extract_result_text(_r, provider, text_metadata_key),
+                        "metadata": _container,
+                        "parent_text": _container.get("parent_text"),
+                    })
+                _metadata["hits"] = MetadataValue.json(_hits)
+            except Exception as _e:
+                context.log.warning(f"hits metadata emission failed: {_e}")
+
             context.add_output_metadata(_metadata)
 
             return result_df
 
-        @_asset_deco
-        def vector_store_query_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _run(context, config, upstream):
             _keys = list(context.partition_keys) if (context.has_partition_key or context.has_partition_key_range) else [None]
             if len(_keys) == 1:
-                return _vector_store_query_asset_impl(context, upstream, _keys[0])
+                return _vector_store_query_asset_impl(context, config, upstream, _keys[0])
             context.log.info(f'Processing {len(_keys)} partition keys in one run (backfill range)')
-            return pd.concat([_vector_store_query_asset_impl(context, upstream, _k) for _k in _keys], ignore_index=True)
+            return pd.concat([_vector_store_query_asset_impl(context, config, upstream, _k) for _k in _keys], ignore_index=True)
+
+        # Dagster infers an asset's inputs from its function SIGNATURE (parameter names), not
+        # just the `ins` dict -- a parameter literally named `upstream`, even with a Python
+        # default of None, is still treated as an unresolved input needing a producing asset.
+        # So when upstream_asset_key is unset, `upstream` can't appear in the signature at all;
+        # two separate function definitions (matching this repo's existing optional-upstream
+        # components, e.g. tavily_ingestion/google_docs_extractor) rather than one with a
+        # default value.
+        if upstream_asset_key:
+            @_asset_deco
+            def vector_store_query_asset(context: AssetExecutionContext, config: VectorStoreQueryRunConfig, upstream: pd.DataFrame) -> pd.DataFrame:
+                return _run(context, config, upstream)
+        else:
+            @_asset_deco
+            def vector_store_query_asset(context: AssetExecutionContext, config: VectorStoreQueryRunConfig) -> pd.DataFrame:
+                return _run(context, config, None)
 
         from dagster import build_column_schema_change_checks
 

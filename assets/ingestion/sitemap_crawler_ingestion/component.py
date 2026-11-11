@@ -70,6 +70,7 @@ the full configuration reference.
 
 import datetime as dt
 import hashlib
+import json
 import os
 import time
 from collections import deque
@@ -608,6 +609,26 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
         ),
     )
 
+    skip_unchanged: bool = Field(
+        default=False,
+        description=(
+            "Persist a per-URL {etag, last_modified, content_hash} fingerprint to state_path "
+            "between runs. On the next run, each known URL is fetched with If-None-Match/"
+            "If-Modified-Since from its stored etag/last_modified; a 304 response (or, failing "
+            "that, an unchanged content_hash after a real fetch) reuses the cached row instead "
+            "of reparsing -- the output still covers every page every run, just without the "
+            "redundant parse work for pages that haven't changed. Off by default: every page is "
+            "refetched and reparsed unconditionally, matching this component's original behavior."
+        ),
+    )
+    state_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where skip_unchanged persists its per-URL fingerprint state (a JSON file). Defaults "
+            "to './{asset_name}_crawler_state.json'. Ignored when skip_unchanged=False."
+        ),
+    )
+
     hash_columns: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -953,6 +974,8 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
         respect_robots_txt = self.respect_robots_txt
         request_delay_seconds = self.request_delay_seconds
         user_agent = self.user_agent
+        skip_unchanged = self.skip_unchanged
+        state_path = self.state_path or f"./{asset_name}_crawler_state.json"
 
         _inferred_kinds = list(self.kinds or [])
         if destination:
@@ -1034,25 +1057,65 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
             exclude_list = [p.strip() for p in (exclude_patterns or "").split(",") if p.strip()]
 
             rows: List[Dict[str, Any]] = []
+            pages_fetched = pages_skipped = pages_failed = 0
+
+            fingerprints: Dict[str, Dict[str, Any]] = {}
+            if skip_unchanged and os.path.exists(state_path):
+                try:
+                    with open(state_path) as f:
+                        fingerprints = json.load(f)
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"skip_unchanged: could not read state_path={state_path!r}, starting fresh: {e}")
+                    fingerprints = {}
 
             def _fetch_one(url: str, lastmod: Optional[str]) -> Optional[str]:
                 """Fetches `url`, appends its row to `rows`, sleeps request_delay_seconds,
                 and returns the raw HTML (for link discovery in plain-crawl mode) or None
-                if the fetch was skipped/failed."""
+                if the fetch was skipped/failed. With skip_unchanged, sends If-None-Match/
+                If-Modified-Since from the prior run's fingerprint and reuses the cached row
+                on a 304 (or an unchanged content_hash after a real fetch) instead of
+                reparsing -- the output still covers every page every run."""
+                nonlocal pages_fetched, pages_skipped, pages_failed
                 if not _matches_patterns(url, include_list, exclude_list):
                     context.log.info(f"Skipping {url} (does not match include/exclude patterns)")
                     return None
                 if not robots.allowed(url):
                     context.log.info(f"Skipping {url} (disallowed by robots.txt)")
                     return None
+                fetch_headers = dict(headers)
+                prior = fingerprints.get(url) if skip_unchanged else None
+                if prior:
+                    if prior.get("etag"):
+                        fetch_headers["If-None-Match"] = prior["etag"]
+                    if prior.get("last_modified"):
+                        fetch_headers["If-Modified-Since"] = prior["last_modified"]
                 try:
-                    resp = requests.get(url, headers=headers, timeout=30)
+                    resp = requests.get(url, headers=fetch_headers, timeout=30)
+                    if resp.status_code == 304 and prior and prior.get("row"):
+                        pages_skipped += 1
+                        rows.append(prior["row"])
+                        if request_delay_seconds:
+                            time.sleep(request_delay_seconds)
+                        return None
                     resp.raise_for_status()
                 except Exception as e:
+                    pages_failed += 1
                     context.log.warning(f"Failed to fetch {url}: {e}")
                     return None
                 title, content = _extract_page_content(resp.text)
-                rows.append(_row_from_page(url, title, content, lastmod=lastmod))
+                row = _row_from_page(url, title, content, lastmod=lastmod)
+                if skip_unchanged and prior and prior.get("content_hash") == row["content_hash"]:
+                    pages_skipped += 1
+                else:
+                    pages_fetched += 1
+                rows.append(row)
+                if skip_unchanged:
+                    fingerprints[url] = {
+                        "etag": resp.headers.get("ETag"),
+                        "last_modified": resp.headers.get("Last-Modified"),
+                        "content_hash": row["content_hash"],
+                        "row": row,
+                    }
                 if request_delay_seconds:
                     time.sleep(request_delay_seconds)
                 return resp.text
@@ -1098,6 +1161,13 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                             ):
                                 queue.append((link, depth + 1))
 
+            if skip_unchanged:
+                try:
+                    with open(state_path, "w") as f:
+                        json.dump(fingerprints, f)
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"skip_unchanged: could not write state_path={state_path!r}: {e}")
+
             @dlt.resource(name="pages")
             def _pages_resource():
                 yield from rows
@@ -1122,7 +1192,20 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                 _apply_max_rows_per_resource(dlt_resources, max_rows_per_resource)
 
             context.log.info("Loading crawled pages into destination...")
-            load_info = pipeline.run(dlt_resources)
+            try:
+                load_info = pipeline.run(dlt_resources)
+            except ImportError as e:
+                if not destination:
+                    raise ImportError(
+                        "sitemap_crawler_ingestion: no `destination` is configured, so dlt loads "
+                        "into an in-memory duckdb pipeline by default, which requires: pip install "
+                        "duckdb (or `pip install 'dagster-community-components[sitemap_crawler]'`). "
+                        f"Original error: {e}"
+                    ) from e
+                raise ImportError(
+                    f"sitemap_crawler_ingestion: destination={destination!r} requires its dlt "
+                    f"destination package to be installed. Original error: {e}"
+                ) from e
             context.log.info(f"Sitemap crawler data loaded: {load_info}")
 
             base_metadata = {
@@ -1131,6 +1214,10 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                 "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                 "pages_crawled": MetadataValue.int(len(rows)),
             }
+            if skip_unchanged:
+                base_metadata["pages_fetched"] = MetadataValue.int(pages_fetched)
+                base_metadata["pages_skipped"] = MetadataValue.int(pages_skipped)
+                base_metadata["pages_failed"] = MetadataValue.int(pages_failed)
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations

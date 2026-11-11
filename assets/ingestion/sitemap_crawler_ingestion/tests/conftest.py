@@ -40,11 +40,12 @@ def load_component_module() -> ModuleType:
 class FakeResponse:
     """Stands in for requests.Response."""
 
-    def __init__(self, text="", content=None, status_code=200, raise_exc=None):
+    def __init__(self, text="", content=None, status_code=200, raise_exc=None, headers=None):
         self.text = text
         self.content = content if content is not None else text.encode("utf-8")
         self.status_code = status_code
         self._raise_exc = raise_exc
+        self.headers = headers or {}
 
     def raise_for_status(self):
         if self._raise_exc is not None:

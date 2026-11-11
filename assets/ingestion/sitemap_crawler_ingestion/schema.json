@@ -360,6 +360,18 @@
       "label": "Column Lineage",
       "description": "Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'chunk_text': ['content']}. The upstream asset is `upstream_asset_key`, or the only entry of `deps`; with several upstream assets, name each column '<asset_key>:<column>'. Ignored with a warning when no upstream asset can be resolved.",
       "required": false
+    },
+    "skip_unchanged": {
+      "type": "boolean",
+      "label": "Skip Unchanged",
+      "description": "Persist a per-URL {etag, last_modified, content_hash} fingerprint to state_path between runs. On the next run, each known URL is fetched with If-None-Match/If-Modified-Since from its stored etag/last_modified; a 304 response (or, failing that, an unchanged content_hash after a real fetch) reuses the cached row instead of reparsing -- the output still covers every page every run, just without the redundant parse work for pages that haven't changed. Off by default: every page is refetched and reparsed unconditionally, matching this component's original behavior.",
+      "required": false
+    },
+    "state_path": {
+      "type": "string",
+      "label": "State Path",
+      "description": "Where skip_unchanged persists its per-URL fingerprint state (a JSON file). Defaults to './{asset_name}_crawler_state.json'. Ignored when skip_unchanged=False.",
+      "required": false
     }
   }
 }

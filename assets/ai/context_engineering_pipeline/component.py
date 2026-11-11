@@ -626,16 +626,124 @@ class _SafeFormat(dict):
         return ""
 
 
+def _generate_qa_pairs_llm(text: str, model: str, num_pairs: int, api_key_env_var: str, prompt_prefix: Optional[str]) -> List[Dict[str, str]]:
+    """Calls `model` (litellm) once to generate `num_pairs` question/answer pairs from `text` --
+    same litellm.completion + JSON-with-markdown-fence-stripping convention as this component's
+    own classify op mode='llm'."""
+    import os
+    import json
+    try:
+        from litellm import completion
+    except ImportError:
+        raise ImportError("chunk op strategy='qa' with qa_source='llm' requires litellm: pip install litellm")
+    prompt_parts = []
+    if prompt_prefix:
+        prompt_parts.append(prompt_prefix)
+    prompt_parts.append(
+        f"Generate exactly {num_pairs} question/answer pairs that a reader could ask and answer "
+        'using ONLY the following text. Return only a JSON array like '
+        '[{"question": "...", "answer": "..."}, ...], no other text.\n\n'
+        f"Text:\n{text}"
+    )
+    resp = completion(
+        model=model,
+        messages=[{"role": "user", "content": "\n\n".join(prompt_parts)}],
+        api_key=os.environ.get(api_key_env_var),
+    )
+    raw = resp.choices[0].message.content.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    parsed = json.loads(raw)
+    if not isinstance(parsed, list):
+        raise ValueError("expected a JSON array of {question, answer} objects")
+    return [
+        {"question": str(item["question"]), "answer": str(item["answer"])}
+        for item in parsed
+        if isinstance(item, dict) and "question" in item and "answer" in item
+    ]
+
+
+def _do_chunk_qa(df: pd.DataFrame, step: dict, id_column: str, text_column: str, metadata_columns: List[str], context) -> pd.DataFrame:
+    """strategy='qa': not a text-splitting strategy -- produces question/answer pairs indexed by
+    question, in the same output shape _do_chunk itself produces (chunk_id/chunk_index/
+    total_chunks/content_hash/output_column), so write_vector_store and every other downstream op
+    works identically. qa_source='column' (default): qa_question_column/qa_answer_column already
+    hold the question/answer pairs -- one input row produces exactly one output row, no document
+    text or LLM call involved at all. qa_source='llm': generates qa_num_pairs pairs per input row
+    by calling qa_model (litellm) on its text_column. Either way, the output_column (default
+    'chunk_text') holds the QUESTION and a new 'answer' column holds the answer."""
+    qa_source = step.get("qa_source", "column")
+    id_prefix = str(step.get("chunk_id_prefix") or "")
+    out_text_col = step.get("output_column", "chunk_text")
+    if qa_source == "column":
+        q_col, a_col = step.get("qa_question_column"), step.get("qa_answer_column")
+        if not (q_col and a_col):
+            raise ValueError("chunk op strategy='qa' with qa_source='column' requires qa_question_column and qa_answer_column.")
+        if q_col not in df.columns or a_col not in df.columns:
+            raise ValueError(f"chunk op strategy='qa': qa_question_column/qa_answer_column not in upstream columns: {list(df.columns)}")
+    elif qa_source == "llm":
+        model = step.get("qa_model")
+        if not model:
+            raise ValueError("chunk op strategy='qa' with qa_source='llm' requires qa_model.")
+        num_pairs = int(step.get("qa_num_pairs", 5))
+        api_key_env_var = step.get("qa_api_key_env_var", "OPENAI_API_KEY")
+        prompt_prefix = step.get("qa_prompt_prefix")
+    else:
+        raise ValueError(f"chunk op strategy='qa': qa_source must be 'column' or 'llm', got {qa_source!r}")
+
+    rows: List[Dict[str, Any]] = []
+    skipped = 0
+    for _, row in df.iterrows():
+        source_id = row[id_column]
+        if qa_source == "column":
+            pairs = [{"question": str(row[q_col]), "answer": str(row[a_col])}]
+        else:
+            text = str(row[text_column]) if pd.notna(row[text_column]) else ""
+            if not text.strip():
+                skipped += 1
+                continue
+            try:
+                pairs = _generate_qa_pairs_llm(text, model, num_pairs, api_key_env_var, prompt_prefix)
+            except Exception as e:
+                context.log.warning(f"chunk (qa, llm): generation failed for source {source_id!r}: {e}")
+                pairs = []
+        for i, pair in enumerate(pairs):
+            record: Dict[str, Any] = {id_column: source_id}
+            for col in metadata_columns:
+                if col in df.columns:
+                    record[col] = row[col]
+            digest = _sha256(pair["question"])
+            record.update({
+                "chunk_id": f"{id_prefix}{source_id}_{i}",
+                "chunk_index": i,
+                "total_chunks": len(pairs),
+                out_text_col: pair["question"],
+                "answer": pair["answer"],
+                "content_hash": digest,
+            })
+            rows.append(record)
+    if skipped:
+        context.log.warning(f"chunk (qa): skipped {skipped} row(s) with empty {text_column!r}")
+    out = pd.DataFrame(rows)
+    out.attrs["stats"] = {"qa_source": qa_source}
+    return out
+
+
 def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, metadata_columns: List[str], context) -> pd.DataFrame:
     """Knobs: strategy (fixed|recursive|markdown|code: per-function/class chunks for source files, see
-    language / language_column / path_column), chunk_id_prefix (REQUIRED when several assets share one
-    vector collection and their source ids can overlap), chunk_size/chunk_overlap with length_unit
-    (chars|tokens, tokens estimated via chars_per_token), preserve_sentences (fixed only),
+    language / language_column / path_column; qa: see _do_chunk_qa, not a text-splitting strategy at
+    all -- produces question/answer pairs indexed by question), chunk_id_prefix (REQUIRED when several
+    assets share one vector collection and their source ids can overlap), chunk_size/chunk_overlap with
+    length_unit (chars|tokens, tokens estimated via chars_per_token), preserve_sentences (fixed only),
     min_chunk_chars, max_chunks_per_source, chunk_id_mode (positional|content), header_template
     (prepended to each chunk's text, may use any carried column and {section_path}), parent_chunk_size
     (small-to-big: embed small child chunks but keep each child's larger parent passage as `parent_text`
     and `parent_id`, so retrieval can match precisely and return the surrounding context)."""
     strategy = step.get("strategy", "fixed")
+    if strategy == "qa":
+        return _do_chunk_qa(df, step, id_column, text_column, metadata_columns, context)
     if strategy not in ("fixed", "recursive", "markdown", "code"):
         raise ValueError(f"chunk op: strategy must be fixed, recursive, markdown or code, got {strategy!r}")
     unit = step.get("length_unit", "chars")
@@ -752,19 +860,27 @@ def _chunk_run_metadata(upstream_df: pd.DataFrame, df: pd.DataFrame, step: dict,
     # Effective settings -- the same defaults _do_chunk itself resolves when a knob is left unset
     # in YAML (e.g. strategy='fixed'), not just whatever the user happened to type. A UI showing
     # "what ran" needs the real answer, not a blank for every default-left-alone knob.
-    _settings = {
-        "strategy": step.get("strategy", "fixed"),
-        "chunk_size": step.get("chunk_size", 500),
-        "chunk_overlap": step.get("chunk_overlap", 50),
-        "length_unit": step.get("length_unit", "chars"),
-        "chars_per_token": float(step.get("chars_per_token", 4.0)),
-        "preserve_sentences": step.get("preserve_sentences", True),
-        "min_chunk_chars": int(step.get("min_chunk_chars", 0)),
-        "chunk_id_mode": step.get("chunk_id_mode", "positional"),
-    }
-    for _k in ("max_chunks_per_source", "parent_chunk_size", "parent_chunk_overlap", "header_template"):
-        if step.get(_k) is not None:
-            _settings[_k] = step[_k]
+    if step.get("strategy") == "qa":
+        # Not a text-splitting strategy -- chunk_size/chunk_overlap/etc are meaningless here and
+        # would be misleading defaults if reported as if they applied.
+        _settings = {"strategy": "qa", "qa_source": step.get("qa_source", "column")}
+        if _settings["qa_source"] == "llm":
+            _settings["qa_model"] = step.get("qa_model")
+            _settings["qa_num_pairs"] = int(step.get("qa_num_pairs", 5))
+    else:
+        _settings = {
+            "strategy": step.get("strategy", "fixed"),
+            "chunk_size": step.get("chunk_size", 500),
+            "chunk_overlap": step.get("chunk_overlap", 50),
+            "length_unit": step.get("length_unit", "chars"),
+            "chars_per_token": float(step.get("chars_per_token", 4.0)),
+            "preserve_sentences": step.get("preserve_sentences", True),
+            "min_chunk_chars": int(step.get("min_chunk_chars", 0)),
+            "chunk_id_mode": step.get("chunk_id_mode", "positional"),
+        }
+        for _k in ("max_chunks_per_source", "parent_chunk_size", "parent_chunk_overlap", "header_template"):
+            if step.get(_k) is not None:
+                _settings[_k] = step[_k]
     md: Dict[str, Any] = {
         "document_count": MetadataValue.int(int(upstream_df[id_column].nunique())),
         "chunk_count": MetadataValue.int(len(df)),

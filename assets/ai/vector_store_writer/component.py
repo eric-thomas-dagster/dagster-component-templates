@@ -14,6 +14,7 @@ from dagster import (
     AssetKey,
     Component,
     ComponentLoadContext,
+    Config,
     Definitions,
     AssetExecutionContext,
     asset,
@@ -22,6 +23,23 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+class VectorStoreWriterRunConfig(Config):
+    """Launchpad/API-settable overrides for a single run -- distinct from the component's
+    own declarative (YAML/definition-time) config above. All fields default to a no-op so an
+    unconfigured run behaves exactly as before."""
+
+    override_enabled: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Force every row's 'enabled' metadata to this value for this run only, regardless "
+            "of enabled_column. Set to false from the launchpad or the API to freeze the whole "
+            "index (e.g. ahead of an incident) without touching source data or component config; "
+            "set to true to lift a freeze. Leave unset to use enabled_column (or no 'enabled' "
+            "metadata at all, if enabled_column isn't configured)."
+        ),
+    )
 
 
 def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
@@ -360,11 +378,21 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Name of the asset")
-    provider: str = Field(description="Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors'")
+    provider: str = Field(description="Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors'")
     collection_name: str = Field(description="Collection/index name")
     embedding_column: Union[str, int] = Field(default="embedding", description="Column with embeddings")
     text_column: Union[str, int] = Field(default="text", description="Column with text")
     metadata_columns: Optional[List[str]] = Field(default=None, description="Additional metadata columns")
+    enabled_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column (bool-like) marking each row enabled/disabled. Written into every vector's "
+            "own metadata as 'enabled' -- re-running the writer with a changed value updates it "
+            "in place (upsert), no delete needed. A missing/NaN value is treated as enabled=True. "
+            "Pairs with vector_store_query's exclude_disabled to filter disabled docs out of "
+            "search results without removing them from the index."
+        ),
+    )
     connection_string: Optional[str] = Field(default=None, description="Connection string or path")
     api_key: Optional[str] = Field(default=None, description="API key (use ${VAR_NAME} for environment variable)")
     batch_size: int = Field(default=100, description="Batch size")
@@ -567,6 +595,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         embedding_column = self.embedding_column
         text_column = self.text_column
         metadata_columns = self.metadata_columns or []
+        enabled_column = self.enabled_column
         connection_string = self.connection_string
         api_key = self.api_key
         batch_size = self.batch_size
@@ -681,7 +710,9 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
 
         @asset(**_asset_kwargs)
-        def vector_store_writer_asset(context: AssetExecutionContext, **kwargs) -> Dict[str, Any]:
+        def vector_store_writer_asset(
+            context: AssetExecutionContext, config: VectorStoreWriterRunConfig, **kwargs
+        ) -> Dict[str, Any]:
             upstream = kwargs.get("upstream")
             if upstream is None:
                 upstream = _ingest_warehouse_query(source_cfg, context)
@@ -710,6 +741,26 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
 
             context.log.info(f"Received DataFrame with {len(df)} rows")
 
+            _effective_metadata_columns = metadata_columns
+            if enabled_column:
+                if enabled_column not in df.columns:
+                    raise ValueError(f"enabled_column '{enabled_column}' not found in upstream DataFrame. Available: {list(df.columns)}")
+                # NaN/missing -> enabled=True (opt-in disabling, not a default-everything-off state).
+                df = df.copy()
+                df["enabled"] = df[enabled_column].fillna(True).astype(bool)
+
+            if config.override_enabled is not None:
+                if "enabled" not in df.columns:
+                    df = df.copy()
+                context.log.warning(
+                    f"Run-config override_enabled={config.override_enabled} applied to all "
+                    f"{len(df)} rows this run, overriding {'enabled_column' if enabled_column else 'the (unset) default'}."
+                )
+                df["enabled"] = config.override_enabled
+
+            if "enabled" in df.columns and "enabled" not in _effective_metadata_columns:
+                _effective_metadata_columns = _effective_metadata_columns + ["enabled"]
+
             # Expand environment variables in API key (supports ${VAR_NAME} pattern)
             expanded_api_key = None
             if api_key:
@@ -729,7 +780,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 embeddings = df[embedding_column].tolist()
                 texts = df[text_column].tolist() if text_column in df.columns else None
                 ids = [f"doc_{i}" for i in range(len(df))]
-                metadatas = df[metadata_columns].to_dict('records') if metadata_columns else None
+                metadatas = df[_effective_metadata_columns].to_dict('records') if _effective_metadata_columns else None
 
                 for i in range(0, len(df), batch_size):
                     batch_end = min(i + batch_size, len(df))
@@ -748,7 +799,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 vectors = []
                 for idx, row in df.iterrows():
                     metadata = {text_column: row[text_column]} if text_column in df.columns else {}
-                    for col in metadata_columns:
+                    for col in _effective_metadata_columns:
                         if col in df.columns:
                             metadata[col] = row[col]
                     vectors.append({
@@ -778,7 +829,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 points = []
                 for idx, row in df.iterrows():
                     payload = {text_column: row[text_column]} if text_column in df.columns else {}
-                    for col in metadata_columns:
+                    for col in _effective_metadata_columns:
                         if col in df.columns:
                             payload[col] = row[col]
                     points.append(PointStruct(id=idx, vector=row[embedding_column], payload=payload))
@@ -805,7 +856,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 index.add(embeddings)
 
                 # Save metadata
-                metadata = df[[text_column] + metadata_columns].to_dict('records') if text_column in df.columns else []
+                metadata = df[[text_column] + _effective_metadata_columns].to_dict('records') if text_column in df.columns else []
                 with open(metadata_path, 'wb') as f:
                     pickle.dump(metadata, f)
 
@@ -828,7 +879,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 vectors = []
                 for idx, row in df.iterrows():
                     metadata = {text_column: row[text_column]} if text_column in df.columns else {}
-                    for col in metadata_columns:
+                    for col in _effective_metadata_columns:
                         if col in df.columns:
                             metadata[col] = row[col]
                     vectors.append({

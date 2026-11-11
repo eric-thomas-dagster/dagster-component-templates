@@ -347,6 +347,59 @@
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
+    },
+    "search_mode": {
+      "type": "string",
+      "enum": [
+        "vector",
+        "full_text",
+        "hybrid"
+      ],
+      "label": "Search Mode",
+      "description": "'vector' (default): today's behavior, ranked purely by embedding similarity. 'full_text': fetches top_k * oversample_factor candidates by vector similarity, then re-ranks them by real BM25 (rank_bm25) relevance to query_text against each candidate's 'document' text, truncated back to top_k. 'hybrid': same oversampled candidate pool, combined via Reciprocal Rank Fusion (RRF, k=60 -- the standard constant from the original RRF paper; a scale-independent way to merge two rankings without needing to normalize distance and BM25 scores onto the same scale) of the vector-distance rank and the BM25 rank. None of the 6 providers here has a native full-text/hybrid search this component verified and could rely on -- this is deliberately a client-side re-rank over a vector-fetched candidate pool, not a provider-native inverted-index search; it needs query_text (not just an embedding) to have any text to score against.",
+      "required": false
+    },
+    "oversample_factor": {
+      "type": "integer",
+      "label": "Oversample Factor",
+      "description": "Only used when search_mode is 'full_text' or 'hybrid': fetches top_k * oversample_factor candidates before re-ranking down to top_k. Ignored for search_mode='vector'.",
+      "required": false
+    },
+    "rerank_model": {
+      "type": "string",
+      "label": "Rerank Model",
+      "description": "Any litellm-supported rerank model (e.g. Cohere's 'rerank-english-v3.0'). When set, re-ranks the final candidate set (after search_mode's own ranking) by relevance to query_text via litellm.rerank(), replacing 'distance' with a 'relevance_score' column (higher is better, unlike distance) and truncating to top_k. Requires query_text.",
+      "required": false
+    },
+    "rerank_api_key_env_var": {
+      "type": "string",
+      "label": "Rerank Api Key Env Var",
+      "description": "Only used when rerank_model is set: env var holding the rerank provider's API key.",
+      "required": false
+    },
+    "text_metadata_key": {
+      "type": "string",
+      "label": "Text Metadata Key",
+      "description": "Only used when search_mode is 'full_text'/'hybrid', or rerank_model is set: the metadata/payload key holding each candidate's text content, for providers that don't return document text natively (pinecone/qdrant/faiss/s3vectors all only return metadata/payload -- whatever key vector_store_writer's own text_column was written under). chromadb returns text natively (as 'document') and ignores this field.",
+      "required": false
+    },
+    "score_threshold": {
+      "type": "number",
+      "label": "Score Threshold",
+      "description": "Drops hits past this threshold, applied last (after search_mode and rerank_model). When rerank_model is set: drops hits whose relevance_score is BELOW this value (higher is better). Otherwise, auto-detected from whichever key the provider itself returned (a real, pre-existing inconsistency across these 5 providers, not something this field papers over): chromadb/faiss/s3vectors return 'distance' (lower is better -- drops hits ABOVE this value); pinecone/qdrant return 'score', a similarity score for a cosine-configured index (higher is better -- drops hits BELOW this value). Unset (default): no filtering.",
+      "required": false
+    },
+    "exclude_disabled": {
+      "type": "boolean",
+      "label": "Exclude Disabled",
+      "description": "Drop hits whose 'enabled' metadata key is explicitly false -- the write side of this pairing is vector_store_writer's enabled_column (or its override_enabled run-config override). A hit with no 'enabled' key at all (vector_store_writer's enabled_column was never configured) is kept -- opt-in disabling, not a default-everything-off state. Applied before search_mode's own re-ranking and before truncation to top_k, so disabled hits don't crowd out enabled ones -- this also means turning it on fetches top_k * oversample_factor candidates (like search_mode='full_text'/'hybrid' already does) instead of exactly top_k, to leave room for filtered-out hits. Defaults to false so an unconfigured query pays no oversampling cost.",
+      "required": false
+    },
+    "track_retrieval_count": {
+      "type": "boolean",
+      "label": "Track Retrieval Count",
+      "description": "Opt-in write side-effect on an otherwise read-only component: after each query, increments a 'retrieval_count' metadata field on every returned hit's own vector in the store (starting from 0 if absent), persisted via each provider's partial-metadata-update API. Lets vector_store_writer's enabled_column (or any downstream job) surface which documents are actually being retrieved. Adds one extra write call per hit per query -- leave false for pure read-only querying.",
+      "required": false
     }
   },
   "tags": [

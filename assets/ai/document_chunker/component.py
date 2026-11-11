@@ -338,7 +338,47 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
 
     strategy: str = Field(
         default="recursive",
-        description="Chunking strategy: fixed, semantic, recursive, sentence, token_aware"
+        description=(
+            "Chunking strategy: fixed, semantic, recursive, sentence, token_aware, qa. "
+            "'qa': not a text-splitting strategy at all -- produces question/answer pairs indexed "
+            "by question (see qa_source/qa_question_column/qa_answer_column/qa_model/qa_num_pairs)."
+        )
+    )
+
+    qa_source: Literal["column", "llm"] = Field(
+        default="column",
+        description=(
+            "Only used when strategy='qa'. 'column': qa_question_column/qa_answer_column already "
+            "hold the question/answer pairs (one row in, one row out -- no actual splitting). "
+            "'llm': generates qa_num_pairs question/answer pairs per document by calling an LLM "
+            "(qa_model) on its full text."
+        ),
+    )
+    qa_question_column: Optional[str] = Field(
+        default=None,
+        description="Required when strategy='qa' and qa_source='column': column already holding each row's question text.",
+    )
+    qa_answer_column: Optional[str] = Field(
+        default=None,
+        description="Required when strategy='qa' and qa_source='column': column already holding each row's answer text.",
+    )
+    qa_model: Optional[str] = Field(
+        default=None,
+        description="Required when strategy='qa' and qa_source='llm': any litellm-supported model name, e.g. 'gpt-4o-mini'.",
+    )
+    qa_num_pairs: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Only used when strategy='qa' and qa_source='llm': how many question/answer pairs to generate per document.",
+    )
+    qa_api_key_env_var: str = Field(
+        default="OPENAI_API_KEY",
+        description="Only used when strategy='qa' and qa_source='llm': env var holding the LLM API key.",
+    )
+    qa_prompt_prefix: Optional[str] = Field(
+        default=None,
+        description="Only used when strategy='qa' and qa_source='llm': extra instructions prepended to the generation prompt (e.g. domain context).",
     )
 
     chunk_size: int = Field(
@@ -349,6 +389,24 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
     chunk_overlap: int = Field(
         default=200,
         description="Number of characters (or tokens) to overlap between chunks"
+    )
+
+    parent_chunk_size: Optional[int] = Field(
+        default=None,
+        description=(
+            "Parent-child (small-to-big) chunking: when set, each document is first split into "
+            "larger parent passages of this size (using the same `strategy`), then each parent is "
+            "split again into the regular, smaller `chunk_size` child chunks. Every child chunk "
+            "carries `parent_id` and `parent_text` alongside its own chunk fields -- embed/index "
+            "the small, precise child chunks for retrieval matching, but return each hit's larger "
+            "`parent_text` for the context an LLM actually needs. Must be larger than `chunk_size`. "
+            "Unset (default): no parent-child chunking, matching today's behavior."
+        ),
+    )
+
+    parent_chunk_overlap: int = Field(
+        default=0,
+        description="Overlap between parent passages, in the same units as parent_chunk_size. Only used when parent_chunk_size is set.",
     )
 
     source_column: Union[str, int] = Field(
@@ -592,6 +650,33 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
         strategy = self.strategy
         chunk_size = self.chunk_size
         chunk_overlap = self.chunk_overlap
+        parent_chunk_size = self.parent_chunk_size
+        parent_chunk_overlap = self.parent_chunk_overlap
+        if strategy != "qa":
+            if chunk_overlap >= chunk_size:
+                raise ValueError("DocumentChunkerComponent: chunk_overlap must be smaller than chunk_size.")
+            if parent_chunk_size is not None:
+                if parent_chunk_size <= chunk_size:
+                    raise ValueError("DocumentChunkerComponent: parent_chunk_size must be larger than chunk_size.")
+                if parent_chunk_overlap >= parent_chunk_size:
+                    raise ValueError("DocumentChunkerComponent: parent_chunk_overlap must be smaller than parent_chunk_size.")
+        elif parent_chunk_size is not None:
+            raise ValueError("DocumentChunkerComponent: parent_chunk_size is not supported with strategy='qa'.")
+        qa_source = self.qa_source
+        qa_question_column = self.qa_question_column
+        qa_answer_column = self.qa_answer_column
+        qa_model = self.qa_model
+        qa_num_pairs = self.qa_num_pairs
+        qa_api_key_env_var = self.qa_api_key_env_var
+        qa_prompt_prefix = self.qa_prompt_prefix
+        if strategy == "qa":
+            if qa_source == "column" and not (qa_question_column and qa_answer_column):
+                raise ValueError(
+                    "DocumentChunkerComponent: strategy='qa' with qa_source='column' requires "
+                    "both qa_question_column and qa_answer_column."
+                )
+            if qa_source == "llm" and not qa_model:
+                raise ValueError("DocumentChunkerComponent: strategy='qa' with qa_source='llm' requires qa_model.")
         source_column = self.source_column
         output_column = self.output_column
         metadata_columns_str = self.metadata_columns
@@ -752,8 +837,9 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
             input_df = upstream
             context.log.info(f"Received DataFrame: {len(input_df)} rows")
 
-            # Validate source column exists
-            if source_column not in input_df.columns:
+            # Validate source column exists -- not needed for strategy='qa' with qa_source='column'
+            # (question/answer are already in their own columns; there's no document text to split).
+            if not (strategy == "qa" and qa_source == "column") and source_column not in input_df.columns:
                 raise ValueError(f"Source column '{source_column}' not found. Available: {list(input_df.columns)}")
 
             # Parse metadata columns
@@ -822,14 +908,19 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                 sentences = re.split(r'(?<=[.!?])\s+', text)
                 return sentences
 
-            def chunk_fixed(text: str) -> List[str]:
-                """Fixed-size chunking with optional overlap."""
+            def chunk_fixed(text: str, size: int = None, overlap: int = None) -> List[str]:
+                """Fixed-size chunking with optional overlap. `size`/`overlap` default to the
+                component's own chunk_size/chunk_overlap -- overridable so parent-child chunking
+                (parent_chunk_size/parent_chunk_overlap) can reuse this same splitter at a larger
+                granularity without a second, duplicated implementation."""
+                size = chunk_size if size is None else size
+                overlap = chunk_overlap if overlap is None else overlap
                 chunks = []
                 start = 0
                 text_len = len(text)
 
                 while start < text_len:
-                    end = start + chunk_size
+                    end = start + size
 
                     # Try to end at sentence boundary if preserve_sentences
                     if preserve_sentences and end < text_len:
@@ -845,12 +936,14 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                     if len(chunk) >= min_chunk_size or not chunks:
                         chunks.append(chunk)
 
-                    start = end - chunk_overlap
+                    start = end - overlap
 
                 return chunks
 
-            def chunk_recursive(text: str, seps: List[str]) -> List[str]:
-                """Recursive chunking using hierarchical separators."""
+            def chunk_recursive(text: str, seps: List[str], size: int = None) -> List[str]:
+                """Recursive chunking using hierarchical separators. `size` defaults to the
+                component's own chunk_size -- overridable for parent-child chunking."""
+                size = chunk_size if size is None else size
                 if not seps:
                     return [text]
 
@@ -865,7 +958,7 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                 for split in splits:
                     split_size = len(split)
 
-                    if current_size + split_size + len(separator) <= chunk_size:
+                    if current_size + split_size + len(separator) <= size:
                         current_chunk.append(split)
                         current_size += split_size + len(separator)
                     else:
@@ -876,9 +969,9 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                                 chunks.append(chunk_text)
 
                         # Handle large split
-                        if split_size > chunk_size and remaining_seps:
+                        if split_size > size and remaining_seps:
                             # Recurse with next separator
-                            chunks.extend(chunk_recursive(split, remaining_seps))
+                            chunks.extend(chunk_recursive(split, remaining_seps, size=size))
                         else:
                             current_chunk = [split]
                             current_size = split_size
@@ -891,8 +984,10 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
 
                 return chunks
 
-            def chunk_sentence(text: str) -> List[str]:
-                """Sentence-based chunking."""
+            def chunk_sentence(text: str, size: int = None) -> List[str]:
+                """Sentence-based chunking. `size` defaults to the component's own chunk_size --
+                overridable for parent-child chunking."""
+                size = chunk_size if size is None else size
                 sentences = split_by_sentences(text)
                 chunks = []
                 current_chunk = []
@@ -901,7 +996,7 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                 for sentence in sentences:
                     sentence_size = len(sentence)
 
-                    if current_size + sentence_size <= chunk_size:
+                    if current_size + sentence_size <= size:
                         current_chunk.append(sentence)
                         current_size += sentence_size
                     else:
@@ -917,8 +1012,10 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
 
                 return chunks
 
-            def chunk_token_aware(text: str) -> List[str]:
-                """Token-aware chunking for LLM context limits."""
+            def chunk_token_aware(text: str, size: int = None) -> List[str]:
+                """Token-aware chunking for LLM context limits. `size` defaults to the
+                component's own chunk_size -- overridable for parent-child chunking."""
+                size = chunk_size if size is None else size
                 if preserve_sentences:
                     sentences = split_by_sentences(text)
                 else:
@@ -932,7 +1029,7 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                 for sentence in sentences:
                     sentence_tokens = count_tokens(sentence)
 
-                    if current_tokens + sentence_tokens <= chunk_size:
+                    if current_tokens + sentence_tokens <= size:
                         current_chunk.append(sentence)
                         current_tokens += sentence_tokens
                     else:
@@ -950,8 +1047,10 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
 
                 return chunks
 
-            def chunk_semantic(text: str) -> List[str]:
-                """Semantic chunking based on paragraph structure."""
+            def chunk_semantic(text: str, size: int = None) -> List[str]:
+                """Semantic chunking based on paragraph structure. `size` defaults to the
+                component's own chunk_size -- overridable for parent-child chunking."""
+                size = chunk_size if size is None else size
                 # Split by paragraphs first
                 paragraphs = text.split('\n\n')
                 chunks = []
@@ -965,7 +1064,7 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
 
                     para_size = len(para)
 
-                    if current_size + para_size <= chunk_size:
+                    if current_size + para_size <= size:
                         current_chunk.append(para)
                         current_size += para_size
                     else:
@@ -974,8 +1073,8 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                             chunks.append('\n\n'.join(current_chunk))
 
                         # If paragraph too large, split it
-                        if para_size > chunk_size:
-                            chunks.extend(chunk_fixed(para))
+                        if para_size > size:
+                            chunks.extend(chunk_fixed(para, size=size))
                         else:
                             current_chunk = [para]
                             current_size = para_size
@@ -986,68 +1085,162 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
 
                 return chunks
 
+            def split_at(text: str, size: int, overlap: int) -> List[str]:
+                """Dispatches to the configured strategy at an explicit size/overlap -- shared by
+                the regular (child) split and, when parent_chunk_size is set, the larger parent
+                split, so parent-child chunking reuses the exact same strategy instead of a second,
+                separately-maintained implementation."""
+                if strategy == "fixed":
+                    return chunk_fixed(text, size=size, overlap=overlap)
+                elif strategy == "recursive":
+                    return chunk_recursive(text, separators, size=size)
+                elif strategy == "sentence":
+                    return chunk_sentence(text, size=size)
+                elif strategy == "token_aware":
+                    return chunk_token_aware(text, size=size)
+                elif strategy == "semantic":
+                    return chunk_semantic(text, size=size)
+                else:
+                    raise ValueError(f"Unknown strategy: {strategy}")
+
+            def merge_small(chunks: List[str]) -> List[str]:
+                if not (merge_small_chunks and len(chunks) > 1):
+                    return chunks
+                merged = []
+                i = 0
+                while i < len(chunks):
+                    chunk = chunks[i]
+                    if len(chunk) < min_chunk_size and i + 1 < len(chunks):
+                        # Merge with next chunk
+                        chunk = chunk + " " + chunks[i + 1]
+                        i += 2
+                    else:
+                        i += 1
+                    merged.append(chunk)
+                return merged
+
+            def generate_qa_pairs_llm(text: str) -> List[Dict[str, str]]:
+                """Calls qa_model (litellm) once per document to generate qa_num_pairs
+                question/answer pairs from its full text -- same litellm.completion +
+                JSON-with-markdown-fence-stripping convention as context_engineering_pipeline's
+                classify op mode='llm'."""
+                import os
+                import json
+                try:
+                    from litellm import completion
+                except ImportError:
+                    raise ImportError("strategy='qa' with qa_source='llm' requires litellm: pip install litellm")
+                prompt_parts = []
+                if qa_prompt_prefix:
+                    prompt_parts.append(qa_prompt_prefix)
+                prompt_parts.append(
+                    f"Generate exactly {qa_num_pairs} question/answer pairs that a reader could ask "
+                    "and answer using ONLY the following text. Return only a JSON array like "
+                    '[{"question": "...", "answer": "..."}, ...], no other text.\n\n'
+                    f"Text:\n{text}"
+                )
+                resp = completion(
+                    model=qa_model,
+                    messages=[{"role": "user", "content": "\n\n".join(prompt_parts)}],
+                    api_key=os.environ.get(qa_api_key_env_var),
+                )
+                raw = resp.choices[0].message.content.strip()
+                if raw.startswith("```"):
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"):
+                        raw = raw[4:]
+                parsed = json.loads(raw)
+                if not isinstance(parsed, list):
+                    raise ValueError("expected a JSON array of {question, answer} objects")
+                return [
+                    {"question": str(item["question"]), "answer": str(item["answer"])}
+                    for item in parsed
+                    if isinstance(item, dict) and "question" in item and "answer" in item
+                ]
+
             # Process each document
             all_chunks = []
             total_documents = len(input_df)
 
-            for idx, row in input_df.iterrows():
-                doc_text = str(row[source_column])
+            if strategy == "qa":
+                # Not a text-splitting strategy: 'column' reshapes existing question/answer
+                # columns 1:1 (no document text involved at all); 'llm' generates qa_num_pairs
+                # pairs per document from its full text. Either way, output_column holds the
+                # QUESTION (so downstream embedding/indexing is keyed by question, matching the
+                # retrieval pattern this mode exists for), and 'answer' holds the answer.
+                for idx, row in input_df.iterrows():
+                    if qa_source == "column":
+                        pairs = [{"question": str(row[qa_question_column]), "answer": str(row[qa_answer_column])}]
+                    else:
+                        doc_text = str(row[source_column])
+                        if not doc_text.strip():
+                            context.log.warning(f"Skipping empty document at index {idx}")
+                            continue
+                        try:
+                            pairs = generate_qa_pairs_llm(doc_text)
+                        except Exception as e:
+                            context.log.warning(f"qa (llm): generation failed for document at index {idx}: {e}")
+                            pairs = []
+                    for pair_idx, pair in enumerate(pairs):
+                        chunk_record = {output_column: pair["question"], "answer": pair["answer"]}
+                        for col in metadata_cols:
+                            chunk_record[col] = row[col]
+                        if add_chunk_metadata:
+                            chunk_record['chunk_index'] = pair_idx
+                            chunk_record['total_chunks'] = len(pairs)
+                            chunk_record['chunk_size'] = len(pair["question"])
+                        all_chunks.append(chunk_record)
+                    if idx % 100 == 0 and idx > 0:
+                        context.log.info(f"Processed {idx}/{total_documents} documents")
+            else:
+                for idx, row in input_df.iterrows():
+                    doc_text = str(row[source_column])
 
-                # Skip empty documents
-                if not doc_text.strip():
-                    context.log.warning(f"Skipping empty document at index {idx}")
-                    continue
+                    # Skip empty documents
+                    if not doc_text.strip():
+                        context.log.warning(f"Skipping empty document at index {idx}")
+                        continue
 
-                # Choose chunking strategy
-                if strategy == "fixed":
-                    chunks = chunk_fixed(doc_text)
-                elif strategy == "recursive":
-                    chunks = chunk_recursive(doc_text, separators)
-                elif strategy == "sentence":
-                    chunks = chunk_sentence(doc_text)
-                elif strategy == "token_aware":
-                    chunks = chunk_token_aware(doc_text)
-                elif strategy == "semantic":
-                    chunks = chunk_semantic(doc_text)
-                else:
-                    raise ValueError(f"Unknown strategy: {strategy}")
+                    # parent_chunk_size unset (default): one flat level of chunks, exactly today's
+                    # behavior. Set: split into larger parent passages first, then each parent into
+                    # the regular, smaller child chunks -- every child carries parent_id/parent_text.
+                    if parent_chunk_size is None:
+                        parents = [(None, None, doc_text)]
+                    else:
+                        parent_passages = merge_small(split_at(doc_text, parent_chunk_size, parent_chunk_overlap))
+                        parents = [
+                            (f"{idx}_p{p_idx}", parent_text, parent_text)
+                            for p_idx, parent_text in enumerate(parent_passages)
+                        ]
 
-                # Merge small chunks if enabled
-                if merge_small_chunks and len(chunks) > 1:
-                    merged = []
-                    i = 0
-                    while i < len(chunks):
-                        chunk = chunks[i]
-                        if len(chunk) < min_chunk_size and i + 1 < len(chunks):
-                            # Merge with next chunk
-                            chunk = chunk + " " + chunks[i + 1]
-                            i += 2
-                        else:
-                            i += 1
-                        merged.append(chunk)
-                    chunks = merged
+                    doc_chunk_idx = 0
+                    doc_total_chunks = 0
+                    doc_chunk_records = []
+                    for parent_id, parent_text, split_source in parents:
+                        chunks = merge_small(split_at(split_source, chunk_size, chunk_overlap))
+                        for chunk_text in chunks:
+                            chunk_record = {output_column: chunk_text}
+                            for col in metadata_cols:
+                                chunk_record[col] = row[col]
+                            if parent_id is not None:
+                                chunk_record['parent_id'] = parent_id
+                                chunk_record['parent_text'] = parent_text
+                            if add_chunk_metadata:
+                                chunk_record['chunk_index'] = doc_chunk_idx
+                                chunk_record['chunk_size'] = len(chunk_text)
+                                if strategy == "token_aware" and tokenizer:
+                                    chunk_record['chunk_tokens'] = count_tokens(chunk_text)
+                            doc_chunk_records.append(chunk_record)
+                            doc_chunk_idx += 1
+                        doc_total_chunks += len(chunks)
 
-                # Create chunk records
-                total_chunks = len(chunks)
-                for chunk_idx, chunk_text in enumerate(chunks):
-                    chunk_record = {output_column: chunk_text}
-
-                    # Add metadata from original row
-                    for col in metadata_cols:
-                        chunk_record[col] = row[col]
-
-                    # Add chunk metadata
                     if add_chunk_metadata:
-                        chunk_record['chunk_index'] = chunk_idx
-                        chunk_record['total_chunks'] = total_chunks
-                        chunk_record['chunk_size'] = len(chunk_text)
-                        if strategy == "token_aware" and tokenizer:
-                            chunk_record['chunk_tokens'] = count_tokens(chunk_text)
+                        for chunk_record in doc_chunk_records:
+                            chunk_record['total_chunks'] = doc_total_chunks
+                    all_chunks.extend(doc_chunk_records)
 
-                    all_chunks.append(chunk_record)
-
-                if idx % 100 == 0 and idx > 0:
-                    context.log.info(f"Processed {idx}/{total_documents} documents")
+                    if idx % 100 == 0 and idx > 0:
+                        context.log.info(f"Processed {idx}/{total_documents} documents")
 
             # Create result DataFrame
             result_df = pd.DataFrame(all_chunks)
@@ -1055,21 +1248,26 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
             context.log.info(f"Chunking complete: {len(result_df)} chunks from {total_documents} documents")
             context.log.info(f"Average chunks per document: {len(result_df) / total_documents:.1f}")
 
-            # Calculate statistics
-            chunk_sizes = result_df['chunk_size'].tolist() if 'chunk_size' in result_df.columns else [len(c) for c in result_df[output_column]]
-            avg_chunk_size = sum(chunk_sizes) / len(chunk_sizes)
-            min_chunk = min(chunk_sizes)
-            max_chunk = max(chunk_sizes)
+            # Calculate statistics -- guarded: a real, reachable empty result (e.g. strategy='qa'
+            # with qa_source='llm' where every document's generation call failed) must report
+            # clearly, not crash the whole asset on min()/division-by-zero.
+            if len(result_df) > 0:
+                chunk_sizes = result_df['chunk_size'].tolist() if 'chunk_size' in result_df.columns else [len(c) for c in result_df[output_column]]
+                avg_chunk_size = int(sum(chunk_sizes) / len(chunk_sizes))
+                min_chunk = int(min(chunk_sizes))
+                max_chunk = int(max(chunk_sizes))
+            else:
+                avg_chunk_size = min_chunk = max_chunk = 0
 
             # Metadata
             metadata = {
                 "strategy": strategy,
                 "total_chunks": len(result_df),
                 "source_documents": total_documents,
-                "avg_chunks_per_doc": len(result_df) / total_documents,
-                "avg_chunk_size": int(avg_chunk_size),
-                "min_chunk_size": int(min_chunk),
-                "max_chunk_size": int(max_chunk),
+                "avg_chunks_per_doc": len(result_df) / total_documents if total_documents else 0,
+                "avg_chunk_size": avg_chunk_size,
+                "min_chunk_size": min_chunk,
+                "max_chunk_size": max_chunk,
                 "target_chunk_size": chunk_size,
                 "chunk_overlap": chunk_overlap,
             }

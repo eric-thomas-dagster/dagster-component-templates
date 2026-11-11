@@ -357,6 +357,64 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "qa_source": {
+      "type": "string",
+      "enum": [
+        "column",
+        "llm"
+      ],
+      "label": "Qa Source",
+      "description": "Only used when strategy='qa'. 'column': qa_question_column/qa_answer_column already hold the question/answer pairs (one row in, one row out -- no actual splitting). 'llm': generates qa_num_pairs question/answer pairs per document by calling an LLM (qa_model) on its full text.",
+      "required": false
+    },
+    "qa_question_column": {
+      "type": "string",
+      "label": "Qa Question Column",
+      "description": "Required when strategy='qa' and qa_source='column': column already holding each row's question text.",
+      "required": false
+    },
+    "qa_answer_column": {
+      "type": "string",
+      "label": "Qa Answer Column",
+      "description": "Required when strategy='qa' and qa_source='column': column already holding each row's answer text.",
+      "required": false
+    },
+    "qa_model": {
+      "type": "string",
+      "label": "Qa Model",
+      "description": "Required when strategy='qa' and qa_source='llm': any litellm-supported model name, e.g. 'gpt-4o-mini'.",
+      "required": false
+    },
+    "qa_num_pairs": {
+      "type": "integer",
+      "label": "Qa Num Pairs",
+      "description": "Only used when strategy='qa' and qa_source='llm': how many question/answer pairs to generate per document.",
+      "required": false
+    },
+    "qa_api_key_env_var": {
+      "type": "string",
+      "label": "Qa Api Key Env Var",
+      "description": "Only used when strategy='qa' and qa_source='llm': env var holding the LLM API key.",
+      "required": false
+    },
+    "qa_prompt_prefix": {
+      "type": "string",
+      "label": "Qa Prompt Prefix",
+      "description": "Only used when strategy='qa' and qa_source='llm': extra instructions prepended to the generation prompt (e.g. domain context).",
+      "required": false
+    },
+    "parent_chunk_size": {
+      "type": "integer",
+      "label": "Parent Chunk Size",
+      "description": "Parent-child (small-to-big) chunking: when set, each document is first split into larger parent passages of this size (using the same `strategy`), then each parent is split again into the regular, smaller `chunk_size` child chunks. Every child chunk carries `parent_id` and `parent_text` alongside its own chunk fields -- embed/index the small, precise child chunks for retrieval matching, but return each hit's larger `parent_text` for the context an LLM actually needs. Must be larger than `chunk_size`. Unset (default): no parent-child chunking, matching today's behavior.",
+      "required": false
+    },
+    "parent_chunk_overlap": {
+      "type": "integer",
+      "label": "Parent Chunk Overlap",
+      "description": "Overlap between parent passages, in the same units as parent_chunk_size. Only used when parent_chunk_size is set.",
+      "required": false
     }
   },
   "tags": [

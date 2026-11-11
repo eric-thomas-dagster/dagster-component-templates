@@ -72,7 +72,7 @@ Returns a dictionary with status information:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `provider` | `str` | Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors' |
+| `provider` | `str` | Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors' |
 | `collection_name` | `str` | Collection/index name |
 
 ### Connection
@@ -138,6 +138,7 @@ Returns a dictionary with status information:
 | `embedding_column` | `Union[str, int]` | `"embedding"` | Column with embeddings |
 | `text_column` | `Union[str, int]` | `"text"` | Column with text |
 | `metadata_columns` | `List[str]` | — | Additional metadata columns |
+| `enabled_column` | `str` | — | Column (bool-like) marking each row enabled/disabled. Written into every vector's own metadata as 'enabled' -- re-running the writer with a changed value updates it in place (upsert), no delete needed. A missing/NaN valu… _(full docs in schema.json + component README)_ |
 | `upsert` | `bool` | `true` | Upsert if exists |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include a sample of written rows (text/metadata columns, not the raw embedding vectors) in run metadata. |

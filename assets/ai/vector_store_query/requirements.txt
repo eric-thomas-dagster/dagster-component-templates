@@ -6,4 +6,10 @@ faiss-cpu>=1.7.4
 # provider=s3vectors only -- not needed for demo_mode
 boto3>=1.43
 
+# search_mode='full_text'/'hybrid' only
+rank_bm25>=0.2.2
+
+# rerank_model only
+litellm>=1.0.0
+
 pandas>=2.0.0

@@ -63,7 +63,7 @@ Returns a Pandas DataFrame with search results containing:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `provider` | `str` | Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors' |
+| `provider` | `str` | Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors' |
 | `collection_name` | `str` | Collection/index name |
 | `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with query embeddings |
 
@@ -133,6 +133,14 @@ Returns a Pandas DataFrame with search results containing:
 | `include_distances` | `bool` | `true` | Include similarity distances |
 | `embedding_column` | `Union[str, int]` | `"embedding"` | Column name containing query embeddings in the upstream DataFrame |
 | `query_text_column` | `Union[str, int]` | — | Column with query text to copy into output rows (helps downstream rerankers correlate query+document) |
+| `search_mode` | `Literal['vector', 'full_text', 'hybrid']` | `"vector"` | 'vector' (default): today's behavior, ranked purely by embedding similarity. 'full_text': fetches top_k * oversample_factor candidates by vector similarity, then re-ranks them by real BM25 (rank_bm25) relevance to query_… _(full docs in schema.json + component README)_ |
+| `oversample_factor` | `int` | `5` | Only used when search_mode is 'full_text' or 'hybrid': fetches top_k * oversample_factor candidates before re-ranking down to top_k. Ignored for search_mode='vector'. |
+| `rerank_model` | `str` | — | Any litellm-supported rerank model (e.g. Cohere's 'rerank-english-v3.0'). When set, re-ranks the final candidate set (after search_mode's own ranking) by relevance to query_text via litellm.rerank(), replacing 'distance'… _(full docs in schema.json + component README)_ |
+| `rerank_api_key_env_var` | `str` | `"COHERE_API_KEY"` | Only used when rerank_model is set: env var holding the rerank provider's API key. |
+| `text_metadata_key` | `str` | `"text"` | Only used when search_mode is 'full_text'/'hybrid', or rerank_model is set: the metadata/payload key holding each candidate's text content, for providers that don't return document text natively (pinecone/qdrant/faiss/s3… _(full docs in schema.json + component README)_ |
+| `score_threshold` | `float` | — | Drops hits past this threshold, applied last (after search_mode and rerank_model). When rerank_model is set: drops hits whose relevance_score is BELOW this value (higher is better). Otherwise, auto-detected from whicheve… _(full docs in schema.json + component README)_ |
+| `exclude_disabled` | `bool` | `false` | Drop hits whose 'enabled' metadata key is explicitly false -- the write side of this pairing is vector_store_writer's enabled_column (or its override_enabled run-config override). A hit with no 'enabled' key at all (vect… _(full docs in schema.json + component README)_ |
+| `track_retrieval_count` | `bool` | `false` | Opt-in write side-effect on an otherwise read-only component: after each query, increments a 'retrieval_count' metadata field on every returned hit's own vector in the store (starting from 0 if absent), persisted via eac… _(full docs in schema.json + component README)_ |
 | `vector_bucket_name` | `str` | — | S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider. |
 | `aws_region` | `str` | — | AWS region for the s3vectors client. Required when provider='s3vectors'. Ignored by every other provider. |
 | `demo_mode` | `bool` | `true` | Only affects provider='s3vectors' -- queries a local JSON-file-backed fake instead of a real AWS account (no effect on chromadb/pinecone/qdrant/faiss). Set false for a real S3 Vectors bucket. Point `connection_string` at… _(full docs in schema.json + component README)_ |

@@ -281,6 +281,231 @@ class _DemoS3VectorsClient:
             results.append(item)
         return {"vectors": results}
 
+    def get_vectors(self, vectorBucketName: str, indexName: str, keys: List[str], returnData: bool = True, returnMetadata: bool = True, **_kw) -> Dict[str, Any]:
+        """track_retrieval_count's read-before-write step -- put_vectors has no partial-update
+        API, so a metadata-only change still needs the vector's own embedding fetched first."""
+        import json
+
+        if not os.path.exists(self._path):
+            return {"vectors": []}
+        with open(self._path) as f:
+            data = json.load(f)
+        index = (data.get("indexes") or {}).get(indexName, {"vectors": {}})
+        out = []
+        for key in keys:
+            entry = index["vectors"].get(key)
+            if entry is None:
+                continue
+            item = {"key": key}
+            if returnData:
+                item["data"] = entry["data"]
+            if returnMetadata:
+                item["metadata"] = entry.get("metadata", {})
+            out.append(item)
+        return {"vectors": out}
+
+    def put_vectors(self, vectorBucketName: str, indexName: str, vectors: List[Dict[str, Any]], **_kw) -> None:
+        import json
+
+        data = {"indexes": {}}
+        if os.path.exists(self._path):
+            with open(self._path) as f:
+                data = json.load(f)
+        index = data.setdefault("indexes", {}).setdefault(indexName, {"vectors": {}})
+        for v in vectors:
+            index["vectors"][v["key"]] = {"data": v["data"], "metadata": v.get("metadata", {})}
+        with open(self._path, "w") as f:
+            json.dump(data, f)
+
+
+def _extract_result_text(result: Dict[str, Any], provider: str, text_metadata_key: str) -> Optional[str]:
+    """chromadb returns document text natively (as 'document'); every other provider here only
+    ever returns metadata/payload, so the text has to be read back out of whichever key
+    vector_store_writer's own text_column was stored under."""
+    if provider == "chromadb":
+        return result.get("document")
+    container = result.get("payload") if provider == "qdrant" else result.get("metadata")
+    return (container or {}).get(text_metadata_key)
+
+
+def _bm25_scores(query_text: str, texts: List[str]) -> List[float]:
+    """Real BM25 (rank_bm25), not a hand-rolled heuristic -- verified against the installed
+    package's actual API (BM25Okapi(tokenized_corpus).get_scores(tokenized_query)) before use.
+    A candidate with no text at all scores 0 (never favored, never crashes the ranking)."""
+    try:
+        from rank_bm25 import BM25Okapi
+    except ImportError:
+        raise ImportError("search_mode='full_text'/'hybrid' requires rank_bm25: pip install rank_bm25")
+    tokenized_corpus = [(t or "").lower().split() for t in texts]
+    bm25 = BM25Okapi(tokenized_corpus)
+    return list(bm25.get_scores(query_text.lower().split()))
+
+
+def _reciprocal_rank_fusion(rankings: List[List[int]], k: int = 60) -> List[float]:
+    """Combines several rankings (each a list of candidate indices, best first) into one fused
+    score per candidate -- the standard RRF formula (score = sum(1 / (k + rank))), k=60 being the
+    constant from the original paper (Cormack et al., 2009). Scale-independent on purpose: vector
+    distance and BM25 score live on totally different, unnormalized scales, and RRF only ever
+    looks at each ranking's ORDER, never the raw score values, so there's nothing to normalize."""
+    n = max((idx for ranking in rankings for idx in ranking), default=-1) + 1
+    fused = [0.0] * n
+    for ranking in rankings:
+        for rank, idx in enumerate(ranking):
+            fused[idx] += 1.0 / (k + rank + 1)
+    return fused
+
+
+def _apply_rerank_model(query_text: str, texts: List[str], model: str, api_key_env_var: str) -> List[float]:
+    """litellm.rerank() -- verified against the installed version's real response shape
+    (RerankResponse.results: list of {index, relevance_score, document}), same
+    litellm-as-universal-gateway convention used throughout this repo. A candidate with no text
+    is sent as an empty string (never favored by a real reranker, never crashes the call)."""
+    import os
+    try:
+        import litellm
+    except ImportError:
+        raise ImportError("rerank_model requires litellm: pip install litellm")
+    resp = litellm.rerank(
+        model=model, query=query_text, documents=[t or "" for t in texts],
+        api_key=os.environ.get(api_key_env_var),
+    )
+    scores = [0.0] * len(texts)
+    for r in resp.results or []:
+        scores[r["index"]] = r["relevance_score"]
+    return scores
+
+
+def _extract_result_enabled(result: Dict[str, Any], provider: str) -> Any:
+    container = result.get("payload") if provider == "qdrant" else result.get("metadata")
+    return (container or {}).get("enabled", True)
+
+
+def _rerank_and_filter_results(
+    results: List[Dict[str, Any]], *, provider: str, query_text: Optional[str], search_mode: str,
+    text_metadata_key: str, top_k: int, rerank_model: Optional[str], rerank_api_key_env_var: str,
+    score_threshold: Optional[float], exclude_disabled: bool = False,
+) -> List[Dict[str, Any]]:
+    """Applies exclude_disabled, then search_mode's own re-ranking, then rerank_model, then
+    score_threshold, to one query's already-fetched (possibly oversampled) candidate pool --
+    shared by every provider branch, since this is all post-processing over `results`, the
+    provider's own output shape."""
+    if not results:
+        return results
+
+    if exclude_disabled:
+        results = [r for r in results if _extract_result_enabled(r, provider) is not False]
+        if not results:
+            return results
+
+    if search_mode != "vector":
+        texts = [_extract_result_text(r, provider, text_metadata_key) for r in results]
+        vector_rank = list(range(len(results)))  # already provider-sorted by vector distance/score
+        bm25_scores = _bm25_scores(query_text, texts)
+        bm25_rank = sorted(range(len(results)), key=lambda i: bm25_scores[i], reverse=True)
+        if search_mode == "full_text":
+            order = bm25_rank
+        else:  # hybrid
+            fused = _reciprocal_rank_fusion([vector_rank, bm25_rank])
+            order = sorted(range(len(results)), key=lambda i: fused[i], reverse=True)
+        results = [results[i] for i in order][:top_k]
+    else:
+        results = results[:top_k]
+
+    if rerank_model:
+        texts = [_extract_result_text(r, provider, text_metadata_key) for r in results]
+        scores = _apply_rerank_model(query_text, texts, rerank_model, rerank_api_key_env_var)
+        order = sorted(range(len(results)), key=lambda i: scores[i], reverse=True)
+        results = [{**results[i], "relevance_score": scores[i]} for i in order][:top_k]
+
+    if score_threshold is not None:
+        if rerank_model:
+            results = [r for r in results if r["relevance_score"] >= score_threshold]
+        else:
+            results = [
+                r for r in results
+                if ("distance" not in r or r["distance"] <= score_threshold)
+                and ("score" not in r or r["score"] >= score_threshold)
+            ]
+    return results
+
+
+def _increment_retrieval_counts(
+    results: List[Dict[str, Any]], *, provider: str, demo_mode: bool, connection_string: Optional[str],
+    collection_name: str, vector_bucket_name: Optional[str], aws_region: Optional[str],
+    expanded_api_key: Optional[str], context: Any,
+) -> None:
+    """Opt-in write side-effect (track_retrieval_count): bumps each returned hit's own
+    'retrieval_count' metadata by 1, persisted back into the vector store via each provider's
+    partial-metadata-update API. Best-effort -- a write failure is logged, not raised, since this
+    is telemetry on top of an otherwise read-only query, not the query's own result."""
+    if not results:
+        return
+    try:
+        if provider == "chromadb":
+            import chromadb
+            client = chromadb.PersistentClient(path=connection_string or "./chroma_db")
+            collection = client.get_collection(name=collection_name)
+            ids = [r["id"] for r in results]
+            metadatas = [
+                {**(r.get("metadata") or {}), "retrieval_count": (r.get("metadata") or {}).get("retrieval_count", 0) + 1}
+                for r in results
+            ]
+            collection.update(ids=ids, metadatas=metadatas)
+
+        elif provider == "pinecone":
+            from pinecone import Pinecone
+            pc = Pinecone(api_key=expanded_api_key)
+            index = pc.Index(collection_name)
+            for r in results:
+                count = (r.get("metadata") or {}).get("retrieval_count", 0) + 1
+                index.update(id=r["id"], set_metadata={"retrieval_count": count})
+
+        elif provider == "qdrant":
+            from qdrant_client import QdrantClient
+            client = QdrantClient(url=connection_string or "localhost", api_key=expanded_api_key)
+            for r in results:
+                count = (r.get("payload") or {}).get("retrieval_count", 0) + 1
+                client.set_payload(
+                    collection_name=collection_name, payload={"retrieval_count": count}, points=[r["id"]],
+                )
+
+        elif provider == "faiss":
+            import pickle
+            index_path = connection_string or f"./{collection_name}.faiss"
+            metadata_path = index_path.replace(".faiss", "_metadata.pkl")
+            with open(metadata_path, 'rb') as f:
+                metadata = pickle.load(f)
+            for r in results:
+                doc_idx = r["index"]
+                if doc_idx < len(metadata):
+                    metadata[doc_idx]["retrieval_count"] = metadata[doc_idx].get("retrieval_count", 0) + 1
+            with open(metadata_path, 'wb') as f:
+                pickle.dump(metadata, f)
+
+        elif provider == "s3vectors":
+            if demo_mode:
+                demo_path = connection_string or f"./{vector_bucket_name}_{collection_name}_s3vectors_demo.json"
+                client = _DemoS3VectorsClient(demo_path)
+            else:
+                client = _build_s3vectors_client(aws_region)
+            for r in results:
+                fetched = client.get_vectors(
+                    vectorBucketName=vector_bucket_name, indexName=collection_name,
+                    keys=[r["key"]], returnData=True, returnMetadata=True,
+                )
+                vecs = fetched.get("vectors", [])
+                if not vecs:
+                    continue
+                vec = vecs[0]
+                metadata = {**vec.get("metadata", {})}
+                metadata["retrieval_count"] = metadata.get("retrieval_count", 0) + 1
+                client.put_vectors(
+                    vectorBucketName=vector_bucket_name, indexName=collection_name,
+                    vectors=[{"key": r["key"], "data": vec["data"], "metadata": metadata}],
+                )
+    except Exception as e:
+        context.log.warning(f"track_retrieval_count: failed to write back retrieval_count for provider={provider}: {e}")
+
 
 class VectorStoreQueryComponent(Component, Model, Resolvable):
     """Component for querying vector stores.
@@ -300,7 +525,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Name of the asset")
-    provider: str = Field(description="Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors'")
+    provider: str = Field(description="Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors'")
     collection_name: str = Field(description="Collection/index name")
     query_text: Optional[str] = Field(default=None, description="Direct query text (alternative to embedding)")
     top_k: int = Field(default=10, description="Number of results")
@@ -310,6 +535,90 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     include_distances: bool = Field(default=True, description="Include similarity distances")
     embedding_column: Union[str, int] = Field(default="embedding", description="Column name containing query embeddings in the upstream DataFrame")
     query_text_column: Optional[Union[str, int]] = Field(default=None, description="Column with query text to copy into output rows (helps downstream rerankers correlate query+document)")
+    search_mode: Literal["vector", "full_text", "hybrid"] = Field(
+        default="vector",
+        description=(
+            "'vector' (default): today's behavior, ranked purely by embedding similarity. "
+            "'full_text': fetches top_k * oversample_factor candidates by vector similarity, then "
+            "re-ranks them by real BM25 (rank_bm25) relevance to query_text against each "
+            "candidate's 'document' text, truncated back to top_k. 'hybrid': same oversampled "
+            "candidate pool, combined via Reciprocal Rank Fusion (RRF, k=60 -- the standard "
+            "constant from the original RRF paper; a scale-independent way to merge two rankings "
+            "without needing to normalize distance and BM25 scores onto the same scale) of the "
+            "vector-distance rank and the BM25 rank. None of the 6 providers here has a native "
+            "full-text/hybrid search this component verified and could rely on -- this is "
+            "deliberately a client-side re-rank over a vector-fetched candidate pool, not a "
+            "provider-native inverted-index search; it needs query_text (not just an embedding) "
+            "to have any text to score against."
+        ),
+    )
+    oversample_factor: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Only used when search_mode is 'full_text' or 'hybrid': fetches top_k * oversample_factor candidates before re-ranking down to top_k. Ignored for search_mode='vector'.",
+    )
+    rerank_model: Optional[str] = Field(
+        default=None,
+        description=(
+            "Any litellm-supported rerank model (e.g. Cohere's 'rerank-english-v3.0'). When set, "
+            "re-ranks the final candidate set (after search_mode's own ranking) by relevance to "
+            "query_text via litellm.rerank(), replacing 'distance' with a 'relevance_score' column "
+            "(higher is better, unlike distance) and truncating to top_k. Requires query_text."
+        ),
+    )
+    rerank_api_key_env_var: str = Field(
+        default="COHERE_API_KEY",
+        description="Only used when rerank_model is set: env var holding the rerank provider's API key.",
+    )
+    text_metadata_key: str = Field(
+        default="text",
+        description=(
+            "Only used when search_mode is 'full_text'/'hybrid', or rerank_model is set: the "
+            "metadata/payload key holding each candidate's text content, for providers that don't "
+            "return document text natively (pinecone/qdrant/faiss/s3vectors all only return "
+            "metadata/payload -- whatever key vector_store_writer's own text_column was written "
+            "under). chromadb returns text natively (as 'document') and ignores this field."
+        ),
+    )
+    score_threshold: Optional[float] = Field(
+        default=None,
+        description=(
+            "Drops hits past this threshold, applied last (after search_mode and rerank_model). "
+            "When rerank_model is set: drops hits whose relevance_score is BELOW this value "
+            "(higher is better). Otherwise, auto-detected from whichever key the provider itself "
+            "returned (a real, pre-existing inconsistency across these 5 providers, not something "
+            "this field papers over): chromadb/faiss/s3vectors return 'distance' (lower is better "
+            "-- drops hits ABOVE this value); pinecone/qdrant return 'score', a similarity score "
+            "for a cosine-configured index (higher is better -- drops hits BELOW this value). "
+            "Unset (default): no filtering."
+        ),
+    )
+    exclude_disabled: bool = Field(
+        default=False,
+        description=(
+            "Drop hits whose 'enabled' metadata key is explicitly false -- the write side of this "
+            "pairing is vector_store_writer's enabled_column (or its override_enabled run-config "
+            "override). A hit with no 'enabled' key at all (vector_store_writer's enabled_column "
+            "was never configured) is kept -- opt-in disabling, not a default-everything-off "
+            "state. Applied before search_mode's own re-ranking and before truncation to top_k, so "
+            "disabled hits don't crowd out enabled ones -- this also means turning it on fetches "
+            "top_k * oversample_factor candidates (like search_mode='full_text'/'hybrid' already "
+            "does) instead of exactly top_k, to leave room for filtered-out hits. Defaults to "
+            "false so an unconfigured query pays no oversampling cost."
+        ),
+    )
+    track_retrieval_count: bool = Field(
+        default=False,
+        description=(
+            "Opt-in write side-effect on an otherwise read-only component: after each query, "
+            "increments a 'retrieval_count' metadata field on every returned hit's own vector in "
+            "the store (starting from 0 if absent), persisted via each provider's partial-metadata-"
+            "update API. Lets vector_store_writer's enabled_column (or any downstream job) surface "
+            "which documents are actually being retrieved. Adds one extra write call per hit per "
+            "query -- leave false for pure read-only querying."
+        ),
+    )
     vector_bucket_name: Optional[str] = Field(
         default=None,
         description="S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider.",
@@ -528,6 +837,22 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
         include_distances = self.include_distances
         embedding_column = self.embedding_column
         query_text_column = self.query_text_column
+        search_mode = self.search_mode
+        oversample_factor = self.oversample_factor
+        rerank_model = self.rerank_model
+        rerank_api_key_env_var = self.rerank_api_key_env_var
+        text_metadata_key = self.text_metadata_key
+        score_threshold = self.score_threshold
+        exclude_disabled = self.exclude_disabled
+        track_retrieval_count = self.track_retrieval_count
+        if search_mode != "vector" and not query_text and not query_text_column:
+            raise ValueError(
+                "VectorStoreQueryComponent: search_mode='full_text'/'hybrid' needs query text to "
+                "score against -- set query_text (same text for every row) or query_text_column "
+                "(per-row query text)."
+            )
+        if rerank_model and not query_text and not query_text_column:
+            raise ValueError("VectorStoreQueryComponent: rerank_model needs query_text or query_text_column to rerank against.")
         vector_bucket_name = self.vector_bucket_name
         aws_region = self.aws_region
         demo_mode = self.demo_mode
@@ -677,6 +1002,17 @@ group_name=group_name,
                     elif hasattr(emb, 'tolist'):
                         query_embedding = emb.tolist()
 
+                _row_query_text = query_text or (str(row[query_text_column]) if query_text_column and query_text_column in input_df.columns else None)
+                # full_text/hybrid re-rank a larger candidate pool client-side (see search_mode's
+                # own field description for why) -- fetch more than top_k from the provider, then
+                # truncate back down after re-ranking. A SEPARATE name, not a reassignment of
+                # top_k itself: top_k is read earlier in this same function (the log line above
+                # the loop), and reassigning it anywhere in the function body makes Python treat
+                # it as local to the whole function, not the closure-captured value from
+                # build_defs -- that earlier read would then raise UnboundLocalError (caught by
+                # this component's own tests; this is a lesson, not a hypothetical).
+                _fetch_k = (top_k * oversample_factor) if (search_mode != "vector" or exclude_disabled) else top_k
+
                 results = []
 
                 if provider == "chromadb":
@@ -687,7 +1023,7 @@ group_name=group_name,
                     query_results = collection.query(
                         query_embeddings=[query_embedding] if query_embedding else None,
                         query_texts=[query_text] if query_text else None,
-                        n_results=top_k
+                        n_results=_fetch_k
                     )
 
                     for i in range(len(query_results['ids'][0])):
@@ -708,7 +1044,7 @@ group_name=group_name,
                     pc = Pinecone(api_key=expanded_api_key)
                     index = pc.Index(collection_name)
 
-                    query_response = index.query(vector=query_embedding, top_k=top_k, include_metadata=True)
+                    query_response = index.query(vector=query_embedding, top_k=_fetch_k, include_metadata=True)
 
                     for match in query_response['matches']:
                         results.append({
@@ -725,7 +1061,7 @@ group_name=group_name,
                     search_results = client.search(
                         collection_name=collection_name,
                         query_vector=query_embedding,
-                        limit=top_k
+                        limit=_fetch_k
                     )
 
                     for hit in search_results:
@@ -747,7 +1083,7 @@ group_name=group_name,
                     faiss_index = faiss.read_index(index_path)
                     query_vector = np.array([query_embedding]).astype('float32')
 
-                    distances, indices = faiss_index.search(query_vector, top_k)
+                    distances, indices = faiss_index.search(query_vector, _fetch_k)
 
                     with open(metadata_path, 'rb') as f:
                         metadata = pickle.load(f)
@@ -770,7 +1106,7 @@ group_name=group_name,
                     import json as _json
                     query_response = client.query_vectors(
                         vectorBucketName=vector_bucket_name, indexName=collection_name,
-                        topK=top_k, queryVector={"float32": [float(x) for x in query_embedding]},
+                        topK=_fetch_k, queryVector={"float32": [float(x) for x in query_embedding]},
                         filter=_json.loads(filter_metadata) if filter_metadata else None,
                         returnMetadata=True, returnDistance=include_distances,
                     )
@@ -789,6 +1125,21 @@ group_name=group_name,
 
                 else:
                     raise ValueError(f"Unsupported provider: {provider}")
+
+                results = _rerank_and_filter_results(
+                    results, provider=provider, query_text=_row_query_text, search_mode=search_mode,
+                    text_metadata_key=text_metadata_key, top_k=self.top_k, rerank_model=rerank_model,
+                    rerank_api_key_env_var=rerank_api_key_env_var, score_threshold=score_threshold,
+                    exclude_disabled=exclude_disabled,
+                )
+
+                if track_retrieval_count:
+                    _increment_retrieval_counts(
+                        results, provider=provider, demo_mode=demo_mode,
+                        connection_string=connection_string, collection_name=collection_name,
+                        vector_bucket_name=vector_bucket_name, aws_region=aws_region,
+                        expanded_api_key=expanded_api_key, context=context,
+                    )
 
                 all_results.extend(results)
 

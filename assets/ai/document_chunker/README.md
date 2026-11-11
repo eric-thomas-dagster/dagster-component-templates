@@ -327,8 +327,17 @@ Process chunks with:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `strategy` | `str` | `"recursive"` | Chunking strategy: fixed, semantic, recursive, sentence, token_aware |
+| `strategy` | `str` | `"recursive"` | Chunking strategy: fixed, semantic, recursive, sentence, token_aware, qa. 'qa': not a text-splitting strategy at all -- produces question/answer pairs indexed by question (see qa_source/qa_question_column/qa_answer_colum… _(full docs in schema.json + component README)_ |
+| `qa_source` | `Literal['column', 'llm']` | `"column"` | Only used when strategy='qa'. 'column': qa_question_column/qa_answer_column already hold the question/answer pairs (one row in, one row out -- no actual splitting). 'llm': generates qa_num_pairs question/answer pairs per… _(full docs in schema.json + component README)_ |
+| `qa_question_column` | `str` | — | Required when strategy='qa' and qa_source='column': column already holding each row's question text. |
+| `qa_answer_column` | `str` | — | Required when strategy='qa' and qa_source='column': column already holding each row's answer text. |
+| `qa_model` | `str` | — | Required when strategy='qa' and qa_source='llm': any litellm-supported model name, e.g. 'gpt-4o-mini'. |
+| `qa_num_pairs` | `int` | `5` | Only used when strategy='qa' and qa_source='llm': how many question/answer pairs to generate per document. |
+| `qa_api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Only used when strategy='qa' and qa_source='llm': env var holding the LLM API key. |
+| `qa_prompt_prefix` | `str` | — | Only used when strategy='qa' and qa_source='llm': extra instructions prepended to the generation prompt (e.g. domain context). |
 | `chunk_overlap` | `int` | `200` | Number of characters (or tokens) to overlap between chunks |
+| `parent_chunk_size` | `int` | — | Parent-child (small-to-big) chunking: when set, each document is first split into larger parent passages of this size (using the same `strategy`), then each parent is split again into the regular, smaller `chunk_size` ch… _(full docs in schema.json + component README)_ |
+| `parent_chunk_overlap` | `int` | `0` | Overlap between parent passages, in the same units as parent_chunk_size. Only used when parent_chunk_size is set. |
 | `metadata_columns` | `Union[str, int]` | — | Comma-separated list of columns to preserve as metadata (e.g., 'doc_id,title,author') |
 | `add_chunk_metadata` | `bool` | `true` | Add chunk metadata (chunk_index, total_chunks, start_char, end_char) |
 | `separators` | `str` | — | Custom separators for recursive strategy (comma-separated). Default: '\n\n,\n, ,' |

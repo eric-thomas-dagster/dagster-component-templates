@@ -338,6 +338,12 @@
       "label": "Preview Rows",
       "description": "Rows to include in the sample preview when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
       "required": false
+    },
+    "enabled_column": {
+      "type": "string",
+      "label": "Enabled Column",
+      "description": "Column (bool-like) marking each row enabled/disabled. Written into every vector's own metadata as 'enabled' -- re-running the writer with a changed value updates it in place (upsert), no delete needed. A missing/NaN value is treated as enabled=True. Pairs with vector_store_query's exclude_disabled to filter disabled docs out of search results without removing them from the index.",
+      "required": false
     }
   },
   "tags": [

@@ -47,6 +47,21 @@ def test_remote_uri_is_scanned_and_extracted(memory_root):
     assert df["url"].str.startswith("memory://").all()
 
 
+def test_remote_uri_default_glob_recurses_into_subdirectories(memory_root):
+    root, fs, path = memory_root
+    fs.makedirs(f"{path}/sub", exist_ok=True)
+    with fs.open(f"{path}/top.md", "wb") as f:
+        f.write(b"top level")
+    with fs.open(f"{path}/sub/nested.md", "wb") as f:
+        f.write(b"nested")
+
+    comp = DocumentCorpusComponent(asset_name="corpus", source_dir=root, file_glob="**/*.md")
+    result = _materialize(comp)
+    df = result.output_for_node("corpus")
+
+    assert sorted(df["doc_id"]) == ["sub/nested.md", "top.md"]
+
+
 def test_missing_remote_root_fails_loudly(memory_root):
     root, fs, path = memory_root
     comp = DocumentCorpusComponent(asset_name="corpus", source_dir=f"{root}/does-not-exist", file_glob="*.md")

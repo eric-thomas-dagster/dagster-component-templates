@@ -694,8 +694,12 @@ def _do_chunk_qa(df: pd.DataFrame, step: dict, id_column: str, text_column: str,
     works identically. qa_source='column' (default): qa_question_column/qa_answer_column already
     hold the question/answer pairs -- one input row produces exactly one output row, no document
     text or LLM call involved at all. qa_source='llm': generates qa_num_pairs pairs per input row
-    by calling qa_model (litellm) on its text_column. Either way, the output_column (default
-    'chunk_text') holds the QUESTION and a new 'answer' column holds the answer."""
+    by calling qa_model (litellm) on its text_column -- qa_api_key_env_var names the env var
+    holding the API key, and qa_api_base + a free-form qa_litellm_params mapping (api_version,
+    aws_region_name, vertex_project, ...) are passed straight through to litellm.completion, same
+    as the enrich op and classify op mode='llm', so Azure/Bedrock/Vertex/Ollama/vLLM endpoints work
+    here too. Either way, the output_column (default 'chunk_text') holds the QUESTION and a new
+    'answer' column holds the answer."""
     qa_source = step.get("qa_source", "column")
     id_prefix = str(step.get("chunk_id_prefix") or "")
     out_text_col = step.get("output_column", "chunk_text")

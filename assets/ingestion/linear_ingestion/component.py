@@ -23,6 +23,7 @@ import pandas as pd
 import requests
 import dlt
 from dagster import (
+    EnvVar,
     BackfillPolicy,
     AssetExecutionContext,
     AssetKey,
@@ -312,6 +313,21 @@ class LinearIngestionComponent(Component, Model, Resolvable):
         description="Comma-separated list of resources to extract: issues, projects, teams, cycles"
     )
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{resource}` "
+            "-- select just the resource(s) you want; materializing several together still "
+            "batches them through one shared dlt pipeline call (one Dagster step), not parallel "
+            "per-resource execution. Opt into 'multi_asset' when you want to select/retry/schedule "
+            "individual resources separately."
+        ),
+    )
+
     hash_columns: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -568,7 +584,7 @@ class LinearIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
             if factory is not None:
@@ -585,14 +601,14 @@ class LinearIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -694,22 +710,217 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+        _resources_list_outer = [r.strip() for r in resources.split(",") if r.strip()]
+        output_names = {r: f"{asset_name}_{r}" for r in _resources_list_outer}
+
+        _query_map = {
+            "issues": (
+                'query { issues(first: 100@AFTER@@FILTER@) { nodes { id identifier title priority '
+                'createdAt updatedAt state { name } assignee { name } team { key } } pageInfo '
+                '{ hasNextPage endCursor } } }',
+                "issues",
+                True,
+            ),
+            "projects": (
+                'query { projects(first: 100@AFTER@) { nodes { id name state createdAt updatedAt '
+                'targetDate } pageInfo { hasNextPage endCursor } } }',
+                "projects",
+                False,
+            ),
+            "teams": (
+                'query { teams(first: 100@AFTER@) { nodes { id name key createdAt } pageInfo '
+                '{ hasNextPage endCursor } } }',
+                "teams",
+                False,
+            ),
+            "cycles": (
+                'query { cycles(first: 100@AFTER@) { nodes { id number name startsAt endsAt '
+                'team { key } } pageInfo { hasNextPage endCursor } } }',
+                "cycles",
+                False,
+            ),
+        }
+
+        def _make_resource(name, query_template, node_path, supports_filter, filter_gql):
+            @dlt.resource(name=name)
+            def _resource():
+                cursor = None
+                while True:
+                    after_clause = f', after: "{cursor}"' if cursor else ""
+                    query = query_template.replace("@AFTER@", after_clause)
+                    query = query.replace("@FILTER@", filter_gql if supports_filter else "")
+                    resp = requests.post(
+                        "https://api.linear.app/graphql",
+                        json={"query": query},
+                        headers={"Authorization": api_key, "Content-Type": "application/json"},
+                        timeout=60,
+                    )
+                    resp.raise_for_status()
+                    payload = resp.json()
+                    if "errors" in payload:
+                        raise RuntimeError(f"Linear GraphQL error for {name}: {payload['errors']}")
+                    node = payload["data"][node_path]
+                    yield node["nodes"]
+                    if not node["pageInfo"]["hasNextPage"]:
+                        break
+                    cursor = node["pageInfo"]["endCursor"]
+            return _resource
+
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+                backfill_policy=backfill_policy,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def linear_ingestion_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                context.log.info(f"Starting Linear ingestion, destination={destination or 'duckdb (in-memory)'}")
+
+                resources_list = [r.strip() for r in resources.split(",")]
+
+                _filter_gql = ""
+                if context.has_partition_key or context.has_partition_key_range:
+                    try:
+                        _window = context.partition_time_window
+                        _start_iso = _window.start.isoformat() + "Z"
+                        _end_iso = _window.end.isoformat() + "Z"
+                        _filter_gql = ', filter: { createdAt: { gte: "%s", lt: "%s" } }' % (_start_iso, _end_iso)
+                    except Exception:
+                        pass
+
+                dlt_resources = []
+                for r in resources_list:
+                    if r in _query_map:
+                        query_template, node_path, supports_filter = _query_map[r]
+                        dlt_resources.append(_make_resource(r, query_template, node_path, supports_filter, _filter_gql)())
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info("Extracting Linear data via GraphQL...")
+                if on_schema_change != "allow_all":
+                    for _r in dlt_resources:
+                        _r.apply_hints(schema_contract=_resolve_schema_contract(on_schema_change))
+                if exclude_columns:
+                    _apply_exclude_columns(dlt_resources, exclude_columns)
+                if hash_columns:
+                    _apply_hash_columns(dlt_resources, hash_columns, hash_salt, hash_salt_env_var)
+                if max_rows_per_resource:
+                    _apply_max_rows_per_resource(dlt_resources, max_rows_per_resource)
+                load_info = pipeline.run(dlt_resources)
+                context.log.info(f"Linear data loaded: {load_info}")
+
+                resource_names = resources_list
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_requested": MetadataValue.json(resource_names),
+                }
+
+                non_sql_destinations = {"filesystem", "delta", "iceberg"}
+                is_non_sql = destination in non_sql_destinations
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    try:
+                        with client.execute_query(
+                            f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+                        ) as cur:
+                            tables_df = cur.df()
+                        table_names = tables_df["table_name"].tolist()
+                    except Exception:
+                        table_names = resource_names
+
+                    for table_name in table_names:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df["_resource_type"] = table_name
+                                all_data.append(df)
+                                resource_metadata[table_name] = len(df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted from Linear.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "column_count": MetadataValue.int(len(combined_df.columns)),
+                    "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                }
+                for resource, rows in resource_metadata.items():
+                    metadata[f"rows_{resource}"] = MetadataValue.int(rows)
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[linear_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"Linear resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in _resources_list_outer
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
             backfill_policy=backfill_policy,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def linear_ingestion_asset(context: AssetExecutionContext):
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
-            context.log.info(f"Starting Linear ingestion, destination={destination or 'duckdb (in-memory)'}")
+        def linear_ingestion_assets(context: AssetExecutionContext):
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_names = [r for r in _resources_list_outer if output_names[r] in selected_output_names]
+            if not selected_names:
+                context.log.info("linear_ingestion: no resources selected; skipping.")
+                return
 
-            resources_list = [r.strip() for r in resources.split(",")]
+            context.log.info(
+                f"Starting Linear ingestion for {selected_names!r}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
 
             _filter_gql = ""
             if context.has_partition_key or context.has_partition_key_range:
@@ -721,64 +932,11 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                 except Exception:
                     pass
 
-            _query_map = {
-                "issues": (
-                    'query { issues(first: 100@AFTER@@FILTER@) { nodes { id identifier title priority '
-                    'createdAt updatedAt state { name } assignee { name } team { key } } pageInfo '
-                    '{ hasNextPage endCursor } } }',
-                    "issues",
-                    True,
-                ),
-                "projects": (
-                    'query { projects(first: 100@AFTER@) { nodes { id name state createdAt updatedAt '
-                    'targetDate } pageInfo { hasNextPage endCursor } } }',
-                    "projects",
-                    False,
-                ),
-                "teams": (
-                    'query { teams(first: 100@AFTER@) { nodes { id name key createdAt } pageInfo '
-                    '{ hasNextPage endCursor } } }',
-                    "teams",
-                    False,
-                ),
-                "cycles": (
-                    'query { cycles(first: 100@AFTER@) { nodes { id number name startsAt endsAt '
-                    'team { key } } pageInfo { hasNextPage endCursor } } }',
-                    "cycles",
-                    False,
-                ),
-            }
-
-            def _make_resource(name, query_template, node_path, supports_filter):
-                @dlt.resource(name=name)
-                def _resource():
-                    cursor = None
-                    while True:
-                        after_clause = f', after: "{cursor}"' if cursor else ""
-                        query = query_template.replace("@AFTER@", after_clause)
-                        query = query.replace("@FILTER@", _filter_gql if supports_filter else "")
-                        resp = requests.post(
-                            "https://api.linear.app/graphql",
-                            json={"query": query},
-                            headers={"Authorization": api_key, "Content-Type": "application/json"},
-                            timeout=60,
-                        )
-                        resp.raise_for_status()
-                        payload = resp.json()
-                        if "errors" in payload:
-                            raise RuntimeError(f"Linear GraphQL error for {name}: {payload['errors']}")
-                        node = payload["data"][node_path]
-                        yield node["nodes"]
-                        if not node["pageInfo"]["hasNextPage"]:
-                            break
-                        cursor = node["pageInfo"]["endCursor"]
-                return _resource
-
             dlt_resources = []
-            for r in resources_list:
+            for r in selected_names:
                 if r in _query_map:
                     query_template, node_path, supports_filter = _query_map[r]
-                    dlt_resources.append(_make_resource(r, query_template, node_path, supports_filter)())
+                    dlt_resources.append(_make_resource(r, query_template, node_path, supports_filter, _filter_gql)())
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -800,69 +958,53 @@ class LinearIngestionComponent(Component, Model, Resolvable):
             load_info = pipeline.run(dlt_resources)
             context.log.info(f"Linear data loaded: {load_info}")
 
-            resource_names = resources_list
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_requested": MetadataValue.json(resource_names),
-            }
-
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
+
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                        f"destination={destination!r} is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                        },
+                    )
+                return
 
-            all_data = []
-            resource_metadata = {}
             with pipeline.sql_client() as client:
-                try:
-                    with client.execute_query(
-                        f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    ) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df["table_name"].tolist()
-                except Exception:
-                    table_names = resource_names
-
-                for table_name in table_names:
+                for r in selected_names:
                     try:
-                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                        with client.execute_query(f"SELECT * FROM {dataset_name}.{r}") as cur:
                             df = cur.df()
-                        if len(df) > 0:
-                            df["_resource_type"] = table_name
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
                     except Exception as e:
-                        context.log.warning(f"Could not load {table_name}: {e}")
+                        context.log.warning(f"Could not load {r}: {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning("No data extracted from Linear.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
-            }
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
 
-        return Definitions(assets=[linear_ingestion_asset])
+        return Definitions(assets=[linear_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

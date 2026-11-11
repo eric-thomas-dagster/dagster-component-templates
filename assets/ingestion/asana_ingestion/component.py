@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import pandas as pd
 import dlt
 from dagster import (
+    EnvVar,
     AssetExecutionContext,
     AssetKey,
     BackfillPolicy,
@@ -356,6 +357,21 @@ class AsanaIngestionComponent(Component, Model, Resolvable):
 
     resources: List[str] = Field(default=["projects", "tasks", "users"], description="Asana resources to extract (projects, tasks, users, workspaces, sections, tags, teams)")
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{resource}` "
+            "-- select just the resource(s) you want; materializing several together still "
+            "batches them through one shared dlt pipeline call (one Dagster step), not parallel "
+            "per-resource execution. Opt into 'multi_asset' when you want to select/retry/schedule "
+            "individual resources separately."
+        ),
+    )
+
     hash_columns: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -551,7 +567,7 @@ class AsanaIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
 
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
@@ -571,14 +587,14 @@ class AsanaIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -765,6 +781,7 @@ class AsanaIngestionComponent(Component, Model, Resolvable):
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
         component = self
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list}
 
         # Infer kinds from destination + asset name
         _kind_map = {
@@ -853,7 +870,8 @@ class AsanaIngestionComponent(Component, Model, Resolvable):
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj, 
+        if self.asset_shape == "single":
+          @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=owners,
@@ -862,8 +880,8 @@ class AsanaIngestionComponent(Component, Model, Resolvable):
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             required_resource_keys={component.resource_key} if component.resource_key else set(),
-        )
-        def asana_ingestion_asset(context: AssetExecutionContext):
+          )
+          def asana_ingestion_asset(context: AssetExecutionContext):
             if not component.resource_key and not component.access_token:
                 raise ValueError(
                     "AsanaIngestionComponent: supply resource_key (a registered "
@@ -981,7 +999,150 @@ class AsanaIngestionComponent(Component, Model, Resolvable):
                     context.log.warning(f"preview emission failed: {_e}")
             return Output(value=combined_df, metadata=metadata)
 
-        return Definitions(assets=[asana_ingestion_asset])
+          return Definitions(assets=[asana_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"Asana resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
+        )
+        def asana_ingestion_assets(context: AssetExecutionContext):
+            if not component.resource_key and not component.access_token:
+                raise ValueError(
+                    "AsanaIngestionComponent: supply resource_key (a registered "
+                    "AsanaResourceComponent) OR access_token."
+                )
+            from dlt.sources.asana import asana_source
+
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_names = [r for r in resources_list if output_names[r] in selected_output_names]
+            if not selected_names:
+                context.log.info("asana_ingestion: no resources selected; skipping.")
+                return
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                access_token = os.environ.get(_res.access_token_env_var)
+            else:
+                access_token = component.access_token
+
+            context.log.info(
+                f"Starting Asana ingestion for {selected_names!r}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
+
+            pipeline = dlt.pipeline(
+                pipeline_name=f"{asset_name}_pipeline",
+                destination=component._resolve_destination_with_bucket(),
+                staging=component._resolve_staging(),
+                dataset_name=dataset_name,
+            )
+
+            # Official dlt-maintained verified source: resources are selected via the
+            # source object's own attribute access (same dispatch the single-asset
+            # branch uses, scoped here to just the selected resource names) rather than
+            # a hand-built config dict.
+            source = asana_source(
+                access_token=access_token,
+            )
+
+            selected_resources = []
+            for resource_name in selected_names:
+                if hasattr(source, resource_name):
+                    selected_resources.append(getattr(source, resource_name))
+                else:
+                    context.log.warning(
+                        f"Resource '{resource_name}' not found in Asana source; skipping."
+                    )
+            if not selected_resources:
+                raise ValueError("No valid resources selected for Asana source.")
+            if on_schema_change != "allow_all":
+                for _r in selected_resources:
+                    _r.apply_hints(schema_contract=_resolve_schema_contract(on_schema_change))
+            _apply_exclude_columns(selected_resources, exclude_columns)
+            _apply_hash_columns(selected_resources, hash_columns, hash_salt, hash_salt_env_var)
+            _apply_max_rows_per_resource(selected_resources, max_rows_per_resource)
+
+            load_info = pipeline.run(selected_resources)
+            context.log.info(f"Asana data loaded: {load_info}")
+
+            non_sql_destinations = {
+                "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                "delta", "iceberg",
+            }
+            is_non_sql = destination in non_sql_destinations
+
+            if persist_only or is_non_sql:
+                if is_non_sql and not persist_only:
+                    context.log.warning(
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
+                        f"Set persist_only=true to silence this warning."
+                    )
+                for r in selected_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                        },
+                    )
+                return
+
+            for r in selected_names:
+                try:
+                    query = f"SELECT * FROM {dataset_name}.{r}"
+                    with pipeline.sql_client() as client:
+                        with client.execute_query(query) as cursor:
+                            columns = [d[0] for d in cursor.description]
+                            rows = cursor.fetchall()
+                    df = pd.DataFrame(rows, columns=columns) if rows else pd.DataFrame()
+                except Exception as e:
+                    context.log.warning(f"Could not extract {r}: {e}")
+                    df = pd.DataFrame()
+
+                df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
+
+                metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resource": MetadataValue.text(r),
+                    "row_count": MetadataValue.int(len(df)),
+                }
+                if include_preview and len(df) > 0:
+                    try:
+                        _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+
+                yield Output(value=df, output_name=output_names[r], metadata=metadata)
+
+        return Definitions(assets=[asana_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

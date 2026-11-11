@@ -28,7 +28,7 @@ Materialize a directory of documents as a versioned Dagster asset. Every materia
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags |
-| `kinds` | `List[str]` | — | Asset kinds (defaults to ['rag']) |
+| `kinds` | `List[str]` | — | Asset kinds (defaults to ['rag', 'documents'] -- the second tag is how a knowledge-base UI finds every document-source asset in a project, regardless of vendor) |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 
 ### Freshness
@@ -45,6 +45,8 @@ Materialize a directory of documents as a versioned Dagster asset. Every materia
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | ISO date for time-based partition types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi partitioning. |
 | `partition_date_column` | `Union[str, int]` | — | Column to filter to the current date partition. |
@@ -65,9 +67,9 @@ Materialize a directory of documents as a versioned Dagster asset. Every materia
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `file_glob` | `str` | `"**/*.md"` | Glob relative to source_dir (default '**/*.md') |
-| `encoding` | `str` | `"utf-8"` | Text file encoding |
+| `encoding` | `str` | `"utf-8"` | Text file encoding for plain-text files (.md/.txt/.html -- ignored for .pdf/.docx, which are always read as binary and text-extracted) |
 | `min_doc_count` | `int` | `1` | Asset check fails if fewer docs than this — guards against empty corpus regressions. |
-| `include_preview_metadata` | `bool` | `false` | Include a `preview` metadata key (markdown table of first rows). |
+| `include_preview_metadata` | `bool` | `true` | Include a `preview` metadata key (markdown table of first rows). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

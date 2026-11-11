@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import dlt
 from dagster import (
+    EnvVar,
     AssetExecutionContext,
     AssetKey,
     Component,
@@ -333,6 +334,21 @@ class BrexIngestionComponent(Component, Model, Resolvable):
         description="Comma-separated list of resources to extract: users, locations, vendors, transfers"
     )
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{resource}` "
+            "-- select just the resource(s) you want; materializing several together still "
+            "batches them through one shared dlt pipeline call (one Dagster step), not parallel "
+            "per-resource execution. Opt into 'multi_asset' when you want to select/retry/schedule "
+            "individual resources separately."
+        ),
+    )
+
     hash_columns: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -605,7 +621,7 @@ class BrexIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
             if factory is not None:
@@ -622,14 +638,14 @@ class BrexIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -670,6 +686,8 @@ class BrexIngestionComponent(Component, Model, Resolvable):
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
         resources = self.resources
+        resources_list = [r.strip() for r in resources.split(",")]
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list}
         hash_columns = self.hash_columns
         hash_salt = self.hash_salt
         hash_salt_env_var = self.hash_salt_env_var
@@ -734,23 +752,169 @@ class BrexIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def brex_ingestion_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.rest_api import rest_api_source
+
+                context.log.info(f"Starting Brex ingestion, destination={destination or 'duckdb (in-memory)'}")
+
+                config = {
+                    "client": {
+                        "base_url": "https://api.brex.com",
+                        "auth": {"type": "bearer", "token": self.api_key},
+                    },
+                    "resources": [],
+                }
+                _map = {
+                    "users": {"name": "users", "endpoint": {"path": "v2/users", "data_selector": "items"}},
+                    "locations": {"name": "locations", "endpoint": {"path": "v2/locations", "data_selector": "items"}},
+                    "vendors": {"name": "vendors", "endpoint": {"path": "v1/vendors", "data_selector": "items"}},
+                    "transfers": {"name": "transfers", "endpoint": {"path": "v1/transfers", "data_selector": "items"}},
+                }
+                for r in resources_list:
+                    if r in _map:
+                        config["resources"].append(_map[r])
+
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info("Creating Brex REST API source...")
+                if partition_window_params:
+                    _apply_partition_window(config, context, partition_window_params, partition_window_resources)
+                elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
+                    context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
+                if on_schema_change != "allow_all":
+                    config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
+                source = rest_api_source(config)
+                if exclude_columns:
+                    _apply_exclude_columns(source.resources.values(), exclude_columns)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                if max_rows_per_resource:
+                    _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+
+                context.log.info("Extracting Brex data...")
+                load_info = pipeline.run(source)
+                context.log.info(f"Brex data loaded: {load_info}")
+
+                resource_names = [r["name"] for r in config["resources"]]
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_requested": MetadataValue.json(resource_names),
+                }
+
+                non_sql_destinations = {"filesystem", "delta", "iceberg"}
+                is_non_sql = destination in non_sql_destinations
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    try:
+                        with client.execute_query(
+                            f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+                        ) as cur:
+                            tables_df = cur.df()
+                        table_names = tables_df["table_name"].tolist()
+                    except Exception:
+                        table_names = resource_names
+
+                    for table_name in table_names:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df["_resource_type"] = table_name
+                                all_data.append(df)
+                                resource_metadata[table_name] = len(df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted from Brex.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "column_count": MetadataValue.int(len(combined_df.columns)),
+                    "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                }
+                for resource, rows in resource_metadata.items():
+                    metadata[f"rows_{resource}"] = MetadataValue.int(rows)
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[brex_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"Brex resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def brex_ingestion_asset(context: AssetExecutionContext):
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
+        def brex_ingestion_assets(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
 
-            context.log.info(f"Starting Brex ingestion, destination={destination or 'duckdb (in-memory)'}")
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_names = [r for r in resources_list if output_names[r] in selected_output_names]
+            if not selected_names:
+                context.log.info("brex_ingestion: no resources selected; skipping.")
+                return
 
-            resources_list = [r.strip() for r in resources.split(",")]
+            context.log.info(f"Starting Brex ingestion for {selected_names!r}, destination={destination or 'duckdb (in-memory)'}")
+
             config = {
                 "client": {
                     "base_url": "https://api.brex.com",
@@ -764,10 +928,9 @@ class BrexIngestionComponent(Component, Model, Resolvable):
                 "vendors": {"name": "vendors", "endpoint": {"path": "v1/vendors", "data_selector": "items"}},
                 "transfers": {"name": "transfers", "endpoint": {"path": "v1/transfers", "data_selector": "items"}},
             }
-            for r in resources_list:
+            for r in selected_names:
                 if r in _map:
                     config["resources"].append(_map[r])
-
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -795,70 +958,54 @@ class BrexIngestionComponent(Component, Model, Resolvable):
             load_info = pipeline.run(source)
             context.log.info(f"Brex data loaded: {load_info}")
 
-            resource_names = [r["name"] for r in config["resources"]]
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_requested": MetadataValue.json(resource_names),
-            }
-
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
+
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                        f"destination={destination!r} is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                        },
+                    )
+                return
 
-            all_data = []
-            resource_metadata = {}
             with pipeline.sql_client() as client:
-                try:
-                    with client.execute_query(
-                        f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    ) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df["table_name"].tolist()
-                except Exception:
-                    table_names = resource_names
-
-                for table_name in table_names:
+                for r in selected_names:
                     try:
-                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                        with client.execute_query(f"SELECT * FROM {dataset_name}.{r}") as cur:
                             df = cur.df()
-                        if len(df) > 0:
-                            df["_resource_type"] = table_name
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
                     except Exception as e:
-                        context.log.warning(f"Could not load {table_name}: {e}")
+                        context.log.warning(f"Could not load {r}: {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning("No data extracted from Brex.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
-            }
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
 
-        return Definitions(assets=[brex_ingestion_asset])
+        return Definitions(assets=[brex_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

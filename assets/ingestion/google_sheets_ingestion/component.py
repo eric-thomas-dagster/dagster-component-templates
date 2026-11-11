@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import pandas as pd
 import dlt
 from dagster import (
+    EnvVar,
     AssetExecutionContext,
     AssetKey,
     BackfillPolicy,
@@ -277,6 +278,21 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
 
     sheet_names: List[str] = Field(description="List of sheet names or A1 ranges to extract from the spreadsheet")
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-table ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every sheet in `sheet_names` as a "
+            "single unit -- rows from every sheet are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each sheet in `sheet_names` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{sheet}` "
+            "(sheet names are lowercased with spaces/dashes replaced by underscores) -- select "
+            "just the sheet(s) you want; materializing one sheet does not fetch the others. "
+            "Opt into 'multi_asset' when you want to select/retry/schedule individual sheets "
+            "separately."
+        ),
+    )
+
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
     destination: Optional[str] = Field(
@@ -415,7 +431,7 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
 
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
@@ -435,14 +451,14 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -622,6 +638,11 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
 
         spreadsheet_id = self.spreadsheet_id
         sheet_names = self.sheet_names
+
+        def _normalize_sheet_key(name):
+            return name.replace(" ", "_").replace("-", "_").lower()
+
+        output_names = {s: f"{asset_name}_{_normalize_sheet_key(s)}" for s in sheet_names}
         description = self.description or f"Google Sheets data ({', '.join(sheet_names)})"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
@@ -718,23 +739,213 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj, 
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+                required_resource_keys={component.resource_key} if component.resource_key else set(),
+            )
+            def google_sheets_ingestion_asset(context: AssetExecutionContext):
+                # Direct google-api-python-client implementation. Original used
+                # dlt's verified `google_sheets` source, which isn't pip-installable
+                # (it's a `dlt init` template, not a package). Calling the Sheets
+                # API directly is simpler and avoids an extra layer of indirection.
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                try:
+                    from google.oauth2 import service_account
+                    from googleapiclient.discovery import build
+                except ImportError:
+                    raise ImportError(
+                        "google_sheets_ingestion requires google-auth and "
+                        "google-api-python-client. Install with: "
+                        "pip install google-auth google-api-python-client"
+                    )
+
+                if component.resource_key:
+                    _res = getattr(context.resources, component.resource_key)
+                    credentials = json.loads(_res.gcp_credentials_json)
+                else:
+                    # Resolve credentials: explicit dict, then path, then GOOGLE_APPLICATION_CREDENTIALS.
+                    credentials = component.credentials
+                    if credentials is None:
+                        cred_path = component.credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+                        if cred_path:
+                            with open(cred_path, "r") as fh:
+                                credentials = json.load(fh)
+                    if credentials is None:
+                        raise ValueError(
+                            "GoogleSheetsIngestionComponent: provide one of `credentials` (dict), "
+                            "`credentials_path` (file path), `resource_key` (a registered "
+                            "GoogleSheetsResourceComponent), or set GOOGLE_APPLICATION_CREDENTIALS "
+                            "in the environment."
+                        )
+
+                context.log.info(
+                    f"Starting Google Sheets ingestion: spreadsheet_id={spreadsheet_id}, "
+                    f"sheets={sheet_names}, destination={destination or 'in-memory DataFrame'}"
+                )
+
+                sa_creds = service_account.Credentials.from_service_account_info(
+                    credentials,
+                    scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+                )
+                service = build("sheets", "v4", credentials=sa_creds, cache_discovery=False)
+
+                all_data = []
+                for sheet_name in sheet_names:
+                    try:
+                        resp = (
+                            service.spreadsheets()
+                            .values()
+                            .get(spreadsheetId=spreadsheet_id, range=sheet_name)
+                            .execute()
+                        )
+                        values = resp.get("values", [])
+                        if not values:
+                            context.log.warning(f"sheet {sheet_name!r} returned no rows")
+                            continue
+                        header, *rows = values
+                        # Normalize: pad short rows so DataFrame doesn't error.
+                        rows = [r + [None] * (len(header) - len(r)) for r in rows]
+                        df = pd.DataFrame(rows, columns=header)
+                        df["_resource_type"] = sheet_name.replace(" ", "_").replace("-", "_").lower()
+                        all_data.append(df)
+                        context.log.info(f"Extracted {len(df)} rows from {sheet_name!r}")
+                    except Exception as e:
+                        err_str = str(e)
+                        if "403" in err_str or "PERMISSION_DENIED" in err_str:
+                            context.log.error(
+                                f"sheet {sheet_name!r}: 403 PERMISSION_DENIED. "
+                                f"Share the spreadsheet with the service-account email "
+                                f"({credentials.get('client_email', '<sa-email>')}) — "
+                                f"open https://docs.google.com/spreadsheets/d/{spreadsheet_id} "
+                                f"→ Share → paste the SA email → Viewer."
+                            )
+                        elif "404" in err_str:
+                            context.log.error(
+                                f"sheet {sheet_name!r}: 404. Verify spreadsheet_id and that "
+                                f"the named sheet/tab exists."
+                            )
+                        else:
+                            context.log.error(f"sheet {sheet_name!r}: {e}")
+
+                base_metadata: Dict[str, Any] = {
+                    "spreadsheet_id": MetadataValue.text(spreadsheet_id),
+                    "spreadsheet_url": MetadataValue.url(
+                        f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
+                    ),
+                    "sheets_requested": MetadataValue.json(list(sheet_names)),
+                    "sheets_extracted": MetadataValue.int(len(all_data)),
+                }
+
+                # Optional dlt destination passthrough — only honored if explicitly set.
+                if destination:
+                    pipeline = dlt.pipeline(
+                        pipeline_name=f"{asset_name}_pipeline",
+                        destination=component._resolve_destination_with_bucket(),
+                        staging=component._resolve_staging(),
+                        dataset_name=dataset_name,
+                    )
+                    # Each sheet → its own dlt resource, materialized then read back.
+                    resources = []
+                    for df in all_data:
+                        rname = df["_resource_type"].iloc[0]
+                        @dlt.resource(name=rname, write_disposition="replace")
+                        def _row_resource(_df=df, _rname=rname):
+                            for r in _df.drop(columns=["_resource_type"]).to_dict(orient="records"):
+                                yield r
+                        resources.append(_row_resource())
+                    if resources:
+                        load_info = pipeline.run(resources)
+                        context.log.info(f"dlt load_info: {load_info}")
+                    base_metadata["destination"] = MetadataValue.text(destination)
+                    base_metadata["dataset_name"] = MetadataValue.text(dataset_name)
+
+                non_sql_destinations = {
+                    "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                    "delta", "iceberg",
+                }
+                is_non_sql = destination in non_sql_destinations
+
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                if not all_data:
+                    context.log.warning("No data extracted.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(
+                    combined_df, context, partition_date_column, partition_static_column
+                )
+                context.log.info(
+                    f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+                )
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "resource_types": MetadataValue.json(
+                        list(combined_df["_resource_type"].unique())
+                        if "_resource_type" in combined_df.columns
+                        else []
+                    ),
+                }
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[google_sheets_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[s]: AssetOut(
+                description=f"Google Sheets sheet reader: {s}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for s in sheet_names
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
-        def google_sheets_ingestion_asset(context: AssetExecutionContext):
-            # Direct google-api-python-client implementation. Original used
-            # dlt's verified `google_sheets` source, which isn't pip-installable
-            # (it's a `dlt init` template, not a package). Calling the Sheets
-            # API directly is simpler and avoids an extra layer of indirection.
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
+        def google_sheets_ingestion_assets(context: AssetExecutionContext):
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_sheets = [s for s in sheet_names if output_names[s] in selected_output_names]
+            if not selected_sheets:
+                context.log.info("google_sheets_ingestion: no sheets selected; skipping.")
+                return
+
             try:
                 from google.oauth2 import service_account
                 from googleapiclient.discovery import build
@@ -749,7 +960,6 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
                 _res = getattr(context.resources, component.resource_key)
                 credentials = json.loads(_res.gcp_credentials_json)
             else:
-                # Resolve credentials: explicit dict, then path, then GOOGLE_APPLICATION_CREDENTIALS.
                 credentials = component.credentials
                 if credentials is None:
                     cred_path = component.credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -765,8 +975,8 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
                     )
 
             context.log.info(
-                f"Starting Google Sheets ingestion: spreadsheet_id={spreadsheet_id}, "
-                f"sheets={sheet_names}, destination={destination or 'in-memory DataFrame'}"
+                f"Starting Google Sheets ingestion for {selected_sheets!r}: spreadsheet_id={spreadsheet_id}, "
+                f"destination={destination or 'in-memory DataFrame'}"
             )
 
             sa_creds = service_account.Credentials.from_service_account_info(
@@ -775,8 +985,8 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
             )
             service = build("sheets", "v4", credentials=sa_creds, cache_discovery=False)
 
-            all_data = []
-            for sheet_name in sheet_names:
+            sheet_dfs: Dict[str, pd.DataFrame] = {}
+            for sheet_name in selected_sheets:
                 try:
                     resp = (
                         service.spreadsheets()
@@ -789,11 +999,10 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
                         context.log.warning(f"sheet {sheet_name!r} returned no rows")
                         continue
                     header, *rows = values
-                    # Normalize: pad short rows so DataFrame doesn't error.
                     rows = [r + [None] * (len(header) - len(r)) for r in rows]
                     df = pd.DataFrame(rows, columns=header)
                     df["_resource_type"] = sheet_name.replace(" ", "_").replace("-", "_").lower()
-                    all_data.append(df)
+                    sheet_dfs[sheet_name] = df
                     context.log.info(f"Extracted {len(df)} rows from {sheet_name!r}")
                 except Exception as e:
                     err_str = str(e)
@@ -813,15 +1022,6 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
                     else:
                         context.log.error(f"sheet {sheet_name!r}: {e}")
 
-            base_metadata: Dict[str, Any] = {
-                "spreadsheet_id": MetadataValue.text(spreadsheet_id),
-                "spreadsheet_url": MetadataValue.url(
-                    f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
-                ),
-                "sheets_requested": MetadataValue.json(list(sheet_names)),
-                "sheets_extracted": MetadataValue.int(len(all_data)),
-            }
-
             # Optional dlt destination passthrough — only honored if explicitly set.
             if destination:
                 pipeline = dlt.pipeline(
@@ -830,9 +1030,8 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
                     staging=component._resolve_staging(),
                     dataset_name=dataset_name,
                 )
-                # Each sheet → its own dlt resource, materialized then read back.
                 resources = []
-                for df in all_data:
+                for df in sheet_dfs.values():
                     rname = df["_resource_type"].iloc[0]
                     @dlt.resource(name=rname, write_disposition="replace")
                     def _row_resource(_df=df, _rname=rname):
@@ -842,8 +1041,6 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
                 if resources:
                     load_info = pipeline.run(resources)
                     context.log.info(f"dlt load_info: {load_info}")
-                base_metadata["destination"] = MetadataValue.text(destination)
-                base_metadata["dataset_name"] = MetadataValue.text(dataset_name)
 
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
@@ -854,41 +1051,46 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for sheet_name in selected_sheets:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[sheet_name]),
+                        metadata={
+                            "spreadsheet_id": MetadataValue.text(spreadsheet_id),
+                            "sheet": MetadataValue.text(sheet_name),
+                            "destination": MetadataValue.text(destination),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                        },
+                    )
+                return
 
-            if not all_data:
-                context.log.warning("No data extracted.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+            for sheet_name in selected_sheets:
+                df = sheet_dfs.get(sheet_name, pd.DataFrame())
+                df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(
-                combined_df, context, partition_date_column, partition_static_column
-            )
-            context.log.info(
-                f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
-            )
+                metadata = {
+                    "spreadsheet_id": MetadataValue.text(spreadsheet_id),
+                    "spreadsheet_url": MetadataValue.url(
+                        f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
+                    ),
+                    "sheet": MetadataValue.text(sheet_name),
+                    "row_count": MetadataValue.int(len(df)),
+                }
+                if destination:
+                    metadata["destination"] = MetadataValue.text(destination)
+                    metadata["dataset_name"] = MetadataValue.text(dataset_name)
+                if include_preview and len(df) > 0:
+                    try:
+                        _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
 
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "resource_types": MetadataValue.json(
-                    list(combined_df["_resource_type"].unique())
-                    if "_resource_type" in combined_df.columns
-                    else []
-                ),
-            }
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                yield Output(value=df, output_name=output_names[sheet_name], metadata=metadata)
 
-        return Definitions(assets=[google_sheets_ingestion_asset])
+        return Definitions(assets=[google_sheets_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

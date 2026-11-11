@@ -1,0 +1,31 @@
+type: dagster_community_components.FirecrawlIngestionComponent
+attributes:
+  asset_name: firecrawl_docs
+  api_key_env_var: FIRECRAWL_API_KEY
+
+  # --- Crawl an entire site from a root URL (async: starts a job, polls until done) ---
+  crawl_url: "https://docs.example.com"
+  crawl_limit: 200
+  # crawl_max_depth: 3
+
+  # --- Or: scrape specific URLs instead (synchronous, one call per URL) ---
+  # urls: "https://example.com/page-1,https://example.com/page-2"
+
+  output_format: markdown
+  only_main_content: true
+  group_name: firecrawl_ingestion
+
+  # --- Feed into document_chunker for RAG ---
+  # In document_chunker's component.yaml:
+  #   upstream_asset_key: firecrawl_docs
+  #   source_column: markdown
+  #   metadata_columns: "url,title,scraped_at"
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: firecrawl
+  # persist_only: true                 # see ../DESTINATIONS.md
+
+  # --- Tune the async crawl job's polling ---
+  # poll_interval_seconds: 5
+  # poll_timeout_seconds: 600

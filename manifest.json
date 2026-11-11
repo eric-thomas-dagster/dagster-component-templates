@@ -21148,7 +21148,10 @@
       "tags": [],
       "dependencies": {
         "pip": [
-          "pandas>=2.0.0"
+          "pandas>=2.0.0",
+          "pdfplumber>=0.7.0",
+          "python-docx>=1.0.0",
+          "beautifulsoup4>=4.12.0"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_corpus/README.md",
@@ -27323,6 +27326,42 @@
       ]
     },
     {
+      "id": "firecrawl_ingestion",
+      "name": "Firecrawl Ingestion",
+      "category": "ingestion",
+      "description": "Scrape or crawl websites into clean markdown via Firecrawl (firecrawl.dev). Set `urls` to scrape specific pages synchronously, or `crawl_url` to crawl an entire site asynchronously (starts a crawl job, polls until complete). Output rows are ready to feed into document_chunker for a RAG pipeline.",
+      "path": "assets/ingestion/firecrawl_ingestion",
+      "tags": [
+        "ingestion",
+        "firecrawl",
+        "web-crawl",
+        "rag",
+        "dlt"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firecrawl_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firecrawl_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firecrawl_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firecrawl_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firecrawl_ingestion/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "data-platform",
+      "icon": "Globe",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "One row per scraped/crawled page (url, title, markdown, scraped_at), ready to feed document_chunker for a RAG pipeline.",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+      }
+    },
+    {
       "id": "firestore_collection_ingestion",
       "name": "Firestore Collection Ingestion",
       "category": "source",
@@ -29919,6 +29958,43 @@
         "watcher"
       ],
       "icon": "si:gitlab"
+    },
+    {
+      "id": "gitlab_ingestion",
+      "name": "GitLab Ingestion",
+      "category": "ingestion",
+      "description": "Read records from one or more GitLab REST API v4 resources (projects, issues, merge requests, commits) into a DataFrame or warehouse table. Goes through GitLab's REST API with Link-header (RFC 5988) pagination and PRIVATE-TOKEN auth, supporting both GitLab.com and self-managed instances.",
+      "path": "assets/ingestion/gitlab_ingestion",
+      "tags": [
+        "ingestion",
+        "gitlab",
+        "vcs",
+        "issues",
+        "merge-requests",
+        "rest-api"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gitlab_ingestion/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "devops-observability",
+      "icon": "si:gitlab",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "GitLab projects/issues/merge_requests/commits rows via REST API v4, single combined DataFrame or one asset per resource (asset_shape='multi_asset').",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+      }
     },
     {
       "id": "gmail_draft_create",
@@ -35368,6 +35444,42 @@
         "read from jenkins",
         "trigger jenkins from dagster"
       ]
+    },
+    {
+      "id": "jina_reader_ingestion",
+      "name": "Jina Reader Ingestion",
+      "category": "ingestion",
+      "description": "Fetch clean markdown for a list of URLs using Jina AI's Reader API (r.jina.ai) -- a free/low-cost alternative to Firecrawl for turning web pages into clean text for a RAG pipeline. One row per URL (url, title, text, fetched_at, error). Output rows are ready to feed into document_chunker (text lines up with its default source_column) for a RAG pipeline.",
+      "path": "assets/ingestion/jina_reader_ingestion",
+      "tags": [
+        "ingestion",
+        "jina",
+        "rag",
+        "dlt"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jina_reader_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jina_reader_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jina_reader_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jina_reader_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jina_reader_ingestion/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0",
+          "dagster>=1.8.0"
+        ]
+      },
+      "vertical": "data-platform",
+      "icon": "Globe",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "One row per fetched URL (url, title, text, fetched_at, error), ready to feed document_chunker for a RAG pipeline.",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0", "dagster>=1.8.0"]
+      }
     },
     {
       "id": "jira_ingestion",
@@ -58113,6 +58225,41 @@
       ]
     },
     {
+      "id": "sharepoint_ingestion",
+      "name": "SharePoint Ingestion",
+      "category": "ingestion",
+      "description": "Ingest a SharePoint Online document library and/or site lists via Microsoft Graph (app-only auth) using dlt's generic REST API source.",
+      "path": "assets/ingestion/sharepoint_ingestion",
+      "tags": [
+        "ingestion",
+        "sharepoint",
+        "dlt",
+        "rest_api"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sharepoint_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sharepoint_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sharepoint_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sharepoint_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sharepoint_ingestion/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "vertical": "cloud-storage",
+      "icon": "si:microsoftsharepoint",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "SharePoint Online document-library files and/or site lists via Microsoft Graph, single combined DataFrame or one asset per resource (asset_shape='multi_asset').",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+      },
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
       "id": "sharepoint_monitor",
       "name": "SharePoint Monitor",
       "category": "sensor",
@@ -64321,6 +64468,42 @@
       ]
     },
     {
+      "id": "tavily_ingestion",
+      "name": "Tavily Search Ingestion",
+      "category": "ingestion",
+      "description": "Run search queries against Tavily (tavily.com), an AI-native search API purpose-built for RAG/agent pipelines, and land the results as flat rows.",
+      "path": "assets/ingestion/tavily_ingestion",
+      "tags": [
+        "ingestion",
+        "tavily",
+        "search",
+        "rag",
+        "dlt"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tavily_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tavily_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tavily_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tavily_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tavily_ingestion/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "vertical": "ai-ml",
+      "icon": "Search",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "One row per search result (query, title, url, content, score), ready to feed document_chunker for a RAG pipeline.",
+        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+      }
+    },
+    {
       "id": "tealium_ingestion",
       "name": "Tealium Ingestion",
       "category": "ingestion",
@@ -67916,6 +68099,8 @@
           "qdrant-client>=1.7.0",
           "faiss-cpu>=1.7.4",
           "boto3>=1.43",
+          "rank_bm25>=0.2.2",
+          "litellm>=1.0.0",
           "pandas>=2.0.0"
         ]
       },
@@ -71705,5 +71890,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1375
+  "total": 1380
 }

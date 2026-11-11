@@ -21,6 +21,7 @@ from dagster import (
     Component,
     ComponentLoadContext,
     Definitions,
+    EnvVar,
     MaterializeResult,
     MetadataValue,
     Model,
@@ -338,6 +339,22 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
         description="Comma-separated list of resources to extract: ad_accounts, campaigns, ad_groups, ads, pins, keywords, analytics"
     )
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource (and every ad account) are unioned into one "
+            "returned DataFrame tagged by a `_resource_type` column. 'multi_asset': each resource "
+            "in `resources` is instead its own independently-materializable asset, keyed "
+            "`{asset_name}_{resource}` -- e.g. `resources: campaigns,analytics` with "
+            "`asset_name: pinterest` produces `pinterest_campaigns` and `pinterest_analytics`, "
+            "each unioning rows across every ad_account_id for that one resource type. "
+            "Materializing one does not fetch or persist the other. Opt into 'multi_asset' when "
+            "you want to select/retry/schedule individual resources separately."
+        ),
+    )
+
     start_date: Optional[str] = Field(
         default=None,
         description="Start date for analytics (YYYY-MM-DD). Defaults to 30 days ago."
@@ -557,7 +574,7 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
 
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
@@ -577,14 +594,14 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -775,6 +792,166 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
         component = self
+        resources_list = [r.strip() for r in resources_str.split(",") if r.strip()]
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list}
+
+        def _build_resource_configs(types, ad_account_ids, start_date_str, end_date_str):
+            config_resources = []
+            if "ad_accounts" in types:
+                for ad_account_id in ad_account_ids:
+                    config_resources.append({
+                        "name": f"ad_accounts_{ad_account_id}",
+                        "endpoint": {
+                            "path": f"ad_accounts/{ad_account_id}",
+                            "paginator": None
+                        }
+                    })
+
+            if "campaigns" in types:
+                for ad_account_id in ad_account_ids:
+                    config_resources.append({
+                        "name": f"campaigns_{ad_account_id}",
+                        "endpoint": {
+                            "path": f"ad_accounts/{ad_account_id}/campaigns",
+                            "params": {
+                                "page_size": 250
+                            },
+                            "paginator": {
+                                "type": "cursor",
+                                "cursor_path": "bookmark",
+                                "cursor_param": "bookmark"
+                            }
+                        }
+                    })
+
+            if "ad_groups" in types:
+                for ad_account_id in ad_account_ids:
+                    config_resources.append({
+                        "name": f"ad_groups_{ad_account_id}",
+                        "endpoint": {
+                            "path": f"ad_accounts/{ad_account_id}/ad_groups",
+                            "params": {
+                                "page_size": 250
+                            },
+                            "paginator": {
+                                "type": "cursor",
+                                "cursor_path": "bookmark",
+                                "cursor_param": "bookmark"
+                            }
+                        }
+                    })
+
+            if "ads" in types:
+                for ad_account_id in ad_account_ids:
+                    config_resources.append({
+                        "name": f"ads_{ad_account_id}",
+                        "endpoint": {
+                            "path": f"ad_accounts/{ad_account_id}/ads",
+                            "params": {
+                                "page_size": 250
+                            },
+                            "paginator": {
+                                "type": "cursor",
+                                "cursor_path": "bookmark",
+                                "cursor_param": "bookmark"
+                            }
+                        }
+                    })
+
+            if "pins" in types:
+                for ad_account_id in ad_account_ids:
+                    config_resources.append({
+                        "name": f"pins_{ad_account_id}",
+                        "endpoint": {
+                            "path": f"ad_accounts/{ad_account_id}/product_groups",
+                            "params": {
+                                "page_size": 250
+                            },
+                            "paginator": {
+                                "type": "cursor",
+                                "cursor_path": "bookmark",
+                                "cursor_param": "bookmark"
+                            }
+                        }
+                    })
+
+            if "keywords" in types:
+                for ad_account_id in ad_account_ids:
+                    config_resources.append({
+                        "name": f"keywords_{ad_account_id}",
+                        "endpoint": {
+                            "path": f"ad_accounts/{ad_account_id}/keywords",
+                            "params": {
+                                "page_size": 250
+                            },
+                            "paginator": {
+                                "type": "cursor",
+                                "cursor_path": "bookmark",
+                                "cursor_param": "bookmark"
+                            }
+                        }
+                    })
+
+            if "analytics" in types:
+                # Default columns if not specified
+                default_columns = [
+                    "SPEND_IN_DOLLAR", "IMPRESSION_1", "CLICKTHROUGH_1",
+                    "CTR", "CPC_IN_DOLLAR", "CPM_IN_DOLLAR",
+                    "TOTAL_ENGAGEMENT", "SAVE_1", "PIN_CLICK_1", "OUTBOUND_CLICK_1",
+                    "TOTAL_CONVERSIONS", "TOTAL_CONVERSION_VALUE"
+                ]
+
+                columns_list = columns_str.split(',') if columns_str else default_columns
+
+                for ad_account_id in ad_account_ids:
+                    analytics_params = {
+                        "start_date": start_date_str,
+                        "end_date": end_date_str,
+                        "granularity": granularity,
+                        "level": level,
+                        "columns": ",".join(columns_list)
+                    }
+
+                    config_resources.append({
+                        "name": f"analytics_{ad_account_id}",
+                        "endpoint": {
+                            "path": f"ad_accounts/{ad_account_id}/reports",
+                            "params": analytics_params,
+                            "method": "POST",
+                            "paginator": None
+                        }
+                    })
+            return config_resources
+
+        def _resolve_date_range(context):
+            from datetime import datetime, timedelta
+
+            # A time-based partition (daily/weekly/monthly/hourly) means this run should
+            # fetch exactly that slice, not the static start_date/end_date config --
+            # otherwise every partition would re-pull the same trailing-30-days window.
+            _partition_start_date, _partition_end_date = None, None
+            if context.has_partition_key or context.has_partition_key_range:
+                try:
+                    _window = context.partition_time_window
+                    _partition_start_date = _window.start.strftime("%Y-%m-%d")
+                    _partition_end_date = _window.end.strftime("%Y-%m-%d")
+                except Exception:
+                    pass  # static/dynamic/multi partition -- no natural time window
+
+            if _partition_start_date:
+                start_date_str = _partition_start_date
+            elif start_date:
+                start_date_str = start_date
+            else:
+                start_date_str = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+            if _partition_end_date:
+                end_date_str = _partition_end_date
+            elif end_date:
+                end_date_str = end_date
+            else:
+                end_date_str = datetime.now().strftime("%Y-%m-%d")
+            return start_date_str, end_date_str
 
         # Infer kinds from destination + asset name
         _kind_map = {
@@ -861,60 +1038,202 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
-            backfill_policy=backfill_policy, 
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+                backfill_policy=backfill_policy,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def pinterest_ads_ingestion_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.rest_api import rest_api_source
+
+                context.log.info(
+                    f"Starting Pinterest Ads ingestion for accounts: {ad_account_ids_str}, "
+                    f"destination={destination or 'duckdb (in-memory)'}"
+                )
+
+                # Parse account IDs
+                ad_account_ids = [a.strip() for a in ad_account_ids_str.split(',')]
+                context.log.info(f"Resources to extract: {resources_list}")
+
+                start_date_str, end_date_str = _resolve_date_range(context)
+                context.log.info(f"Date range: {start_date_str} to {end_date_str}")
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info("Created dlt pipeline for data extraction")
+
+                # Build REST API configuration for Pinterest Marketing API
+                # Base URL: https://api.pinterest.com/v5
+                config = {
+                    "client": {
+                        "base_url": "https://api.pinterest.com/v5",
+                        "auth": {
+                            "type": "bearer",
+                            "token": access_token
+                        }
+                    },
+                    "resources": _build_resource_configs(resources_list, ad_account_ids, start_date_str, end_date_str)
+                }
+
+                # Create REST API source
+                context.log.info("Creating Pinterest Ads REST API source...")
+                if on_schema_change != "allow_all":
+                    config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
+                source = rest_api_source(config)
+                if exclude_columns:
+                    _apply_exclude_columns(source.resources.values(), exclude_columns)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                if max_rows_per_resource:
+                    _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+
+                # Run pipeline
+                context.log.info("Extracting Pinterest Ads data...")
+                load_info = pipeline.run(source)
+                context.log.info(f"Pinterest data loaded: {load_info}")
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "ad_account_ids": MetadataValue.json(ad_account_ids),
+                    "resources_requested": MetadataValue.json(resources_list),
+                    "start_date": MetadataValue.text(start_date_str),
+                    "end_date": MetadataValue.text(end_date_str),
+                }
+
+                # Decide return shape
+                non_sql_destinations = {
+                    "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                    "delta", "iceberg",
+                }
+                is_non_sql = destination in non_sql_destinations
+
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                # Query the destination back into a DataFrame
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    tables_query = (
+                        f"SELECT table_name FROM information_schema.tables "
+                        f"WHERE table_schema = '{dataset_name}'"
+                    )
+                    try:
+                        with client.execute_query(tables_query) as cur:
+                            tables_df = cur.df()
+                        table_names = tables_df['table_name'].tolist()
+                    except Exception:
+                        table_names = []
+                        for resource in resources_list:
+                            for ad_account_id in ad_account_ids:
+                                table_names.append(f"{resource}_{ad_account_id}")
+
+                    context.log.info(f"Found tables: {table_names}")
+
+                    for table_name in table_names:
+                        try:
+                            query = f"SELECT * FROM {dataset_name}.{table_name}"
+                            with client.execute_query(query) as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df['_resource_type'] = table_name
+                                all_data.append(df)
+                                resource_metadata[table_name] = len(df)
+                                context.log.info(f"  {table_name}: {len(df)} rows")
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted from Pinterest Ads.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+
+                context.log.info(
+                    f"Extraction complete: {len(combined_df)} total rows, "
+                    f"{len(combined_df.columns)} columns"
+                )
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "column_count": MetadataValue.int(len(combined_df.columns)),
+                    "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                }
+                for resource, rows in resource_metadata.items():
+                    metadata[f"rows_{resource}"] = MetadataValue.int(rows)
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[pinterest_ads_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"Pinterest Ads resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def pinterest_ads_ingestion_asset(context: AssetExecutionContext):
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
+        def pinterest_ads_ingestion_assets(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
 
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_types = [r for r in resources_list if output_names[r] in selected_output_names]
+            if not selected_types:
+                context.log.info("pinterest_ads_ingestion: no resources selected; skipping.")
+                return
+
             context.log.info(
-                f"Starting Pinterest Ads ingestion for accounts: {ad_account_ids_str}, "
-                f"destination={destination or 'duckdb (in-memory)'}"
+                f"Starting Pinterest Ads ingestion for {selected_types!r}, accounts: "
+                f"{ad_account_ids_str}, destination={destination or 'duckdb (in-memory)'}"
             )
 
-            # Parse account IDs and resources
             ad_account_ids = [a.strip() for a in ad_account_ids_str.split(',')]
-            resources_list = [r.strip() for r in resources_str.split(',')]
-            context.log.info(f"Resources to extract: {resources_list}")
-
-            # Determine dates for analytics
-            from datetime import datetime, timedelta
-
-            # A time-based partition (daily/weekly/monthly/hourly) means this run should
-            # fetch exactly that slice, not the static start_date/end_date config --
-            # otherwise every partition would re-pull the same trailing-30-days window.
-            _partition_start_date, _partition_end_date = None, None
-            if context.has_partition_key or context.has_partition_key_range:
-                try:
-                    _window = context.partition_time_window
-                    _partition_start_date = _window.start.strftime("%Y-%m-%d")
-                    _partition_end_date = _window.end.strftime("%Y-%m-%d")
-                except Exception:
-                    pass  # static/dynamic/multi partition -- no natural time window
-
-            if _partition_start_date:
-                start_date_str = _partition_start_date
-            elif start_date:
-                start_date_str = start_date
-            else:
-                start_date_str = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-
-            if _partition_end_date:
-                end_date_str = _partition_end_date
-            elif end_date:
-                end_date_str = end_date
-            else:
-                end_date_str = datetime.now().strftime("%Y-%m-%d")
-
+            start_date_str, end_date_str = _resolve_date_range(context)
             context.log.info(f"Date range: {start_date_str} to {end_date_str}")
 
             pipeline = dlt.pipeline(
@@ -924,10 +1243,6 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            context.log.info("Created dlt pipeline for data extraction")
-
-            # Build REST API configuration for Pinterest Marketing API
-            # Base URL: https://api.pinterest.com/v5
             config = {
                 "client": {
                     "base_url": "https://api.pinterest.com/v5",
@@ -936,136 +1251,9 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
                         "token": access_token
                     }
                 },
-                "resources": []
+                "resources": _build_resource_configs(selected_types, ad_account_ids, start_date_str, end_date_str)
             }
 
-            # Add resource configurations based on requested resources
-            if "ad_accounts" in resources_list:
-                for ad_account_id in ad_account_ids:
-                    config["resources"].append({
-                        "name": f"ad_accounts_{ad_account_id}",
-                        "endpoint": {
-                            "path": f"ad_accounts/{ad_account_id}",
-                            "paginator": None
-                        }
-                    })
-
-            if "campaigns" in resources_list:
-                for ad_account_id in ad_account_ids:
-                    config["resources"].append({
-                        "name": f"campaigns_{ad_account_id}",
-                        "endpoint": {
-                            "path": f"ad_accounts/{ad_account_id}/campaigns",
-                            "params": {
-                                "page_size": 250
-                            },
-                            "paginator": {
-                                "type": "cursor",
-                                "cursor_path": "bookmark",
-                                "cursor_param": "bookmark"
-                            }
-                        }
-                    })
-
-            if "ad_groups" in resources_list:
-                for ad_account_id in ad_account_ids:
-                    config["resources"].append({
-                        "name": f"ad_groups_{ad_account_id}",
-                        "endpoint": {
-                            "path": f"ad_accounts/{ad_account_id}/ad_groups",
-                            "params": {
-                                "page_size": 250
-                            },
-                            "paginator": {
-                                "type": "cursor",
-                                "cursor_path": "bookmark",
-                                "cursor_param": "bookmark"
-                            }
-                        }
-                    })
-
-            if "ads" in resources_list:
-                for ad_account_id in ad_account_ids:
-                    config["resources"].append({
-                        "name": f"ads_{ad_account_id}",
-                        "endpoint": {
-                            "path": f"ad_accounts/{ad_account_id}/ads",
-                            "params": {
-                                "page_size": 250
-                            },
-                            "paginator": {
-                                "type": "cursor",
-                                "cursor_path": "bookmark",
-                                "cursor_param": "bookmark"
-                            }
-                        }
-                    })
-
-            if "pins" in resources_list:
-                for ad_account_id in ad_account_ids:
-                    config["resources"].append({
-                        "name": f"pins_{ad_account_id}",
-                        "endpoint": {
-                            "path": f"ad_accounts/{ad_account_id}/product_groups",
-                            "params": {
-                                "page_size": 250
-                            },
-                            "paginator": {
-                                "type": "cursor",
-                                "cursor_path": "bookmark",
-                                "cursor_param": "bookmark"
-                            }
-                        }
-                    })
-
-            if "keywords" in resources_list:
-                for ad_account_id in ad_account_ids:
-                    config["resources"].append({
-                        "name": f"keywords_{ad_account_id}",
-                        "endpoint": {
-                            "path": f"ad_accounts/{ad_account_id}/keywords",
-                            "params": {
-                                "page_size": 250
-                            },
-                            "paginator": {
-                                "type": "cursor",
-                                "cursor_path": "bookmark",
-                                "cursor_param": "bookmark"
-                            }
-                        }
-                    })
-
-            if "analytics" in resources_list:
-                # Default columns if not specified
-                default_columns = [
-                    "SPEND_IN_DOLLAR", "IMPRESSION_1", "CLICKTHROUGH_1",
-                    "CTR", "CPC_IN_DOLLAR", "CPM_IN_DOLLAR",
-                    "TOTAL_ENGAGEMENT", "SAVE_1", "PIN_CLICK_1", "OUTBOUND_CLICK_1",
-                    "TOTAL_CONVERSIONS", "TOTAL_CONVERSION_VALUE"
-                ]
-
-                columns_list = columns_str.split(',') if columns_str else default_columns
-
-                for ad_account_id in ad_account_ids:
-                    analytics_params = {
-                        "start_date": start_date_str,
-                        "end_date": end_date_str,
-                        "granularity": granularity,
-                        "level": level,
-                        "columns": ",".join(columns_list)
-                    }
-
-                    config["resources"].append({
-                        "name": f"analytics_{ad_account_id}",
-                        "endpoint": {
-                            "path": f"ad_accounts/{ad_account_id}/reports",
-                            "params": analytics_params,
-                            "method": "POST",
-                            "paginator": None
-                        }
-                    })
-
-            # Create REST API source
             context.log.info("Creating Pinterest Ads REST API source...")
             if on_schema_change != "allow_all":
                 config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
@@ -1077,22 +1265,10 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
             if max_rows_per_resource:
                 _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
 
-            # Run pipeline
             context.log.info("Extracting Pinterest Ads data...")
             load_info = pipeline.run(source)
             context.log.info(f"Pinterest data loaded: {load_info}")
 
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "ad_account_ids": MetadataValue.json(ad_account_ids),
-                "resources_requested": MetadataValue.json(resources_list),
-                "start_date": MetadataValue.text(start_date_str),
-                "end_date": MetadataValue.text(end_date_str),
-            }
-
-            # Decide return shape
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
                 "delta", "iceberg",
@@ -1102,72 +1278,54 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_types:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                            "ad_account_ids": MetadataValue.json(ad_account_ids),
+                        },
+                    )
+                return
 
-            # Query the destination back into a DataFrame
-            all_data = []
-            resource_metadata = {}
             with pipeline.sql_client() as client:
-                tables_query = (
-                    f"SELECT table_name FROM information_schema.tables "
-                    f"WHERE table_schema = '{dataset_name}'"
-                )
-                try:
-                    with client.execute_query(tables_query) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df['table_name'].tolist()
-                except Exception:
-                    table_names = []
-                    for resource in resources_list:
-                        for ad_account_id in ad_account_ids:
-                            table_names.append(f"{resource}_{ad_account_id}")
+                for r in selected_types:
+                    _tables = [f"{r}_{aid}" for aid in ad_account_ids]
+                    _per_account = []
+                    for table_name in _tables:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                _df = cur.df()
+                            if len(_df) > 0:
+                                _per_account.append(_df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+                    df = pd.concat(_per_account, ignore_index=True) if _per_account else pd.DataFrame()
 
-                context.log.info(f"Found tables: {table_names}")
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "ad_account_ids": MetadataValue.json(ad_account_ids),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-                for table_name in table_names:
-                    try:
-                        query = f"SELECT * FROM {dataset_name}.{table_name}"
-                        with client.execute_query(query) as cur:
-                            df = cur.df()
-                        if len(df) > 0:
-                            df['_resource_type'] = table_name
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
-                            context.log.info(f"  {table_name}: {len(df)} rows")
-                    except Exception as e:
-                        context.log.warning(f"Could not load {table_name}: {e}")
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
 
-            if not all_data:
-                context.log.warning("No data extracted from Pinterest Ads.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
-
-            combined_df = pd.concat(all_data, ignore_index=True)
-
-            context.log.info(
-                f"Extraction complete: {len(combined_df)} total rows, "
-                f"{len(combined_df.columns)} columns"
-            )
-
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
-            }
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
-
-        return Definitions(assets=[pinterest_ads_ingestion_asset])
+        return Definitions(assets=[pinterest_ads_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

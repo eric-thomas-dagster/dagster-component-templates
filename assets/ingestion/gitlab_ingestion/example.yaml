@@ -1,0 +1,45 @@
+type: dagster_community_components.GitlabIngestionComponent
+attributes:
+  asset_name: platform_repo
+  access_token_env_var: GITLAB_TOKEN
+  project_id: "my-group/platform"   # numeric ID also works, e.g. "42"
+
+  tables: issues,merge_requests,commits
+  state: opened                     # issues/merge_requests only; unset = every state
+  per_page: 100                     # GitLab's documented max
+  group_name: gitlab
+
+  # --- Self-managed GitLab instance (default is GitLab.com SaaS) ---
+  # base_url: https://gitlab.mycompany.com/api/v4
+
+  # --- Multiple tables: by default (asset_shape: single), all land under this ONE asset,
+  #     unioned into one DataFrame tagged by a `_table` column -- same convention as
+  #     servicenow_ingestion/salesforce_ingestion/zendesk_ingestion. ---
+  # tables: issues,merge_requests,commits   # issues/merge_requests/commits all require project_id
+
+  # --- Or: give each table its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces 3 assets: platform_repo_issues, platform_repo_merge_requests, etc.
+  #                             materializing one table does not fetch or persist the others
+
+  # --- "projects" table: list every project in a group, or every project visible to the token ---
+  # tables: projects
+  # group_id: my-group          # lists every project in this group (GET /groups/:id/projects)
+  # (omit group_id to list every project visible to the token instead, GET /projects)
+
+  # --- Commits-specific filters ---
+  # tables: commits
+  # since: "2024-01-01T00:00:00Z"
+  # until: "2024-06-01T00:00:00Z"
+  # ref_name: main
+
+  # --- Issues/merge_requests filters ---
+  # updated_after: "2024-01-01T00:00:00Z"
+
+  # --- Rename specific destination tables (default: destination table name = GitLab resource name) ---
+  # table_name_map:
+  #   merge_requests: raw_mrs
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: gitlab
+  # persist_only: true                 # see ../DESTINATIONS.md

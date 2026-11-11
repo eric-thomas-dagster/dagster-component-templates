@@ -1,0 +1,29 @@
+type: dagster_community_components.TavilyIngestionComponent
+attributes:
+  asset_name: tavily_search_results
+  api_key_env_var: TAVILY_API_KEY
+  queries: "dagster asset checks, snowflake dynamic tables"
+  search_depth: advanced
+  max_results: 10
+  topic: general
+  group_name: tavily
+
+  # --- Feed straight into document_chunker -> vector_store_writer: point document_chunker's
+  #     source_column at 'content' (the text snippet) and metadata_columns at
+  #     'query,title,url,result_id' to preserve them through chunking. ---
+
+  # --- Take queries from an upstream asset instead of (or in addition to) `queries` ---
+  # upstream_asset_key: search_terms_table
+  # query_column: query          # column in the upstream DataFrame holding each query
+
+  # --- Have Tavily also generate a short LLM answer per query (duplicated onto every
+  #     row from that query, since this is a flat-row table) ---
+  # include_answer: basic
+
+  # --- Also land each result's full page content, not just the relevance snippet ---
+  # include_raw_content: markdown
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: tavily
+  # persist_only: true                 # see ../DESTINATIONS.md

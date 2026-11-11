@@ -49,6 +49,7 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import dlt
 from dagster import (
+    EnvVar,
     AssetExecutionContext,
     AssetKey,
     Component,
@@ -428,6 +429,23 @@ class ReclaimIngestionComponent(Component, Model, Resolvable):
         ),
     )
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{resource}` "
+            "-- select just the resource(s) you want; materializing several together still "
+            "batches them through one shared dlt pipeline call (one Dagster step), not parallel "
+            "per-resource execution. Note 'habits' itself expands to two dlt resources "
+            "(habits_daily, habit_templates) -- with multi_asset, 'habits' becomes ONE asset "
+            "covering both (they're fetched together), not two separate assets. Opt into "
+            "'multi_asset' when you want to select/retry/schedule tasks/events/habits separately."
+        ),
+    )
+
     event_start_date: Optional[str] = Field(
         default=None,
         description=(
@@ -715,7 +733,7 @@ class ReclaimIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
             if factory is not None:
@@ -732,14 +750,14 @@ class ReclaimIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -788,6 +806,8 @@ class ReclaimIngestionComponent(Component, Model, Resolvable):
         max_rows_per_resource = self.max_rows_per_resource
         event_start_date = self.event_start_date
         event_end_date = self.event_end_date
+        resources_list = [r.strip() for r in resources.split(",") if r.strip()]
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list}
 
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
@@ -846,23 +866,170 @@ class ReclaimIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def reclaim_ingestion_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.rest_api import rest_api_source
+
+                context.log.info(f"Starting Reclaim.ai ingestion, destination={destination or 'duckdb (in-memory)'}")
+
+                config_resources = _build_resources_config(resources, event_start_date, event_end_date)
+                config = {
+                    "client": {
+                        "base_url": "https://api.app.reclaim.ai",
+                        "auth": {"type": "bearer", "token": component.api_token},
+                    },
+                    "resources": config_resources,
+                }
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info("Creating Reclaim.ai REST API source...")
+                if partition_window_params:
+                    _apply_partition_window(config, context, partition_window_params, partition_window_resources)
+                elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
+                    context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
+                if on_schema_change != "allow_all":
+                    config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
+                source = rest_api_source(config)
+                if exclude_columns:
+                    _apply_exclude_columns(source.resources.values(), exclude_columns)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                if max_rows_per_resource:
+                    _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+
+                context.log.info("Extracting Reclaim.ai data...")
+                load_info = pipeline.run(source)
+                context.log.info(f"Reclaim.ai data loaded: {load_info}")
+
+                resource_names = [r["name"] for r in config["resources"]]
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_requested": MetadataValue.json(resource_names),
+                }
+
+                non_sql_destinations = {"filesystem", "delta", "iceberg"}
+                is_non_sql = destination in non_sql_destinations
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    try:
+                        with client.execute_query(
+                            f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+                        ) as cur:
+                            tables_df = cur.df()
+                        table_names = tables_df["table_name"].tolist()
+                    except Exception:
+                        table_names = resource_names
+
+                    for table_name in table_names:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df["_resource_type"] = table_name
+                                all_data.append(df)
+                                resource_metadata[table_name] = len(df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted from Reclaim.ai.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "column_count": MetadataValue.int(len(combined_df.columns)),
+                    "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                }
+                for resource, rows in resource_metadata.items():
+                    metadata[f"rows_{resource}"] = MetadataValue.int(rows)
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[reclaim_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"Reclaim.ai resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def reclaim_ingestion_asset(context: AssetExecutionContext):
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
+        def reclaim_ingestion_assets(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
 
-            context.log.info(f"Starting Reclaim.ai ingestion, destination={destination or 'duckdb (in-memory)'}")
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_names = [r for r in resources_list if output_names[r] in selected_output_names]
+            if not selected_names:
+                context.log.info("reclaim_ingestion: no resources selected; skipping.")
+                return
 
-            config_resources = _build_resources_config(resources, event_start_date, event_end_date)
+            context.log.info(
+                f"Starting Reclaim.ai ingestion for {selected_names!r}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
+
+            config_resources = _build_resources_config(",".join(selected_names), event_start_date, event_end_date)
+            # Map each selected logical resource (tasks/events/habits) to the dlt resource
+            # (table) name(s) it expands to -- 'habits' expands to habits_daily + habit_templates.
+            table_names_by_resource = {
+                r: [cr["name"] for cr in _build_resources_config(r, event_start_date, event_end_date)]
+                for r in selected_names
+            }
             config = {
                 "client": {
                     "base_url": "https://api.app.reclaim.ai",
@@ -878,7 +1045,7 @@ class ReclaimIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            context.log.info("Creating Reclaim.ai REST API source...")
+            context.log.info(f"Creating Reclaim.ai REST API source for resources {selected_names!r}...")
             if partition_window_params:
                 _apply_partition_window(config, context, partition_window_params, partition_window_resources)
             elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
@@ -897,70 +1064,62 @@ class ReclaimIngestionComponent(Component, Model, Resolvable):
             load_info = pipeline.run(source)
             context.log.info(f"Reclaim.ai data loaded: {load_info}")
 
-            resource_names = [r["name"] for r in config["resources"]]
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_requested": MetadataValue.json(resource_names),
-            }
-
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
+
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                        f"destination={destination!r} is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                            "tables": MetadataValue.json(table_names_by_resource[r]),
+                        },
+                    )
+                return
 
-            all_data = []
-            resource_metadata = {}
             with pipeline.sql_client() as client:
-                try:
-                    with client.execute_query(
-                        f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    ) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df["table_name"].tolist()
-                except Exception:
-                    table_names = resource_names
+                for r in selected_names:
+                    _tables = table_names_by_resource[r]
+                    _parts = []
+                    for table_name in _tables:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                _part_df = cur.df()
+                            if len(_part_df) > 0:
+                                _part_df["_resource_type"] = table_name
+                                _parts.append(_part_df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+                    df = pd.concat(_parts, ignore_index=True) if _parts else pd.DataFrame()
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-                for table_name in table_names:
-                    try:
-                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
-                            df = cur.df()
-                        if len(df) > 0:
-                            df["_resource_type"] = table_name
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
-                    except Exception as e:
-                        context.log.warning(f"Could not load {table_name}: {e}")
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "tables": MetadataValue.json(_tables),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            if not all_data:
-                context.log.warning("No data extracted from Reclaim.ai.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
-            }
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
-
-        return Definitions(assets=[reclaim_ingestion_asset])
+        return Definitions(assets=[reclaim_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

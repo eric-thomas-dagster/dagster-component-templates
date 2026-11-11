@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import pandas as pd
 import dlt
 from dagster import (
+    EnvVar,
     BackfillPolicy,
     AssetExecutionContext,
     AssetKey,
@@ -318,6 +319,21 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
         description="Comma-separated list of resources to extract: envelopes, templates, users"
     )
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{resource}` "
+            "-- select just the resource(s) you want; materializing several together still "
+            "batches them through one shared dlt pipeline call (one Dagster step), not parallel "
+            "per-resource execution. Opt into 'multi_asset' when you want to select/retry/schedule "
+            "individual resources separately."
+        ),
+    )
+
     hash_columns: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -574,7 +590,7 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
             if factory is not None:
@@ -591,14 +607,14 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -645,6 +661,8 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        resources_list = [r.strip() for r in resources.split(",") if r.strip()]
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list}
 
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
@@ -699,23 +717,7 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
-            backfill_policy=backfill_policy,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-        )
-        def docusign_ingestion_asset(context: AssetExecutionContext):
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
-            from dlt.sources.rest_api import rest_api_source
-
-            context.log.info(f"Starting DocuSign ingestion, destination={destination or 'duckdb (in-memory)'}")
-
+        def _authenticate():
             import time as _time
             import requests as _requests
             try:
@@ -726,7 +728,6 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
                     "JWT-grant auth. Install them (see requirements.txt)."
                 ) from _e
 
-            resources_list = [r.strip() for r in resources.split(",")]
             _auth_host = "account-d.docusign.com" if self.use_demo_env else "account.docusign.com"
 
             _now = int(_time.time())
@@ -764,9 +765,9 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
                 _account = next((a for a in _accounts if a.get("is_default")), _accounts[0] if _accounts else None)
             if not _account:
                 raise ValueError("Could not resolve a DocuSign account_id from the JWT userinfo response.")
-            _base_uri = _account["base_uri"]
-            _resolved_account_id = _account["account_id"]
+            return _access_token, _account["base_uri"], _account["account_id"]
 
+        def _envelope_params_for(context):
             _envelope_params = {"from_date": "2000-01-01T00:00:00Z"}
             if context.has_partition_key or context.has_partition_key_range:
                 try:
@@ -777,23 +778,181 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
                     }
                 except Exception:
                     pass
+            return _envelope_params
+
+        def _build_resource_configs(names, envelope_params):
+            _map = {
+                "envelopes": {"name": "envelopes", "endpoint": {"path": "envelopes", "data_selector": "envelopes", "params": envelope_params}},
+                "templates": {"name": "templates", "endpoint": {"path": "templates", "data_selector": "envelopeTemplates"}},
+                "users": {"name": "users", "endpoint": {"path": "users", "data_selector": "users"}},
+            }
+            return [_map[r] for r in names if r in _map]
+
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+                backfill_policy=backfill_policy,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def docusign_ingestion_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.rest_api import rest_api_source
+
+                context.log.info(f"Starting DocuSign ingestion, destination={destination or 'duckdb (in-memory)'}")
+
+                _access_token, _base_uri, _resolved_account_id = _authenticate()
+                _envelope_params = _envelope_params_for(context)
+
+                config = {
+                    "client": {
+                        "base_url": f"{_base_uri}/restapi/v2.1/accounts/{_resolved_account_id}",
+                        "auth": {"type": "bearer", "token": _access_token},
+                    },
+                    "resources": _build_resource_configs(resources_list, _envelope_params),
+                }
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info("Creating DocuSign REST API source...")
+                if on_schema_change != "allow_all":
+                    config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
+                source = rest_api_source(config)
+                if exclude_columns:
+                    _apply_exclude_columns(source.resources.values(), exclude_columns)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                if max_rows_per_resource:
+                    _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+
+                context.log.info("Extracting DocuSign data...")
+                load_info = pipeline.run(source)
+                context.log.info(f"DocuSign data loaded: {load_info}")
+
+                resource_names = [r["name"] for r in config["resources"]]
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_requested": MetadataValue.json(resource_names),
+                }
+
+                non_sql_destinations = {"filesystem", "delta", "iceberg"}
+                is_non_sql = destination in non_sql_destinations
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    try:
+                        with client.execute_query(
+                            f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+                        ) as cur:
+                            tables_df = cur.df()
+                        table_names = tables_df["table_name"].tolist()
+                    except Exception:
+                        table_names = resource_names
+
+                    for table_name in table_names:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df["_resource_type"] = table_name
+                                all_data.append(df)
+                                resource_metadata[table_name] = len(df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted from DocuSign.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "column_count": MetadataValue.int(len(combined_df.columns)),
+                    "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                }
+                for resource, rows in resource_metadata.items():
+                    metadata[f"rows_{resource}"] = MetadataValue.int(rows)
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[docusign_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"DocuSign resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
+            retry_policy=_retry_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+        def docusign_ingestion_assets(context: AssetExecutionContext):
+            from dlt.sources.rest_api import rest_api_source
+
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_names = [r for r in resources_list if output_names[r] in selected_output_names]
+            if not selected_names:
+                context.log.info("docusign_ingestion: no resources selected; skipping.")
+                return
+
+            context.log.info(
+                f"Starting DocuSign ingestion for {selected_names!r}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
+
+            _access_token, _base_uri, _resolved_account_id = _authenticate()
+            _envelope_params = _envelope_params_for(context)
 
             config = {
                 "client": {
                     "base_url": f"{_base_uri}/restapi/v2.1/accounts/{_resolved_account_id}",
                     "auth": {"type": "bearer", "token": _access_token},
                 },
-                "resources": [],
+                "resources": _build_resource_configs(selected_names, _envelope_params),
             }
-            _map = {
-                "envelopes": {"name": "envelopes", "endpoint": {"path": "envelopes", "data_selector": "envelopes", "params": _envelope_params}},
-                "templates": {"name": "templates", "endpoint": {"path": "templates", "data_selector": "envelopeTemplates"}},
-                "users": {"name": "users", "endpoint": {"path": "users", "data_selector": "users"}},
-            }
-            for r in resources_list:
-                if r in _map:
-                    config["resources"].append(_map[r])
-
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -802,7 +961,7 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            context.log.info("Creating DocuSign REST API source...")
+            context.log.info(f"Creating DocuSign REST API source for resources {selected_names!r}...")
             if on_schema_change != "allow_all":
                 config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
             source = rest_api_source(config)
@@ -817,69 +976,53 @@ class DocuSignIngestionComponent(Component, Model, Resolvable):
             load_info = pipeline.run(source)
             context.log.info(f"DocuSign data loaded: {load_info}")
 
-            resource_names = [r["name"] for r in config["resources"]]
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_requested": MetadataValue.json(resource_names),
-            }
-
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
+
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                        f"destination={destination!r} is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                        },
+                    )
+                return
 
-            all_data = []
-            resource_metadata = {}
             with pipeline.sql_client() as client:
-                try:
-                    with client.execute_query(
-                        f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    ) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df["table_name"].tolist()
-                except Exception:
-                    table_names = resource_names
-
-                for table_name in table_names:
+                for r in selected_names:
                     try:
-                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                        with client.execute_query(f"SELECT * FROM {dataset_name}.{r}") as cur:
                             df = cur.df()
-                        if len(df) > 0:
-                            df["_resource_type"] = table_name
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
                     except Exception as e:
-                        context.log.warning(f"Could not load {table_name}: {e}")
+                        context.log.warning(f"Could not load {r}: {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning("No data extracted from DocuSign.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
-            }
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
 
-        return Definitions(assets=[docusign_ingestion_asset])
+        return Definitions(assets=[docusign_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

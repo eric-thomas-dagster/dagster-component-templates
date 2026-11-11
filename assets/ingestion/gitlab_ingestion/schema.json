@@ -1,0 +1,423 @@
+{
+  "component_type": "dagster_community_components.GitlabIngestionComponent",
+  "description": "Read records from one or more GitLab REST API v4 resources (projects, issues, merge requests, commits) into a DataFrame or warehouse table. Goes through GitLab's REST API with Link-header (RFC 5988) pagination and PRIVATE-TOKEN auth, supporting both GitLab.com and self-managed instances.",
+  "summary": "Ingest GitLab projects, issues, merge requests, and commits.",
+  "category": "ingestion",
+  "vertical": "devops-observability",
+  "icon": "si:gitlab",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per GitLab record (project, issue, merge request, or commit)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Name of the asset to create"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var with a GitLab personal, project, or group access token. Sent in the 'PRIVATE-TOKEN' header on every request (GitLab's recommended auth header -- see docs.gitlab.com/ee/api/rest/authentication.html). Required for any private project/group; a public project's read endpoints can be reached without one, but GitLab rate-limits unauthenticated requests much more aggressively.",
+      "required": false
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "description": "GitLab REST API v4 base URL. Defaults to GitLab.com SaaS. For a self-managed GitLab instance, set this to '<https://your-gitlab-host>/api/v4' -- the path must still end in '/api/v4'.",
+      "required": false
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "description": "GitLab project ID (numeric, e.g. '42') or URL-encoded path (e.g. 'my-group/my-project'). Required when `tables` includes 'issues', 'merge_requests', or 'commits' -- those are all project-scoped endpoints (GET /projects/:id/...). Not used by the 'projects' table.",
+      "required": false
+    },
+    "group_id": {
+      "type": "string",
+      "label": "Group Id",
+      "description": "GitLab group ID (numeric) or URL-encoded path (e.g. 'my-group'). Only affects the 'projects' table: when set, lists every project in that group (GET /groups/:id/projects) instead of every project visible to the token (GET /projects, the default when neither group_id nor project_id-based scoping applies).",
+      "required": false
+    },
+    "tables": {
+      "type": "string",
+      "label": "Tables",
+      "description": "Comma-separated list of GitLab resources to query: 'projects', 'issues', 'merge_requests', 'commits'. With asset_shape='single' (default), all tables are fetched together under one asset keyed `asset_name`. With asset_shape='multi_asset', each table instead becomes its own independently-materializable Dagster asset, keyed `{asset_name}_{table}` -- materializing one table does not fetch or persist the others. 'issues'/'merge_requests'/'commits' require project_id; 'projects' uses group_id (or is unscoped) instead.",
+      "required": true
+    },
+    "asset_shape": {
+      "type": "string",
+      "enum": [
+        "single",
+        "multi_asset"
+      ],
+      "label": "Asset Shape",
+      "description": "'single' (default, matches every other multi-table ingestion component in this repo, e.g. servicenow_ingestion/salesforce_ingestion/zendesk_ingestion): one asset, keyed `asset_name`, covering every table in `tables` as a single unit -- rows from every table are unioned into one returned DataFrame tagged by a `_table` column. 'multi_asset': each table in `tables` is instead its own independently-materializable asset -- select just the table(s) you want; materializing several together still batches them through one shared dlt pipeline call (one Dagster step), not parallel per-table execution. Opt into 'multi_asset' when you want to select/retry/schedule individual tables separately; stay on 'single' when you just want to monitor 'did the GitLab pipeline run'.",
+      "required": false
+    },
+    "table_name_map": {
+      "type": "object",
+      "label": "Table Name Map",
+      "description": "Override the destination table name for specific GitLab resources, e.g. {'merge_requests': 'raw_mrs'}. dlt otherwise names each destination table after its GitLab resource name (the default every ingestion component in this repo relies on -- see salesforce_ingestion). Tables in `tables` that aren't listed here keep their GitLab name as-is. Every key must also appear in `tables`.",
+      "required": false
+    },
+    "state": {
+      "type": "string",
+      "label": "State",
+      "description": "Filter 'issues'/'merge_requests' by state: 'opened', 'closed', 'merged' (merge_requests only), or 'locked' (merge_requests only). Unset (default) returns every state. Not used by 'projects'/'commits'.",
+      "required": false
+    },
+    "updated_after": {
+      "type": "string",
+      "label": "Updated After",
+      "description": "Filter 'issues'/'merge_requests' to records updated on or after this ISO 8601 timestamp (e.g. '2024-01-01T00:00:00Z'). Not used by 'projects'/'commits'.",
+      "required": false
+    },
+    "since": {
+      "type": "string",
+      "label": "Since",
+      "description": "Filter 'commits' to commits on or after this ISO 8601 timestamp (e.g. '2024-01-01T00:00:00Z'). Only used by 'commits'.",
+      "required": false
+    },
+    "until": {
+      "type": "string",
+      "label": "Until",
+      "description": "Filter 'commits' to commits on or before this ISO 8601 timestamp. Only used by 'commits'.",
+      "required": false
+    },
+    "ref_name": {
+      "type": "string",
+      "label": "Ref Name",
+      "description": "Branch, tag, or revision range to list 'commits' from. Defaults to the project's default branch when unset. Only used by 'commits'.",
+      "required": false
+    },
+    "per_page": {
+      "type": "integer",
+      "label": "Per Page",
+      "description": "Records fetched per API call (GitLab's 'per_page' param). Default 100, GitLab's documented maximum.",
+      "required": false
+    },
+    "max_records": {
+      "type": "integer",
+      "label": "Max Records",
+      "description": "Cap on total records returned across all pages, per table. None (default) = no cap.",
+      "required": false
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "description": "Enable TLS verification. Set false only for self-managed instances with self-signed certs.",
+      "required": false
+    },
+    "hash_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Hash Columns",
+      "description": "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/pseudonymizing_columns). A column missing from a given resource's rows is skipped, not an error. Requires hash_salt or hash_salt_env_var.",
+      "required": false
+    },
+    "hash_salt": {
+      "type": "string",
+      "label": "Hash Salt",
+      "description": "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it stable across runs: changing it changes every hash.",
+      "required": false
+    },
+    "hash_salt_env_var": {
+      "type": "string",
+      "label": "Hash Salt Env Var",
+      "description": "Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+      "required": false
+    },
+    "on_schema_change": {
+      "type": "string",
+      "enum": [
+        "allow_all",
+        "allow_new_columns",
+        "block_all"
+      ],
+      "label": "On Schema Change",
+      "description": "What to do when incoming data's shape differs from the destination table's established schema (new columns, or a column's data type changing). 'allow_all' (default, today's behavior): accept any change. 'allow_new_columns': accept new columns, but reject (fail the run) a column whose data type would change. 'block_all': reject both new columns and data type changes. A resource's own first materialization can always create its initial schema in every mode -- 'block_all' only locks down an ALREADY-established table's columns/types. A rejected change fails the run with a clear error naming the table and column -- it is never silently dropped.",
+      "required": false
+    },
+    "exclude_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Columns",
+      "description": "Column names to drop from every row before it reaches the destination. Applied before hash_columns (so a column in both ends up excluded, not hashed-then-excluded). A column missing from a given resource's rows is skipped, not an error, matching hash_columns.",
+      "required": false
+    },
+    "max_rows_per_resource": {
+      "type": "integer",
+      "label": "Max Rows Per Resource",
+      "description": "Caps how many rows each resource loads. Unset (default): no cap. This still loads real rows into the real destination -- it is not a dry run or a preview -- meant for a first run to check a connection and the shape of the data cheaply, not for routine use. Never applied unless you set it.",
+      "required": false
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode.",
+      "required": false
+    },
+    "dataset_name": {
+      "type": "string",
+      "label": "Dataset Name",
+      "description": "Target dataset/schema in the destination. Defaults to the asset name.",
+      "required": false
+    },
+    "persist_only": {
+      "type": "boolean",
+      "label": "Persist Only",
+      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult).",
+      "required": false
+    },
+    "destination_credentials_url": {
+      "type": "string",
+      "label": "Destination Credentials Url",
+      "description": "Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md.",
+      "required": false
+    },
+    "destination_credentials_env_var": {
+      "type": "string",
+      "label": "Destination Credentials Env Var",
+      "description": "Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time.",
+      "required": false
+    },
+    "bucket_url": {
+      "type": "string",
+      "label": "Bucket Url",
+      "description": "Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also used as the staging area when destination='databricks' or 'athena', both of which require an intermediate filesystem stage before the warehouse-side load -- dlt resolves the bucket's credentials from the destination-appropriate standard environment variables (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) unless destination_credentials_url/destination_credentials_env_var is set.",
+      "required": false
+    },
+    "athena_query_result_bucket": {
+      "type": "string",
+      "label": "Athena Query Result Bucket",
+      "description": "Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_date_column": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter the returned DataFrame to the current date partition key.",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "description": "Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
+      "required": false
+    },
+    "partition_static_column": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Static Column",
+      "description": "Column used to filter the returned DataFrame to the current static/dynamic partition key (e.g. 'customer_id').",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "backfill_policy": {
+      "type": "string",
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "label": "Backfill Policy",
+      "description": "Backfill strategy for a partitioned asset. 'single_run' materializes a whole backfill range in one run (rows are filtered to the whole range); 'multi_run' launches one run per partition, optionally capped by backfill_policy_max_partitions_per_run. Unset keeps Dagster's default. Needs a partition-range-aware IO manager for single_run.",
+      "required": false
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Policy Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run (default 1).",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access.",
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false
+    }
+  },
+  "tags": [
+    "ingestion",
+    "gitlab",
+    "vcs",
+    "issues",
+    "merge-requests",
+    "rest-api"
+  ],
+  "name": "GitLab Ingestion"
+}

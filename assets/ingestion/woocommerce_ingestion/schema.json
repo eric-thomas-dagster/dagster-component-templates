@@ -638,6 +638,16 @@
       "label": "Max Rows Per Resource",
       "description": "Caps how many rows each resource loads. Unset (default): no cap. This still loads real rows into the real destination -- it is not a dry run or a preview -- meant for a first run to check a connection and the shape of the data cheaply, not for routine use. Never applied unless you set it.",
       "required": false
+    },
+    "asset_shape": {
+      "type": "string",
+      "enum": [
+        "single",
+        "multi_asset"
+      ],
+      "label": "Asset Shape",
+      "description": "'single' (default, matches every other multi-resource ingestion component in this repo): one asset, keyed `asset_name`, covering every resource in `resources` as a single unit -- rows from every resource are unioned into one returned DataFrame tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is instead its own independently-materializable asset, keyed `{asset_name}_{resource}` -- select just the resource(s) you want; materializing several together still batches them through one shared dlt pipeline call (one Dagster step), not parallel per-resource execution. Opt into 'multi_asset' when you want to select/retry/schedule individual resources separately.",
+      "required": false
     }
   },
   "tags": [

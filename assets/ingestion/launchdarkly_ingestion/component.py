@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import dlt
 from dagster import (
+    EnvVar,
     AssetExecutionContext,
     AssetKey,
     Component,
@@ -347,6 +348,21 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
         description="Comma-separated list of resources to extract: projects (account-level); environments, flags, segments (require project_key)"
     )
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{resource}` "
+            "-- select just the resource(s) you want; materializing several together still "
+            "batches them through one shared dlt pipeline call (one Dagster step), not parallel "
+            "per-resource execution. Opt into 'multi_asset' when you want to select/retry/schedule "
+            "individual resources separately."
+        ),
+    )
+
     hash_columns: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -619,7 +635,7 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
             if factory is not None:
@@ -636,14 +652,14 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -748,39 +764,215 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        def _build_resource_map():
+            _map = {
+                "projects": {"name": "projects", "endpoint": {"path": "projects", "data_selector": "items"}},
+            }
+            if component.project_key:
+                _map.update({
+                    "environments": {"name": "environments", "endpoint": {"path": f"projects/{component.project_key}/environments", "data_selector": "items"}},
+                    "flags": {"name": "flags", "endpoint": {"path": f"flags/{component.project_key}", "data_selector": "items"}},
+                    "segments": {"name": "segments", "endpoint": {"path": f"segments/{component.project_key}", "data_selector": "items"}},
+                })
+            return _map
+
+        _resources_list_raw = [r.strip() for r in resources.split(",") if r.strip()]
+        _valid_resource_names = set(_build_resource_map().keys())
+        _resources_list_outer = [r for r in _resources_list_raw if r in _valid_resource_names]
+        output_names = {r: f"{asset_name}_{r}" for r in _resources_list_outer}
+
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+                required_resource_keys={component.resource_key} if component.resource_key else set(),
+            )
+            def launchdarkly_ingestion_asset(context: AssetExecutionContext):
+                if not component.resource_key and not component.api_token:
+                    raise ValueError(
+                        "LaunchDarklyIngestionComponent: supply resource_key (a registered "
+                        "LaunchDarklyResourceComponent) OR api_token."
+                    )
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.rest_api import rest_api_source
+
+                if component.resource_key:
+                    _res = getattr(context.resources, component.resource_key)
+                    # LaunchDarklyResource stores the already-resolved token as a plain
+                    # `api_token` attribute (the ResourceComponent takes api_token_env_var
+                    # and resolves it via dg.EnvVar at resource-construction time) --
+                    # NOT an `_env_var`-suffixed attribute, unlike the other vendors here.
+                    api_token = _res.api_token
+                else:
+                    api_token = component.api_token
+
+                context.log.info(f"Starting LaunchDarkly ingestion, destination={destination or 'duckdb (in-memory)'}")
+
+                resources_list = [r.strip() for r in resources.split(",")]
+                config = {
+                    "client": {
+                        "base_url": "https://app.launchdarkly.com/api/v2",
+                        "auth": {"type": "api_key", "api_key": api_token, "name": "Authorization", "location": "header"},
+                    },
+                    "resources": [],
+                }
+                _map = _build_resource_map()
+                for r in resources_list:
+                    if r in _map:
+                        config["resources"].append(_map[r])
+                    else:
+                        context.log.warning(f"Resource {r!r} requires project_key to be set; skipping.")
+
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info("Creating LaunchDarkly REST API source...")
+                if partition_window_params:
+                    _apply_partition_window(config, context, partition_window_params, partition_window_resources)
+                elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
+                    context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
+                if on_schema_change != "allow_all":
+                    config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
+                source = rest_api_source(config)
+
+                context.log.info("Extracting LaunchDarkly data...")
+                if exclude_columns:
+                    _apply_exclude_columns(source.resources.values(), exclude_columns)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                if max_rows_per_resource:
+                    _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+                load_info = pipeline.run(source)
+                context.log.info(f"LaunchDarkly data loaded: {load_info}")
+
+                resource_names = [r["name"] for r in config["resources"]]
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_requested": MetadataValue.json(resource_names),
+                }
+
+                non_sql_destinations = {"filesystem", "delta", "iceberg"}
+                is_non_sql = destination in non_sql_destinations
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    try:
+                        with client.execute_query(
+                            f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+                        ) as cur:
+                            tables_df = cur.df()
+                        table_names = tables_df["table_name"].tolist()
+                    except Exception:
+                        table_names = resource_names
+
+                    for table_name in table_names:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df["_resource_type"] = table_name
+                                all_data.append(df)
+                                resource_metadata[table_name] = len(df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted from LaunchDarkly.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "column_count": MetadataValue.int(len(combined_df.columns)),
+                    "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                }
+                for resource, rows in resource_metadata.items():
+                    metadata[f"rows_{resource}"] = MetadataValue.int(rows)
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[launchdarkly_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"LaunchDarkly resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in _resources_list_outer
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
-        def launchdarkly_ingestion_asset(context: AssetExecutionContext):
+        def launchdarkly_ingestion_assets(context: AssetExecutionContext):
             if not component.resource_key and not component.api_token:
                 raise ValueError(
                     "LaunchDarklyIngestionComponent: supply resource_key (a registered "
                     "LaunchDarklyResourceComponent) OR api_token."
                 )
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
             from dlt.sources.rest_api import rest_api_source
 
             if component.resource_key:
                 _res = getattr(context.resources, component.resource_key)
-                # LaunchDarklyResource stores the already-resolved token as a plain
-                # `api_token` attribute (the ResourceComponent takes api_token_env_var
-                # and resolves it via dg.EnvVar at resource-construction time) --
-                # NOT an `_env_var`-suffixed attribute, unlike the other vendors here.
                 api_token = _res.api_token
             else:
                 api_token = component.api_token
 
-            context.log.info(f"Starting LaunchDarkly ingestion, destination={destination or 'duckdb (in-memory)'}")
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_names = [r for r in _resources_list_outer if output_names[r] in selected_output_names]
+            if not selected_names:
+                context.log.info("launchdarkly_ingestion: no resources selected; skipping.")
+                return
 
-            resources_list = [r.strip() for r in resources.split(",")]
+            context.log.info(
+                f"Starting LaunchDarkly ingestion for {selected_names!r}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
+
             config = {
                 "client": {
                     "base_url": "https://app.launchdarkly.com/api/v2",
@@ -788,21 +980,10 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
                 },
                 "resources": [],
             }
-            _map = {
-                "projects": {"name": "projects", "endpoint": {"path": "projects", "data_selector": "items"}},
-            }
-            if self.project_key:
-                _map.update({
-                    "environments": {"name": "environments", "endpoint": {"path": f"projects/{self.project_key}/environments", "data_selector": "items"}},
-                    "flags": {"name": "flags", "endpoint": {"path": f"flags/{self.project_key}", "data_selector": "items"}},
-                    "segments": {"name": "segments", "endpoint": {"path": f"segments/{self.project_key}", "data_selector": "items"}},
-                })
-            for r in resources_list:
+            _map = _build_resource_map()
+            for r in selected_names:
                 if r in _map:
                     config["resources"].append(_map[r])
-                else:
-                    context.log.warning(f"Resource {r!r} requires project_key to be set; skipping.")
-
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -819,81 +1000,66 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
             if on_schema_change != "allow_all":
                 config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
             source = rest_api_source(config)
-
-            context.log.info("Extracting LaunchDarkly data...")
             if exclude_columns:
                 _apply_exclude_columns(source.resources.values(), exclude_columns)
             if hash_columns:
                 _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
             if max_rows_per_resource:
                 _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+
+            context.log.info("Extracting LaunchDarkly data...")
             load_info = pipeline.run(source)
             context.log.info(f"LaunchDarkly data loaded: {load_info}")
 
-            resource_names = [r["name"] for r in config["resources"]]
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_requested": MetadataValue.json(resource_names),
-            }
-
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
+
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                        f"destination={destination!r} is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                        },
+                    )
+                return
 
-            all_data = []
-            resource_metadata = {}
             with pipeline.sql_client() as client:
-                try:
-                    with client.execute_query(
-                        f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    ) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df["table_name"].tolist()
-                except Exception:
-                    table_names = resource_names
-
-                for table_name in table_names:
+                for r in selected_names:
                     try:
-                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                        with client.execute_query(f"SELECT * FROM {dataset_name}.{r}") as cur:
                             df = cur.df()
-                        if len(df) > 0:
-                            df["_resource_type"] = table_name
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
                     except Exception as e:
-                        context.log.warning(f"Could not load {table_name}: {e}")
+                        context.log.warning(f"Could not load {r}: {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning("No data extracted from LaunchDarkly.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
-            }
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-        return Definitions(assets=[launchdarkly_ingestion_asset])
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
+
+        return Definitions(assets=[launchdarkly_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

@@ -1,0 +1,720 @@
+{
+  "component_type": "dagster_community_components.TavilyIngestionComponent",
+  "description": "Run search queries against Tavily (tavily.com), an AI-native search API purpose-built for RAG/agent pipelines, and land the results as flat rows.",
+  "summary": "Run Tavily AI search queries and land the results as rows.",
+  "category": "ingestion",
+  "vertical": "ai-ml",
+  "icon": "Search",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame with one row per (query, result) pair (or MaterializeResult if destination is non-SQL / persist_only=true)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the data",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Name of the environment variable holding the Tavily API key. Resolved at run-time via dagster.EnvVar.",
+      "required": false,
+      "default": "TAVILY_API_KEY"
+    },
+    "queries": {
+      "type": "string",
+      "label": "Queries",
+      "description": "Comma-separated list of search queries to run, e.g. 'dagster asset checks, snowflake dynamic tables'. Set this, `upstream_asset_key`, or both -- at least one is required.",
+      "required": false,
+      "default": null
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Optional upstream asset providing a DataFrame with one search query per row (column named by `query_column`). Combined with `queries` when both are set (deduplicated, order preserved: static queries first).",
+      "required": false,
+      "default": null
+    },
+    "query_column": {
+      "type": "string",
+      "label": "Query Column",
+      "description": "Column in the upstream DataFrame holding each row's search query text. Only used when `upstream_asset_key` is set.",
+      "required": false,
+      "default": "query"
+    },
+    "search_depth": {
+      "type": "string",
+      "enum": [
+        "basic",
+        "advanced",
+        "fast",
+        "ultra-fast"
+      ],
+      "label": "Search Depth",
+      "description": "Tavily search depth. 'basic' (default) and 'fast'/'ultra-fast' cost 1 API credit per query; 'advanced' costs 2 credits but returns more relevant, better-ranked results. 'ultra-fast' returns one summary result per URL instead of multiple chunks per source.",
+      "required": false,
+      "default": "basic",
+      "ui:widget": "select"
+    },
+    "max_results": {
+      "type": "integer",
+      "label": "Max Results",
+      "description": "Maximum number of results Tavily returns per query (0-20).",
+      "required": false,
+      "default": 10
+    },
+    "topic": {
+      "type": "string",
+      "enum": [
+        "general",
+        "news",
+        "finance"
+      ],
+      "label": "Topic",
+      "description": "Tavily search category. 'news' and 'finance' tune ranking for those domains; both also enable more current, time-sensitive results.",
+      "required": false,
+      "default": "general",
+      "ui:widget": "select"
+    },
+    "include_answer": {
+      "type": "string",
+      "enum": [
+        "none",
+        "basic",
+        "advanced"
+      ],
+      "label": "Include Answer",
+      "description": "Have Tavily generate an LLM answer summarizing each query's results. 'basic' for a quick answer, 'advanced' for a more detailed one. When set, the answer is duplicated into an `answer` column on every row from that query (this is a flat-row table; the answer is per-query, not per-result).",
+      "required": false,
+      "default": "none",
+      "ui:widget": "select"
+    },
+    "include_raw_content": {
+      "type": "string",
+      "enum": [
+        "none",
+        "markdown",
+        "text"
+      ],
+      "label": "Include Raw Content",
+      "description": "Have Tavily also return each result's full page content (not just the relevance-ranked `content` snippet) in a `raw_content` column. 'markdown' for markdown-formatted content, 'text' for plain text.",
+      "required": false,
+      "default": "none",
+      "ui:widget": "select"
+    },
+    "table_name": {
+      "type": "string",
+      "label": "Table Name",
+      "description": "Destination table name for the landed rows (under `dataset_name`).",
+      "required": false,
+      "default": "results"
+    },
+    "hash_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Hash Columns",
+      "description": "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/pseudonymizing_columns). A column missing from a given resource's rows is skipped, not an error. Requires hash_salt or hash_salt_env_var.",
+      "required": false
+    },
+    "hash_salt": {
+      "type": "string",
+      "label": "Hash Salt",
+      "description": "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it stable across runs: changing it changes every hash.",
+      "required": false
+    },
+    "hash_salt_env_var": {
+      "type": "string",
+      "label": "Hash Salt Env Var",
+      "description": "Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+      "required": false
+    },
+    "on_schema_change": {
+      "type": "string",
+      "enum": [
+        "allow_all",
+        "allow_new_columns",
+        "block_all"
+      ],
+      "label": "On Schema Change",
+      "description": "What to do when incoming data's shape differs from the destination table's established schema (new columns, or a column's data type changing). 'allow_all' (default, today's behavior): accept any change. 'allow_new_columns': accept new columns, but reject (fail the run) a column whose data type would change. 'block_all': reject both new columns and data type changes. A resource's own first materialization can always create its initial schema in every mode -- 'block_all' only locks down an ALREADY-established table's columns/types. A rejected change fails the run with a clear error naming the table and column -- it is never silently dropped.",
+      "required": false
+    },
+    "exclude_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Columns",
+      "description": "Column names to drop from every row before it reaches the destination. Applied before hash_columns (so a column in both ends up excluded, not hashed-then-excluded). A column missing from a given resource's rows is skipped, not an error, matching hash_columns.",
+      "required": false
+    },
+    "max_rows_per_resource": {
+      "type": "integer",
+      "label": "Max Rows Per Resource",
+      "description": "Caps how many rows load. Unset (default): no cap. This still loads real rows into the real destination -- it is not a dry run or a preview -- meant for a first run to check a connection and the shape of the data cheaply, not for routine use. Never applied unless you set it.",
+      "required": false
+    },
+    "destination": {
+      "x-dagster-group": "destination",
+      "type": "string",
+      "label": "Destination",
+      "description": "dlt destination identifier. Leave empty for in-memory DuckDB -> DataFrame mode.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "snowflake",
+        "bigquery",
+        "postgres",
+        "redshift",
+        "filesystem",
+        "duckdb",
+        "databricks",
+        "athena",
+        "clickhouse",
+        "mssql",
+        "motherduck"
+      ],
+      "ui:widget": "select"
+    },
+    "dataset_name": {
+      "x-dagster-group": "destination",
+      "type": "string",
+      "label": "Dataset Name",
+      "description": "Target dataset/schema in the destination. Defaults to the asset name.",
+      "required": false,
+      "default": null
+    },
+    "persist_only": {
+      "x-dagster-group": "destination",
+      "type": "boolean",
+      "label": "Persist Only",
+      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "destination_credentials_url": {
+      "type": "string",
+      "label": "Destination Credentials Url",
+      "description": "Inline connection string passed to dlt's destination factory.",
+      "required": false,
+      "default": null,
+      "x-dagster-destination-fields": {
+        "trigger_field": "destination",
+        "options": {
+          "snowflake": {
+            "fields": [
+              {
+                "name": "account",
+                "label": "Account",
+                "required": true,
+                "description": "e.g. xy12345.us-east-1"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "warehouse",
+                "label": "Warehouse",
+                "required": false
+              },
+              {
+                "name": "role",
+                "label": "Role",
+                "required": false
+              }
+            ],
+            "template": {
+              "base": "snowflake://{username}:{password}@{account}/{database}",
+              "query_params": {
+                "warehouse": "warehouse",
+                "role": "role"
+              }
+            }
+          },
+          "postgres": {
+            "fields": [
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "5432"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              }
+            ],
+            "template": {
+              "base": "postgresql://{username}:{password}@{host}:{port}/{database}"
+            }
+          },
+          "redshift": {
+            "fields": [
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "5439"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              }
+            ],
+            "template": {
+              "base": "redshift://{username}:{password}@{host}:{port}/{database}"
+            }
+          },
+          "clickhouse": {
+            "fields": [
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "9000",
+                "description": "Native TCP port (not the HTTP interface port)"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": false,
+                "default": "default"
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "secure",
+                "label": "Secure (TLS)",
+                "required": false,
+                "default": "0",
+                "description": "1 for HTTPS/TLS, 0 otherwise"
+              }
+            ],
+            "template": {
+              "base": "clickhouse://{username}:{password}@{host}:{port}/{database}",
+              "query_params": {
+                "secure": "secure"
+              }
+            }
+          },
+          "mssql": {
+            "fields": [
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "1433"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "encrypt",
+                "label": "Encrypt",
+                "required": false,
+                "default": "no",
+                "description": "'yes' to require SSL (e.g. Azure SQL); 'no' for a local unencrypted instance"
+              }
+            ],
+            "template": {
+              "base": "mssql://{username}:{password}@{host}:{port}/{database}",
+              "query_params": {
+                "encrypt": "encrypt"
+              }
+            }
+          },
+          "motherduck": {
+            "fields": [
+              {
+                "name": "database",
+                "label": "Database",
+                "required": false,
+                "description": "Defaults to 'my_db' on MotherDuck's side if left blank"
+              },
+              {
+                "name": "token",
+                "label": "Service Token",
+                "required": true,
+                "widget": "password"
+              }
+            ],
+            "template": {
+              "base": "md:{database}",
+              "query_params": {
+                "token": "motherduck_token"
+              }
+            }
+          },
+          "bigquery": {
+            "credential_format": "json_blob",
+            "description": "Paste the full GCP service-account key JSON (GCP Console -> IAM & Admin -> Service Accounts -> your account -> Keys -> Add Key -> JSON). Used verbatim -- dlt's GcpServiceAccountCredentials parses a raw JSON string directly, so no connection-string assembly happens here.",
+            "placeholder": "{\n  \"type\": \"service_account\",\n  \"project_id\": \"...\",\n  \"private_key\": \"...\",\n  \"client_email\": \"...\"\n}"
+          }
+        },
+        "related_env_var_field": "destination_credentials_env_var"
+      }
+    },
+    "destination_credentials_env_var": {
+      "type": "string",
+      "label": "Destination Credentials Env Var",
+      "description": "Env var holding the destination connection string.",
+      "required": false,
+      "default": null
+    },
+    "bucket_url": {
+      "x-dagster-group": "destination",
+      "type": "string",
+      "label": "Bucket Url",
+      "required": false,
+      "default": null,
+      "description": "Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also used as the staging area when destination='databricks' or 'athena', both of which require an intermediate filesystem stage before the warehouse-side load -- dlt resolves the bucket's credentials from the destination-appropriate standard environment variables (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) unless destination_credentials_url/destination_credentials_env_var is set.",
+      "x-dagster-visible-when": {
+        "field": "destination",
+        "values": [
+          "filesystem",
+          "databricks",
+          "athena"
+        ]
+      },
+      "x-dagster-label-by": {
+        "field": "destination",
+        "labels": {
+          "filesystem": "Storage location",
+          "databricks": "Staging bucket",
+          "athena": "Staging bucket"
+        }
+      }
+    },
+    "athena_query_result_bucket": {
+      "type": "string",
+      "label": "Athena Query Result Bucket",
+      "required": false,
+      "default": null,
+      "description": "Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead.",
+      "x-dagster-visible-when": {
+        "field": "destination",
+        "values": [
+          "athena"
+        ]
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "tavily_ingestion"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog",
+      "required": false,
+      "default": null
+    },
+    "freshness_max_lag_minutes": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Maximum acceptable lag in minutes.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "x-dagster-group": "advanced",
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Cron schedule string for the freshness policy.",
+      "required": false,
+      "default": null
+    },
+    "include_preview_metadata": {
+      "x-dagster-group": "advanced",
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata.",
+      "required": false,
+      "default": 25
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Tavily's search API has no native date-window concept, so a time-based partition here only structures scheduling/backfills -- it does not change what gets searched.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run. 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "x-dagster-group": "partitions",
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "x-dagster-group": "partitions",
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "x-dagster-group": "partitions",
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_max_retries": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "x-dagster-group": "advanced",
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy.",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear"
+      ],
+      "ui:widget": "select"
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or the only entry of `deps`; with several upstream assets, name each column '<asset_key>:<column>'. Ignored with a warning when no upstream asset can be resolved.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "tavily",
+    "search",
+    "rag",
+    "dlt"
+  ],
+  "name": "Tavily Search Ingestion"
+}

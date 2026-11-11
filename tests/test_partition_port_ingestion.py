@@ -189,7 +189,7 @@ def test_helper_copies_identical_and_everything_is_wired():
         props = props.get("attributes") or props.get("properties")
         assert {"partition_date_column", "partition_static_column", "backfill_policy", "backfill_policy_max_partitions_per_run"} <= set(props), f
         assert "does not currently use the partition key" not in props["partition_type"]["description"], f
-    assert len(blocks) == 1 and len(_ported()) == 111
+    assert len(blocks) == 1 and len(_ported()) == 112
 
 
 @pytest.mark.parametrize("folder", _ported(), ids=lambda p: p.name)
@@ -248,7 +248,7 @@ def test_window_is_only_applied_to_a_partitioned_time_run_and_in_the_chosen_form
 def test_resources_can_be_limited_and_the_helper_is_identical_everywhere():
     blocks = {re.search(r"# BEGIN partition window helper.*?# END partition window helper", (p / "component.py").read_text(), re.S).group(0)
               for p in _window_ported()}
-    assert len(blocks) == 1 and len(_window_ported()) == 109
+    assert len(blocks) == 1 and len(_window_ported()) == 110
     ns = {}
     exec(next(iter(blocks)), ns)
 

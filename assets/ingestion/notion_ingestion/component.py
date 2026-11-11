@@ -20,6 +20,7 @@ from dagster import (
     Component,
     ComponentLoadContext,
     Definitions,
+    EnvVar,
     MaterializeResult,
     MetadataValue,
     Model,
@@ -353,6 +354,21 @@ class NotionIngestionComponent(Component, Model, Resolvable):
 
     database_ids: List[str] = Field(description="List of Notion database IDs to extract data from")
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every database in `database_ids` as a "
+            "single unit -- rows from every database are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each database in `database_ids` "
+            "is instead its own independently-materializable asset, keyed "
+            "`{asset_name}_{sanitized database id}` -- select just the database(s) you want; "
+            "materializing several together still batches them through one shared dlt pipeline "
+            "call (one Dagster step), not parallel per-database execution. Opt into 'multi_asset' "
+            "when you want to select/retry/schedule individual databases separately."
+        ),
+    )
+
     hash_columns: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -547,7 +563,7 @@ class NotionIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
 
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
@@ -567,14 +583,14 @@ class NotionIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -849,25 +865,178 @@ class NotionIngestionComponent(Component, Model, Resolvable):
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        def _sanitize_db_id(db_id: str) -> str:
+            import re
+            return re.sub(r"[^0-9a-zA-Z_]", "_", str(db_id))
+
+        output_names = {db_id: f"{asset_name}_{_sanitize_db_id(db_id)}" for db_id in database_ids}
+
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+                required_resource_keys={component.resource_key} if component.resource_key else set(),
+            )
+            def notion_ingestion_asset(context: AssetExecutionContext):
+                if not component.resource_key and not component.api_key:
+                    raise ValueError(
+                        "NotionIngestionComponent: supply resource_key (a registered "
+                        "NotionResourceComponent) OR api_key."
+                    )
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.notion import notion_databases
+
+                if component.resource_key:
+                    _res = getattr(context.resources, component.resource_key)
+                    api_key = _res.token
+                else:
+                    api_key = component.api_key
+
+                context.log.info(
+                    f"Starting Notion ingestion: databases={database_ids}, "
+                    f"destination={destination or 'duckdb (in-memory)'}"
+                )
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                source = notion_databases(
+                    database_ids=database_ids,
+                    api_key=api_key,
+                )
+                if on_schema_change != "allow_all":
+                    for _r in source.resources.values():
+                        _r.apply_hints(schema_contract=_resolve_schema_contract(on_schema_change))
+                if exclude_columns:
+                    _apply_exclude_columns(source.resources.values(), exclude_columns)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                if max_rows_per_resource:
+                    _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+
+                load_info = pipeline.run(source)
+                context.log.info(f"Notion data loaded: {load_info}")
+
+                resource_keys = ["notion_databases"]
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_extracted": MetadataValue.json(list(resource_keys)),
+                }
+
+                non_sql_destinations = {
+                    "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                    "delta", "iceberg",
+                }
+                is_non_sql = destination in non_sql_destinations
+
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                for resource_name in resource_keys:
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{resource_name}"
+                        with pipeline.sql_client() as client:
+                            with client.execute_query(query) as cursor:
+                                columns = [d[0] for d in cursor.description]
+                                rows = cursor.fetchall()
+                        if rows:
+                            df = pd.DataFrame(rows, columns=columns)
+                            df["_resource_type"] = resource_name
+                            all_data.append(df)
+                            context.log.info(f"Extracted {len(df)} rows from {resource_name}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {resource_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(
+                    combined_df, context, partition_date_column, partition_static_column
+                )
+                context.log.info(
+                    f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+                )
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "resource_types": MetadataValue.json(
+                        list(combined_df["_resource_type"].unique())
+                        if "_resource_type" in combined_df.columns
+                        else []
+                    ),
+                }
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[notion_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[db_id]: AssetOut(
+                description=f"Notion database reader: {db_id}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for db_id in database_ids
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
-        def notion_ingestion_asset(context: AssetExecutionContext):
+        def notion_ingestion_assets(context: AssetExecutionContext):
             if not component.resource_key and not component.api_key:
                 raise ValueError(
                     "NotionIngestionComponent: supply resource_key (a registered "
                     "NotionResourceComponent) OR api_key."
                 )
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
             from dlt.sources.notion import notion_databases
+
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_ids = [db_id for db_id in database_ids if output_names[db_id] in selected_output_names]
+            if not selected_ids:
+                context.log.info("notion_ingestion: no databases selected; skipping.")
+                return
 
             if component.resource_key:
                 _res = getattr(context.resources, component.resource_key)
@@ -876,7 +1045,7 @@ class NotionIngestionComponent(Component, Model, Resolvable):
                 api_key = component.api_key
 
             context.log.info(
-                f"Starting Notion ingestion: databases={database_ids}, "
+                f"Starting Notion ingestion for databases={selected_ids!r}, "
                 f"destination={destination or 'duckdb (in-memory)'}"
             )
 
@@ -888,7 +1057,7 @@ class NotionIngestionComponent(Component, Model, Resolvable):
             )
 
             source = notion_databases(
-                database_ids=database_ids,
+                database_ids=selected_ids,
                 api_key=api_key,
             )
             if on_schema_change != "allow_all":
@@ -901,17 +1070,16 @@ class NotionIngestionComponent(Component, Model, Resolvable):
             if max_rows_per_resource:
                 _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
 
+            # The real destination table name per database is resolved by the dlt source
+            # itself (Notion database titles, fetched at source-construction time) -- not
+            # knowable statically at component-build time, which is why `outs` above is
+            # keyed by the raw (sanitized) database id rather than the resolved table name.
+            # `source.resources` preserves insertion order, matching `selected_ids` order.
+            resolved_table_names = list(source.resources.keys())
+            id_to_table_name = dict(zip(selected_ids, resolved_table_names))
+
             load_info = pipeline.run(source)
             context.log.info(f"Notion data loaded: {load_info}")
-
-            resource_keys = ["notion_databases"]
-
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_extracted": MetadataValue.json(list(resource_keys)),
-            }
 
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
@@ -922,57 +1090,57 @@ class NotionIngestionComponent(Component, Model, Resolvable):
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for db_id in selected_ids:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[db_id]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "database_id": MetadataValue.text(db_id),
+                            "destination_table_name": MetadataValue.text(id_to_table_name.get(db_id, "")),
+                        },
+                    )
+                return
 
-            all_data = []
-            for resource_name in resource_keys:
-                try:
-                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
-                    with pipeline.sql_client() as client:
-                        with client.execute_query(query) as cursor:
-                            columns = [d[0] for d in cursor.description]
-                            rows = cursor.fetchall()
-                    if rows:
-                        df = pd.DataFrame(rows, columns=columns)
-                        df["_resource_type"] = resource_name
-                        all_data.append(df)
-                        context.log.info(f"Extracted {len(df)} rows from {resource_name}")
-                except Exception as e:
-                    context.log.warning(f"Could not extract {resource_name}: {e}")
+            for db_id in selected_ids:
+                table_name = id_to_table_name.get(db_id)
+                df = pd.DataFrame()
+                if table_name:
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{table_name}"
+                        with pipeline.sql_client() as client:
+                            with client.execute_query(query) as cursor:
+                                columns = [d[0] for d in cursor.description]
+                                rows = cursor.fetchall()
+                        if rows:
+                            df = pd.DataFrame(rows, columns=columns)
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {table_name!r} (database {db_id!r}): {e}")
 
-            if not all_data:
-                context.log.warning("No data extracted.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(
-                combined_df, context, partition_date_column, partition_static_column
-            )
-            context.log.info(
-                f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
-            )
+                metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "database_id": MetadataValue.text(db_id),
+                    "destination_table_name": MetadataValue.text(table_name or ""),
+                    "row_count": MetadataValue.int(len(df)),
+                }
+                if include_preview and len(df) > 0:
+                    try:
+                        _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
 
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "resource_types": MetadataValue.json(
-                    list(combined_df["_resource_type"].unique())
-                    if "_resource_type" in combined_df.columns
-                    else []
-                ),
-            }
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                yield Output(value=df, output_name=output_names[db_id], metadata=metadata)
 
-        return Definitions(assets=[notion_ingestion_asset])
+        return Definitions(assets=[notion_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import pandas as pd
 import dlt
 from dagster import (
+    EnvVar,
     BackfillPolicy,
     AssetExecutionContext,
     AssetKey,
@@ -130,6 +131,166 @@ def _apply_max_rows_per_resource(resources, max_rows_per_resource):
 # END dlt-advanced-options helper
 
 
+def _build_twitter_resource_configs(
+    resources_list, account_ids, metric_groups_str, entity_type, start_date_str, end_date_str, granularity, placement,
+):
+    """Build the Twitter Ads REST API `resources` config list for the requested top-level
+    resource types (accounts/campaigns/line_items/promoted_tweets/tweets/media/analytics),
+    fanned out across every account in `account_ids` -- verbatim per-resource-type logic from
+    the original single-asset build_defs, just parameterized by `resources_list` so the
+    multi_asset branch can call it with only the selected resource type(s). Returns
+    (config_resources, table_names_by_resource) where table_names_by_resource maps each
+    requested top-level resource type to the list of per-account destination table names it
+    produced (e.g. {"campaigns": ["campaigns_abc123", "campaigns_xyz789"]})."""
+    config_resources = []
+    table_names_by_resource = {}
+
+    if "accounts" in resources_list:
+        names = []
+        for account_id in account_ids:
+            config_resources.append({
+                "name": f"accounts_{account_id}",
+                "endpoint": {
+                    "path": f"accounts/{account_id}",
+                    "paginator": None
+                }
+            })
+            names.append(f"accounts_{account_id}")
+        table_names_by_resource["accounts"] = names
+
+    if "campaigns" in resources_list:
+        names = []
+        for account_id in account_ids:
+            config_resources.append({
+                "name": f"campaigns_{account_id}",
+                "endpoint": {
+                    "path": f"accounts/{account_id}/campaigns",
+                    "params": {
+                        "count": 200,
+                        "with_deleted": False
+                    },
+                    "paginator": {
+                        "type": "cursor",
+                        "cursor_path": "next_cursor",
+                        "cursor_param": "cursor"
+                    }
+                }
+            })
+            names.append(f"campaigns_{account_id}")
+        table_names_by_resource["campaigns"] = names
+
+    if "line_items" in resources_list:
+        names = []
+        for account_id in account_ids:
+            config_resources.append({
+                "name": f"line_items_{account_id}",
+                "endpoint": {
+                    "path": f"accounts/{account_id}/line_items",
+                    "params": {
+                        "count": 200,
+                        "with_deleted": False
+                    },
+                    "paginator": {
+                        "type": "cursor",
+                        "cursor_path": "next_cursor",
+                        "cursor_param": "cursor"
+                    }
+                }
+            })
+            names.append(f"line_items_{account_id}")
+        table_names_by_resource["line_items"] = names
+
+    if "promoted_tweets" in resources_list:
+        names = []
+        for account_id in account_ids:
+            config_resources.append({
+                "name": f"promoted_tweets_{account_id}",
+                "endpoint": {
+                    "path": f"accounts/{account_id}/promoted_tweets",
+                    "params": {
+                        "count": 200,
+                        "with_deleted": False
+                    },
+                    "paginator": {
+                        "type": "cursor",
+                        "cursor_path": "next_cursor",
+                        "cursor_param": "cursor"
+                    }
+                }
+            })
+            names.append(f"promoted_tweets_{account_id}")
+        table_names_by_resource["promoted_tweets"] = names
+
+    if "tweets" in resources_list:
+        names = []
+        for account_id in account_ids:
+            config_resources.append({
+                "name": f"tweets_{account_id}",
+                "endpoint": {
+                    "path": f"accounts/{account_id}/tweets",
+                    "params": {
+                        "count": 200,
+                        "with_deleted": False
+                    },
+                    "paginator": {
+                        "type": "cursor",
+                        "cursor_path": "next_cursor",
+                        "cursor_param": "cursor"
+                    }
+                }
+            })
+            names.append(f"tweets_{account_id}")
+        table_names_by_resource["tweets"] = names
+
+    if "media" in resources_list:
+        names = []
+        for account_id in account_ids:
+            config_resources.append({
+                "name": f"media_{account_id}",
+                "endpoint": {
+                    "path": f"accounts/{account_id}/media_library",
+                    "params": {
+                        "count": 200
+                    },
+                    "paginator": {
+                        "type": "cursor",
+                        "cursor_path": "next_cursor",
+                        "cursor_param": "cursor"
+                    }
+                }
+            })
+            names.append(f"media_{account_id}")
+        table_names_by_resource["media"] = names
+
+    if "analytics" in resources_list:
+        if metric_groups_str:
+            metric_groups_list = [m.strip() for m in metric_groups_str.split(',')]
+        else:
+            metric_groups_list = ["ENGAGEMENT", "BILLING"]
+
+        names = []
+        for account_id in account_ids:
+            analytics_params = {
+                "entity": entity_type,
+                "start_time": start_date_str,
+                "end_time": end_date_str,
+                "granularity": granularity,
+                "metric_groups": ",".join(metric_groups_list),
+                "placement": placement
+            }
+
+            config_resources.append({
+                "name": f"analytics_{account_id}",
+                "endpoint": {
+                    "path": f"stats/accounts/{account_id}",
+                    "params": analytics_params,
+                    "paginator": None
+                }
+            })
+            names.append(f"analytics_{account_id}")
+        table_names_by_resource["analytics"] = names
+
+    return config_resources, table_names_by_resource
 
 
 def _build_partitions_def(
@@ -343,6 +504,22 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
     resources: str = Field(
         default="campaigns,analytics",
         description="Comma-separated list of resources to extract: accounts, campaigns, line_items, promoted_tweets, tweets, media, analytics"
+    )
+
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource (fanned out across every account in "
+            "`account_ids`) are unioned into one returned DataFrame tagged by a `_resource_type` "
+            "column. 'multi_asset': each resource in `resources` is instead its own "
+            "independently-materializable asset, keyed `{asset_name}_{resource}` -- its rows still "
+            "cover every account in `account_ids`. Select just the resource(s) you want; "
+            "materializing several together still batches them through one shared dlt pipeline "
+            "call (one Dagster step), not parallel per-resource execution. Opt into 'multi_asset' "
+            "when you want to select/retry/schedule individual resources separately."
+        ),
     )
 
     hash_columns: Optional[List[str]] = Field(
@@ -564,7 +741,7 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
 
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
@@ -582,14 +759,14 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -784,6 +961,8 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
         component = self
+        resources_list_outer = [r.strip() for r in resources_str.split(',') if r.strip()]
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list_outer}
 
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
@@ -869,8 +1048,9 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
-            backfill_policy=backfill_policy, 
+        if self.asset_shape == "single":
+          @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=owners,
@@ -878,8 +1058,8 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-        )
-        def twitter_ads_ingestion_asset(context: AssetExecutionContext):
+          )
+          def twitter_ads_ingestion_asset(context: AssetExecutionContext):
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.rest_api import rest_api_source
@@ -1208,7 +1388,179 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
                     context.log.warning(f"preview emission failed: {_e}")
             return Output(value=combined_df, metadata=metadata)
 
-        return Definitions(assets=[twitter_ads_ingestion_asset])
+          return Definitions(assets=[twitter_ads_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"Twitter Ads resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list_outer
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
+            retry_policy=_retry_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+        def twitter_ads_ingestion_assets(context: AssetExecutionContext):
+            from dlt.sources.rest_api import rest_api_source
+
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_names = [r for r in resources_list_outer if output_names[r] in selected_output_names]
+            if not selected_names:
+                context.log.info("twitter_ads_ingestion: no resources selected; skipping.")
+                return
+
+            context.log.info(
+                f"Starting Twitter Ads ingestion for accounts: {account_ids_str}, resources "
+                f"{selected_names!r}, destination={destination or 'duckdb (in-memory)'}"
+            )
+
+            account_ids = [a.strip() for a in account_ids_str.split(',')]
+
+            from datetime import datetime, timedelta
+
+            _partition_start_date, _partition_end_date = None, None
+            if context.has_partition_key or context.has_partition_key_range:
+                try:
+                    _window = context.partition_time_window
+                    _partition_start_date = _window.start.strftime("%Y-%m-%d")
+                    _partition_end_date = _window.end.strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+
+            if _partition_start_date:
+                start_date_str = _partition_start_date
+            elif start_date:
+                start_date_str = start_date
+            else:
+                start_date_str = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+            if _partition_end_date:
+                end_date_str = _partition_end_date
+            elif end_date:
+                end_date_str = end_date
+            else:
+                end_date_str = datetime.now().strftime("%Y-%m-%d")
+
+            pipeline = dlt.pipeline(
+                pipeline_name=f"{asset_name}_pipeline",
+                destination=component._resolve_destination_with_bucket(),
+                staging=component._resolve_staging(),
+                dataset_name=dataset_name,
+            )
+
+            import base64
+            import hmac
+            import hashlib
+            import urllib.parse
+            import secrets
+            import time
+
+            config = {
+                "client": {
+                    "base_url": "https://ads-api.twitter.com/12",
+                    "auth": {
+                        "type": "oauth1",
+                        "consumer_key": consumer_key,
+                        "consumer_secret": consumer_secret,
+                        "access_token": access_token,
+                        "access_token_secret": access_token_secret
+                    }
+                },
+                "resources": []
+            }
+            config["resources"], table_names_by_resource = _build_twitter_resource_configs(
+                selected_names, account_ids, metric_groups_str, entity_type, start_date_str, end_date_str, granularity, placement,
+            )
+
+            context.log.info("Creating Twitter Ads REST API source...")
+            if on_schema_change != "allow_all":
+                config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
+            source = rest_api_source(config)
+            if exclude_columns:
+                _apply_exclude_columns(source.resources.values(), exclude_columns)
+            if hash_columns:
+                _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+            if max_rows_per_resource:
+                _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+
+            context.log.info("Extracting Twitter Ads data...")
+            load_info = pipeline.run(source)
+            context.log.info(f"Twitter data loaded: {load_info}")
+
+            non_sql_destinations = {
+                "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                "delta", "iceberg",
+            }
+            is_non_sql = destination in non_sql_destinations
+
+            if persist_only or is_non_sql:
+                if is_non_sql and not persist_only:
+                    context.log.warning(
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
+                        f"Set persist_only=true to silence this warning."
+                    )
+                for r in selected_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                            "account_ids": MetadataValue.json(account_ids),
+                        },
+                    )
+                return
+
+            with pipeline.sql_client() as client:
+                for r in selected_names:
+                    table_names = table_names_by_resource.get(r, [])
+                    dfs = []
+                    for table_name in table_names:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                _df = cur.df()
+                            if len(_df) > 0:
+                                dfs.append(_df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                    df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "account_ids": MetadataValue.json(account_ids),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
+
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
+
+        return Definitions(assets=[twitter_ads_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

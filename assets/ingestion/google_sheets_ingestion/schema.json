@@ -618,6 +618,16 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "asset_shape": {
+      "type": "string",
+      "enum": [
+        "single",
+        "multi_asset"
+      ],
+      "label": "Asset Shape",
+      "description": "'single' (default, matches every other multi-table ingestion component in this repo): one asset, keyed `asset_name`, covering every sheet in `sheet_names` as a single unit -- rows from every sheet are unioned into one returned DataFrame tagged by a `_resource_type` column. 'multi_asset': each sheet in `sheet_names` is instead its own independently-materializable asset, keyed `{asset_name}_{sheet}` (sheet names are lowercased with spaces/dashes replaced by underscores) -- select just the sheet(s) you want; materializing one sheet does not fetch the others. Opt into 'multi_asset' when you want to select/retry/schedule individual sheets separately.",
+      "required": false
     }
   },
   "tags": [

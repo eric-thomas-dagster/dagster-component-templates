@@ -19,6 +19,28 @@ import pandas as pd
 from pydantic import Field
 
 
+def _extract_text(path: Path, encoding: str) -> str:
+    """Dispatches by file extension. .pdf/.docx get real text extraction (same libraries as
+    structured_document_extractor/pdf_text_extractor: pdfplumber, python-docx); .html strips
+    tags via BeautifulSoup; everything else (.md/.txt/...) is read as plain text. Raises on a
+    real extraction failure (a corrupt/unsupported file) rather than silently skipping it --
+    the caller decides whether to skip or fail the run."""
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        import pdfplumber
+        with pdfplumber.open(path) as pdf:
+            return "\n\n".join(page.extract_text() or "" for page in pdf.pages)
+    if suffix == ".docx":
+        import docx
+        d = docx.Document(str(path))
+        return "\n".join(p.text for p in d.paragraphs)
+    if suffix in (".html", ".htm"):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(path.read_text(encoding=encoding), "html.parser")
+        return soup.get_text(separator="\n")
+    return path.read_text(encoding=encoding)
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -150,7 +172,7 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_name: str = Field(description="Dagster asset name")
     source_dir: str = Field(description="Absolute path to the directory of docs")
     file_glob: str = Field(default="**/*.md", description="Glob relative to source_dir (default '**/*.md')")
-    encoding: str = Field(default="utf-8", description="Text file encoding")
+    encoding: str = Field(default="utf-8", description="Text file encoding for plain-text files (.md/.txt/.html -- ignored for .pdf/.docx, which are always read as binary and text-extracted)")
     min_doc_count: int = Field(
         default=1,
         description="Asset check fails if fewer docs than this — guards against empty corpus regressions.",
@@ -161,7 +183,7 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
     description: Optional[str] = Field(default=None, description="Asset description")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners")
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional key-value tags")
-    kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (defaults to ['rag'])")
+    kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (defaults to ['rag', 'documents'] -- the second tag is how a knowledge-base UI finds every document-source asset in a project, regardless of vendor)")
     freshness_max_lag_minutes: Optional[int] = Field(
         default=None, description="Freshness policy: max lag before stale."
     )
@@ -174,7 +196,7 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
 
     # Preview metadata
     include_preview_metadata: bool = Field(
-        default=False, description="Include a `preview` metadata key (markdown table of first rows)."
+        default=True, description="Include a `preview` metadata key (markdown table of first rows)."
     )
     preview_rows: int = Field(
         default=25, ge=1, le=500, description="Rows in the preview when include_preview_metadata=True."
@@ -264,7 +286,10 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
 
-        kinds = self.kinds or ["rag"]
+        if not file_glob or not file_glob.strip():
+            raise ValueError("DocumentCorpusComponent: file_glob must be a non-empty glob pattern.")
+
+        kinds = self.kinds or ["rag", "documents"]
         tags = dict(self.asset_tags or {})
         for k in kinds:
             tags[f"dagster/kind/{k}"] = ""
@@ -326,14 +351,19 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
                 if not p.is_file():
                     continue
                 try:
-                    content = p.read_text(encoding=encoding)
+                    content = _extract_text(p, encoding)
                 except UnicodeDecodeError:
                     context.log.warning(f"Skipping (encoding): {p}")
                     continue
                 content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                updated_at = datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc).isoformat()
                 rows.append({
                     "doc_id": str(p.relative_to(root)),
                     "content": content,
+                    "title": p.stem,
+                    "url": p.as_uri(),
+                    "source_type": "local_file",
+                    "updated_at": updated_at,
                     "source_path": str(p),
                     "content_hash": content_hash,
                     "byte_size": len(content.encode("utf-8")),
@@ -342,7 +372,10 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
 
             df = pd.DataFrame(
                 rows,
-                columns=["doc_id", "content", "source_path", "content_hash", "byte_size", "ingested_at"],
+                columns=[
+                    "doc_id", "content", "title", "url", "source_type", "updated_at",
+                    "source_path", "content_hash", "byte_size", "ingested_at",
+                ],
             )
             corpus_hash = hashlib.sha256(
                 "\n".join(sorted(df["content_hash"].astype(str).tolist())).encode("utf-8")
@@ -356,10 +389,16 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
                 "corpus_hash": dg.MetadataValue.text(corpus_hash),
                 "source_dir": dg.MetadataValue.path(str(root)),
                 "file_glob": dg.MetadataValue.text(file_glob),
+                "dagster/column_schema": dg.MetadataValue.table_schema(
+                    dg.TableSchema(columns=[
+                        dg.TableColumn(name=str(col), type=str(df.dtypes[col]))
+                        for col in df.columns
+                    ])
+                ),
             }
             if include_preview and len(df) > 0:
                 try:
-                    _prev = df[["doc_id", "byte_size", "content_hash", "ingested_at"]]
+                    _prev = df[["doc_id", "title", "source_type", "byte_size", "content_hash", "updated_at"]]
                     _prev = _prev.sample(min(preview_rows, len(_prev))) if len(_prev) > preview_rows * 10 else _prev.head(preview_rows)
                     metadata["preview"] = dg.MetadataValue.md(_prev.to_markdown(index=False))
                 except Exception as e:  # noqa: BLE001

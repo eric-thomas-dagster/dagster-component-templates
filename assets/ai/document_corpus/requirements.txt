@@ -1,1 +1,6 @@
 pandas>=2.0.0
+
+# .pdf/.docx/.html extraction only -- not needed for .md/.txt sources
+pdfplumber>=0.7.0
+python-docx>=1.0.0
+beautifulsoup4>=4.12.0

@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import pandas as pd
 import dlt
 from dagster import (
+    EnvVar,
     BackfillPolicy,
     AssetExecutionContext,
     AssetKey,
@@ -130,6 +131,154 @@ def _apply_max_rows_per_resource(resources, max_rows_per_resource):
 # END dlt-advanced-options helper
 
 
+def _build_tiktok_resource_configs(names, advertiser_ids, start_date_str, end_date_str, metrics_str, report_type, data_level):
+    """Build the dlt rest_api_source `resources` list for the TikTok resource types in `names`
+    (a subset of advertisers/campaigns/ad_groups/ads/videos/images/reports), fanned out one
+    config entry per advertiser in `advertiser_ids`. Shared by both asset_shape='single' (called
+    with every requested resource type) and asset_shape='multi_asset' (called with just the
+    selected resource type(s)) so the two branches build identical per-resource-type configs."""
+    resources = []
+
+    if "advertisers" in names:
+        for advertiser_id in advertiser_ids:
+            resources.append({
+                "name": f"advertisers_{advertiser_id}",
+                "endpoint": {
+                    "path": "advertiser/info/",
+                    "params": {
+                        "advertiser_ids": f"[{advertiser_id}]"
+                    },
+                    "paginator": None
+                }
+            })
+
+    if "campaigns" in names:
+        for advertiser_id in advertiser_ids:
+            resources.append({
+                "name": f"campaigns_{advertiser_id}",
+                "endpoint": {
+                    "path": "campaign/get/",
+                    "params": {
+                        "advertiser_id": advertiser_id,
+                        "page_size": 100
+                    },
+                    "paginator": {
+                        "type": "offset",
+                        "limit": 100,
+                        "offset_param": "page"
+                    }
+                }
+            })
+
+    if "ad_groups" in names:
+        for advertiser_id in advertiser_ids:
+            resources.append({
+                "name": f"ad_groups_{advertiser_id}",
+                "endpoint": {
+                    "path": "adgroup/get/",
+                    "params": {
+                        "advertiser_id": advertiser_id,
+                        "page_size": 100
+                    },
+                    "paginator": {
+                        "type": "offset",
+                        "limit": 100,
+                        "offset_param": "page"
+                    }
+                }
+            })
+
+    if "ads" in names:
+        for advertiser_id in advertiser_ids:
+            resources.append({
+                "name": f"ads_{advertiser_id}",
+                "endpoint": {
+                    "path": "ad/get/",
+                    "params": {
+                        "advertiser_id": advertiser_id,
+                        "page_size": 100
+                    },
+                    "paginator": {
+                        "type": "offset",
+                        "limit": 100,
+                        "offset_param": "page"
+                    }
+                }
+            })
+
+    if "videos" in names:
+        for advertiser_id in advertiser_ids:
+            resources.append({
+                "name": f"videos_{advertiser_id}",
+                "endpoint": {
+                    "path": "file/video/ad/search/",
+                    "params": {
+                        "advertiser_id": advertiser_id,
+                        "page_size": 100
+                    },
+                    "paginator": {
+                        "type": "offset",
+                        "limit": 100,
+                        "offset_param": "page"
+                    }
+                }
+            })
+
+    if "images" in names:
+        for advertiser_id in advertiser_ids:
+            resources.append({
+                "name": f"images_{advertiser_id}",
+                "endpoint": {
+                    "path": "file/image/ad/get/",
+                    "params": {
+                        "advertiser_id": advertiser_id,
+                        "page_size": 100
+                    },
+                    "paginator": {
+                        "type": "offset",
+                        "limit": 100,
+                        "offset_param": "page"
+                    }
+                }
+            })
+
+    if "reports" in names:
+        default_metrics = [
+            "spend", "impressions", "clicks", "ctr", "cpc", "cpm",
+            "conversions", "cost_per_conversion", "conversion_rate",
+            "video_play_actions", "video_watched_2s", "video_watched_6s",
+            "average_video_play", "average_video_play_per_user"
+        ]
+
+        metrics_list = metrics_str.split(',') if metrics_str else default_metrics
+
+        for advertiser_id in advertiser_ids:
+            report_params = {
+                "advertiser_id": advertiser_id,
+                "service_type": "AUCTION",
+                "report_type": report_type,
+                "data_level": data_level,
+                "dimensions": '["stat_time_day"]',
+                "start_date": start_date_str,
+                "end_date": end_date_str,
+                "metrics": str(metrics_list),
+                "page_size": 1000
+            }
+
+            resources.append({
+                "name": f"reports_{advertiser_id}",
+                "endpoint": {
+                    "path": "report/integrated/get/",
+                    "params": report_params,
+                    "paginator": {
+                        "type": "offset",
+                        "limit": 1000,
+                        "offset_param": "page"
+                    }
+                }
+            })
+
+    return resources
 
 
 def _build_partitions_def(
@@ -338,6 +487,24 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
     resources: str = Field(
         default="campaigns,reports",
         description="Comma-separated list of resources to extract: advertisers, campaigns, ad_groups, ads, videos, images, reports"
+    )
+
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource (across every advertiser in `advertiser_ids`) "
+            "are unioned into one returned DataFrame tagged by a `_resource_type` column. "
+            "'multi_asset': each resource in `resources` is instead its own independently-"
+            "materializable asset, keyed `{asset_name}_{resource}` -- e.g. `resources: "
+            "campaigns,reports` then produces `{asset_name}_campaigns` and `{asset_name}_reports` "
+            "as two independently-materializable assets, each still covering every advertiser in "
+            "`advertiser_ids`; select just the resource(s) you want; materializing several "
+            "together still batches them through one shared dlt pipeline call (one Dagster step), "
+            "not parallel per-resource execution. Opt into 'multi_asset' when you want to select/"
+            "retry/schedule individual resources separately."
+        ),
     )
 
     hash_columns: Optional[List[str]] = Field(
@@ -555,7 +722,7 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = EnvVar(self.destination_credentials_env_var).get_value()
 
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
@@ -573,14 +740,14 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = EnvVar(self.destination_credentials_env_var).get_value()
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -771,6 +938,8 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
         component = self
+        resources_list = [r.strip() for r in resources_str.split(',') if r.strip()]
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list}
 
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
@@ -856,35 +1025,230 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
-            backfill_policy=backfill_policy, 
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+                backfill_policy=backfill_policy,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def tiktok_ads_ingestion_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.rest_api import rest_api_source
+
+                context.log.info(
+                    f"Starting TikTok Ads ingestion for advertisers: {advertiser_ids_str}, "
+                    f"destination={destination or 'duckdb (in-memory)'}"
+                )
+
+                advertiser_ids = [a.strip() for a in advertiser_ids_str.split(',')]
+                resources_list = [r.strip() for r in resources_str.split(',')]
+                context.log.info(f"Resources to extract: {resources_list}")
+
+                from datetime import datetime, timedelta
+
+                # A time-based partition (daily/weekly/monthly/hourly) means this run should
+                # fetch exactly that slice, not the static start_date/end_date config --
+                # otherwise every partition would re-pull the same trailing-30-days window.
+                _partition_start_date, _partition_end_date = None, None
+                if context.has_partition_key or context.has_partition_key_range:
+                    try:
+                        _window = context.partition_time_window
+                        _partition_start_date = _window.start.strftime("%Y-%m-%d")
+                        _partition_end_date = _window.end.strftime("%Y-%m-%d")
+                    except Exception:
+                        pass  # static/dynamic/multi partition -- no natural time window
+
+                if _partition_start_date:
+                    start_date_str = _partition_start_date
+                elif start_date:
+                    start_date_str = start_date
+                else:
+                    start_date_str = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+                if _partition_end_date:
+                    end_date_str = _partition_end_date
+                elif end_date:
+                    end_date_str = end_date
+                else:
+                    end_date_str = datetime.now().strftime("%Y-%m-%d")
+
+                context.log.info(f"Date range: {start_date_str} to {end_date_str}")
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info("Created dlt pipeline for data extraction")
+
+                # Build REST API configuration for TikTok Marketing API
+                # Base URL: https://business-api.tiktok.com/open_api/v1.3
+                config = {
+                    "client": {
+                        "base_url": "https://business-api.tiktok.com/open_api/v1.3",
+                        "auth": {
+                            "type": "bearer",
+                            "token": access_token
+                        }
+                    },
+                    "resources": _build_tiktok_resource_configs(
+                        resources_list, advertiser_ids, start_date_str, end_date_str,
+                        metrics_str, report_type, data_level,
+                    )
+                }
+
+                context.log.info("Creating TikTok Ads REST API source...")
+                if on_schema_change != "allow_all":
+                    config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
+                source = rest_api_source(config)
+                if exclude_columns:
+                    _apply_exclude_columns(source.resources.values(), exclude_columns)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                if max_rows_per_resource:
+                    _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
+
+                context.log.info("Extracting TikTok Ads data...")
+                load_info = pipeline.run(source)
+                context.log.info(f"TikTok data loaded: {load_info}")
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "advertiser_ids": MetadataValue.json(advertiser_ids),
+                    "resources_requested": MetadataValue.json(resources_list),
+                    "start_date": MetadataValue.text(start_date_str),
+                    "end_date": MetadataValue.text(end_date_str),
+                }
+
+                non_sql_destinations = {
+                    "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                    "delta", "iceberg",
+                }
+                is_non_sql = destination in non_sql_destinations
+
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    tables_query = (
+                        f"SELECT table_name FROM information_schema.tables "
+                        f"WHERE table_schema = '{dataset_name}'"
+                    )
+                    try:
+                        with client.execute_query(tables_query) as cur:
+                            tables_df = cur.df()
+                        table_names = tables_df['table_name'].tolist()
+                    except Exception:
+                        table_names = []
+                        for resource in resources_list:
+                            for advertiser_id in advertiser_ids:
+                                table_names.append(f"{resource}_{advertiser_id}")
+
+                    context.log.info(f"Found tables: {table_names}")
+
+                    for table_name in table_names:
+                        try:
+                            query = f"SELECT * FROM {dataset_name}.{table_name}"
+                            with client.execute_query(query) as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df['_resource_type'] = table_name
+                                all_data.append(df)
+                                resource_metadata[table_name] = len(df)
+                                context.log.info(f"  {table_name}: {len(df)} rows")
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted from TikTok Ads.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+
+                context.log.info(
+                    f"Extraction complete: {len(combined_df)} total rows, "
+                    f"{len(combined_df.columns)} columns"
+                )
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "column_count": MetadataValue.int(len(combined_df.columns)),
+                    "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                }
+                for resource, rows in resource_metadata.items():
+                    metadata[f"rows_{resource}"] = MetadataValue.int(rows)
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[tiktok_ads_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"TikTok Ads resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def tiktok_ads_ingestion_asset(context: AssetExecutionContext):
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
+        def tiktok_ads_ingestion_assets(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
 
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_names = [r for r in resources_list if output_names[r] in selected_output_names]
+            if not selected_names:
+                context.log.info("tiktok_ads_ingestion: no resources selected; skipping.")
+                return
+
             context.log.info(
-                f"Starting TikTok Ads ingestion for advertisers: {advertiser_ids_str}, "
-                f"destination={destination or 'duckdb (in-memory)'}"
+                f"Starting TikTok Ads ingestion for {selected_names!r}, advertisers: "
+                f"{advertiser_ids_str}, destination={destination or 'duckdb (in-memory)'}"
             )
 
             advertiser_ids = [a.strip() for a in advertiser_ids_str.split(',')]
-            resources_list = [r.strip() for r in resources_str.split(',')]
-            context.log.info(f"Resources to extract: {resources_list}")
 
             from datetime import datetime, timedelta
 
-            # A time-based partition (daily/weekly/monthly/hourly) means this run should
-            # fetch exactly that slice, not the static start_date/end_date config --
-            # otherwise every partition would re-pull the same trailing-30-days window.
             _partition_start_date, _partition_end_date = None, None
             if context.has_partition_key or context.has_partition_key_range:
                 try:
@@ -917,10 +1281,6 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            context.log.info("Created dlt pipeline for data extraction")
-
-            # Build REST API configuration for TikTok Marketing API
-            # Base URL: https://business-api.tiktok.com/open_api/v1.3
             config = {
                 "client": {
                     "base_url": "https://business-api.tiktok.com/open_api/v1.3",
@@ -929,147 +1289,11 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
                         "token": access_token
                     }
                 },
-                "resources": []
+                "resources": _build_tiktok_resource_configs(
+                    selected_names, advertiser_ids, start_date_str, end_date_str,
+                    metrics_str, report_type, data_level,
+                )
             }
-
-            if "advertisers" in resources_list:
-                for advertiser_id in advertiser_ids:
-                    config["resources"].append({
-                        "name": f"advertisers_{advertiser_id}",
-                        "endpoint": {
-                            "path": "advertiser/info/",
-                            "params": {
-                                "advertiser_ids": f"[{advertiser_id}]"
-                            },
-                            "paginator": None
-                        }
-                    })
-
-            if "campaigns" in resources_list:
-                for advertiser_id in advertiser_ids:
-                    config["resources"].append({
-                        "name": f"campaigns_{advertiser_id}",
-                        "endpoint": {
-                            "path": "campaign/get/",
-                            "params": {
-                                "advertiser_id": advertiser_id,
-                                "page_size": 100
-                            },
-                            "paginator": {
-                                "type": "offset",
-                                "limit": 100,
-                                "offset_param": "page"
-                            }
-                        }
-                    })
-
-            if "ad_groups" in resources_list:
-                for advertiser_id in advertiser_ids:
-                    config["resources"].append({
-                        "name": f"ad_groups_{advertiser_id}",
-                        "endpoint": {
-                            "path": "adgroup/get/",
-                            "params": {
-                                "advertiser_id": advertiser_id,
-                                "page_size": 100
-                            },
-                            "paginator": {
-                                "type": "offset",
-                                "limit": 100,
-                                "offset_param": "page"
-                            }
-                        }
-                    })
-
-            if "ads" in resources_list:
-                for advertiser_id in advertiser_ids:
-                    config["resources"].append({
-                        "name": f"ads_{advertiser_id}",
-                        "endpoint": {
-                            "path": "ad/get/",
-                            "params": {
-                                "advertiser_id": advertiser_id,
-                                "page_size": 100
-                            },
-                            "paginator": {
-                                "type": "offset",
-                                "limit": 100,
-                                "offset_param": "page"
-                            }
-                        }
-                    })
-
-            if "videos" in resources_list:
-                for advertiser_id in advertiser_ids:
-                    config["resources"].append({
-                        "name": f"videos_{advertiser_id}",
-                        "endpoint": {
-                            "path": "file/video/ad/search/",
-                            "params": {
-                                "advertiser_id": advertiser_id,
-                                "page_size": 100
-                            },
-                            "paginator": {
-                                "type": "offset",
-                                "limit": 100,
-                                "offset_param": "page"
-                            }
-                        }
-                    })
-
-            if "images" in resources_list:
-                for advertiser_id in advertiser_ids:
-                    config["resources"].append({
-                        "name": f"images_{advertiser_id}",
-                        "endpoint": {
-                            "path": "file/image/ad/get/",
-                            "params": {
-                                "advertiser_id": advertiser_id,
-                                "page_size": 100
-                            },
-                            "paginator": {
-                                "type": "offset",
-                                "limit": 100,
-                                "offset_param": "page"
-                            }
-                        }
-                    })
-
-            if "reports" in resources_list:
-                default_metrics = [
-                    "spend", "impressions", "clicks", "ctr", "cpc", "cpm",
-                    "conversions", "cost_per_conversion", "conversion_rate",
-                    "video_play_actions", "video_watched_2s", "video_watched_6s",
-                    "average_video_play", "average_video_play_per_user"
-                ]
-
-                metrics_list = metrics_str.split(',') if metrics_str else default_metrics
-
-                for advertiser_id in advertiser_ids:
-                    report_params = {
-                        "advertiser_id": advertiser_id,
-                        "service_type": "AUCTION",
-                        "report_type": report_type,
-                        "data_level": data_level,
-                        "dimensions": '["stat_time_day"]',
-                        "start_date": start_date_str,
-                        "end_date": end_date_str,
-                        "metrics": str(metrics_list),
-                        "page_size": 1000
-                    }
-
-                    config["resources"].append({
-                        "name": f"reports_{advertiser_id}",
-                        "endpoint": {
-                            "path": "report/integrated/get/",
-                            "params": report_params,
-                            "paginator": {
-                                "type": "offset",
-                                "limit": 1000,
-                                "offset_param": "page"
-                            }
-                        }
-                    })
 
             context.log.info("Creating TikTok Ads REST API source...")
             if on_schema_change != "allow_all":
@@ -1086,16 +1310,6 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
             load_info = pipeline.run(source)
             context.log.info(f"TikTok data loaded: {load_info}")
 
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "advertiser_ids": MetadataValue.json(advertiser_ids),
-                "resources_requested": MetadataValue.json(resources_list),
-                "start_date": MetadataValue.text(start_date_str),
-                "end_date": MetadataValue.text(end_date_str),
-            }
-
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
                 "delta", "iceberg",
@@ -1105,71 +1319,58 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                            "advertiser_ids": MetadataValue.json(advertiser_ids),
+                        },
+                    )
+                return
 
-            all_data = []
-            resource_metadata = {}
             with pipeline.sql_client() as client:
-                tables_query = (
-                    f"SELECT table_name FROM information_schema.tables "
-                    f"WHERE table_schema = '{dataset_name}'"
-                )
-                try:
-                    with client.execute_query(tables_query) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df['table_name'].tolist()
-                except Exception:
-                    table_names = []
-                    for resource in resources_list:
-                        for advertiser_id in advertiser_ids:
-                            table_names.append(f"{resource}_{advertiser_id}")
+                for r in selected_names:
+                    _tables = [f"{r}_{aid}" for aid in advertiser_ids]
+                    _dfs = []
+                    for table_name in _tables:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                _df = cur.df()
+                            if len(_df) > 0:
+                                _df['_resource_type'] = table_name
+                                _dfs.append(_df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
 
-                context.log.info(f"Found tables: {table_names}")
+                    df = pd.concat(_dfs, ignore_index=True) if _dfs else pd.DataFrame()
 
-                for table_name in table_names:
-                    try:
-                        query = f"SELECT * FROM {dataset_name}.{table_name}"
-                        with client.execute_query(query) as cur:
-                            df = cur.df()
-                        if len(df) > 0:
-                            df['_resource_type'] = table_name
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
-                            context.log.info(f"  {table_name}: {len(df)} rows")
-                    except Exception as e:
-                        context.log.warning(f"Could not load {table_name}: {e}")
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "advertiser_ids": MetadataValue.json(advertiser_ids),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if len(df) > 0:
+                        metadata["column_count"] = MetadataValue.int(len(df.columns))
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            if not all_data:
-                context.log.warning("No data extracted from TikTok Ads.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-
-            context.log.info(
-                f"Extraction complete: {len(combined_df)} total rows, "
-                f"{len(combined_df.columns)} columns"
-            )
-
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
-            }
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
-
-        return Definitions(assets=[tiktok_ads_ingestion_asset])
+        return Definitions(assets=[tiktok_ads_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

@@ -1,0 +1,13 @@
+type: dagster_community_components.JinaReaderIngestionComponent
+attributes:
+  asset_name: jina_reader_ingestion
+  urls: "https://docs.dagster.io,https://jina.ai/reader"
+
+  # --- Optional: Jina API key (unset = anonymous, 20 req/min vs. 500+ with a key) ---
+  # api_key_env_var: JINA_API_KEY
+
+  # --- Optional: real Jina Reader request options (see component.py docstring for sources) ---
+  # target_selector: "article, .main-content"     # X-Target-Selector
+  # wait_for_selector: "#content"                 # X-Wait-For-Selector (JS-rendered pages)
+  # request_timeout_seconds: 30                   # X-Timeout (max 180)
+  # with_generated_alt: true                      # X-With-Generated-Alt (image captions)

@@ -687,24 +687,33 @@ if _HAS_STATE_BACKED:
             best-effort) Catalog enrichment lookups here -- once, at state
             refresh time -- so `build_defs_from_state` never needs to make
             network calls of any kind on a plain code-server reload.
-            """
-            token = dg.EnvVar(self.api_token_env_var).get_value()
-            headers = {"Authorization": f"Bearer {token}"}
-            url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
-            resp = requests.get(url, headers=headers, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-            nodes = data.get("data", data) if isinstance(data, dict) else data
 
-            if self.include_catalog_metadata:
-                resource = CoalesceResource(
-                    api_token_env_var=self.api_token_env_var,
-                    environment_id=self.environment_id,
-                    api_base_url=self.api_base_url,
-                    catalog_api_token_env_var=self.catalog_api_token_env_var,
-                    catalog_base_url=self.catalog_base_url,
-                )
-                _enrich_nodes_with_catalog_metadata(nodes, resource)
+            A missing env var or unreachable API must not crash the whole code
+            location load -- fall back to an empty cached state instead, same
+            as `talend_cloud_workspace`.
+            """
+            try:
+                token = dg.EnvVar(self.api_token_env_var).get_value()
+                if not token:
+                    raise ValueError(f"{self.api_token_env_var} is not set")
+                headers = {"Authorization": f"Bearer {token}"}
+                url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
+                resp = requests.get(url, headers=headers, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                nodes = data.get("data", data) if isinstance(data, dict) else data
+
+                if self.include_catalog_metadata:
+                    resource = CoalesceResource(
+                        api_token_env_var=self.api_token_env_var,
+                        environment_id=self.environment_id,
+                        api_base_url=self.api_base_url,
+                        catalog_api_token_env_var=self.catalog_api_token_env_var,
+                        catalog_base_url=self.catalog_base_url,
+                    )
+                    _enrich_nodes_with_catalog_metadata(nodes, resource)
+            except Exception:  # noqa: BLE001
+                nodes = []
 
             state_path.write_text(json.dumps(nodes))
 
@@ -763,6 +772,13 @@ else:
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             token = dg.EnvVar(self.api_token_env_var).get_value()
+            if not token:
+                context.log.warning(
+                    f"{self.api_token_env_var} is not set; skipping Coalesce node discovery. "
+                    "No assets will be created for this component until the env var is set "
+                    "and the code location is reloaded."
+                )
+                return dg.Definitions()
             headers = {"Authorization": f"Bearer {token}"}
             url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
             resp = requests.get(url, headers=headers, timeout=30)

@@ -22,12 +22,21 @@ class AirliftDagAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label='Airlift Dag Assets', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        username = dg.EnvVar(self.auth_user_env_var).get_value()
+        password = dg.EnvVar(self.auth_pass_env_var).get_value()
+        if not username or not password:
+            context.log.warning(
+                f"{self.auth_user_env_var} and/or {self.auth_pass_env_var} are not set; "
+                "skipping Airflow DAG discovery. No assets will be created for this component "
+                "until both env vars are set and the code location is reloaded."
+            )
+            return dg.Definitions()
         from dagster_airlift.core import AirflowInstance, BasicAuthBackend, build_defs_from_airflow_instance
         airflow_instance = AirflowInstance(
             auth_backend=BasicAuthBackend(
                 webserver_url=self.airflow_url,
-                username=dg.EnvVar(self.auth_user_env_var).get_value() or "",
-                password=dg.EnvVar(self.auth_pass_env_var).get_value() or "",
+                username=username,
+                password=password,
             ),
             name="airflow",
         )

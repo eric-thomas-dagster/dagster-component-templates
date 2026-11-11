@@ -479,17 +479,29 @@ if _HAS_STATE_BACKED:
             return LOCAL_STATE_VERSION
 
         def write_state_to_path(self, state_path: Path) -> None:
-            """Fetch all matching scenarios from Dataiku DSS API and cache to disk."""
-            host = dg.EnvVar(self.host_env_var).get_value()
-            api_key = dg.EnvVar(self.api_key_env_var).get_value()
-            scenarios_by_project = _fetch_scenarios(
-                host=host,
-                api_key=api_key,
-                project_keys=self.project_keys,
-                exclude_project_keys=self.exclude_project_keys,
-                scenario_name_prefix=self.scenario_name_prefix,
-                exclude_scenario_ids=self.exclude_scenario_ids,
-            )
+            """Fetch all matching scenarios from Dataiku DSS API and cache to disk.
+
+            A missing env var or unreachable API must not crash the whole code
+            location load (state refresh runs on every `dagster dev` reload) --
+            fall back to an empty cached state instead, same as `talend_cloud_workspace`.
+            """
+            try:
+                host = dg.EnvVar(self.host_env_var).get_value()
+                api_key = dg.EnvVar(self.api_key_env_var).get_value()
+                if not host or not api_key:
+                    raise ValueError(
+                        f"{self.host_env_var} and/or {self.api_key_env_var} are not set"
+                    )
+                scenarios_by_project = _fetch_scenarios(
+                    host=host,
+                    api_key=api_key,
+                    project_keys=self.project_keys,
+                    exclude_project_keys=self.exclude_project_keys,
+                    scenario_name_prefix=self.scenario_name_prefix,
+                    exclude_scenario_ids=self.exclude_scenario_ids,
+                )
+            except Exception:  # noqa: BLE001
+                scenarios_by_project = {}
             state_path.write_text(json.dumps(scenarios_by_project, indent=2))
 
         def build_defs_from_state(
@@ -552,6 +564,13 @@ else:
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             host = dg.EnvVar(self.host_env_var).get_value()
             api_key = dg.EnvVar(self.api_key_env_var).get_value()
+            if not host or not api_key:
+                context.log.warning(
+                    f"{self.host_env_var} and/or {self.api_key_env_var} are not set; "
+                    "skipping Dataiku DSS scenario discovery. No assets will be created for "
+                    "this component until both env vars are set and the code location is reloaded."
+                )
+                return dg.Definitions()
             scenarios_by_project = _fetch_scenarios(
                 host=host,
                 api_key=api_key,

@@ -473,31 +473,41 @@ if _HAS_STATE_BACKED:
             return LOCAL_STATE_VERSION
 
         def write_state_to_path(self, state_path: Path) -> None:
-            """Fetch all Polytomic syncs via the API and cache them to disk."""
-            api_key = dg.EnvVar(self.api_key_env_var).get_value()
-            all_syncs = _list_syncs(api_key)
+            """Fetch all Polytomic syncs via the API and cache them to disk.
 
-            # Normalise each sync to the fields we actually need
-            records = []
-            for s in all_syncs:
-                target = s.get("target") or {}
-                records.append({
-                    "id": s["id"],
-                    "name": s.get("name", s["id"]),
-                    "mode": s.get("mode", "unknown"),
-                    "target_connection": target.get("connection_name", ""),
-                    "target_object": target.get("object", ""),
-                    "status": s.get("status", ""),
-                })
+            A missing env var or unreachable API must not crash the whole code
+            location load (state refresh runs on every `dagster dev` reload) --
+            fall back to an empty cached state instead, same as `talend_cloud_workspace`.
+            """
+            try:
+                api_key = dg.EnvVar(self.api_key_env_var).get_value()
+                if not api_key:
+                    raise ValueError(f"{self.api_key_env_var} is not set")
+                all_syncs = _list_syncs(api_key)
 
-            # Apply optional filters
-            if self.organization_id:
-                records = [r for r in records if s.get("organization_id") == self.organization_id]
-            if self.name_filter:
-                records = [r for r in records if self.name_filter in r["name"]]
-            if self.exclude_sync_ids:
-                excluded = set(self.exclude_sync_ids)
-                records = [r for r in records if r["id"] not in excluded]
+                # Normalise each sync to the fields we actually need
+                records = []
+                for s in all_syncs:
+                    target = s.get("target") or {}
+                    records.append({
+                        "id": s["id"],
+                        "name": s.get("name", s["id"]),
+                        "mode": s.get("mode", "unknown"),
+                        "target_connection": target.get("connection_name", ""),
+                        "target_object": target.get("object", ""),
+                        "status": s.get("status", ""),
+                    })
+
+                # Apply optional filters
+                if self.organization_id:
+                    records = [r for r in records if s.get("organization_id") == self.organization_id]
+                if self.name_filter:
+                    records = [r for r in records if self.name_filter in r["name"]]
+                if self.exclude_sync_ids:
+                    excluded = set(self.exclude_sync_ids)
+                    records = [r for r in records if r["id"] not in excluded]
+            except Exception:  # noqa: BLE001
+                records = []
 
             state_path.write_text(json.dumps(records, indent=2))
 
@@ -558,6 +568,13 @@ else:
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             api_key = dg.EnvVar(self.api_key_env_var).get_value()
+            if not api_key:
+                context.log.warning(
+                    f"{self.api_key_env_var} is not set; skipping Polytomic sync discovery. "
+                    "No assets will be created for this component until the env var is set "
+                    "and the code location is reloaded."
+                )
+                return dg.Definitions()
             all_syncs = _list_syncs(api_key)
 
             records = []

@@ -540,16 +540,26 @@ if _HAS_STATE_BACKED:
             return LOCAL_STATE_VERSION
 
         def write_state_to_path(self, state_path: Path) -> None:
-            """Fetch all workspaces from HCP Terraform API and cache to disk."""
-            token = dg.EnvVar(self.api_token_env_var).get_value()
-            raw_workspaces = _list_workspaces(token, self.organization)
-            records = [_workspace_to_record(ws) for ws in raw_workspaces]
-            filtered = _apply_filters(
-                records,
-                self.workspace_filter,
-                self.exclude_workspaces,
-                self.tags,
-            )
+            """Fetch all workspaces from HCP Terraform API and cache to disk.
+
+            A missing env var or unreachable API must not crash the whole code
+            location load (state refresh runs on every `dagster dev` reload) --
+            fall back to an empty cached state instead, same as `talend_cloud_workspace`.
+            """
+            try:
+                token = dg.EnvVar(self.api_token_env_var).get_value()
+                if not token:
+                    raise ValueError(f"{self.api_token_env_var} is not set")
+                raw_workspaces = _list_workspaces(token, self.organization)
+                records = [_workspace_to_record(ws) for ws in raw_workspaces]
+                filtered = _apply_filters(
+                    records,
+                    self.workspace_filter,
+                    self.exclude_workspaces,
+                    self.tags,
+                )
+            except Exception:  # noqa: BLE001
+                filtered = []
             state_path.write_text(json.dumps(filtered))
 
         def build_defs_from_state(
@@ -627,6 +637,13 @@ else:
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             token = dg.EnvVar(self.api_token_env_var).get_value()
+            if not token:
+                context.log.warning(
+                    f"{self.api_token_env_var} is not set; skipping HCP Terraform workspace "
+                    "discovery. No assets will be created for this component until the env var "
+                    "is set and the code location is reloaded."
+                )
+                return dg.Definitions()
             raw_workspaces = _list_workspaces(token, self.organization)
             records = [_workspace_to_record(ws) for ws in raw_workspaces]
             filtered = _apply_filters(

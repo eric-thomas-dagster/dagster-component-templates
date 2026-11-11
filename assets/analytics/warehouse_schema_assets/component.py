@@ -311,16 +311,26 @@ if _HAS_STATE_BACKED:
             return LOCAL_STATE_VERSION
 
         def write_state_to_path(self, state_path: Path) -> None:
-            """Introspect database schema and cache table list to disk."""
-            db_url = dg.EnvVar(self.database_url_env_var).get_value()
-            tables = _introspect_schemas(
-                database_url=db_url,
-                schema_names=self.schema_names,
-                exclude_tables=self.exclude_tables,
-                table_pattern=self.table_pattern,
-                include_views=self.include_views,
-                include_columns=self.include_columns,
-            )
+            """Introspect database schema and cache table list to disk.
+
+            A missing env var or unreachable database must not crash the whole
+            code location load (state refresh runs on every `dagster dev` reload)
+            -- fall back to an empty cached state instead, same as `talend_cloud_workspace`.
+            """
+            try:
+                db_url = dg.EnvVar(self.database_url_env_var).get_value()
+                if not db_url:
+                    raise ValueError(f"{self.database_url_env_var} is not set")
+                tables = _introspect_schemas(
+                    database_url=db_url,
+                    schema_names=self.schema_names,
+                    exclude_tables=self.exclude_tables,
+                    table_pattern=self.table_pattern,
+                    include_views=self.include_views,
+                    include_columns=self.include_columns,
+                )
+            except Exception:  # noqa: BLE001
+                tables = []
             state_path.write_text(json.dumps(tables))
 
         def build_defs_from_state(
@@ -373,6 +383,13 @@ else:
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             db_url = dg.EnvVar(self.database_url_env_var).get_value()
+            if not db_url:
+                context.log.warning(
+                    f"{self.database_url_env_var} is not set; skipping warehouse schema "
+                    "introspection. No assets will be created for this component until the "
+                    "env var is set and the code location is reloaded."
+                )
+                return dg.Definitions()
             tables = _introspect_schemas(
                 database_url=db_url,
                 schema_names=self.schema_names,

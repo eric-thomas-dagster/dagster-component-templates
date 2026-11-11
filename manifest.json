@@ -28171,7 +28171,12 @@
       "agent_hints": {
         "output_type": "pd.DataFrame",
         "outputs": "Forgejo/Gitea file/issue/PR text as document-contract rows (doc_id, content, title, url, source_type, updated_at, content_hash), single combined DataFrame or one asset per resource (asset_shape='multi_asset').",
-        "requires_pip": ["dlt>=1.0.0", "pandas>=1.5.0", "requests>=2.28.0", "tabulate>=0.9.0"]
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
       }
     },
     {
@@ -41212,6 +41217,41 @@
         "read from"
       ],
       "vertical": "marketing"
+    },
+    {
+      "id": "mcp_server_resource",
+      "name": "mcp_server_resource",
+      "category": "resource",
+      "description": "Register one MCP server connection once, referenced by name (server_resource_key) from mcp_tool_call/mcp_tool_picker and the MCP-capable agent components instead of repeating the same connection fields inline in every one of them.",
+      "path": "resources/mcp_server_resource",
+      "tags": [],
+      "icon": "Network",
+      "component_type": "dagster_community_components.MCPServerResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mcp_server_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mcp_server_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mcp_server_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mcp_server_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mcp_server_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None -- declares connection details for an MCP server.",
+        "outputs": "A Dagster resource (MCPServerResource) other components reference via server_resource_key.",
+        "side_effects": "None at build time -- the connection is only used when a consuming component's asset materializes."
+      },
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "model context protocol",
+        "mcp server",
+        "shared resource"
+      ]
     },
     {
       "id": "mcp_tool_call",
@@ -72288,5 +72328,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1388
+  "total": 1389
 }

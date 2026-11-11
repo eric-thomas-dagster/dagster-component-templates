@@ -26,7 +26,7 @@ from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class MCPPickerServerSpec(dg.Model, dg.Resolvable):
@@ -70,7 +70,18 @@ class MCPToolPickerToolSpec(dg.Model, dg.Resolvable):
             "'read file contents given a path' not 'file ops'."
         ),
     )
-    server: MCPPickerServerSpec = Field(description="MCP server the tool lives on.")
+    server: Optional[MCPPickerServerSpec] = Field(
+        default=None,
+        description="MCP server the tool lives on, declared inline. Exactly one of `server`/`server_resource_key` is required.",
+    )
+    server_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Resource key of an MCPServerResource component to use instead of an inline "
+            "`server:` spec -- lets several tools (and other MCP-aware components) share one "
+            "registered server. Exactly one of `server`/`server_resource_key` is required."
+        ),
+    )
     mcp_tool_name: str = Field(
         description="Name of the tool as the MCP server exposes it (e.g. 'read_file').",
     )
@@ -86,6 +97,14 @@ class MCPToolPickerToolSpec(dg.Model, dg.Resolvable):
         description="'json' / 'text' / 'auto' (try JSON, fall back to text).",
     )
 
+    @model_validator(mode="after")
+    def _exactly_one_server_source(self):
+        if bool(self.server) == bool(self.server_resource_key):
+            raise ValueError(
+                f"MCPToolPickerToolSpec {self.name!r} requires exactly one of `server` (inline "
+                "spec) or `server_resource_key` (an MCPServerResource component's resource_key)."
+            )
+        return self
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
@@ -400,10 +419,16 @@ class MCPToolPickerComponent(dg.Component, dg.Model, dg.Resolvable):
                 kinds=_kinds | {"tool"},
                 description=f"MCP tool {tool_spec.name}: {tool_spec.description}",
                 ins={"plan": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.plan_asset_name))},
+                required_resource_keys={tool_spec.server_resource_key} if tool_spec.server_resource_key else None,
                 **std_kwargs,
             )
             def _tool_asset(context: dg.AssetExecutionContext, plan):
                 import pandas as pd
+
+                if tool_spec.server_resource_key:
+                    effective_server_cfg = getattr(context.resources, tool_spec.server_resource_key).model_dump()
+                else:
+                    effective_server_cfg = tool_spec.server.model_dump()
 
                 plan_df = plan if isinstance(plan, pd.DataFrame) else pd.DataFrame(plan)
                 my_rows = plan_df[plan_df["tool"] == tool_spec.name] if not plan_df.empty else plan_df
@@ -430,7 +455,7 @@ class MCPToolPickerComponent(dg.Component, dg.Model, dg.Resolvable):
                     try:
                         result = asyncio.run(_call_mcp_tool(
                             log=context.log,
-                            server_cfg=tool_spec.server.model_dump(),
+                            server_cfg=effective_server_cfg,
                             tool_name=tool_spec.mcp_tool_name,
                             tool_args=args,
                             parse_as=tool_spec.parse_as,

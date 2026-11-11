@@ -29,7 +29,7 @@
       "label": "Tools",
       "type": "array",
       "required": true,
-      "description": "Bounded list of {name, description, server (stdio/http/sse), mcp_tool_name, args_schema_hint}."
+      "description": "Bounded list of {name, description, server (stdio/http/sse) or server_resource_key (an MCPServerResource component's resource_key) -- exactly one of the two per tool, mcp_tool_name, args_schema_hint}."
     },
     "model": {
       "label": "Model",

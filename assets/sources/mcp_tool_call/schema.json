@@ -38,7 +38,8 @@
     "server": {
       "type": "object",
       "label": "MCP Server",
-      "required": true,
+      "description": "MCP server to connect to, declared inline. Exactly one of `server`/`server_resource_key` is required.",
+      "required": false,
       "properties": {
         "name": {
           "type": "string"
@@ -231,6 +232,12 @@
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "label": "Lineage-Only Deps",
+      "required": false
+    },
+    "server_resource_key": {
+      "type": "string",
+      "label": "Server Resource Key",
+      "description": "Resource key of an MCPServerResource component to use instead of an inline `server:` spec -- lets several components share one registered server. Exactly one of `server`/`server_resource_key` is required.",
       "required": false
     }
   }

@@ -1,0 +1,67 @@
+{
+  "component_type": "dagster_community_components.MCPServerResourceComponent",
+  "description": "Register one MCP server connection once, referenced by name (server_resource_key) from mcp_tool_call/mcp_tool_picker and the MCP-capable agent components instead of repeating the same connection fields inline in every one of them.",
+  "category": "resource",
+  "icon": "Network",
+  "x-dagster-io": {},
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key other components reference via server_resource_key.",
+      "required": false,
+      "default": "mcp_server"
+    },
+    "name": {
+      "type": "string",
+      "label": "Name",
+      "description": "Short label for logs and the mcp-server tag/metadata other components stamp on their own assets.",
+      "required": true,
+      "default": null
+    },
+    "type": {
+      "type": "string",
+      "label": "Type",
+      "description": "Transport.",
+      "enum": ["http", "sse", "stdio"],
+      "required": false,
+      "default": "stdio"
+    },
+    "command": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Command",
+      "description": "stdio: [executable, ...args].",
+      "required": false,
+      "default": null
+    },
+    "url": {
+      "type": "string",
+      "label": "Url",
+      "description": "http / sse: full URL of the MCP endpoint.",
+      "required": false,
+      "default": null
+    },
+    "env": {
+      "type": "object",
+      "label": "Env",
+      "description": "stdio: extra env vars (literal values).",
+      "required": false,
+      "default": null
+    },
+    "headers": {
+      "type": "object",
+      "label": "Headers",
+      "description": "http / sse: literal HTTP headers.",
+      "required": false,
+      "default": null
+    },
+    "headers_env": {
+      "type": "object",
+      "label": "Headers Env",
+      "description": "http / sse: map of header_name -> env_var_name (value read from env at call time).",
+      "required": false,
+      "default": null
+    }
+  }
+}

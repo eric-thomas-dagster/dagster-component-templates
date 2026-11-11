@@ -218,7 +218,18 @@ class MCPToolCallComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
 
     asset_name: str = Field(description="Output Dagster asset name.")
-    server: MCPServerSpec = Field(description="MCP server to connect to.")
+    server: Optional[MCPServerSpec] = Field(
+        default=None,
+        description="MCP server to connect to, declared inline. Exactly one of `server`/`server_resource_key` is required.",
+    )
+    server_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Resource key of an MCPServerResource component to use instead of an inline `server:` "
+            "spec -- lets several components share one registered server. Exactly one of "
+            "`server`/`server_resource_key` is required."
+        ),
+    )
     tool_name: str = Field(description="Name of the MCP tool to call.")
     tool_args: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
@@ -309,6 +320,15 @@ class MCPToolCallComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
 
+    @model_validator(mode="after")
+    def _exactly_one_server_source(self):
+        if bool(self.server) == bool(self.server_resource_key):
+            raise ValueError(
+                "MCPToolCallComponent requires exactly one of `server` (inline spec) or "
+                "`server_resource_key` (an MCPServerResource component's resource_key)."
+            )
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -317,6 +337,12 @@ class MCPToolCallComponent(Component, Model, Resolvable):
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         server = self.server
+        server_resource_key = self.server_resource_key
+        # Statically known either way, for the tag/discoverability story -- the inline spec's
+        # own `name`, or (no resource instance to read from at build_defs time) the resource
+        # key itself, which doubles as the stable join key a UI uses to match this asset back
+        # to the MCPServerResourceComponent instance it shares with every other consumer.
+        _tag_server_name = server.name if server else server_resource_key
         tool_name = self.tool_name
         tool_args = self.tool_args or {}
         parse_as = self.parse_as
@@ -345,6 +371,12 @@ class MCPToolCallComponent(Component, Model, Resolvable):
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
+        # Stable markers so a UI can find and group every MCP tool-call asset by tag alone,
+        # without relying on the 'mcp' kind (which only says "this is MCP-shaped", not which
+        # server/tool) -- same convention as context_engineering_pipeline's own
+        # dagster-community/knowledge-base marker.
+        _all_tags.setdefault("dagster-community/mcp-server", _tag_server_name)
+        _all_tags.setdefault("dagster-community/mcp-tool", tool_name)
 
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
@@ -390,9 +422,19 @@ class MCPToolCallComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={server_resource_key} if server_resource_key else None,
         )
         def _tool_call_asset(context: AssetExecutionContext) -> Any:
             import asyncio
+
+            # Resolved once per run (not per partition key): a shared MCPServerResource's
+            # config, or the inline spec -- either way the same dict shape _call_tool expects.
+            if server_resource_key:
+                _resource = getattr(context.resources, server_resource_key)
+                effective_server_cfg = _resource.model_dump()
+            else:
+                effective_server_cfg = server.model_dump()
+            effective_server_name = effective_server_cfg["name"]
 
             # Partition key(s) this call must process: a normal tick gives
             # exactly one; a single_run backfill gives the whole range, and
@@ -412,15 +454,18 @@ class MCPToolCallComponent(Component, Model, Resolvable):
                         substitutions["partition_key"] = str(pk)
                         substitutions["partition_keys"] = {}
                 resolved = _substitute_args(tool_args, substitutions)
+                import time as _time
+                _t0 = _time.time()
                 res = asyncio.run(
                     _call_tool(
                         log=context.log,
-                        server_cfg=server.model_dump(),
+                        server_cfg=effective_server_cfg,
                         tool_name=tool_name,
                         tool_args=resolved,
                         parse_as=parse_as,
                     )
                 )
+                res["latency_seconds"] = round(_time.time() - _t0, 3)
                 if res["is_error"]:
                     raise RuntimeError(
                         f"MCP tool {tool_name!r} returned isError=true"
@@ -434,12 +479,22 @@ class MCPToolCallComponent(Component, Model, Resolvable):
             result = calls[0][2]
 
             md = {
-                "mcp_server": MetadataValue.text(server.name),
+                "mcp_server": MetadataValue.text(effective_server_name),
                 "tool_name": MetadataValue.text(tool_name),
                 "tool_args": MetadataValue.json(resolved_args),
                 "is_error": MetadataValue.bool(False),
                 "result_kind": MetadataValue.text(result["kind"]),
                 "result_size_bytes": MetadataValue.int(sum(c[2]["raw_size"] for c in calls)),
+                # Discoverable metadata (dagster-community/mcp-* tags are the matching asset
+                # tags, set once at build_defs time, not per-run): mcp_tool mirrors tool_name
+                # under a name consistent with the mcp-tool tag; transport/parsed_as/
+                # response_bytes/response_preview are new, additive names -- existing keys
+                # above (tool_name/result_kind/result_size_bytes/preview) are unchanged.
+                "mcp_tool": MetadataValue.text(tool_name),
+                "transport": MetadataValue.text(effective_server_cfg.get("type", "stdio")),
+                "latency_seconds": MetadataValue.float(sum(c[2]["latency_seconds"] for c in calls)),
+                "response_bytes": MetadataValue.int(sum(c[2]["raw_size"] for c in calls)),
+                "parsed_as": MetadataValue.text(result["kind"]),
             }
             if is_range:
                 md["partition_keys"] = MetadataValue.json([str(pk) for pk in keys])
@@ -453,6 +508,20 @@ class MCPToolCallComponent(Component, Model, Resolvable):
             md["preview"] = MetadataValue.md(
                 f"```\n{_raw[:2000]}\n```"
                 + ("" if len(_raw) <= 2000 else f"\n\n_(truncated — full response is {len(_raw)} bytes)_")
+            )
+            # A small JSON response preview alongside the markdown one above -- a UI reading
+            # structured metadata (not rendering markdown) needs something it can parse
+            # directly. Capped the same way as a list/dict result's own item/key count above:
+            # the first 20 list items / 20 dict keys, or the raw text truncated to 2000 chars.
+            def _small_preview(value):
+                if isinstance(value, list):
+                    return value[:20]
+                if isinstance(value, dict):
+                    return dict(list(value.items())[:20])
+                return value
+
+            md["response_preview"] = MetadataValue.json(
+                _small_preview(result["value"]) if result["kind"] == "json" and not is_range else _raw[:2000]
             )
             context.add_output_metadata(md)
 

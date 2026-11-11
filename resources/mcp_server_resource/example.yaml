@@ -1,0 +1,10 @@
+type: dagster_community_components.MCPServerResourceComponent
+attributes:
+  resource_key: dagster_plus_mcp
+  name: dgp
+  type: http
+  url: https://mcp.agent.dagster.cloud/mcp/
+  headers:
+    Dagster-Cloud-Organization: my-org
+  headers_env:
+    Authorization: DAGSTER_PLUS_BEARER

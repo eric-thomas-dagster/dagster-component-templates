@@ -402,6 +402,17 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             "'Organization has multiple deployments, but no deployment specified'."
         ),
     )
+    inspection_asset_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, ALSO emits a declare-only asset by this name with the allowed tool names + descriptions as "
+            "metadata (tool_names, tool_descriptions, tool_count) -- the toolset is fixed Python code, not a "
+            "configurable server, so this never materializes; it just makes the tool list catalog-visible without "
+            "a UI having to spawn the MCP server to ask. `allowed_tools` (on agentic_pipeline's tool_use_loop, and "
+            "the agent components) matches against '<mcp_servers: entry name>__<tool>' -- for the "
+            "mcp_server_resource_key path, that name is whatever `mcp_server_resource_key` itself is set to."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -463,7 +474,23 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 live_env_passthrough=["DAGSTER_HOME", "DAGSTER_CLOUD_DEPLOYMENT_NAME", *(self.mcp_extra_env_vars or [])],
             )
 
-        return dg.Definitions(resources=resources)
+        defs = dg.Definitions(resources=resources)
+        if self.inspection_asset_name:
+            enabled = allow if allow is not None else list(ALL_TOOLS)
+            tool_descriptions = {t: " ".join((getattr(DagsterWorkflowTools, f"t_{t}").__doc__ or "").split()) for t in enabled}
+            spec = dg.AssetSpec(
+                key=dg.AssetKey.from_user_string(self.inspection_asset_name),
+                description="Lists the tools dagster_workflow_tools exposes (fixed Python code, not a configurable server).",
+                metadata={
+                    "server_name": dg.MetadataValue.text("dagster_workflow_tools"),
+                    "tool_count": dg.MetadataValue.int(len(enabled)),
+                    "tool_names": dg.MetadataValue.json(sorted(enabled)),
+                    "tool_descriptions": dg.MetadataValue.json(tool_descriptions),
+                    "dagster.observability_type": "external",
+                },
+            )
+            defs = dg.Definitions.merge(defs, dg.Definitions(assets=[spec]))
+        return defs
 
 
 # ── stdio MCP server entrypoint:  python -m <dotted.path.to.this.module>  (reads DAGSTER_HOME) ──────────────────────

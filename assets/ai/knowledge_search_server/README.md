@@ -35,13 +35,24 @@ UI-linking label only* -- the literal value of the `dagster-community/knowledge-
 tag `context_engineering_pipeline` already stamps on its own final step -- not something
 this component reads or validates.
 
+## Supported providers
+
+`chromadb`, `pinecone`, `qdrant`, `faiss`, `s3vectors` -- matching every provider
+`VectorStoreWriterComponent` can write to (confirmed against its own dispatch). `faiss` reads
+the local `.faiss` index + sidecar metadata pickle `write_vector_store` writes directly, no
+service needed. `s3vectors` needs `vector_bucket_name` (+ `aws_region`, unless `demo_mode`,
+default `true`, which instead reads the same local JSON file `write_vector_store`'s own
+`demo_mode` writes -- round-trips end to end with zero AWS account). `lancedb` is writable by
+`vector_store_query` but not by the writer, so it's intentionally not listed here -- nothing
+to search yet.
+
 ## Known limitation (inherited from `context_engineering_pipeline`, not introduced here)
 
-For non-chromadb vector stores (pinecone/qdrant), a chunk's raw text is only retrievable
-if the upstream `write_vector_store` step's `metadata_columns` explicitly included the
-text column -- that step excludes it from metadata by default. chromadb always has the
+For non-chromadb vector stores (pinecone/qdrant/faiss/s3vectors), a chunk's raw text is only
+retrievable if the upstream `write_vector_store` step's `metadata_columns` explicitly included
+the text column -- that step excludes it from metadata by default. chromadb always has the
 text via its own `documents` field regardless of `metadata_columns`. If you're using
-pinecone/qdrant and see `"text": null` in results, add the text column
+pinecone/qdrant/faiss/s3vectors and see `"text": null` in results, add the text column
 (`chunk_text` by default) to `write_vector_store`'s `metadata_columns`.
 
 ## Wiring it into agentic_pipeline
@@ -130,7 +141,7 @@ plays.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"knowledge_search"` | Dagster resource key the in-process KnowledgeSearchResource is registered under. |
-| `connection_string` | `str` | — | chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). Unused for pinecone. |
+| `connection_string` | `str` | — | chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). faiss: local .faiss index path (default './{collection_name}.faiss'). s3vectors demo_mode: local JSON demo-file path. Unused for pin… _(full docs in schema.json + component README)_ |
 | `api_key_env_var` | `str` | — | Env var holding the vector store's API key (pinecone/qdrant). |
 
 ### Catalog metadata
@@ -148,7 +159,10 @@ plays.
 |---|---|---|---|
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the KNOWLEDGE_SEAR… _(full docs in schema.json + component README)_ |
 | `knowledge_base` | `str` | — | Optional UI-linking label only -- the asset name of the context_engineering_pipeline step that built this index (its dagster-community/knowledge-base-name tag value). This component does not read that asset's config from… _(full docs in schema.json + component README)_ |
-| `provider` | `Literal['chromadb', 'pinecone', 'qdrant']` | `"chromadb"` | Vector store the knowledge base lives in. |
+| `provider` | `Literal['chromadb', 'pinecone', 'qdrant', 'faiss', 's3vecto…` | `"chromadb"` | Vector store the knowledge base lives in. |
+| `vector_bucket_name` | `str` | — | S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider. |
+| `aws_region` | `str` | — | AWS region for the s3vectors client. Required when provider='s3vectors' and demo_mode=false. Ignored by every other provider. |
+| `demo_mode` | `bool` | `true` | Only affects provider='s3vectors' -- query a local JSON-file-backed fake (written by VectorStoreWriterComponent's own demo_mode) instead of a real AWS account. No effect on chromadb/pinecone/qdrant/faiss. |
 | `embed_provider` | `Literal['sentence_transformers', 'openai', 'cohere', 'litel…` | `"sentence_transformers"` | Must match the embed provider the knowledge base was built with (the embed step's own provider). |
 | `embed_model` | `str` | — | Must match the embed model the knowledge base was built with (the embed step's own model). |
 | `embed_api_key_env_var` | `str` | — | Env var holding the embed provider's API key (openai/cohere/litellm). |

@@ -1,0 +1,16 @@
+dagster
+pydantic
+pyyaml
+
+# agentic_pipeline/component.py is loaded by path (see component.py's own docstring) and executed, so its own
+# dependencies are required too -- validate_pipeline/preview_pipeline construct and build_defs() a real
+# AgenticPipelineComponent.
+litellm>=1.30.0
+requests
+sqlalchemy>=1.4
+pandas>=1.5.0
+jsonschema>=4.0.0
+
+# only for the stdio MCP server entrypoint (python -m <module>); verified with mcp 1.30.0 and 2.3.0. The
+# in-process resource + tool calls do not need it
+mcp>=1.30,<3

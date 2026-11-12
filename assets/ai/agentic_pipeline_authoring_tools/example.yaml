@@ -1,0 +1,6 @@
+type: dagster_community_components.AgenticPipelineAuthoringToolsComponent
+attributes:
+  resource_key: agentic_pipeline_authoring_tools
+  # allow: [list_ops, describe_op, list_examples, get_example, validate_pipeline, preview_pipeline]  # default: all
+  max_result_chars: 20000
+  # mcp_server_resource_key: agentic_pipeline_authoring_tools_mcp   # share this toolset via server_resource_key instead of a hand-written inline command+env entry

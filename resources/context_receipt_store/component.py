@@ -4561,11 +4561,65 @@ def _embed_query(query: str, provider: str, model: Optional[str], api_key_env_va
     raise ValueError(f"KnowledgeSearch: unsupported embed_provider {provider!r}. Valid: sentence_transformers, openai, cohere, litellm.")
 
 
+def _build_s3vectors_client(region_name: str) -> Any:
+    """Isolated client construction -- tests monkeypatch this to return a fake client instead of calling the real
+    (paid, AWS-account-specific) API. Mirrors vector_store_writer's/vector_store_query's own
+    `_build_s3vectors_client` (duplicated per this repo's self-contained-component convention)."""
+    import boto3
+
+    return boto3.client("s3vectors", region_name=region_name)
+
+
+class _DemoS3VectorsClient:
+    """Deterministic, zero-cost stand-in for `boto3.client("s3vectors")`'s query path. Reads the same local JSON
+    file format VectorStoreWriterComponent's demo mode writes, and brute-force cosine-ranks against it."""
+
+    def __init__(self, path: str):
+        self._path = path
+
+    def query_vectors(self, vectorBucketName: str, indexName: str, topK: int, queryVector: dict[str, Any],
+                       filter: Optional[dict[str, Any]] = None, returnMetadata: bool = True, returnDistance: bool = True, **_kw) -> dict[str, Any]:
+        import json
+        import math
+        import os
+
+        if not os.path.exists(self._path):
+            return {"vectors": []}
+        with open(self._path) as f:
+            data = json.load(f)
+        index = (data.get("indexes") or {}).get(indexName, {"vectors": {}})
+        query = queryVector["float32"]
+        query_norm = math.sqrt(sum(x * x for x in query)) or 1.0
+
+        scored = []
+        for key, entry in index["vectors"].items():
+            metadata = entry.get("metadata", {})
+            if filter and not all(metadata.get(k) == v for k, v in filter.items()):
+                continue
+            vec = entry["data"]["float32"]
+            dot = sum(a * b for a, b in zip(query, vec))
+            vec_norm = math.sqrt(sum(x * x for x in vec)) or 1.0
+            cosine_distance = 1.0 - (dot / (query_norm * vec_norm))
+            scored.append((cosine_distance, key, metadata))
+
+        scored.sort(key=lambda t: t[0])
+        results = []
+        for distance, key, metadata in scored[:topK]:
+            item = {"key": key}
+            if returnMetadata:
+                item["metadata"] = metadata
+            if returnDistance:
+                item["distance"] = distance
+            results.append(item)
+        return {"vectors": results}
+
+
 def _query_vector_store(
     embedding: list[float], *, provider: str, connection_string: Optional[str], collection_name: str,
     top_k: int, api_key_env_var: Optional[str],
+    vector_bucket_name: Optional[str] = None, aws_region: Optional[str] = None, demo_mode: bool = False,
 ) -> list[dict[str, Any]]:
-    """Queries chromadb/pinecone/qdrant for the nearest `top_k` vectors. Returns a list of
+    """Queries chromadb/pinecone/qdrant/faiss/s3vectors for the nearest `top_k` vectors. Returns a list of
     `{"id", "metadata", "distance_or_score"}` dicts -- the raw provider result, not yet
     quarantine-filtered or reranked (`KnowledgeSearch.search` does that)."""
     import os
@@ -4598,7 +4652,34 @@ def _query_vector_store(
         hits = client.search(collection_name=collection_name, query_vector=embedding, limit=top_k)
         return [{"id": h.id, "metadata": h.payload or {}, "document": None, "score": h.score} for h in hits]
 
-    raise ValueError(f"KnowledgeSearch: unsupported provider {provider!r}. Valid: chromadb, pinecone, qdrant.")
+    if provider == "faiss":
+        import faiss
+        import pickle
+        import numpy as np
+
+        index_path = connection_string or f"./{collection_name}.faiss"
+        metadata_path = index_path.replace(".faiss", "_metadata.pkl")
+        faiss_index = faiss.read_index(index_path)
+        query_vector = np.array([embedding]).astype("float32")
+        distances, indices = faiss_index.search(query_vector, top_k)
+        with open(metadata_path, "rb") as f:
+            metadata = pickle.load(f)
+        return [
+            {"id": int(doc_idx), "metadata": metadata[doc_idx] if doc_idx < len(metadata) else {}, "document": None, "score": float(distances[0][i])}
+            for i, doc_idx in enumerate(indices[0])
+        ]
+
+    if provider == "s3vectors":
+        if not vector_bucket_name:
+            raise ValueError("KnowledgeSearch: provider='s3vectors' requires vector_bucket_name.")
+        client = _DemoS3VectorsClient(connection_string or f"./{vector_bucket_name}_{collection_name}_s3vectors_demo.json") if demo_mode else _build_s3vectors_client(aws_region)
+        resp = client.query_vectors(
+            vectorBucketName=vector_bucket_name, indexName=collection_name, topK=top_k,
+            queryVector={"float32": [float(x) for x in embedding]}, returnMetadata=True, returnDistance=True,
+        )
+        return [{"id": v["key"], "metadata": v.get("metadata") or {}, "document": None, "score": v.get("distance")} for v in resp.get("vectors", [])]
+
+    raise ValueError(f"KnowledgeSearch: unsupported provider {provider!r}. Valid: chromadb, pinecone, qdrant, faiss, s3vectors.")
 
 
 class KnowledgeSearch:
@@ -4627,6 +4708,9 @@ class KnowledgeSearch:
         embed_api_key_env_var: Optional[str] = None,
         text_metadata_key: str = "text",
         exclude_quarantined: bool = True,
+        vector_bucket_name: Optional[str] = None,
+        aws_region: Optional[str] = None,
+        demo_mode: bool = False,
     ):
         self.provider = provider
         self.connection_string = connection_string
@@ -4637,6 +4721,9 @@ class KnowledgeSearch:
         self.embed_api_key_env_var = embed_api_key_env_var
         self.text_metadata_key = text_metadata_key
         self.exclude_quarantined = exclude_quarantined
+        self.vector_bucket_name = vector_bucket_name
+        self.aws_region = aws_region
+        self.demo_mode = demo_mode
 
     def search(
         self,
@@ -4655,6 +4742,7 @@ class KnowledgeSearch:
         raw_hits = _query_vector_store(
             embedding, provider=self.provider, connection_string=self.connection_string,
             collection_name=self.collection_name, top_k=top_k, api_key_env_var=self.api_key_env_var,
+            vector_bucket_name=self.vector_bucket_name, aws_region=self.aws_region, demo_mode=self.demo_mode,
         )
         eligible_count = len(raw_hits)
 

@@ -135,6 +135,12 @@ is a real architectural gap, not something this component papers over. If your w
 fire-and-forget triggering with separate status polling, you'll need a different mechanism (e.g. a
 real Dagster+ GraphQL `launchRun` call against a running deployment) -- not implemented here.
 
+## Listing its tools (`inspection_asset_name`)
+
+Set `inspection_asset_name` to ALSO emit a declare-only asset (nothing to materialize -- the tool set is fixed
+Python code, not a configurable server) reporting `tool_names` + `tool_descriptions` as metadata, so a UI can show
+them without spawning the MCP server to ask. `allowed_tools` matches against `<mcp_servers: entry name>__<tool>`.
+
 ## Safety
 
 - `allow` (tool names), `allow_assets`, `allow_jobs` are hard allow-lists -- anything outside them
@@ -174,5 +180,6 @@ real Dagster+ GraphQL `launchRun` call against a running deployment) -- not impl
 | `default_tags` | `Dict[str, str]` | — | Tags merged onto every triggered run, alongside dagster-community/workflow-tool=true (e.g. {'triggered_by': 'support-agent'}) -- for run-tag attribution/audit. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the DAGSTER_WORKFL… _(full docs in schema.json + component README)_ |
 | `mcp_extra_env_vars` | `List[str]` | — | mcp_server_resource_key only. Extra env var NAMES to copy (their current value, read fresh every time a consumer resolves the resource -- same run-time timing as DAGSTER_HOME) from this process into the spawned MCP serve… _(full docs in schema.json + component README)_ |
+| `inspection_asset_name` | `str` | — | If set, ALSO emits a declare-only asset by this name with the allowed tool names + descriptions as metadata (tool_names, tool_descriptions, tool_count) -- the toolset is fixed Python code, not a configurable server, so t… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

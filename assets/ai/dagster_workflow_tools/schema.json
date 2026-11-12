@@ -64,6 +64,12 @@
       "label": "Mcp Extra Env Vars",
       "description": "mcp_server_resource_key only. Extra env var NAMES to copy (their current value, read fresh every time a consumer resolves the resource -- same run-time timing as DAGSTER_HOME) from this process into the spawned MCP server's env. MCP's stdio client does not inherit the rest of the environment, so anything your Dagster instance's own config needs beyond DAGSTER_HOME -- e.g. a Dagster+ agent's DAGSTER_CLOUD_AGENT_LABEL -- must be listed here, or the spawned server crashes at startup trying to resolve its instance. Note: a Dagster+ agent's own DAGSTER_HOME is its own agent process's home, not necessarily where you want triggered runs to land -- decide which instance this server should actually launch runs through before pointing it at an agent's env.",
       "required": false
+    },
+    "inspection_asset_name": {
+      "type": "string",
+      "label": "Inspection Asset Name",
+      "description": "If set, ALSO emits a declare-only asset by this name with the allowed tool names + descriptions as metadata (tool_names, tool_descriptions, tool_count) -- the toolset is fixed Python code, not a configurable server, so this never materializes; it just makes the tool list catalog-visible without a UI having to spawn the MCP server to ask. `allowed_tools` (on agentic_pipeline's tool_use_loop, and the agent components) matches against '<mcp_servers: entry name>__<tool>' -- for the mcp_server_resource_key path, that name is whatever `mcp_server_resource_key` itself is set to.",
+      "required": false
     }
   }
 }

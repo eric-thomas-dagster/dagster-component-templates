@@ -943,6 +943,22 @@ Apply an LLM call to each item in a list source. Aggregates per-item results int
 
 Source parsing: JSON array → items. Falls back to `dict → data|items|results|values` list, then to non-empty newlines.
 
+**`map` has no tool access** -- each per-item call is a plain completion, no `mcp_servers`. There is deliberately no
+single op that runs a full tool-use loop once per item in a list (support-ticket-triage-shaped workloads often want
+exactly this). Build it from the existing ops instead of waiting on a new one:
+
+- **Items don't each need DIFFERENT tools, just the same fixed set, independently per item** — a `handoff` step
+  whose Python callable loops the item list itself and drives `tool_use_loop`'s own helper functions
+  (`_discover_mcp_tools_async`/`_call_mcp_tool_async`, or your own agent loop) once per item is the intended escape
+  hatch: `handoff`'s contract (`def fn(**initial_state) -> dict`) exists precisely for "a shape `map`/`tool_use_loop`
+  don't cover individually." One asset, full per-item trajectories in its own `initial_state`/return dict.
+- **The whole batch can be handled by ONE agent that decides which items need which tools** — skip per-item looping
+  entirely: a single `tool_use_loop` (or `delegate`) step over the whole batch, with the model calling tools against
+  whichever items it judges need them, is usually both cheaper and a better fit than forcing one loop per row.
+- **Items are independent and you want real Dagster-level parallelism** (not just a thread pool inside one step) —
+  `sub_pipeline` with its own `tool_use_loop` doesn't fan out across items either; reach for `per_step_ops: true` plus
+  a dynamic-partition-per-item design upstream of this component instead, if true per-item run isolation matters.
+
 ### `op: extract`
 
 Structured JSON extraction — text → dict matching an `output_schema`. Uses `tool_choice="required"` with a function whose parameters are the schema, so the LLM is forced to emit valid JSON via a tool call. More reliable than prompt-engineering "return JSON".

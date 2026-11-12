@@ -28,7 +28,7 @@
     },
     "provider": {
       "type": "string",
-      "enum": ["chromadb", "pinecone", "qdrant"],
+      "enum": ["chromadb", "pinecone", "qdrant", "faiss", "s3vectors"],
       "label": "Provider",
       "description": "Vector store the knowledge base lives in.",
       "required": false,
@@ -37,7 +37,7 @@
     "connection_string": {
       "type": "string",
       "label": "Connection String",
-      "description": "chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). Unused for pinecone.",
+      "description": "chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). faiss: local .faiss index path (default './{collection_name}.faiss'). s3vectors demo_mode: local JSON demo-file path. Unused for pinecone/s3vectors (non-demo).",
       "required": false,
       "default": null
     },
@@ -121,6 +121,24 @@
       "description": "Extra asset tags, applied to the inspection asset.",
       "required": false,
       "default": null
+    },
+    "vector_bucket_name": {
+      "type": "string",
+      "label": "Vector Bucket Name",
+      "description": "S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider.",
+      "required": false
+    },
+    "aws_region": {
+      "type": "string",
+      "label": "Aws Region",
+      "description": "AWS region for the s3vectors client. Required when provider='s3vectors' and demo_mode=false. Ignored by every other provider.",
+      "required": false
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Only affects provider='s3vectors' -- query a local JSON-file-backed fake (written by VectorStoreWriterComponent's own demo_mode) instead of a real AWS account. No effect on chromadb/pinecone/qdrant/faiss.",
+      "required": false
     }
   }
 }

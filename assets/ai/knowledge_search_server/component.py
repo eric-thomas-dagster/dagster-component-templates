@@ -123,11 +123,67 @@ def _embed_query(query: str, provider: str, model: Optional[str], api_key_env_va
     raise ValueError(f"KnowledgeSearch: unsupported embed_provider {provider!r}. Valid: sentence_transformers, openai, cohere, litellm.")
 
 
+def _build_s3vectors_client(region_name: str) -> Any:
+    """Isolated client construction -- tests monkeypatch this to return a fake client instead of calling the real
+    (paid, AWS-account-specific) API. Mirrors vector_store_writer's/vector_store_query's own
+    `_build_s3vectors_client` (same reasoning: duplicated per this repo's self-contained-component convention,
+    structurally checked against them in tests/test_drift.py)."""
+    import boto3
+
+    return boto3.client("s3vectors", region_name=region_name)
+
+
+class _DemoS3VectorsClient:
+    """Deterministic, zero-cost stand-in for `boto3.client("s3vectors")`'s query path. Reads the same local JSON
+    file format VectorStoreWriterComponent's demo mode writes, and brute-force cosine-ranks against it. Mirrors
+    vector_store_query's own `_DemoS3VectorsClient` (checked against it in tests/test_drift.py)."""
+
+    def __init__(self, path: str):
+        self._path = path
+
+    def query_vectors(self, vectorBucketName: str, indexName: str, topK: int, queryVector: Dict[str, Any],
+                       filter: Optional[Dict[str, Any]] = None, returnMetadata: bool = True, returnDistance: bool = True, **_kw) -> Dict[str, Any]:
+        import json
+        import math
+        import os
+
+        if not os.path.exists(self._path):
+            return {"vectors": []}
+        with open(self._path) as f:
+            data = json.load(f)
+        index = (data.get("indexes") or {}).get(indexName, {"vectors": {}})
+        query = queryVector["float32"]
+        query_norm = math.sqrt(sum(x * x for x in query)) or 1.0
+
+        scored = []
+        for key, entry in index["vectors"].items():
+            metadata = entry.get("metadata", {})
+            if filter and not all(metadata.get(k) == v for k, v in filter.items()):
+                continue
+            vec = entry["data"]["float32"]
+            dot = sum(a * b for a, b in zip(query, vec))
+            vec_norm = math.sqrt(sum(x * x for x in vec)) or 1.0
+            cosine_distance = 1.0 - (dot / (query_norm * vec_norm))
+            scored.append((cosine_distance, key, metadata))
+
+        scored.sort(key=lambda t: t[0])
+        results = []
+        for distance, key, metadata in scored[:topK]:
+            item = {"key": key}
+            if returnMetadata:
+                item["metadata"] = metadata
+            if returnDistance:
+                item["distance"] = distance
+            results.append(item)
+        return {"vectors": results}
+
+
 def _query_vector_store(
     embedding: list[float], *, provider: str, connection_string: Optional[str], collection_name: str,
     top_k: int, api_key_env_var: Optional[str],
+    vector_bucket_name: Optional[str] = None, aws_region: Optional[str] = None, demo_mode: bool = False,
 ) -> list[dict[str, Any]]:
-    """Queries chromadb/pinecone/qdrant for the nearest `top_k` vectors. Returns a list of
+    """Queries chromadb/pinecone/qdrant/faiss/s3vectors for the nearest `top_k` vectors. Returns a list of
     `{"id", "metadata", "distance_or_score"}` dicts -- the raw provider result, not yet
     quarantine-filtered or reranked (`KnowledgeSearch.search` does that)."""
     import os
@@ -160,7 +216,34 @@ def _query_vector_store(
         hits = client.search(collection_name=collection_name, query_vector=embedding, limit=top_k)
         return [{"id": h.id, "metadata": h.payload or {}, "document": None, "score": h.score} for h in hits]
 
-    raise ValueError(f"KnowledgeSearch: unsupported provider {provider!r}. Valid: chromadb, pinecone, qdrant.")
+    if provider == "faiss":
+        import faiss
+        import pickle
+        import numpy as np
+
+        index_path = connection_string or f"./{collection_name}.faiss"
+        metadata_path = index_path.replace(".faiss", "_metadata.pkl")
+        faiss_index = faiss.read_index(index_path)
+        query_vector = np.array([embedding]).astype("float32")
+        distances, indices = faiss_index.search(query_vector, top_k)
+        with open(metadata_path, "rb") as f:
+            metadata = pickle.load(f)
+        return [
+            {"id": int(doc_idx), "metadata": metadata[doc_idx] if doc_idx < len(metadata) else {}, "document": None, "score": float(distances[0][i])}
+            for i, doc_idx in enumerate(indices[0])
+        ]
+
+    if provider == "s3vectors":
+        if not vector_bucket_name:
+            raise ValueError("KnowledgeSearch: provider='s3vectors' requires vector_bucket_name.")
+        client = _DemoS3VectorsClient(connection_string or f"./{vector_bucket_name}_{collection_name}_s3vectors_demo.json") if demo_mode else _build_s3vectors_client(aws_region)
+        resp = client.query_vectors(
+            vectorBucketName=vector_bucket_name, indexName=collection_name, topK=top_k,
+            queryVector={"float32": [float(x) for x in embedding]}, returnMetadata=True, returnDistance=True,
+        )
+        return [{"id": v["key"], "metadata": v.get("metadata") or {}, "document": None, "score": v.get("distance")} for v in resp.get("vectors", [])]
+
+    raise ValueError(f"KnowledgeSearch: unsupported provider {provider!r}. Valid: chromadb, pinecone, qdrant, faiss, s3vectors.")
 # END knowledge-search core
 
 
@@ -188,8 +271,11 @@ class KnowledgeSearchResource(dg.ConfigurableResource):
     chunk); `doc_id` is its `source_id` metadata (which upstream document/row the chunk came
     from -- distinct from `chunk_id` when one document produced multiple chunks)."""
 
-    provider: Literal["chromadb", "pinecone", "qdrant"] = Field(default="chromadb", description="Vector store the knowledge base lives in.")
-    connection_string: Optional[str] = Field(default=None, description="chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). Unused for pinecone.")
+    provider: Literal["chromadb", "pinecone", "qdrant", "faiss", "s3vectors"] = Field(default="chromadb", description="Vector store the knowledge base lives in.")
+    connection_string: Optional[str] = Field(default=None, description="chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). faiss: local .faiss index path (default './{collection_name}.faiss'). s3vectors demo_mode: local JSON demo-file path. Unused for pinecone/s3vectors (non-demo).")
+    vector_bucket_name: Optional[str] = Field(default=None, description="S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider.")
+    aws_region: Optional[str] = Field(default=None, description="AWS region for the s3vectors client. Required when provider='s3vectors' and demo_mode=false. Ignored by every other provider.")
+    demo_mode: bool = Field(default=True, description="Only affects provider='s3vectors' -- query a local JSON-file-backed fake (written by VectorStoreWriterComponent's own demo_mode) instead of a real AWS account. No effect on chromadb/pinecone/qdrant/faiss.")
     collection_name: str = Field(description="Collection/index name the knowledge base was written to.")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var holding the vector store's API key (pinecone/qdrant).")
     embed_provider: Literal["sentence_transformers", "openai", "cohere", "litellm"] = Field(default="sentence_transformers", description="Must match the embed provider the knowledge base was built with.")
@@ -210,6 +296,7 @@ class KnowledgeSearchResource(dg.ConfigurableResource):
         hits = _query_vector_store(
             embedding, provider=self.provider, connection_string=self.connection_string,
             collection_name=self.collection_name, top_k=top_k, api_key_env_var=self.api_key_env_var,
+            vector_bucket_name=self.vector_bucket_name, aws_region=self.aws_region, demo_mode=self.demo_mode,
         )
         chunks = []
         for h in hits:
@@ -306,8 +393,11 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
             "no way to read another component's step config across component boundaries at build time."
         ),
     )
-    provider: Literal["chromadb", "pinecone", "qdrant"] = Field(default="chromadb", description="Vector store the knowledge base lives in.")
-    connection_string: Optional[str] = Field(default=None, description="chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). Unused for pinecone.")
+    provider: Literal["chromadb", "pinecone", "qdrant", "faiss", "s3vectors"] = Field(default="chromadb", description="Vector store the knowledge base lives in.")
+    connection_string: Optional[str] = Field(default=None, description="chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). faiss: local .faiss index path (default './{collection_name}.faiss'). s3vectors demo_mode: local JSON demo-file path. Unused for pinecone/s3vectors (non-demo).")
+    vector_bucket_name: Optional[str] = Field(default=None, description="S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider.")
+    aws_region: Optional[str] = Field(default=None, description="AWS region for the s3vectors client. Required when provider='s3vectors' and demo_mode=false. Ignored by every other provider.")
+    demo_mode: bool = Field(default=True, description="Only affects provider='s3vectors' -- query a local JSON-file-backed fake (written by VectorStoreWriterComponent's own demo_mode) instead of a real AWS account. No effect on chromadb/pinecone/qdrant/faiss.")
     collection_name: str = Field(description="Collection/index name the knowledge base was written to (write_vector_store's own collection_name).")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var holding the vector store's API key (pinecone/qdrant).")
     embed_provider: Literal["sentence_transformers", "openai", "cohere", "litellm"] = Field(default="sentence_transformers", description="Must match the embed provider the knowledge base was built with (the embed step's own provider).")
@@ -331,6 +421,11 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label='Knowledge Search Server', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> Definitions:
+        if self.provider == "s3vectors":
+            if not self.vector_bucket_name:
+                raise ValueError("KnowledgeSearchServerComponent: provider='s3vectors' requires vector_bucket_name.")
+            if not self.demo_mode and not self.aws_region:
+                raise ValueError("KnowledgeSearchServerComponent: provider='s3vectors' with demo_mode=false requires aws_region.")
         resource = KnowledgeSearchResource(
             provider=self.provider,
             connection_string=self.connection_string,
@@ -340,6 +435,9 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
             embed_model=self.embed_model,
             embed_api_key_env_var=self.embed_api_key_env_var,
             text_metadata_key=self.text_metadata_key,
+            vector_bucket_name=self.vector_bucket_name,
+            aws_region=self.aws_region,
+            demo_mode=self.demo_mode,
         )
         resources: Dict[str, Any] = {self.resource_key: resource}
 
@@ -349,9 +447,14 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
                 "KNOWLEDGE_SEARCH_COLLECTION_NAME": self.collection_name,
                 "KNOWLEDGE_SEARCH_EMBED_PROVIDER": self.embed_provider,
                 "KNOWLEDGE_SEARCH_TEXT_METADATA_KEY": self.text_metadata_key,
+                "KNOWLEDGE_SEARCH_DEMO_MODE": "1" if self.demo_mode else "0",
             }
             if self.connection_string:
                 mcp_env["KNOWLEDGE_SEARCH_CONNECTION_STRING"] = self.connection_string
+            if self.vector_bucket_name:
+                mcp_env["KNOWLEDGE_SEARCH_VECTOR_BUCKET_NAME"] = self.vector_bucket_name
+            if self.aws_region:
+                mcp_env["KNOWLEDGE_SEARCH_AWS_REGION"] = self.aws_region
             if self.api_key_env_var:
                 mcp_env["KNOWLEDGE_SEARCH_API_KEY_ENV_VAR"] = self.api_key_env_var
             if self.embed_model:
@@ -393,6 +496,12 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
                 "collection_name": MetadataValue.text(collection_name),
                 "embed_provider": MetadataValue.text(embed_provider),
                 "embed_model": MetadataValue.text(embed_model or "(default)"),
+                "tool_names": MetadataValue.json(["search_knowledge"]),
+                "tool_descriptions": MetadataValue.json({
+                    "search_knowledge": "Search the knowledge base for chunks relevant to a query. Returns "
+                                        "{chunks: [{chunk_id, text, score, source, doc_id}, ...]} on success, or "
+                                        "{error: ...} naming exactly what's misconfigured.",
+                }),
             }
             if knowledge_base:
                 md["knowledge_base"] = MetadataValue.text(knowledge_base)
@@ -439,7 +548,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     chromadb), KNOWLEDGE_SEARCH_CONNECTION_STRING, KNOWLEDGE_SEARCH_API_KEY_ENV_VAR,
     KNOWLEDGE_SEARCH_EMBED_PROVIDER (default sentence_transformers),
     KNOWLEDGE_SEARCH_EMBED_MODEL, KNOWLEDGE_SEARCH_EMBED_API_KEY_ENV_VAR,
-    KNOWLEDGE_SEARCH_TEXT_METADATA_KEY (default chunk_text)."""
+    KNOWLEDGE_SEARCH_TEXT_METADATA_KEY (default chunk_text),
+    KNOWLEDGE_SEARCH_VECTOR_BUCKET_NAME / KNOWLEDGE_SEARCH_AWS_REGION (provider=s3vectors),
+    KNOWLEDGE_SEARCH_DEMO_MODE (default 1; provider=s3vectors only)."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     collection_name = os.environ.get("KNOWLEDGE_SEARCH_COLLECTION_NAME")
     if not collection_name:
@@ -453,6 +564,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         embed_model=os.environ.get("KNOWLEDGE_SEARCH_EMBED_MODEL"),
         embed_api_key_env_var=os.environ.get("KNOWLEDGE_SEARCH_EMBED_API_KEY_ENV_VAR"),
         text_metadata_key=os.environ.get("KNOWLEDGE_SEARCH_TEXT_METADATA_KEY", "chunk_text"),
+        vector_bucket_name=os.environ.get("KNOWLEDGE_SEARCH_VECTOR_BUCKET_NAME"),
+        aws_region=os.environ.get("KNOWLEDGE_SEARCH_AWS_REGION"),
+        demo_mode=os.environ.get("KNOWLEDGE_SEARCH_DEMO_MODE", "1") != "0",
     )
     build_mcp_server(resource).run(transport="stdio")
 

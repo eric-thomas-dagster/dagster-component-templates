@@ -181,6 +181,32 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# BEGIN agentic-pipeline approval contract (inlined per this repo's self-contained-component convention rather than
+# importing agentic_pipeline's component.py -- that file is not on the import path outside a built/installed wheel
+# (`assets/` is nested under `dagster_community_components/` only by hatchling's force-include at build time, so
+# `from dagster_community_components.assets...` fails against this repo's own source checkout, which is exactly how
+# this repo's own tests run), and it would also pull agentic_pipeline's heavy deps (litellm, sqlalchemy, jsonschema)
+# into a component that doesn't need them. Mirrors agentic_pipeline's own `approve_pending()` byte-for-byte -- same
+# pending-record read + token-write shape -- checked against the real source in tests/test_drift.py.)
+def _approve_pending_record(approval_dir: str, key: str, *, approved: bool, approver: str, reason: str) -> Dict[str, Any]:
+    """Approve (or reject) the pending record AS WRITTEN by agentic_pipeline's `approve` op (mode: park): copies its
+    `fingerprint` into the token, so the decision is bound to exactly what the reviewer was shown. Raises
+    FileNotFoundError when nothing is pending for the key (e.g. it was already resolved by something else)."""
+    fs = _ApprovalFS(approval_dir)
+    pending_path = fs.path("pending", f"{key}.json")
+    if not fs.exists(pending_path):
+        raise FileNotFoundError(f"no pending approval for key {key!r} at {pending_path}")
+    pend = fs.read_json(pending_path)
+    tok = {
+        **(pend.get("approve_by_writing") or {}).get("json", {}),
+        "approved": bool(approved), "approver": approver, "reason": reason,
+        "fingerprint": pend["fingerprint"], "approved_at": _now_iso(),
+    }
+    fs.write_json(fs.path(f"{key}.json"), tok)
+    return tok
+# END agentic-pipeline approval contract
+
+
 def _extract_upstream_text(upstream: Any) -> str:
     """Prefer `text` / `content` / str-coerce."""
     if isinstance(upstream, dict):
@@ -368,20 +394,38 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(
-        description="Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor."
+        description="Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline)."
     )
-    upstream_asset_key: Union[str, List[str]] = Field(
+    target: Literal["human_approval_gate", "agentic_pipeline"] = Field(
+        default="human_approval_gate",
         description=(
+            "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a "
+            "separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's "
+            "original behavior. "
+            "'agentic_pipeline': instead of posting an upstream asset, watch `<approval_dir>/pending/*.json` "
+            "records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- "
+            "post each pending record's `summary` to Slack, and on quorum write the decision the same way "
+            "agentic_pipeline's own `approve_pending()` reviewer-tooling helper does (copies the pending record's "
+            "fingerprint into the token), so the pipeline's own `<asset>_approval_resume_sensor` honours it. "
+            "`upstream_asset_key` is ignored in this mode (there is no single upstream asset -- the pipeline's own "
+            "`approve` step is the source of what gets posted); no asset is emitted, only the watcher sensor."
+        ),
+    )
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description=(
+            "target: human_approval_gate only (required there, ignored for target: agentic_pipeline). "
             "Upstream asset whose text is posted to Slack for approval. "
             "String (not AssetKey object); multi-part keys use slash notation."
         )
     )
     approval_dir: str = Field(
         description=(
-            "Absolute path to the shared approval-token directory. When "
-            "quorum is reached, writes `<safe_partition_key>.json` here — "
-            "matches `HumanApprovalGateComponent`'s `approval_dir` so the "
-            "existing gate + sensor pipeline just works."
+            "Absolute path to the shared approval-token directory. target: human_approval_gate -- when quorum is "
+            "reached, writes `<safe_partition_key>.json` here, matching `HumanApprovalGateComponent`'s own "
+            "`approval_dir` so the existing gate + sensor pipeline just works. target: agentic_pipeline -- the SAME "
+            "`approval_dir` your pipeline's `approve` step uses; this component reads `<approval_dir>/pending/*.json` "
+            "from it and writes `<approval_dir>/<key>.json` decisions back into it."
         )
     )
 
@@ -515,7 +559,8 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
-        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
+        optional = isinstance(data, dict) and data.get("target") == "agentic_pipeline"
+        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=optional)
 
     @classmethod
     def get_form_config(cls):
@@ -525,8 +570,11 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         asset_name = self.asset_name
+        target = self.target
         posted_asset_name = f"{asset_name}_posted"
         upstream_asset_key = self.upstream_asset_key
+        if target == "human_approval_gate" and not upstream_asset_key:
+            raise ValueError("target: human_approval_gate requires upstream_asset_key (the asset whose text is posted for approval)")
         approval_dir = self.approval_dir
         slack_channel = self.slack_channel
         bot_token_env_var = self.slack_bot_token_env_var
@@ -552,6 +600,15 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError(f"on_timeout must be escalate|reject|approve; got {on_timeout!r}")
         escalate_slack_user = self.escalate_slack_user
         poll_interval_seconds = self.poll_interval_seconds
+
+        if target == "agentic_pipeline":
+            return self._build_agentic_pipeline_watcher_defs(
+                asset_name=asset_name, approval_dir=approval_dir, slack_channel=slack_channel,
+                bot_token_env_var=bot_token_env_var, approve_emoji=approve_emoji, reject_emoji=reject_emoji,
+                ping_users=ping_users, message_template=message_template, required_approvers=required_approvers,
+                approver_allowlist=approver_allowlist, timeout_hours=timeout_hours, on_timeout=on_timeout,
+                escalate_slack_user=escalate_slack_user, poll_interval_seconds=poll_interval_seconds,
+            )
 
         kinds = self.kinds or ["human", "approval", "slack"]
         tag_map = dict(self.tags or {})
@@ -791,3 +848,132 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.SensorResult(skip_reason="; ".join(actions))
 
         return dg.Definitions(assets=[_posted_asset], sensors=[_watcher])
+
+    def _build_agentic_pipeline_watcher_defs(
+        self, *, asset_name, approval_dir, slack_channel, bot_token_env_var, approve_emoji, reject_emoji,
+        ping_users, message_template, required_approvers, approver_allowlist, timeout_hours, on_timeout,
+        escalate_slack_user, poll_interval_seconds,
+    ) -> dg.Definitions:
+        """target: agentic_pipeline. No asset -- there is no single upstream asset to post; the pipeline's own
+        `approve` step (mode: park) is the source. Watches `<approval_dir>/pending/*.json` (the review queue
+        agentic_pipeline itself writes) instead of an upstream asset's materialization, and on quorum writes the
+        decision through `_approve_pending_record()` (this file's own copy of agentic_pipeline's `approve_pending()`
+        contract) so the fingerprint is copied in correctly and the pipeline's own resume sensor honours it."""
+        sensor_name = f"{asset_name}_pending_watcher"
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=poll_interval_seconds,
+            default_status=dg.DefaultSensorStatus.RUNNING,
+        )
+        def _pending_watcher(context: dg.SensorEvaluationContext):
+            fs = _ApprovalFS(approval_dir)
+            if not fs.is_uri and not Path(fs.root).exists():
+                return dg.SensorResult(skip_reason=f"approval_dir does not exist yet: {fs.root}")
+
+            pending_paths = fs.glob("pending/*.json")
+            if not pending_paths:
+                return dg.SensorResult(skip_reason="no pending approvals")
+
+            actions: List[str] = []
+            for pending_path in pending_paths:
+                try:
+                    pend = fs.read_json(pending_path)
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"skipping malformed pending record {pending_path}: {e}")
+                    continue
+
+                key = pend.get("key")
+                if not key:
+                    continue
+                token_path = fs.path(f"{key}.json")
+                if fs.exists(token_path):
+                    continue  # already decided -- agentic_pipeline's own resume sensor picks this up
+
+                sidecar_path = fs.path(f"{key}{_SLACK_STATE_SUFFIX}")
+                if not fs.exists(sidecar_path):
+                    # Not posted yet: post the pipeline's own summary (what the reviewer was actually shown) and
+                    # come back next tick to start counting votes -- gives reactions a moment to land first.
+                    client = _get_slack_client(bot_token_env_var)
+                    bot_user_id: Optional[str] = None
+                    try:
+                        auth = client.auth_test()
+                        bot_user_id = auth.get("user_id")
+                    except Exception:  # noqa: BLE001
+                        pass
+                    body = message_template.format(
+                        upstream_text=pend.get("summary") or pend.get("preview") or "(no summary provided)",
+                        approve_emoji=approve_emoji,
+                        reject_emoji=reject_emoji,
+                        required_approvers=required_approvers,
+                        n_allowlisted=len(approver_allowlist),
+                        partition_key=key,
+                    )
+                    posted = _post_slack_message(client, slack_channel, body, approve_emoji, reject_emoji, ping_users)
+                    state = {
+                        "message_ts": posted["message_ts"], "channel_id": posted["channel_id"],
+                        "partition_key": key, "safe_partition_key": key, "bot_user_id": bot_user_id,
+                        "posted_at": _now_iso(), "required_approvers": required_approvers,
+                        "approver_allowlist": approver_allowlist, "approve_emoji": approve_emoji,
+                        "reject_emoji": reject_emoji, "timeout_hours": timeout_hours, "on_timeout": on_timeout,
+                        "escalate_slack_user": escalate_slack_user, "bot_token_env_var": bot_token_env_var,
+                        "approval_dir": fs.root, "escalated_at": None,
+                    }
+                    fs.write_json(sidecar_path, state)
+                    actions.append(f"{key}: posted")
+                    continue
+
+                state = fs.read_json(sidecar_path)
+                try:
+                    client = _get_slack_client(state["bot_token_env_var"])
+                    reactions = _fetch_reactions(client, state["channel_id"], state["message_ts"])
+                except Exception as e:  # noqa: BLE001
+                    context.log.error(f"Slack fetch failed for {key}: {e}. Skipping this tick.")
+                    continue
+
+                votes = _classify_votes(
+                    reactions, state["approve_emoji"], state["reject_emoji"], state["approver_allowlist"], state.get("bot_user_id"),
+                )
+                required = state["required_approvers"]
+
+                decision = None  # (approved, approver, reason)
+                if len(votes["approve"]) >= required:
+                    decision = (True, ",".join(votes["approve"]), f"Slack quorum reached: {len(votes['approve'])}/{required} approved")
+                elif len(votes["reject"]) >= required:
+                    decision = (False, ",".join(votes["reject"]), f"Slack rejection quorum reached: {len(votes['reject'])}/{required} rejected")
+                else:
+                    timeout = state.get("timeout_hours")
+                    if timeout is not None:
+                        posted_at = datetime.fromisoformat(state["posted_at"])
+                        if datetime.now(timezone.utc) - posted_at > timedelta(hours=timeout):
+                            on_to = state["on_timeout"]
+                            if on_to == "reject":
+                                decision = (False, "timeout", f"Timed out after {timeout}h with no quorum; auto-rejected.")
+                            elif on_to == "approve":
+                                decision = (True, "timeout", f"Timed out after {timeout}h with no quorum; auto-approved (per policy).")
+                            elif on_to == "escalate" and state.get("escalate_slack_user") and not state.get("escalated_at"):
+                                try:
+                                    client.chat_postMessage(
+                                        channel=state["channel_id"], thread_ts=state["message_ts"],
+                                        text=(f"<@{state['escalate_slack_user']}> — approval pending `{key}` has been "
+                                              f"waiting {timeout}h. Please review."),
+                                    )
+                                    state["escalated_at"] = _now_iso()
+                                    fs.write_json(sidecar_path, state)
+                                    actions.append(f"{key}: escalated")
+                                except Exception as e:  # noqa: BLE001
+                                    context.log.warning(f"escalation post failed for {key}: {e}")
+
+                if decision is not None:
+                    approved, approver, reason = decision
+                    try:
+                        _approve_pending_record(approval_dir, key, approved=approved, approver=approver, reason=reason)
+                        actions.append(f"{key}: wrote decision ({'approved' if approved else 'rejected'})")
+                    except FileNotFoundError:
+                        context.log.warning(f"pending record for {key!r} disappeared before a decision could be written (already resolved?)")
+
+            if not actions:
+                return dg.SensorResult(skip_reason=f"polled {len(pending_paths)} pending approval(s); no quorum changes")
+            return dg.SensorResult(skip_reason="; ".join(actions))
+
+        return dg.Definitions(sensors=[_pending_watcher])

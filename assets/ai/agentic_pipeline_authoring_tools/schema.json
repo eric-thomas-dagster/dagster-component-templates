@@ -1,0 +1,48 @@
+{
+  "component_type": "dagster_community_components.AgenticPipelineAuthoringToolsComponent",
+  "description": "Read-only authoring/introspection tools for agentic_pipeline: list_ops, describe_op (real per-op JSON Schema), list_examples, get_example, validate_pipeline (agentic_pipeline's own load-time validation), preview_pipeline (assets/edges/partitioning/env-vars-and-servers-needed, without running a step). Registers a resource and ships a stdio MCP server (python -m this module) that works identically from Claude Code (claude mcp add) and from an agent running inside a code location.",
+  "category": "ai",
+  "icon": "Wand",
+  "x-dagster-io": {},
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "default": "agentic_pipeline_authoring_tools",
+      "description": "Resource key the toolset is registered under"
+    },
+    "allow": {
+      "type": "array",
+      "label": "Allow",
+      "items": {
+        "type": "string"
+      },
+      "description": "Hard allow-list of tools (default: all). Valid: list_ops, describe_op, list_examples, get_example, validate_pipeline, preview_pipeline."
+    },
+    "max_result_chars": {
+      "type": "integer",
+      "label": "Max Result Chars",
+      "default": 20000,
+      "description": "Upper bound on the serialized size of any tool result (an example's README/pipeline.yaml or a preview can be large)."
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with AGENTIC_PIPELINE_AUTHORING_TOOLS_* env vars set from allow/max_result_chars. Any mcp_servers-aware component (mcp_call, tool_use_loop, the agent components, agentic_pipeline itself) can then reference it via server_resource_key instead of hand-writing an inline command+env entry. Leave unset to skip this -- existing resource_key-only behavior is unchanged."
+    },
+    "mcp_extra_env_vars": {
+      "type": "array",
+      "label": "Mcp Extra Env Vars",
+      "items": {
+        "type": "string"
+      },
+      "description": "mcp_server_resource_key only. Extra env var NAMES to copy (current value, read fresh every time a consumer resolves the resource) from this process into the spawned MCP server's env. MCP's stdio client does not inherit the rest of the environment, so anything this server needs beyond its own AGENTIC_PIPELINE_AUTHORING_TOOLS_* settings must be listed here."
+    }
+  },
+  "tags": [
+    "ai",
+    "mcp",
+    "agentic_pipeline",
+    "authoring"
+  ]
+}

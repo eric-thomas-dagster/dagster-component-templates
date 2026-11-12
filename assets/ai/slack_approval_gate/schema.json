@@ -18,9 +18,9 @@
     },
     "upstream_asset_key": {
       "type": "string",
-      "required": true,
+      "required": false,
       "label": "Upstream Asset Key",
-      "description": "Asset whose text is posted to Slack. Slash notation for multi-part keys."
+      "description": "target: human_approval_gate only (required there, ignored for target: agentic_pipeline). Asset whose text is posted to Slack. Slash notation for multi-part keys."
     },
     "approval_dir": {
       "type": "string",
@@ -219,6 +219,16 @@
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
       "required": false,
       "default": null
+    },
+    "target": {
+      "type": "string",
+      "enum": [
+        "human_approval_gate",
+        "agentic_pipeline"
+      ],
+      "label": "Target",
+      "description": "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'agentic_pipeline': instead of posting an upstream asset, watch `<approval_dir>/pending/*.json` records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- post each pending record's `summary` to Slack, and on quorum write the decision the same way agentic_pipeline's own `approve_pending()` reviewer-tooling helper does (copies the pending record's fingerprint into the token), so the pipeline's own `<asset>_approval_resume_sensor` honours it. `upstream_asset_key` is ignored in this mode (there is no single upstream asset -- the pipeline's own `approve` step is the source of what gets posted); no asset is emitted, only the watcher sensor.",
+      "required": false
     }
   },
   "tags": [

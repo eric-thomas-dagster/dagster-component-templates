@@ -49,6 +49,8 @@ def test_inspection_asset_materializes_with_settings_metadata(mod):
     assert md["provider"].value == "chromadb"
     assert md["collection_name"].value == "kb"
     assert md["embed_provider"].value == "sentence_transformers"
+    assert md["tool_names"].value == ["search_knowledge"]
+    assert "search_knowledge" in md["tool_descriptions"].value
 
 
 def test_unset_mcp_server_resource_key_registers_only_the_search_resource(mod):

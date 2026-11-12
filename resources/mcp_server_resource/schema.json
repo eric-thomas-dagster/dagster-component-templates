@@ -62,6 +62,18 @@
       "description": "http / sse: map of header_name -> env_var_name (value read from env at call time).",
       "required": false,
       "default": null
+    },
+    "inspection_asset_name": {
+      "type": "string",
+      "label": "Inspection Asset Name",
+      "description": "`f\"If set, ALSO emits an asset by this name: connects to the configured server at materialization time and lists its real tool names + descriptions as metadata (tool_names, tool_descriptions, tool_count). `allowed_tools` (on agentic_pipeline's tool_use_loop, and on the litellm/openai/anthropic/gemini/vercel_ai_gateway/snowflake_cortex agent components) matches against the NAMESPACED name '<server name>__<tool name>' -- this asset's tool_names metadata lists the bare names; prefix each with this resource's own `name` + '__' to write an allowlist pattern. Leave unset to skip this -- existing resource-only behavior is unchanged.\"`",
+      "required": false
+    },
+    "inspection_timeout_seconds": {
+      "type": "number",
+      "label": "Inspection Timeout Seconds",
+      "description": "inspection_asset_name only: bounds connect + handshake + list_tools.",
+      "required": false
     }
   }
 }

@@ -1572,6 +1572,26 @@ def _require_one_partition(context, partitioned: bool) -> None:
             "(e.g. a custom RunRequest/launchRun call), not through either of those.")
 
 
+_BARE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_HOURLY_START_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-\d{2}:\d{2}$")
+
+
+def _normalize_hourly_start(value: Any) -> str:
+    """HourlyPartitionsDefinition(start_date=...) requires 'YYYY-MM-DD-HH:MM' and otherwise raises a raw strptime
+    ValueError from deep inside Dagster ("time data '...' does not match format '%Y-%m-%d-%H:%M%z'") -- confusing,
+    since every other partition_type here accepts a bare 'YYYY-MM-DD'. Accept the bare date too (treated as
+    midnight); anything else gets a clear error naming the expected format instead of letting Dagster's raise through."""
+    v = str(value).strip()
+    if _BARE_DATE_RE.match(v):
+        return f"{v}-00:00"
+    if _HOURLY_START_RE.match(v):
+        return v
+    raise ValueError(
+        f"partition_type='hourly' requires partition_start in 'YYYY-MM-DD-HH:MM' format (e.g. '2026-01-01-00:00'), "
+        f"or a bare 'YYYY-MM-DD' (treated as midnight) -- got {value!r}."
+    )
+
+
 def _build_partitions_def(
     partition_type, partition_start, partition_values,
     dynamic_partition_name, partition_dimensions,
@@ -1604,7 +1624,7 @@ def _build_partitions_def(
         if t == "daily": return DailyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
         if t == "weekly": return WeeklyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
         if t == "monthly": return MonthlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
-        if t == "hourly": return HourlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "hourly": return HourlyPartitionsDefinition(start_date=_normalize_hourly_start(spec["start"]), end_offset=_end_offset, timezone=_timezone)
         if t == "cron":
             from dagster import TimeWindowPartitionsDefinition
             if not spec.get("start"):
@@ -1642,7 +1662,7 @@ def _build_partitions_def(
     if partition_type == "daily": return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
     if partition_type == "weekly": return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
     if partition_type == "monthly": return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
-    if partition_type == "hourly": return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "hourly": return HourlyPartitionsDefinition(start_date=_normalize_hourly_start(partition_start), end_offset=end_offset, timezone=timezone)
     if partition_type == "cron":
         from dagster import TimeWindowPartitionsDefinition
         if not cron_schedule:

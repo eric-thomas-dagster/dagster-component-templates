@@ -60,6 +60,38 @@ attributes:
 
 Requires `fastmcp>=2.0` (lazily imported — only needed for this mode; `mode="assets"` never imports it).
 
+### Referencing it by key (`mcp_server_resource_key`)
+
+The resource above needs *your own code* to host it (an ASGI mount, a script). If you just
+want an agent to call this spec's operations as tools, set `mcp_server_resource_key`
+instead -- it ALSO registers a stdio MCP-server-shaped resource under that key, built
+from this component's own `spec_url`/`spec_path`/`operation_ids`/`server_name`/
+`api_base_url_env_var`/`api_key_env_var`/etc. settings (`python -m` this module, run as a
+real subprocess). The actual secret value(s) named by `api_base_url_env_var`/
+`api_key_env_var` are read fresh from the environment every time a consumer resolves this
+resource (run time), not baked in at component load -- same principle
+`dagster_workflow_tools`'s own `mcp_server_resource_key` applies to `DAGSTER_HOME`.
+
+```yaml
+type: dagster_community_components.OpenApiToolServerComponent
+attributes:
+  mode: mcp_server
+  spec_url: "https://petstore3.swagger.io/api/v3/openapi.json"
+  api_key_env_var: PETSTORE_API_KEY
+  operation_ids: [getPetById, findPetsByStatus]
+  mcp_server_resource_key: petstore_mcp
+```
+
+Then, in any `mcp_servers`-aware component:
+
+```yaml
+mcp_servers:
+  - server_resource_key: petstore_mcp
+```
+
+Requires `mode='mcp_server'` -- setting `mcp_server_resource_key` with `mode='assets'`
+raises a clear error at component load.
+
 ---
 
 ## Args templating (mode="assets")
@@ -209,6 +241,7 @@ Verified by introspecting the installed `fastmcp==4.1.8` package directly, and l
 | `server_name` | `str` | `"OpenAPI Tool Server"` | mode='mcp_server' only. Name for the built FastMCP server. |
 | `inspection_asset_name` | `str` | `"openapi_mcp_tools"` | mode='mcp_server' only. Name of the small inspection asset that lists the built server's resulting tools. |
 | `validate_output` | `bool` | `true` | mode='mcp_server' only. Passed through to FastMCP.from_openapi -- validate tool responses against the spec's output schema. |
+| `mcp_server_resource_key` | `str` | — | mode='mcp_server' only. If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. |
 

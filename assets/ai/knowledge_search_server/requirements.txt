@@ -1,0 +1,10 @@
+dagster
+pydantic
+
+# default embed_provider='sentence_transformers' + provider='chromadb' pairing (free/local)
+sentence-transformers
+chromadb
+
+# only for the stdio MCP server entrypoint (python -m <module>); verified with
+# mcp 1.30.0 and 2.3.0. The in-process resource + inspection asset do not need it
+mcp>=1.30,<3

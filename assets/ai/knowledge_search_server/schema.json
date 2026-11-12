@@ -1,0 +1,126 @@
+{
+  "component_type": "dagster_community_components.KnowledgeSearchServerComponent",
+  "description": "Lets an agent search a knowledge base built by context_engineering_pipeline (an embed + write_vector_store step pair), via a search_knowledge(query, top_k=5) tool returning each chunk's text, score, source, doc id, and chunk id as JSON. Registers a resource and ships a stdio MCP server (python -m <module>) for agentic_pipeline's tool_use_loop / mcp_call.",
+  "category": "ai",
+  "icon": "Search",
+  "x-dagster-io": {},
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key the in-process KnowledgeSearchResource is registered under.",
+      "required": false,
+      "default": "knowledge_search"
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the KNOWLEDGE_SEARCH_* env vars set from provider/connection_string/collection_name/api_key_env_var/embed_provider/embed_model/embed_api_key_env_var/text_metadata_key. Any mcp_servers-aware component (mcp_tool_call, mcp_tool_picker, the agent components, agentic_pipeline) can then reference it via server_resource_key instead of hand-writing an inline command+env entry. Leave unset to skip this.",
+      "required": false,
+      "default": null
+    },
+    "knowledge_base": {
+      "type": "string",
+      "label": "Knowledge Base",
+      "description": "Optional UI-linking label only -- the asset name of the context_engineering_pipeline step that built this index (its dagster-community/knowledge-base-name tag value). This component does not read that asset's config from this -- it still needs its own explicit provider/connection_string/collection_name/embed_provider/embed_model below, since there's no way to read another component's step config across component boundaries at build time.",
+      "required": false,
+      "default": null
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["chromadb", "pinecone", "qdrant"],
+      "label": "Provider",
+      "description": "Vector store the knowledge base lives in.",
+      "required": false,
+      "default": "chromadb"
+    },
+    "connection_string": {
+      "type": "string",
+      "label": "Connection String",
+      "description": "chromadb: local path (default './chroma_db'). qdrant: server URL (default 'localhost'). Unused for pinecone.",
+      "required": false,
+      "default": null
+    },
+    "collection_name": {
+      "type": "string",
+      "label": "Collection Name",
+      "description": "Collection/index name the knowledge base was written to (write_vector_store's own collection_name).",
+      "required": true,
+      "default": null
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var holding the vector store's API key (pinecone/qdrant).",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "embed_provider": {
+      "type": "string",
+      "enum": ["sentence_transformers", "openai", "cohere", "litellm"],
+      "label": "Embed Provider",
+      "description": "Must match the embed provider the knowledge base was built with (the embed step's own provider).",
+      "required": false,
+      "default": "sentence_transformers"
+    },
+    "embed_model": {
+      "type": "string",
+      "label": "Embed Model",
+      "description": "Must match the embed model the knowledge base was built with (the embed step's own model).",
+      "required": false,
+      "default": null
+    },
+    "embed_api_key_env_var": {
+      "type": "string",
+      "label": "Embed Api Key Env Var",
+      "description": "Env var holding the embed provider's API key (openai/cohere/litellm).",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "text_metadata_key": {
+      "type": "string",
+      "label": "Text Metadata Key",
+      "description": "Metadata key holding chunk text for non-chromadb stores. Must match write_vector_store's own text_column if it was customized -- and that column must have been included in metadata_columns, since write_vector_store excludes the text column from metadata by default.",
+      "required": false,
+      "default": "chunk_text"
+    },
+    "inspection_asset_name": {
+      "type": "string",
+      "label": "Inspection Asset Name",
+      "description": "Asset key for the inspection asset reporting this server's configured settings.",
+      "required": false,
+      "default": "knowledge_search_tools"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Extra asset tags, applied to the inspection asset.",
+      "required": false,
+      "default": null
+    }
+  }
+}

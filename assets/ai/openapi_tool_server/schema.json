@@ -295,6 +295,12 @@
       "default": "exponential",
       "enum": ["linear", "exponential"],
       "ui:widget": "select"
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "mode='mcp_server' only. If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the OPENAPI_TOOL_SERVER_* env vars set from spec_url/spec_path/operation_ids/server_name/validate_output/auth_header/auth_prefix/api_base_url_env_var/api_key_env_var. The actual secret value(s) named by api_base_url_env_var/api_key_env_var are read fresh from the environment every time a consumer resolves this resource (not baked in at component load). Any mcp_servers-aware component (mcp_tool_call, mcp_tool_picker, the agent components, agentic_pipeline) can then reference it via server_resource_key instead of hand-writing an inline command+env entry.",
+      "required": false
     }
   },
   "tags": ["ai", "openapi", "agent", "mcp", "tool", "asset"],

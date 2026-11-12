@@ -378,6 +378,60 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+class _McpServerShapeResource(dg.ConfigurableResource):
+    """Minimal MCPServerResource-shaped resource (name/type/command/url/env/headers/
+    headers_env) -- inlined here rather than imported from resources/mcp_server_resource
+    (confirmed not importable across components; see dagster_workflow_tools' and
+    knowledge_search_server's own copies of this class -- structurally, not byte-for-byte,
+    the same shape here, since each needs a different live-refresh mechanism).
+
+    `live_env_passthrough` names env vars whose CURRENT value should be merged into `env`
+    fresh every time `model_dump()` is actually called (run time -- when a consumer
+    resolves this resource), not baked in at construction (component load) -- the same
+    run-time-not-build-time principle `dagster_workflow_tools` applies to DAGSTER_HOME,
+    generalized here to any number of named secrets (api_base_url_env_var/
+    api_key_env_var's actual values)."""
+
+    name: str
+    type: Literal["http", "sse", "stdio"] = "stdio"
+    command: Optional[List[str]] = None
+    url: Optional[str] = None
+    env: Optional[Dict[str, str]] = None
+    headers: Optional[Dict[str, str]] = None
+    headers_env: Optional[Dict[str, str]] = None
+    live_env_passthrough: Optional[List[str]] = None
+
+    def model_dump(self, *args, **kwargs):
+        dumped = super().model_dump(*args, **kwargs)
+        passthrough = dumped.pop("live_env_passthrough", None)
+        if dumped.get("type") == "stdio" and passthrough:
+            env = dict(dumped.get("env") or {})
+            for var_name in passthrough:
+                value = dg.EnvVar(var_name).get_value()
+                if value:
+                    env[var_name] = value
+            dumped["env"] = env
+        return dumped
+
+
+def _this_module_name() -> str:
+    """The real importable dotted path for the `python -m <this>` stdio server
+    invocation. `__name__` alone is unreliable: it's literally `"__main__"` both for a
+    bare `python component.py` invocation AND for `python -m dotted.path`. `__spec__.name`
+    is the fix (same mechanism/rationale as dagster_workflow_tools'/
+    knowledge_search_server's own `_this_module_name`, duplicated here -- not imported,
+    per this repo's self-contained-component convention)."""
+    if __spec__ is not None:
+        return __spec__.name
+    raise RuntimeError(
+        "openapi_tool_server's stdio MCP server must be run as "
+        "`python -m <dotted.path.to.this.module>` (e.g. `python -m "
+        "dagster_community_components.assets.ai.openapi_tool_server.component`), not "
+        "`python component.py` directly -- the spawned server's own command needs a real "
+        "importable module name (available via __spec__.name). See README.md."
+    )
+
+
 class OpenApiMcpServerResource(dg.ConfigurableResource):
     """Holds everything needed to lazily build a real `fastmcp.FastMCP` server from a
     (previously fetched) OpenAPI spec, gated by the same `operation_ids` allow-list as the
@@ -528,6 +582,21 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
     resource_key: str = Field(default="openapi_mcp_server", description="mode='mcp_server' only. Dagster resource key the built OpenApiMcpServerResource is registered under -- other code (a script, an ASGI mount, a sensor) reads it via context.resources.<resource_key>.build_server() to actually host the server.")
     inspection_asset_name: str = Field(default="openapi_mcp_tools", description="mode='mcp_server' only. Name of the small inspection asset that lists the built server's resulting tools.")
     validate_output: bool = Field(default=True, description="mode='mcp_server' only. Passed through to FastMCP.from_openapi -- validate tool responses against the spec's output schema.")
+    mcp_server_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "mode='mcp_server' only. If set, ALSO registers a stdio MCP-server-shaped resource "
+            "(same name/type/command/env shape as MCPServerResource) under this key, built from "
+            "this component's own settings -- python -m this module, with the "
+            "OPENAPI_TOOL_SERVER_* env vars set from spec_url/spec_path/operation_ids/server_name/"
+            "validate_output/auth_header/auth_prefix/api_base_url_env_var/api_key_env_var. The "
+            "actual secret value(s) named by api_base_url_env_var/api_key_env_var are read fresh "
+            "from the environment every time a consumer resolves this resource (not baked in at "
+            "component load). Any mcp_servers-aware component (mcp_tool_call, mcp_tool_picker, the "
+            "agent components, agentic_pipeline) can then reference it via server_resource_key "
+            "instead of hand-writing an inline command+env entry."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description. mode='assets': applied to every emitted operation asset unless the operation has its own OpenAPI summary.")
@@ -567,6 +636,12 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
     @classmethod
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("owners", "kinds", "operation_ids"), csv=("partition_values",), tags=("asset_tags",))
+
+    @model_validator(mode="after")
+    def _mcp_server_resource_key_requires_mcp_server_mode(self):
+        if self.mcp_server_resource_key and self.mode != "mcp_server":
+            raise ValueError("OpenApiToolServerComponent: mcp_server_resource_key requires mode='mcp_server'.")
+        return self
 
     @classmethod
     def get_form_config(cls):
@@ -643,7 +718,43 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
                 "transport": MetadataValue.text("mcp"),
             })
 
-        return Definitions(assets=[_mcp_server_inspection_asset], resources={resource_key: resource})
+        resources: Dict[str, Any] = {resource_key: resource}
+
+        if self.mcp_server_resource_key:
+            mcp_env: Dict[str, str] = {
+                "OPENAPI_TOOL_SERVER_SERVER_NAME": server_name,
+                "OPENAPI_TOOL_SERVER_API_BASE_URL_ENV_VAR": self.api_base_url_env_var,
+                "OPENAPI_TOOL_SERVER_AUTH_HEADER": self.auth_header,
+                "OPENAPI_TOOL_SERVER_AUTH_PREFIX": self.auth_prefix,
+                "OPENAPI_TOOL_SERVER_VALIDATE_OUTPUT": "1" if self.validate_output else "0",
+            }
+            if self.spec_url:
+                mcp_env["OPENAPI_TOOL_SERVER_SPEC_URL"] = self.spec_url
+            if self.spec_path:
+                mcp_env["OPENAPI_TOOL_SERVER_SPEC_PATH"] = self.spec_path
+            if operation_ids:
+                mcp_env["OPENAPI_TOOL_SERVER_OPERATION_IDS"] = ",".join(operation_ids)
+            if self.api_key_env_var:
+                mcp_env["OPENAPI_TOOL_SERVER_API_KEY_ENV_VAR"] = self.api_key_env_var
+
+            # The actual secret value(s) these two fields NAME are read fresh from the
+            # environment every time a consumer resolves this resource (model_dump()),
+            # not baked in here at component load -- same run-time-not-build-time
+            # principle dagster_workflow_tools' own mcp_server_resource_key applies to
+            # DAGSTER_HOME.
+            live_env_passthrough = [self.api_base_url_env_var]
+            if self.api_key_env_var:
+                live_env_passthrough.append(self.api_key_env_var)
+
+            resources[self.mcp_server_resource_key] = _McpServerShapeResource(
+                name=self.mcp_server_resource_key,
+                type="stdio",
+                command=["python", "-m", _this_module_name()],
+                env=mcp_env,
+                live_env_passthrough=live_env_passthrough,
+            )
+
+        return Definitions(assets=[_mcp_server_inspection_asset], resources=resources)
 
     # ------------------------------------------------------------------
     # mode="assets"
@@ -854,3 +965,47 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
             assets.append(asset_def)
 
         return Definitions(assets=assets)
+
+
+# ── stdio MCP server entrypoint:  python -m <dotted.path.to.this.module>  ───────────────
+# Used by mcp_server_resource_key (mode="mcp_server") -- NOT needed for context.resources.
+# <resource_key>.build_server() hosting (an ASGI mount, a script) or dg.materialize()'s own
+# inspection asset, both of which build the server in-process without spawning this file.
+def main(argv: Optional[List[str]] = None) -> None:
+    """Env: OPENAPI_TOOL_SERVER_SPEC_URL or OPENAPI_TOOL_SERVER_SPEC_PATH (one required),
+    OPENAPI_TOOL_SERVER_SERVER_NAME (default 'OpenAPI Tool Server'),
+    OPENAPI_TOOL_SERVER_OPERATION_IDS (csv, default: every operation),
+    OPENAPI_TOOL_SERVER_API_BASE_URL_ENV_VAR (default 'API_BASE_URL'),
+    OPENAPI_TOOL_SERVER_API_KEY_ENV_VAR, OPENAPI_TOOL_SERVER_AUTH_HEADER (default
+    'Authorization'), OPENAPI_TOOL_SERVER_AUTH_PREFIX (default 'Bearer'),
+    OPENAPI_TOOL_SERVER_VALIDATE_OUTPUT ('1'/'0', default '1')."""
+    import logging
+    import os
+    import sys
+
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
+    spec_url = os.environ.get("OPENAPI_TOOL_SERVER_SPEC_URL")
+    spec_path = os.environ.get("OPENAPI_TOOL_SERVER_SPEC_PATH")
+    if not spec_url and not spec_path:
+        raise SystemExit("OPENAPI_TOOL_SERVER_SPEC_URL or OPENAPI_TOOL_SERVER_SPEC_PATH must be set")
+    spec = _fetch_spec(spec_url, spec_path)
+
+    operation_ids_env = os.environ.get("OPENAPI_TOOL_SERVER_OPERATION_IDS")
+    operation_ids = [o.strip() for o in operation_ids_env.split(",") if o.strip()] if operation_ids_env else None
+
+    resource = OpenApiMcpServerResource(
+        spec=spec,
+        spec_url=spec_url,
+        server_name=os.environ.get("OPENAPI_TOOL_SERVER_SERVER_NAME") or "OpenAPI Tool Server",
+        operation_ids=operation_ids,
+        api_base_url_env_var=os.environ.get("OPENAPI_TOOL_SERVER_API_BASE_URL_ENV_VAR") or "API_BASE_URL",
+        api_key_env_var=os.environ.get("OPENAPI_TOOL_SERVER_API_KEY_ENV_VAR"),
+        auth_header=os.environ.get("OPENAPI_TOOL_SERVER_AUTH_HEADER") or "Authorization",
+        auth_prefix=os.environ.get("OPENAPI_TOOL_SERVER_AUTH_PREFIX") or "Bearer",
+        validate_output=os.environ.get("OPENAPI_TOOL_SERVER_VALIDATE_OUTPUT", "1") == "1",
+    )
+    resource.build_server().run(transport="stdio")
+
+
+if __name__ == "__main__":
+    main()

@@ -772,6 +772,7 @@ _CLASS_PATHS: dict[str, str] = {
     "KlaviyoProfileUpsertComponent": "assets/reverse_etl/klaviyo_profile_upsert/component.py",
     "KlaviyoResource": "resources/klaviyo_resource/component.py",
     "KlaviyoResourceComponent": "resources/klaviyo_resource/component.py",
+    "KnowledgeSearchServerComponent": "assets/ai/knowledge_search_server/component.py",
     "KustomerConversationsIngestionComponent": "assets/ingestion/kustomer_conversations_ingestion/component.py",
     "KustomerResourceComponent": "resources/kustomer_resource/component.py",
     "LLMChainExecutorComponent": "assets/ai/llm_chain_executor/component.py",

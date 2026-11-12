@@ -31,6 +31,7 @@ env:
     assets/sources/mcp_tool_call/tests
     resources/mcp_server_resource/tests
     assets/ai/dagster_workflow_tools/tests
+    assets/ai/knowledge_search_server/tests
     assets/ai/openapi_tool_server/tests
     assets/ai/litellm_agent/tests
     assets/ai/openai_agent/tests

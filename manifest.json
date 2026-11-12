@@ -37245,6 +37245,48 @@
       }
     },
     {
+      "id": "knowledge_search_server",
+      "name": "knowledge_search_server",
+      "category": "ai",
+      "description": "Lets an agent search a knowledge base built by context_engineering_pipeline (an embed + write_vector_store step pair), via a search_knowledge(query, top_k=5) tool returning each chunk's text, score, source, doc id, and chunk id as JSON. Registers a resource and ships a stdio MCP server (python -m <module>) for agentic_pipeline's tool_use_loop / mcp_call.",
+      "path": "assets/ai/knowledge_search_server",
+      "tags": [],
+      "icon": "Search",
+      "component_type": "dagster_community_components.KnowledgeSearchServerComponent",
+      "agent_hints": {
+        "inputs": "None -- declares the vector-store + embed-provider settings a context_engineering_pipeline knowledge base was built with.",
+        "outputs": "A KnowledgeSearchResource (search(query, top_k=5)) under resource_key, optionally also an MCPServerResource-shaped resource under mcp_server_resource_key, and always one inspection asset reporting the configured settings.",
+        "side_effects": "None at build time -- embedding + the vector-store query only happen when search_knowledge is actually called."
+      },
+      "produces": [
+        "resource",
+        "asset"
+      ],
+      "keywords": [
+        "knowledge base",
+        "vector search",
+        "rag",
+        "mcp server",
+        "context_engineering_pipeline"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_search_server/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_search_server/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_search_server/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_search_server/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_search_server/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pydantic",
+          "sentence-transformers",
+          "chromadb",
+          "mcp>=1.30,<3"
+        ]
+      }
+    },
+    {
       "id": "kustomer_conversations_ingestion",
       "name": "Kustomer Conversations Ingestion",
       "category": "source",
@@ -72615,5 +72657,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1395
+  "total": 1396
 }

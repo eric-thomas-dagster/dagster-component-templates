@@ -26,6 +26,7 @@ on:
       - "resources/context_receipt_store/**"
       - "assets/ai/dagster_workflow_tools/**"
       - "assets/ai/openapi_tool_server/**"
+      - "assets/ai/knowledge_search_server/**"
       - "tests/test_mcp_*.py"
       - ".github/workflows/mcp-canary.yml"
 
@@ -48,6 +49,7 @@ env:
     resources/context_receipt_store/tests/test_fastmcp_gateway.py
     assets/ai/dagster_workflow_tools/tests
     assets/ai/openapi_tool_server/tests
+    assets/ai/knowledge_search_server/tests
 
 jobs:
   mcp:

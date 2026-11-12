@@ -1,0 +1,10 @@
+type: dagster_community_components.KnowledgeSearchServerComponent
+attributes:
+  resource_key: docs_knowledge_search
+  mcp_server_resource_key: docs_knowledge_search_mcp
+  knowledge_base: docs_kb
+  provider: chromadb
+  connection_string: ./chroma_db
+  collection_name: context_engineering_kb
+  embed_provider: sentence_transformers
+  embed_model: all-MiniLM-L6-v2

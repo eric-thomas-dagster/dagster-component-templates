@@ -28,6 +28,7 @@ MCP_COMPONENTS = {
     "resources/context_receipt_store": "server (fastmcp gateway examples)",
     "assets/ai/dagster_workflow_tools": "server",
     "assets/ai/openapi_tool_server": "server (fastmcp from_openapi)",
+    "assets/ai/knowledge_search_server": "server",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

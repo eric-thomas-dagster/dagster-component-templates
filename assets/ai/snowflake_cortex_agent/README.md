@@ -29,6 +29,39 @@ Pairs naturally with the existing two Snowflake Cortex components:
 3. Cortex COMPLETE response shape matches OpenAI's — `choices[0].message.tool_calls`. We dispatch each tool call to its MCP session, append the result as `role: tool`, loop.
 4. Stops when the model returns plain text or `max_iterations` is hit.
 
+## Skills (`skill_keys`)
+
+`skill_keys` is a separate, parallel mechanism to `mcp_servers` for the same progressive-disclosure
+idea, applied to [Agent Skills](https://www.anthropic.com/news/agent-skills) instead of MCP tools.
+List one or more `SkillResourceComponent` resource keys:
+
+```yaml
+skill_keys:
+  - pdf_report_skill
+```
+
+Each listed skill's `name`/`description` (resolved from its `SKILL.md` front matter) are appended to
+the system prompt before the first Cortex COMPLETE call — cheap, so every configured skill shows up
+on turn 1. The full `SKILL.md` body is never inlined up front; it only loads if the model actually
+decides to use the skill, by calling one of two tools this component adds to the same OpenAI-format
+tool-calling loop the `mcp_servers` tools already go through:
+
+- **`load_skill(name)`** — loads the skill's full `SKILL.md` text. `name` is the skill's display
+  name (as shown in the listing), not the Dagster `resource_key`.
+- **`read_skill_file(name, relative_path)`** — reads one bundled file from the skill's folder, by a
+  path relative to it.
+
+A `skill_keys` entry that doesn't resolve to a registered resource (or resolves to something that
+isn't a `SkillResource`) raises immediately, naming the key — this is a configuration error, not a
+transient one.
+
+When `skill_keys` is set, materialization metadata includes `skills_available` (each configured
+skill's `describe()`), `skills_loaded` (names actually loaded via `load_skill` during the run), and
+`skill_load_count` (total `load_skill` calls, including repeats). The asset is also tagged
+`dagster-community/skill` (the configured `skill_keys`, joined and sanitized — Dagster's own strict
+tag-value validation only allows alpha-numeric/`_`/`-`/`.` up to 63 characters, so commas and any
+other disallowed characters are replaced before the tag is set).
+
 ## Output
 
 Same dict shape as the other `*_agent` components — `final_answer`, `iterations`, `tool_calls_made`, `tool_call_details`, `transcript`, `stopped_reason`, `model`, `mcp_servers`.
@@ -100,6 +133,7 @@ Same dict shape as the other `*_agent` components — `final_answer`, `iteration
 | `max_tokens` | `int` | `2048` | Max tokens per model call. |
 | `max_iterations` | `int` | `10` | Max tool-call rounds. |
 | `mcp_servers` | `List[MCPServerSpec]` | `list()` | MCP servers to expose as tools. |
+| `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
 | `request_timeout_seconds` | `int` | `60` | HTTP request timeout. |
 | `dynamic_partition_name` | `str` | — | Dynamic partition name. |
 

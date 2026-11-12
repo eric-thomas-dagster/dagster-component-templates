@@ -280,6 +280,10 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         default_factory=list,
         description="List of MCP servers to expose as tools. Empty list = no tools (chat-only).",
     )
+    skill_keys: Optional[List[str]] = Field(
+        default=None,
+        description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
+    )
     include_reasoning: bool = Field(default=False, description="Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the transcript and final_answer; when true it is also returned as a 'reasoning' key in the result dict (all iterations joined) and as asset metadata.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -343,7 +347,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps', 'skill_keys'), csv=('partition_values',), tags=('asset_tags',))
 
     @classmethod
     def get_form_config(cls):
@@ -364,6 +368,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         prompt_caching = self.prompt_caching
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
+        skill_keys = self.skill_keys
         include_reasoning = self.include_reasoning
         group_name = self.group_name
         description = self.description
@@ -384,6 +389,14 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
+        if skill_keys:
+            # Dagster's own strict tag-value validation only allows alpha-numeric/'_'/'-'/'.'
+            # (<=63 chars) -- a literal comma-joined value would crash build_defs with
+            # DagsterInvalidDefinitionError the moment 2+ skill_keys are configured, so
+            # commas are swapped for '-' here (',' isn't in the allowed set).
+            import re as _re_tag
+            _skill_tag_value = _re_tag.sub(r"[^A-Za-z0-9_.\-]", "-", ",".join(skill_keys))[:63]
+            _all_tags.setdefault("dagster-community/skill", _skill_tag_value)
 
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
@@ -409,6 +422,8 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         # build_defs time (the YAML is static even though which path each entry takes
         # is only read at materialization time).
         _mcp_resource_keys = {s.server_resource_key for s in mcp_servers if s.server_resource_key}
+        _skill_resource_keys = set(skill_keys or [])
+        _required_resource_keys = _mcp_resource_keys | _skill_resource_keys
 
         @asset(
             key=AssetKey.from_user_string(asset_name),
@@ -420,10 +435,32 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-            required_resource_keys=_mcp_resource_keys or None,
+            required_resource_keys=_required_resource_keys or None,
         )
         def _agent_asset(context: AssetExecutionContext) -> Dict[str, Any]:
             import asyncio
+
+            # Resolve every skill_keys entry to its SkillResource up front -- before any
+            # model call, before the system prompt is built. Dagster only binds
+            # cross-component resources at run time (not at this component's own
+            # build_defs/parse time), so this is the earliest point a bad skill_keys
+            # entry can actually be caught; fail loudly, naming the exact key.
+            skill_resources: Dict[str, Any] = {}
+            for _key in (skill_keys or []):
+                try:
+                    _res = getattr(context.resources, _key)
+                except Exception as e:
+                    raise ValueError(
+                        f"skill_keys references {_key!r} but no resource is registered "
+                        f"under that key: {e}"
+                    ) from e
+                if not (hasattr(_res, "describe") and hasattr(_res, "load")):
+                    raise ValueError(
+                        f"skill_keys references {_key!r}, but the resource registered "
+                        "under that key is not a SkillResource (missing describe()/load())."
+                    )
+                _info = _res.describe()
+                skill_resources[_info["name"]] = _res
 
             # Resolved once per run: each entry's shared MCPServerResource config, or
             # its own inline spec -- either way the same dict shape _run_agent expects.
@@ -463,6 +500,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
                     thinking_budget=thinking_budget,
                     prompt_caching=prompt_caching,
                     include_reasoning=include_reasoning,
+                    skill_resources=skill_resources,
                 )
             )
 
@@ -477,6 +515,12 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
                 md["reasoning"] = MetadataValue.md(result["reasoning"])
             if result["tool_call_details"]:
                 md["tool_calls"] = MetadataValue.json(result["tool_call_details"])
+            if skill_keys:
+                md["skills_available"] = MetadataValue.json(
+                    [res.describe() for res in skill_resources.values()]
+                )
+                md["skills_loaded"] = MetadataValue.json(result.get("loaded_skill_names") or [])
+                md["skill_load_count"] = MetadataValue.int(result.get("skill_load_count") or 0)
             context.add_output_metadata(md)
             return result
 
@@ -639,11 +683,20 @@ async def _run_agent(
     thinking_budget: Optional[int] = None,
     prompt_caching: bool = False,
     include_reasoning: bool = False,
+    skill_resources: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Run the agent loop. Returns the final result dict."""
+    """Run the agent loop. Returns the final result dict.
+
+    `skill_resources` is a name -> SkillResource mapping (already resolved by the caller,
+    which has access to `context.resources` -- this function does not). Each skill's
+    name/description is listed in the system prompt up front; `load_skill` /
+    `read_skill_file` are added as tools alongside the MCP ones so the model can fetch a
+    skill's full instructions (or a bundled file) only once it actually decides to use it."""
     import json
     import os
     from contextlib import AsyncExitStack
+
+    skill_resources = skill_resources or {}
 
     try:
         import litellm
@@ -744,6 +797,63 @@ async def _run_agent(
             servers_used.append(name)
             log.info(f"[mcp:{name}] discovered {len(tools_response.tools)} tools")
 
+        # Skill tools — same OpenAI function-calling shape as the MCP tool defs above.
+        # Only added when skill_keys were configured; the model sees each skill's
+        # name/description in the system prompt (below) and calls load_skill to get the
+        # full SKILL.md body once it decides to use one.
+        if skill_resources:
+            llm_tools.append({
+                "type": "function",
+                "function": {
+                    "name": "load_skill",
+                    "description": "Load a skill's full instructions (its SKILL.md body) before using it. Call this once you've decided a listed skill is relevant.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The skill's name, exactly as shown in the 'Available skills' listing.",
+                            },
+                        },
+                        "required": ["name"],
+                    },
+                },
+            })
+            llm_tools.append({
+                "type": "function",
+                "function": {
+                    "name": "read_skill_file",
+                    "description": "Read one file bundled alongside a skill (e.g. a reference doc, template, or script), by its path relative to the skill's folder.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The skill's name, exactly as shown in the 'Available skills' listing.",
+                            },
+                            "relative_path": {
+                                "type": "string",
+                                "description": "Path to the file, relative to the skill's folder (as listed in load_skill's 'files').",
+                            },
+                        },
+                        "required": ["name", "relative_path"],
+                    },
+                },
+            })
+
+        # Skills listing — the cheap part (name/description) shown to the model up front;
+        # the full SKILL.md only loads if the model actually calls load_skill.
+        if skill_resources:
+            _skill_lines = []
+            for res in skill_resources.values():
+                _d = res.describe()
+                _skill_lines.append(f"- {_d['name']}: {_d['description']}")
+            _skills_block = (
+                "\n\nAvailable skills (call load_skill with the skill's name to load its "
+                "full instructions before using it):\n" + "\n".join(_skill_lines)
+            )
+            system_prompt = (system_prompt + _skills_block) if system_prompt else _skills_block.lstrip("\n")
+
         # Build the initial message list. Anthropic prompt caching wraps
         # the system prompt with a cache_control block; LiteLLM translates
         # this to Anthropic's native header on the outbound request.
@@ -786,6 +896,8 @@ async def _run_agent(
 
         tool_call_details: List[Dict[str, Any]] = []
         reasoning_parts: List[str] = []
+        loaded_skill_names: set = set()
+        skill_load_count = 0
         iterations = 0
         stopped_reason = "max_iterations"
 
@@ -846,6 +958,50 @@ async def _run_agent(
                 except json.JSONDecodeError as e:
                     fn_args = {}
                     log.warning(f"tool call arguments not valid JSON: {fn_args_raw!r} ({e})")
+
+                if fn_name in ("load_skill", "read_skill_file"):
+                    _skill_name = fn_args.get("name")
+                    _skill_res = skill_resources.get(_skill_name)
+                    if _skill_res is None:
+                        tool_output = (
+                            f"Error: no skill named {_skill_name!r} is available. "
+                            f"Available skills: {sorted(skill_resources.keys())}"
+                        )
+                        is_error = True
+                    elif fn_name == "load_skill":
+                        try:
+                            tool_output = _skill_res.load()["content"]
+                            is_error = False
+                            loaded_skill_names.add(_skill_name)
+                            skill_load_count += 1
+                        except Exception as e:  # noqa: BLE001
+                            tool_output = f"Error loading skill {_skill_name!r}: {e}"
+                            is_error = True
+                    else:  # read_skill_file
+                        try:
+                            tool_output = _skill_res.read_file(fn_args.get("relative_path"))
+                            is_error = False
+                        except (ValueError, FileNotFoundError) as e:
+                            tool_output = f"Error: {e}"
+                            is_error = True
+
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": tool_output,
+                        }
+                    )
+                    tool_call_details.append(
+                        {
+                            "iteration": iterations,
+                            "tool": fn_name,
+                            "args": fn_args,
+                            "result_preview": tool_output[:500],
+                            "is_error": is_error,
+                        }
+                    )
+                    continue
 
                 if fn_name not in tool_index:
                     err = f"tool {fn_name!r} not registered with any MCP server"
@@ -918,6 +1074,9 @@ async def _run_agent(
         }
         if include_reasoning:
             result["reasoning"] = "\n\n".join(reasoning_parts) or None
+        if skill_resources:
+            result["loaded_skill_names"] = sorted(loaded_skill_names)
+            result["skill_load_count"] = skill_load_count
         return result
 
 

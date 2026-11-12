@@ -263,6 +263,15 @@
       "required": false,
       "type": "string",
       "ui:widget": "select"
+    },
+    "skill_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Skill Keys",
+      "description": "SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
+      "required": false
     }
   }
 }

@@ -164,6 +164,10 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
     )
     max_iterations: int = Field(default=10, ge=1, le=100, description="Max tool-call rounds.")
     mcp_servers: List[MCPServerSpec] = Field(default_factory=list, description="MCP servers to expose as tools.")
+    skill_keys: Optional[List[str]] = Field(
+        default=None,
+        description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -217,7 +221,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps', 'skill_keys'), csv=('partition_values',), tags=('asset_tags',))
 
     @classmethod
     def get_form_config(cls):
@@ -237,6 +241,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         prompt_caching = self.prompt_caching
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
+        skill_keys = self.skill_keys or []
         group_name = self.group_name
         description = self.description
         owners = self.owners or []
@@ -252,6 +257,14 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
+        if skill_keys:
+            # Dagster's own strict tag-value validation only allows alpha-numeric/'_'/'-'/'.'
+            # (<=63 chars) -- a literal comma-joined value would crash build_defs with
+            # DagsterInvalidDefinitionError the moment 2+ skill_keys are configured, so
+            # commas are swapped for '-' here (',' isn't in the allowed set).
+            import re
+            _skill_tag_value = re.sub(r"[^A-Za-z0-9_.\-]", "-", ",".join(skill_keys))[:63]
+            _all_tags.setdefault("dagster-community/skill", _skill_tag_value)
 
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
@@ -277,6 +290,11 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         # build_defs time (the YAML is static even though which path each entry takes
         # is only read at materialization time).
         _mcp_resource_keys = {s.server_resource_key for s in mcp_servers if s.server_resource_key}
+        # Parallel, independent mechanism for skills (resources/skill_resource) -- a
+        # SkillResource's describe()/load()/read_file() are only resolved via
+        # getattr(context.resources, key) at run time, same as server_resource_key above.
+        _skill_resource_keys = set(skill_keys)
+        _required_resource_keys = _mcp_resource_keys | _skill_resource_keys
 
         @asset(
             key=AssetKey.from_user_string(asset_name),
@@ -288,10 +306,33 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-            required_resource_keys=_mcp_resource_keys or None,
+            required_resource_keys=_required_resource_keys or None,
         )
         def _agent_asset(context: AssetExecutionContext) -> Dict[str, Any]:
             import asyncio
+
+            # Resolve every configured skill at the very start of execution, before any
+            # model call or system-prompt construction -- the earliest point this
+            # component's own code can check that a skill_keys entry is real: Dagster only
+            # binds cross-component resources at run time, not at this component's own
+            # build_defs/parse time. Mirrors server_resource_key's own
+            # getattr(context.resources, key) convention above.
+            skill_resources: Dict[str, Any] = {}  # skill display name -> SkillResource
+            for _key in skill_keys:
+                try:
+                    _res = getattr(context.resources, _key)
+                except Exception as e:
+                    raise ValueError(
+                        f"skill_keys references {_key!r} but no resource is registered "
+                        f"under that key: {e}"
+                    ) from e
+                if not (hasattr(_res, "describe") and hasattr(_res, "load")):
+                    raise ValueError(
+                        f"skill_keys references {_key!r}, but the resource registered "
+                        f"under that key is not a SkillResource (missing describe()/load())."
+                    )
+                _info = _res.describe()
+                skill_resources[_info["name"]] = _res
 
             # Resolved once per run: each entry's shared MCPServerResource config, or
             # its own inline spec -- either way the same dict shape _run_agent expects.
@@ -328,6 +369,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                     mcp_servers=resolved_mcp_servers,
                     thinking_budget=thinking_budget,
                     prompt_caching=prompt_caching,
+                    skill_resources=skill_resources,
                 )
             )
 
@@ -340,6 +382,12 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
             }
             if result["tool_call_details"]:
                 md["tool_calls"] = MetadataValue.json(result["tool_call_details"])
+            if skill_keys:
+                md["skills_available"] = MetadataValue.json(
+                    [res.describe() for res in skill_resources.values()]
+                )
+                md["skills_loaded"] = MetadataValue.json(sorted(result["loaded_skill_names"]))
+                md["skill_load_count"] = MetadataValue.int(result["skill_load_count"])
             context.add_output_metadata(md)
             return result
 
@@ -551,6 +599,54 @@ async def _connect_mcp(stack, log, mcp_servers):
     return tool_index, anthropic_tools, servers_used
 
 
+def _skill_tool_definitions() -> List[Dict[str, Any]]:
+    """Anthropic-native tool definitions (same {name, description, input_schema} shape as the
+    MCP tools above) for the skill_keys mechanism -- merged into the same tools list / dispatch
+    loop as MCP tools so the model can interleave calls to either on any turn."""
+    return [
+        {
+            "name": "load_skill",
+            "description": (
+                "Load the full instructions (SKILL.md) for one of the available skills, by its "
+                "display name as shown in the skills listing. Call this once you've decided to "
+                "use a skill, before using it -- the full instructions aren't in your context "
+                "until you load them."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The skill's display name, exactly as shown in the skills listing (not the Dagster resource_key).",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
+        {
+            "name": "read_skill_file",
+            "description": (
+                "Read one file bundled alongside a skill's SKILL.md (e.g. a reference, script, "
+                "or template), by its path relative to the skill's own folder."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The skill's display name, exactly as shown in the skills listing (not the Dagster resource_key).",
+                    },
+                    "relative_path": {
+                        "type": "string",
+                        "description": "Path to the bundled file, relative to the skill's folder (as listed in that skill's load() result).",
+                    },
+                },
+                "required": ["name", "relative_path"],
+            },
+        },
+    ]
+
+
 async def _run_agent(
     log,
     prompt: str,
@@ -564,6 +660,7 @@ async def _run_agent(
     mcp_servers: List[Dict[str, Any]],
     thinking_budget: Optional[int] = None,
     prompt_caching: bool = False,
+    skill_resources: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     import os
     from contextlib import AsyncExitStack
@@ -583,8 +680,27 @@ async def _run_agent(
             client_kwargs["base_url"] = bu
     client = AsyncAnthropic(**client_kwargs)
 
+    skill_resources = skill_resources or {}  # skill display name -> SkillResource
+
     async with AsyncExitStack() as stack:
         tool_index, anthropic_tools, servers_used = await _connect_mcp(stack, log, mcp_servers)
+
+        loaded_skill_names: set = set()
+        skill_load_count = 0
+        if skill_resources:
+            # Merged into the SAME tool list the MCP tools above go through.
+            anthropic_tools = anthropic_tools + _skill_tool_definitions()
+            # Only name + description go into the prompt up front (progressive disclosure);
+            # the full SKILL.md body only loads via the load_skill tool call below.
+            skills_listing = "\n".join(
+                f"- {res.describe()['name']}: {res.describe()['description']}"
+                for res in skill_resources.values()
+            )
+            skills_block = (
+                "\n\nAvailable skills (call load_skill with the skill's name to load its "
+                "full instructions before using it):\n" + skills_listing
+            )
+            system_prompt = (system_prompt or "") + skills_block
 
         messages: List[Dict[str, Any]] = [{"role": "user", "content": prompt}]
 
@@ -663,6 +779,59 @@ async def _run_agent(
                 fn_name = tu.name
                 fn_args = tu.input or {}
 
+                if fn_name in ("load_skill", "read_skill_file"):
+                    skill_name = fn_args.get("name")
+                    skill_res = skill_resources.get(skill_name)
+                    if skill_res is None:
+                        err = f"skill {skill_name!r} is not among the configured skills"
+                        log.warning(err)
+                        tool_results_content.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": tu.id,
+                                "content": f"Error: {err}",
+                                "is_error": True,
+                            }
+                        )
+                        tool_call_details.append(
+                            {"iteration": iterations, "tool": fn_name, "args": fn_args, "error": err}
+                        )
+                        continue
+
+                    if fn_name == "load_skill":
+                        loaded = skill_res.load()
+                        loaded_skill_names.add(skill_name)
+                        skill_load_count += 1
+                        tool_output = loaded["content"]
+                        is_error = False
+                    else:  # read_skill_file -- does not count toward skill_load_count
+                        relative_path = fn_args.get("relative_path", "")
+                        try:
+                            tool_output = skill_res.read_file(relative_path)
+                            is_error = False
+                        except (ValueError, FileNotFoundError) as e:
+                            tool_output = str(e)
+                            is_error = True
+
+                    tool_results_content.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tu.id,
+                            "content": tool_output,
+                            "is_error": is_error,
+                        }
+                    )
+                    tool_call_details.append(
+                        {
+                            "iteration": iterations,
+                            "tool": fn_name,
+                            "args": fn_args,
+                            "result_preview": tool_output[:500],
+                            "is_error": is_error,
+                        }
+                    )
+                    continue
+
                 if fn_name not in tool_index:
                     err = f"tool {fn_name!r} not registered with any MCP server"
                     log.warning(err)
@@ -719,6 +888,8 @@ async def _run_agent(
             "stopped_reason": stopped_reason,
             "model": model,
             "mcp_servers": servers_used,
+            "loaded_skill_names": sorted(loaded_skill_names),
+            "skill_load_count": skill_load_count,
         }
 
 

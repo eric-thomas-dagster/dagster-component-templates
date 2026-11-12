@@ -59,6 +59,38 @@ mcp_servers:
       X-Tenant: acme
 ```
 
+## Agent Skills (`skill_keys`)
+
+A parallel, independent mechanism to `mcp_servers`, for Anthropic's Agent Skills convention
+(`SKILL.md` + optional bundled files). Register a skill once via `SkillResourceComponent`
+(`resources/skill_resource`), then reference its `resource_key` from `skill_keys`:
+
+```yaml
+skill_keys:
+  - pdf_report_skill
+```
+
+Each listed skill's name/description are resolved via `getattr(context.resources, key)` at the
+very start of the asset's execution — same runtime-resolution convention as `server_resource_key`
+above — and go straight into the system prompt up front (cheap, progressive disclosure, the same
+shape Claude Code's own `Skill` tool uses). The agent gets two extra tools, merged into the same
+tool list and dispatch loop the MCP tools go through:
+
+- **`load_skill`** — `{name}`. Fetches the skill's full `SKILL.md` body. Only called once the
+  model actually decides to use a skill — never inlined up front.
+- **`read_skill_file`** — `{name, relative_path}`. Reads one bundled file alongside a skill's
+  `SKILL.md`, by path relative to the skill's folder.
+
+When `skill_keys` is configured, the asset also gets `skills_available` (each skill's resolved
+`describe()`), `skills_loaded` (names actually loaded this run), and `skill_load_count` (every
+`load_skill` call, including repeats) metadata, plus a `dagster-community/skill` tag (the
+configured `skill_keys`, joined — Dagster's tag-value validation only allows
+alpha-numeric/`_`/`-`/`.`, so commas are swapped for `-`).
+
+A `skill_keys` entry that doesn't resolve to a real `SkillResource` fails loudly at the start of
+the run, naming the key — this is the earliest point this component's own code can check it,
+since Dagster only binds cross-component resources at run time.
+
 ## When to use vs `openai_agent` / `gemini_agent` / `litellm_agent`
 
 - **`anthropic_agent`** — Claude-only shop. `anthropic`+`mcp` deps only.
@@ -148,6 +180,7 @@ mcp_servers:
 | `prompt_caching` | `bool` | `false` | Anthropic prompt caching. When true, wraps the system prompt with `cache_control: {type: ephemeral}`. First call warms the cache (~25% surcharge on that call); subsequent calls within ~5 min read from cache (~90% cheaper… _(full docs in schema.json + component README)_ |
 | `max_iterations` | `int` | `10` | Max tool-call rounds. |
 | `mcp_servers` | `List[MCPServerSpec]` | `list()` | MCP servers to expose as tools. |
+| `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

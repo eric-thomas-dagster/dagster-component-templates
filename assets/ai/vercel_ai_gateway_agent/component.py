@@ -214,6 +214,10 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
         default_factory=list,
         description="MCP servers to expose as tools.",
     )
+    skill_keys: Optional[List[str]] = Field(
+        default=None,
+        description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
+    )
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -228,7 +232,7 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps', 'skill_keys'), csv=(), tags=('asset_tags',))
 
     @classmethod
     def get_form_config(cls):
@@ -241,11 +245,21 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
         _all_tags = dict(self.asset_tags or {})
         for k in _kinds:
             _all_tags[f"dagster/kind/{k}"] = ""
+        if _self.skill_keys:
+            # Dagster's strict tag-value validation only allows alpha-numeric/'_'/'-'/'.'
+            # (<=63 chars) -- a straight comma-joined multi-entry value would raise
+            # DagsterInvalidDefinitionError at build_defs time, so disallowed characters
+            # (including commas) are swapped for '-' here (',' isn't in the allowed set).
+            import re as _re_tag
+            _skill_tag_value = _re_tag.sub(r"[^A-Za-z0-9_.\-]", "-", ",".join(_self.skill_keys))[:63]
+            _all_tags.setdefault("dagster-community/skill", _skill_tag_value)
 
         # Union of every mcp_servers[].server_resource_key in use -- resolved once at
         # build_defs time (the YAML is static even though which path each entry takes
         # is only read at materialization time).
         _mcp_resource_keys = {s.server_resource_key for s in _self.mcp_servers if s.server_resource_key}
+        _skill_resource_keys = set(_self.skill_keys or [])
+        _required_resource_keys = _mcp_resource_keys | _skill_resource_keys
 
         @asset(
             key=AssetKey.from_user_string(_self.asset_name),
@@ -258,7 +272,7 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
             owners=_self.owners or [],
             tags=_all_tags,
             deps=[AssetKey.from_user_string(k) for k in (_self.deps or [])],
-            required_resource_keys=_mcp_resource_keys or None,
+            required_resource_keys=_required_resource_keys or None,
         )
         def _agent_asset(context: AssetExecutionContext) -> Dict[str, Any]:
             import asyncio
@@ -272,6 +286,28 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                 for s in _self.mcp_servers
             ]
 
+            # Resolve each configured skill_keys entry to its registered SkillResource,
+            # keyed by the skill's resolved NAME (what the model sees + what it passes
+            # to load_skill/read_skill_file) -- not the Dagster resource_key. This is the
+            # earliest point this component's own code can check that the key resolves to
+            # a real skill resource: Dagster only binds cross-component resources at run
+            # time, not at this component's own build_defs/parse time.
+            skill_resources: Dict[str, Any] = {}
+            for key in (_self.skill_keys or []):
+                try:
+                    res = getattr(context.resources, key)
+                except Exception as e:  # noqa: BLE001
+                    raise ValueError(
+                        f"skill_keys references {key!r} but no resource is registered under that key: {e}"
+                    ) from e
+                if not (hasattr(res, "describe") and hasattr(res, "load")):
+                    raise ValueError(
+                        f"skill_keys references {key!r}, but the resource registered under "
+                        f"that key is not a SkillResource (missing describe()/load())."
+                    )
+                info = res.describe()
+                skill_resources[info["name"]] = res
+
             substitutions = {"run_id": context.run_id}
             if context.has_partition_key:
                 pk = context.partition_key
@@ -283,6 +319,18 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                     substitutions["partition_keys"] = {}
             resolved_prompt = _substitute(_self.prompt, substitutions)
             resolved_system = _substitute(_self.system_prompt, substitutions) if _self.system_prompt else None
+
+            # Skills go into context up front as just name + description (cheap); the
+            # full SKILL.md body only loads if the model actually calls load_skill.
+            if skill_resources:
+                _skill_lines = "\n".join(
+                    f"- {name}: {res.describe()['description']}" for name, res in skill_resources.items()
+                )
+                _skill_listing = (
+                    "\n\nAvailable skills (call load_skill with the skill's name to load "
+                    f"its full instructions before using it):\n{_skill_lines}"
+                )
+                resolved_system = (resolved_system or "") + _skill_listing
 
             models_to_try = [_self.model_id] + list(_self.fallback_models or [])
             last_error: Optional[Exception] = None
@@ -303,6 +351,7 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                             reasoning_effort=_self.reasoning_effort,
                             thinking_budget=_self.thinking_budget,
                             prompt_caching=_self.prompt_caching,
+                            skill_resources=skill_resources,
                         )
                     )
                     result["model_used"] = m
@@ -339,6 +388,12 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                 md["tool_calls"] = MetadataValue.json(result["tool_call_details"])
             if len(models_to_try) > 1:
                 md["fallback_chain"] = MetadataValue.json(models_to_try)
+            if _self.skill_keys:
+                md["skills_available"] = MetadataValue.json(
+                    [res.describe() for res in skill_resources.values()]
+                )
+                md["skills_loaded"] = MetadataValue.json(sorted(result.get("loaded_skill_names") or []))
+                md["skill_load_count"] = MetadataValue.int(result.get("skill_load_count") or 0)
             context.add_output_metadata(md)
             return result
 
@@ -447,6 +502,7 @@ async def _run_agent(
     reasoning_effort: Optional[str] = None,
     thinking_budget: Optional[int] = None,
     prompt_caching: bool = False,
+    skill_resources: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     import os
     import json
@@ -494,6 +550,52 @@ async def _run_agent(
 
     async with AsyncExitStack() as stack:
         tool_index, openai_tools, servers_used = await _connect_mcp(stack, log, mcp_servers)
+
+        loaded_skill_names: set = set()
+        skill_load_count = 0
+        if skill_resources:
+            openai_tools.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "load_skill",
+                        "description": "Load the full SKILL.md instructions for a skill, by its name, before using it. Only call this once you've decided a skill is actually relevant.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "description": "The skill's name, exactly as shown in the available-skills listing.",
+                                }
+                            },
+                            "required": ["name"],
+                        },
+                    },
+                }
+            )
+            openai_tools.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "read_skill_file",
+                        "description": "Read one bundled file from a skill's folder, by path relative to that folder (see the `files` list returned by load_skill).",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "description": "The skill's name, exactly as shown in the available-skills listing.",
+                                },
+                                "relative_path": {
+                                    "type": "string",
+                                    "description": "Path to the file, relative to the skill's folder.",
+                                },
+                            },
+                            "required": ["name", "relative_path"],
+                        },
+                    },
+                }
+            )
 
         messages: List[Dict[str, Any]] = []
         if system_prompt:
@@ -565,6 +667,53 @@ async def _run_agent(
                 except json.JSONDecodeError:
                     fn_args = {}
 
+                if fn_name == "load_skill":
+                    skill_name = fn_args.get("name")
+                    skill_res = (skill_resources or {}).get(skill_name)
+                    if skill_res is None:
+                        err = f"load_skill: no skill named {skill_name!r} is available"
+                        log.warning(err)
+                        tool_output, is_error = f"Error: {err}", True
+                    else:
+                        loaded = skill_res.load()
+                        tool_output, is_error = loaded["content"], False
+                        loaded_skill_names.add(skill_name)
+                        skill_load_count += 1
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": tool_output,
+                    })
+                    tool_call_details.append({
+                        "iteration": iterations, "tool": fn_name, "args": fn_args,
+                        "result_preview": tool_output[:500], "is_error": is_error,
+                    })
+                    continue
+
+                if fn_name == "read_skill_file":
+                    skill_name = fn_args.get("name")
+                    relative_path = fn_args.get("relative_path")
+                    skill_res = (skill_resources or {}).get(skill_name)
+                    if skill_res is None:
+                        err = f"read_skill_file: no skill named {skill_name!r} is available"
+                        log.warning(err)
+                        tool_output, is_error = f"Error: {err}", True
+                    else:
+                        try:
+                            tool_output, is_error = skill_res.read_file(relative_path), False
+                        except (ValueError, FileNotFoundError) as e:
+                            tool_output, is_error = f"Error: {e}", True
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": tool_output,
+                    })
+                    tool_call_details.append({
+                        "iteration": iterations, "tool": fn_name, "args": fn_args,
+                        "result_preview": tool_output[:500], "is_error": is_error,
+                    })
+                    continue
+
                 if fn_name not in tool_index:
                     err = f"tool {fn_name!r} not registered with any MCP server"
                     log.warning(err)
@@ -611,6 +760,8 @@ async def _run_agent(
             "stopped_reason": stopped_reason,
             "model": model,
             "mcp_servers": servers_used,
+            "loaded_skill_names": sorted(loaded_skill_names),
+            "skill_load_count": skill_load_count,
         }
 
 

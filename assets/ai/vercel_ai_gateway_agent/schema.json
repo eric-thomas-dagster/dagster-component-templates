@@ -165,6 +165,15 @@
       "label": "Prompt Caching",
       "description": "Anthropic prompt caching. When true AND the model prefix is 'anthropic/', wraps the system prompt with `cache_control: {type: ephemeral}` so subsequent calls within ~5 min hit the cache. Ignored for non-Anthropic models. Vercel forwards the block through to Anthropic.",
       "required": false
+    },
+    "skill_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Skill Keys",
+      "description": "SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
+      "required": false
     }
   }
 }

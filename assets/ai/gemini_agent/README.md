@@ -66,6 +66,45 @@ mcp_servers:
       Authorization: DAGSTER_PLUS_BEARER
 ```
 
+## Skills (`skill_keys`)
+
+Alongside MCP servers, this agent can also be given **skills** — Anthropic's Agent
+Skills format (a `SKILL.md` with YAML front matter + markdown body, optionally with
+bundled reference files), registered once via `resources/skill_resource`'s
+`SkillResourceComponent` and referenced here by `resource_key`:
+
+```yaml
+skill_keys:
+  - pdf_report_skill
+```
+
+Each listed skill's `name`/`description` are injected into the agent's system prompt up
+front (cheap, no I/O) so the model knows what's available on turn 1. The full `SKILL.md`
+body is only fetched if the model actually decides to use a skill — the same
+progressive-disclosure shape Claude Code's own Skill tool uses, not inlined into every
+prompt. Two tools are added to the **same** function-declaration list the MCP tools go
+through, so the model can interleave calls to either on any turn:
+
+- **`load_skill(name)`** — loads a configured skill's full `SKILL.md` content by its
+  display name (the name shown in the listing, not the Dagster `resource_key`).
+- **`read_skill_file(name, relative_path)`** — reads one bundled file from a skill's
+  folder by a path relative to it.
+
+A `skill_keys` entry that doesn't resolve to a registered resource (or resolves to a
+resource that isn't a `SkillResource`) raises immediately, naming the key — Dagster only
+binds cross-component resources at run time, so this is the earliest point this
+component's own code can check it.
+
+Output metadata adds, only when `skill_keys` is configured:
+
+- `skills_available` — each configured skill's `describe()` (key/name/description).
+- `skills_loaded` — the display names actually loaded via `load_skill` this run.
+- `skill_load_count` — how many times `load_skill` was called (repeat loads of the same
+  skill count too; `read_skill_file` calls don't).
+
+The asset is also tagged `dagster-community/skill` with the configured `skill_keys`
+(sanitized to Dagster's strict tag-value charset).
+
 ## When to use vs `openai_agent` / `anthropic_agent` / `litellm_agent`
 
 - **`gemini_agent`** — Gemini-only. `google-genai`+`mcp` deps only. Cheapest tier (gemini-2.5-flash) has a generous free quota.
@@ -154,6 +193,7 @@ mcp_servers:
 | `reasoning_effort` | `str` | — | Gemini 2.5+ reasoning effort: 'low' \| 'medium' \| 'high'. Applied via the underlying `thinking_config.include_thoughts` + implicit budget scaling on models that support it. Prefer explicit `thinking_budget` for fine-gra… _(full docs in schema.json + component README)_ |
 | `max_iterations` | `int` | `10` | Max tool-call rounds. |
 | `mcp_servers` | `List[MCPServerSpec]` | `list()` | MCP servers to expose as tools. |
+| `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

@@ -2562,6 +2562,36 @@ def _collect_mcp_server_resource_keys(steps: List[Dict[str, Any]]) -> "set[str]"
     return keys
 
 
+def _collect_skill_resource_keys(steps: List[Dict[str, Any]]) -> "set[str]":
+    """Static union of every `skill_keys` entry on a `tool_use_loop` step, across `steps`
+    AND any `sub_pipeline` step's nested `steps:` (recursively -- a sub_pipeline can nest
+    another sub_pipeline). Mirrors `_collect_mcp_server_resource_keys` exactly, for skills
+    instead of MCP servers. Used both to set `required_resource_keys` on the asset(s) that
+    execute these steps, and to stamp the `dagster-community/skill` tag.
+
+    Only `tool_use_loop` steps carry `skill_keys` -- `mcp_call` is a single non-looping
+    call, so there is no turn-by-turn "choose a skill" moment for it to apply to.
+    """
+    keys: "set[str]" = set()
+    for step in steps or []:
+        if step.get("op") == "tool_use_loop":
+            for key in (step.get("skill_keys") or []):
+                if isinstance(key, str):
+                    keys.add(key)
+        if step.get("op") == "sub_pipeline":
+            keys |= _collect_skill_resource_keys(step.get("steps") or [])
+    return keys
+
+
+def _safe_tag_value(value: str) -> str:
+    """Dagster's tag-value validation only allows alphanumerics + '_'/'-'/'.', <=63 chars --
+    a raw comma-joined list of skill_keys would otherwise crash build_defs with
+    DagsterInvalidDefinitionError as soon as 2+ keys are configured (',' isn't allowed)."""
+    v = re.sub(r"[^A-Za-z0-9_.\-]", "-", str(value))
+    v = re.sub(r"-+", "-", v).strip("-")[:63]
+    return v or "-"
+
+
 def _validate_tool_args_against_schema(
     tool_args: Dict[str, Any], schema: Optional[Dict[str, Any]], tool_name: str
 ) -> None:
@@ -3224,6 +3254,31 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         for s in mcp_servers
     ]
 
+    # skill_keys — each key must resolve to a registered SkillResource (see
+    # resources/skill_resource). name/description are cheap (no I/O) and go
+    # straight into the system prompt; the full SKILL.md body is only
+    # fetched if/when the model actually calls `load_skill`.
+    skill_resources: Dict[str, Any] = {}  # name -> resource object
+    for key in step.get("skill_keys") or []:
+        try:
+            res = getattr(context.resources, key)
+        except Exception as e:
+            raise ValueError(f"skill_keys references {key!r} but no resource is registered under that key: {e}") from e
+        if not (hasattr(res, "describe") and hasattr(res, "load")):
+            raise ValueError(f"skill_keys references {key!r}, but the resource registered under that key is not a SkillResource (missing describe()/load()).")
+        info = res.describe()
+        skill_resources[info["name"]] = res
+
+    if skill_resources:
+        skills_block = "\n".join(
+            f"- {res.describe()['name']}: {res.describe()['description']}"
+            for res in skill_resources.values()
+        )
+        system_prompt = system_prompt + (
+            "\n\nAvailable skills (call load_skill with the skill's name to load its full "
+            f"instructions before using it):\n{skills_block}"
+        )
+
     context.log.info(
         f"[tool_use_loop:{step.get('id', '?')}] discovering tools across "
         f"{len(mcp_servers)} MCP server(s)…"
@@ -3246,6 +3301,40 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             },
         },
     })
+    # Synthetic skill tools — only offered when skill_keys resolved at least
+    # one SkillResource. `load_skill` fetches the full SKILL.md body (only
+    # once the model actually chooses the skill — progressive disclosure,
+    # never inlined up front); `read_skill_file` reads one bundled file.
+    if skill_resources:
+        tool_schemas.append({
+            "type": "function",
+            "function": {
+                "name": "load_skill",
+                "description": "Load the full instructions for an available skill by name, before using it.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "The skill's name, as listed in the system prompt."}
+                    },
+                    "required": ["name"],
+                },
+            },
+        })
+        tool_schemas.append({
+            "type": "function",
+            "function": {
+                "name": "read_skill_file",
+                "description": "Read one file bundled alongside a skill, by its path relative to the skill's folder.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "The skill's name."},
+                        "relative_path": {"type": "string", "description": "Path to the bundled file, relative to the skill folder."},
+                    },
+                    "required": ["name", "relative_path"],
+                },
+            },
+        })
     # Index tools by their namespaced name for O(1) lookup during the loop.
     tool_index = {f"{t['server']}__{t['name']}": t for t in mcp_tools}
     if allowed:
@@ -3257,7 +3346,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         tool_index = {k: v for k, v in tool_index.items() if _p.tool_visible(k, v["name"])}
         tool_schemas = [
             t for t in tool_schemas
-            if t["function"]["name"] == finalize_name or t["function"]["name"] in tool_index
+            if t["function"]["name"] in (finalize_name, "load_skill", "read_skill_file") or t["function"]["name"] in tool_index
         ]
 
     context.log.info(
@@ -3304,6 +3393,8 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     n_tool_calls = 0
     final_answer: Optional[str] = None
     stop_reason = "max_iterations"
+    loaded_skill_names: "set[str]" = set()
+    skill_load_count = 0
 
     for iteration in range(1, max_iterations + 1):
         kwargs: Dict[str, Any] = {
@@ -3431,6 +3522,83 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                 )
                 break
 
+            # load_skill → fetch the full SKILL.md body for a resolved skill
+            # (progressive disclosure: only fetched once the model actually
+            # chooses it). Not an MCP tool, so handled before tool_index routing.
+            if tool_name == "load_skill":
+                skill_name = tool_args.get("name")
+                res = skill_resources.get(skill_name)
+                if res is None:
+                    error_msg = f"unknown skill: {skill_name!r}; available: {sorted(skill_resources.keys())}"
+                    messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"ERROR: {error_msg}"})
+                    trajectory.append({
+                        "iteration": iteration, "phase": "tool_call_error",
+                        "tool_name": tool_name, "tool_args": tool_args, "error": error_msg,
+                    })
+                    n_tool_calls += 1
+                    continue
+                loaded = res.load()
+                content = loaded.get("content", "")
+                loaded_skill_names.add(skill_name)
+                skill_load_count += 1
+                n_tool_calls += 1
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})
+                trajectory.append({
+                    "iteration": iteration,
+                    "phase": "tool_call",
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "tool_result_preview": content[:600],
+                    "tool_result_chars": len(content),
+                })
+                context.log.info(f"[tool_use_loop iter={iteration}] load_skill({skill_name!r}) → {len(content)} chars")
+                continue
+
+            # read_skill_file → read one bundled file by path, relative to a
+            # resolved skill's folder. Does NOT count toward skill_load_count.
+            if tool_name == "read_skill_file":
+                skill_name = tool_args.get("name")
+                relative_path = tool_args.get("relative_path")
+                res = skill_resources.get(skill_name)
+                error_msg = None
+                if res is None:
+                    error_msg = f"unknown skill: {skill_name!r}; available: {sorted(skill_resources.keys())}"
+                elif not relative_path:
+                    error_msg = "read_skill_file requires `relative_path`"
+                if error_msg is not None:
+                    messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"ERROR: {error_msg}"})
+                    trajectory.append({
+                        "iteration": iteration, "phase": "tool_call_error",
+                        "tool_name": tool_name, "tool_args": tool_args, "error": error_msg,
+                    })
+                    n_tool_calls += 1
+                    continue
+                try:
+                    content = res.read_file(relative_path)
+                except (ValueError, FileNotFoundError) as e:
+                    error_msg = str(e)
+                    messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"ERROR: {error_msg}"})
+                    trajectory.append({
+                        "iteration": iteration, "phase": "tool_call_error",
+                        "tool_name": tool_name, "tool_args": tool_args, "error": error_msg,
+                    })
+                    n_tool_calls += 1
+                    continue
+                n_tool_calls += 1
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})
+                trajectory.append({
+                    "iteration": iteration,
+                    "phase": "tool_call",
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "tool_result_preview": content[:600],
+                    "tool_result_chars": len(content),
+                })
+                context.log.info(
+                    f"[tool_use_loop iter={iteration}] read_skill_file({skill_name!r}, {relative_path!r}) → {len(content)} chars"
+                )
+                continue
+
             # Real MCP tool → route to correct server + call.
             tool_meta = tool_index.get(tool_name)
             if tool_meta is None:
@@ -3551,7 +3719,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
 
     total_latency_ms = total_llm_latency_ms + total_tool_latency_ms
 
-    return {
+    result = {
         "text": final_answer,
         "op": "tool_use_loop",
         "model": model,
@@ -3571,6 +3739,13 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         "tools_available": sorted(tool_index.keys()),
         "materialized_at": materialized_at,
     }
+    # Only surfaced when skill_keys was actually configured for this step --
+    # an unconfigured step emits none of these three keys at all.
+    if skill_resources:
+        result["skills_available"] = [res.describe() for res in skill_resources.values()]
+        result["skills_loaded"] = sorted(loaded_skill_names)
+        result["skill_load_count"] = skill_load_count
+    return result
 
 
 # ── Op dispatcher ────────────────────────────────────────────────────
@@ -5421,7 +5596,8 @@ _PLAN_JSON_HINT = (
 )
 
 
-_JSON_META_KEYS = {"candidates", "escalations", "plan", "steps", "scores", "rationales", "unsupported_claims", "issues", "evidence"}
+_JSON_META_KEYS = {"candidates", "escalations", "plan", "steps", "scores", "rationales", "unsupported_claims", "issues", "evidence",
+                   "skills_available", "skills_loaded"}
 
 
 def _code_version(obj: Any) -> str:
@@ -7036,6 +7212,8 @@ def _build_step_metadata(
         md[f"{aid}__tokens_total"] = dg.MetadataValue.int(int(entry["tokens_total"]))
     if entry.get("n_llm_calls") is not None:
         md[f"{aid}__n_llm_calls"] = dg.MetadataValue.int(int(entry["n_llm_calls"]))
+    if entry.get("skill_load_count") is not None:
+        md[f"{aid}__skill_load_count"] = dg.MetadataValue.int(int(entry["skill_load_count"]))
     if entry.get("model_fingerprint"):
         md[f"{aid}__model_fingerprint"] = dg.MetadataValue.text(str(entry["model_fingerprint"]))
     if entry.get("materialized_at"):
@@ -7051,7 +7229,7 @@ def _build_step_metadata(
         md[f"{aid}__partition_key"] = dg.MetadataValue.text(str(partition_key))
     for k, v in entry.items():
         if k in ("text", "cost_usd", "latency_ms", "tokens_total",
-                 "n_llm_calls", "model_fingerprint", "materialized_at", "op"):
+                 "n_llm_calls", "skill_load_count", "model_fingerprint", "materialized_at", "op"):
             continue
         if k == "usage" and v is not None:
             md[f"{aid}__usage"] = dg.MetadataValue.json(v)
@@ -8184,6 +8362,9 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         group_name = self.group_name or "agents"
         base_kinds = list(self.kinds or ["llm", "agent"])
         base_tags = dict(self.tags or {})
+        _skill_keys_in_use = _collect_skill_resource_keys(steps)
+        if _skill_keys_in_use:
+            base_tags.setdefault("dagster-community/skill", _safe_tag_value(",".join(sorted(_skill_keys_in_use))))
 
         # Map step id → op so we can add the op name to that asset's kinds.
         # Router → kinds: [..., 'router'] etc. Lets users filter the asset
@@ -8335,6 +8516,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             _asset_checks.append(_build_pending_approvals_check(dg.AssetKey([_receipt_asset]), prefix, _park_dirs(steps), float(self.park_warn_after_hours)))
         _required_keys = {_receipts_cfg["resource_key"]} if _receipts_cfg else set()
         _required_keys |= _collect_mcp_server_resource_keys(steps)
+        _required_keys |= _collect_skill_resource_keys(steps)
 
         # ── Branch: per_step_ops selects the emitted shape ────────────
         # (True → graph_multi_asset with N+2 ops; False → single multi_asset)
@@ -8579,6 +8761,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         md[f"{aid}__tokens_total"] = dg.MetadataValue.int(int(entry["tokens_total"]))
                     if entry.get("n_llm_calls") is not None:
                         md[f"{aid}__n_llm_calls"] = dg.MetadataValue.int(int(entry["n_llm_calls"]))
+                    if entry.get("skill_load_count") is not None:
+                        md[f"{aid}__skill_load_count"] = dg.MetadataValue.int(int(entry["skill_load_count"]))
                     if entry.get("model_fingerprint"):
                         md[f"{aid}__model_fingerprint"] = dg.MetadataValue.text(str(entry["model_fingerprint"]))
                     if entry.get("materialized_at"):
@@ -8600,7 +8784,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     # Op-specific rich fields (JSON blobs the UI renders inline).
                     for k, v in entry.items():
                         if k in ("text", "cost_usd", "latency_ms", "tokens_total",
-                                 "n_llm_calls", "model_fingerprint",
+                                 "n_llm_calls", "skill_load_count", "model_fingerprint",
                                  "materialized_at", "op"):
                             continue
                         if k == "usage" and v is not None:

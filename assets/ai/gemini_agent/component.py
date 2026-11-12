@@ -163,6 +163,10 @@ class GeminiAgentComponent(Component, Model, Resolvable):
     )
     max_iterations: int = Field(default=10, ge=1, le=100, description="Max tool-call rounds.")
     mcp_servers: List[MCPServerSpec] = Field(default_factory=list, description="MCP servers to expose as tools.")
+    skill_keys: Optional[List[str]] = Field(
+        default=None,
+        description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -216,7 +220,7 @@ class GeminiAgentComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps', 'skill_keys'), csv=('partition_values',), tags=('asset_tags',))
 
     @classmethod
     def get_form_config(cls):
@@ -235,6 +239,7 @@ class GeminiAgentComponent(Component, Model, Resolvable):
         reasoning_effort = self.reasoning_effort
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
+        skill_keys = self.skill_keys
         group_name = self.group_name
         description = self.description
         owners = self.owners or []
@@ -250,6 +255,14 @@ class GeminiAgentComponent(Component, Model, Resolvable):
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
+        if self.skill_keys:
+            # Dagster tag values are strict: alnum/_/-/. only, <=63 chars -- a raw
+            # comma-joined list fails validation once there's more than one skill_key
+            # (commas aren't allowed), so sanitize + truncate the same way this repo's
+            # other tag-from-list call sites do (see data_contract._sanitize_tag_value).
+            import re as _re
+            _skill_tag_value = _re.sub(r"[^A-Za-z0-9_.\-]", "-", ",".join(self.skill_keys))[:63]
+            _all_tags.setdefault("dagster-community/skill", _skill_tag_value)
 
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
@@ -275,6 +288,8 @@ class GeminiAgentComponent(Component, Model, Resolvable):
         # build_defs time (the YAML is static even though which path each entry takes
         # is only read at materialization time).
         _mcp_resource_keys = {s.server_resource_key for s in mcp_servers if s.server_resource_key}
+        _skill_resource_keys = set(skill_keys or [])
+        _required_resource_keys = _mcp_resource_keys | _skill_resource_keys
 
         @asset(
             key=AssetKey.from_user_string(asset_name),
@@ -286,7 +301,7 @@ class GeminiAgentComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-            required_resource_keys=_mcp_resource_keys or None,
+            required_resource_keys=_required_resource_keys or None,
         )
         def _agent_asset(context: AssetExecutionContext) -> Dict[str, Any]:
             import asyncio
@@ -299,6 +314,28 @@ class GeminiAgentComponent(Component, Model, Resolvable):
                 else s.model_dump()
                 for s in mcp_servers
             ]
+
+            # Resolve each configured skill_keys entry to its registered SkillResource,
+            # keyed by the skill's resolved NAME (what the model sees + what it passes
+            # to load_skill/read_skill_file) -- not the Dagster resource_key. This is the
+            # earliest point this component's own code can check that the key resolves to
+            # a real skill resource: Dagster only binds cross-component resources at run
+            # time, not at this component's own build_defs/parse time.
+            skill_resources: Dict[str, Any] = {}
+            for key in (skill_keys or []):
+                try:
+                    res = getattr(context.resources, key)
+                except Exception as e:  # noqa: BLE001
+                    raise ValueError(
+                        f"skill_keys references {key!r} but no resource is registered under that key: {e}"
+                    ) from e
+                if not (hasattr(res, "describe") and hasattr(res, "load")):
+                    raise ValueError(
+                        f"skill_keys references {key!r}, but the resource registered under "
+                        f"that key is not a SkillResource (missing describe()/load())."
+                    )
+                info = res.describe()
+                skill_resources[info["name"]] = res
 
             substitutions = {"run_id": context.run_id}
             if context.has_partition_key:
@@ -325,6 +362,7 @@ class GeminiAgentComponent(Component, Model, Resolvable):
                     reasoning_effort=reasoning_effort,
                     max_iterations=max_iterations,
                     mcp_servers=resolved_mcp_servers,
+                    skill_resources=skill_resources,
                 )
             )
 
@@ -337,6 +375,10 @@ class GeminiAgentComponent(Component, Model, Resolvable):
             }
             if result["tool_call_details"]:
                 md["tool_calls"] = MetadataValue.json(result["tool_call_details"])
+            if skill_keys:
+                md["skills_available"] = MetadataValue.json([res.describe() for res in skill_resources.values()])
+                md["skills_loaded"] = MetadataValue.json(result["skills_loaded"])
+                md["skill_load_count"] = MetadataValue.int(result["skill_load_count"])
             context.add_output_metadata(md)
             return result
 
@@ -567,6 +609,7 @@ async def _run_agent(
     max_iterations: int,
     mcp_servers: List[Dict[str, Any]],
     reasoning_effort: Optional[str] = None,
+    skill_resources: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     import os
     from contextlib import AsyncExitStack
@@ -583,7 +626,60 @@ async def _run_agent(
     client = genai.Client(api_key=api_key)
 
     async with AsyncExitStack() as stack:
-        tool_index, gemini_tools, servers_used = await _connect_mcp(stack, log, mcp_servers)
+        tool_index, mcp_tools, servers_used = await _connect_mcp(stack, log, mcp_servers)
+
+        # Skills: inject the name/description listing into the system prompt (cheap,
+        # up front) and add load_skill/read_skill_file as function declarations in the
+        # SAME tool list the MCP tools go through -- the model can interleave calls to
+        # either on any turn. The full SKILL.md body is only fetched (via load_skill)
+        # once the model actually chooses a skill -- never inlined up front.
+        loaded_skill_names: set = set()
+        skill_load_count = 0
+        skill_function_decls: List[Any] = []
+        if skill_resources:
+            skill_lines = "\n".join(
+                f"- {name}: {res.describe()['description']}" for name, res in skill_resources.items()
+            )
+            skills_block = (
+                "\n\nAvailable skills (call load_skill with the skill's name to load its "
+                f"full instructions before using it):\n{skill_lines}"
+            )
+            system_prompt = (system_prompt or "") + skills_block
+            skill_function_decls = [
+                gtypes.FunctionDeclaration(
+                    name="load_skill",
+                    description=(
+                        "Load the full SKILL.md instructions for a configured skill by its "
+                        "display name (as shown in the skills listing), before using it."
+                    ),
+                    parameters_json_schema={
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "The skill's display name."},
+                        },
+                        "required": ["name"],
+                    },
+                ),
+                gtypes.FunctionDeclaration(
+                    name="read_skill_file",
+                    description=(
+                        "Read one bundled file from a configured skill's folder, by its path "
+                        "relative to that folder."
+                    ),
+                    parameters_json_schema={
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "description": "The skill's display name."},
+                            "relative_path": {"type": "string", "description": "Path to the file, relative to the skill folder."},
+                        },
+                        "required": ["name", "relative_path"],
+                    },
+                ),
+            ]
+
+        function_decls: List[Any] = list(mcp_tools[0].function_declarations) if mcp_tools else []
+        function_decls.extend(skill_function_decls)
+        gemini_tools = [gtypes.Tool(function_declarations=function_decls)] if function_decls else []
 
         # Build the running `contents` list.
         contents: List[Any] = [
@@ -653,6 +749,85 @@ async def _run_agent(
                 fn_name = fc.name
                 fn_args = dict(fc.args or {})
 
+                if fn_name == "load_skill":
+                    skill_name = fn_args.get("name")
+                    res = (skill_resources or {}).get(skill_name)
+                    if res is None:
+                        err = (
+                            f"load_skill: no skill named {skill_name!r} is configured "
+                            f"(available: {sorted((skill_resources or {}).keys())})"
+                        )
+                        log.warning(err)
+                        response_parts.append(
+                            gtypes.Part.from_function_response(name=fn_name, response={"error": err})
+                        )
+                        tool_call_details.append(
+                            {"iteration": iterations, "tool": fn_name, "args": fn_args, "error": err}
+                        )
+                        continue
+
+                    loaded = res.load()
+                    loaded_skill_names.add(skill_name)
+                    skill_load_count += 1
+                    tool_output = loaded["content"]
+                    log.info(f"[iter {iterations}] loaded skill {skill_name!r} ({len(loaded.get('files') or [])} bundled files)")
+                    response_parts.append(
+                        gtypes.Part.from_function_response(
+                            name=fn_name, response={"output": tool_output, "is_error": False}
+                        )
+                    )
+                    tool_call_details.append(
+                        {
+                            "iteration": iterations,
+                            "tool": fn_name,
+                            "args": fn_args,
+                            "result_preview": tool_output[:500],
+                            "is_error": False,
+                        }
+                    )
+                    continue
+
+                if fn_name == "read_skill_file":
+                    skill_name = fn_args.get("name")
+                    relative_path = fn_args.get("relative_path")
+                    res = (skill_resources or {}).get(skill_name)
+                    if res is None:
+                        err = (
+                            f"read_skill_file: no skill named {skill_name!r} is configured "
+                            f"(available: {sorted((skill_resources or {}).keys())})"
+                        )
+                        log.warning(err)
+                        response_parts.append(
+                            gtypes.Part.from_function_response(name=fn_name, response={"error": err})
+                        )
+                        tool_call_details.append(
+                            {"iteration": iterations, "tool": fn_name, "args": fn_args, "error": err}
+                        )
+                        continue
+
+                    try:
+                        tool_output = res.read_file(relative_path)
+                        is_error = False
+                    except (ValueError, FileNotFoundError) as e:
+                        tool_output = str(e)
+                        is_error = True
+                        log.warning(f"read_skill_file({skill_name!r}, {relative_path!r}) failed: {e}")
+                    response_parts.append(
+                        gtypes.Part.from_function_response(
+                            name=fn_name, response={"output": tool_output, "is_error": is_error}
+                        )
+                    )
+                    tool_call_details.append(
+                        {
+                            "iteration": iterations,
+                            "tool": fn_name,
+                            "args": fn_args,
+                            "result_preview": tool_output[:500],
+                            "is_error": is_error,
+                        }
+                    )
+                    continue
+
                 if fn_name not in tool_index:
                     err = f"tool {fn_name!r} not registered with any MCP server"
                     log.warning(err)
@@ -712,6 +887,8 @@ async def _run_agent(
             "stopped_reason": stopped_reason,
             "model": model,
             "mcp_servers": servers_used,
+            "skills_loaded": sorted(loaded_skill_names),
+            "skill_load_count": skill_load_count,
         }
 
 

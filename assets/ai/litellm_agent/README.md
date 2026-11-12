@@ -84,6 +84,34 @@ Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https
 
 ---
 
+## Skills (`skill_keys`)
+
+A PARALLEL mechanism to `mcp_servers`, for Agent Skills instead of MCP tools. Register a skill once with `SkillResourceComponent` (see `resources/skill_resource`), then reference it by `resource_key`:
+
+```yaml
+skill_keys:
+  - pdf_report_skill
+```
+
+Each listed skill's name/description is resolved (at materialization time, via `context.resources`) and appended to the system prompt up front — cheap, no I/O. Two tools are added to the same tool-calling loop MCP tools go through:
+
+- **`load_skill(name)`** — fetches the skill's full `SKILL.md` body. Only called once the model actually decides to use that skill (progressive disclosure, not inlining every skill's full instructions into every prompt).
+- **`read_skill_file(name, relative_path)`** — reads one bundled file alongside the skill (a reference doc, template, script, ...), by path relative to the skill's folder.
+
+A `skill_keys` entry that doesn't resolve to a registered resource (or resolves to something that isn't a `SkillResource`) raises immediately, naming the key — this is the earliest point this component's own code can check it, since Dagster only binds cross-component resources at run time.
+
+When `skill_keys` is configured, output metadata gains:
+
+| Field | Type | Description |
+|---|---|---|
+| `skills_available` | `json` | Each configured skill's `{key, name, description}`. |
+| `skills_loaded` | `json` | Names of skills whose `load_skill` was actually called this run. |
+| `skill_load_count` | `int` | Total `load_skill` calls made (every call counts, including repeat loads of the same skill — `read_skill_file` calls don't count toward this). |
+
+The asset is also tagged `dagster-community/skill` (comma-joined `skill_keys`, with any character outside Dagster's strict tag-value allowlist swapped for `-`).
+
+---
+
 ## When to use this vs. other components
 
 | Use case | Component |
@@ -172,6 +200,7 @@ Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https
 | `prompt_caching` | `bool` | `false` | Anthropic prompt caching. When true AND the model is Anthropic-family (claude / anthropic / bedrock/anthropic.), wraps the system prompt with `cache_control: {type: ephemeral}` so subsequent runs within ~5 min hit the ca… _(full docs in schema.json + component README)_ |
 | `max_iterations` | `int` | `10` | Max tool-call rounds before bailing. |
 | `mcp_servers` | `List[MCPServerSpec]` | `list()` | List of MCP servers to expose as tools. Empty list = no tools (chat-only). |
+| `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
 | `include_reasoning` | `bool` | `false` | Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the transcript and final_answer; when true it is also returned as a 'reasoning' key in the result dict (all itera… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 

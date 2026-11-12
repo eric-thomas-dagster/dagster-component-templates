@@ -696,6 +696,7 @@ The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach f
 | `model` | ✅ | — | LLM the agent runs on. |
 | `api_key_env_var` |  | — | Env var holding the model provider's key. |
 | `mcp_servers` | ✅ | — | List of MCP server configs (same shape as `mcp_call.server`). Tools from every server are auto-discovered (every `tools/list` page is followed) and namespaced `<server name>__<tool name>`; duplicate server names or colliding namespaced names are rejected up front. A stdio server is started fresh for each call (state in the server does not survive between calls). |
+| `skill_keys` |  | — | List of `resource_key`s, each a shared skill registered via `resources/skill_resource`'s `SkillResourceComponent` (see that component's README). Each key must resolve to a registered `SkillResource` — an unresolved key, or a resource that doesn't look like one (no `describe()`/`load()`), raises immediately, naming the offending key. |
 | `max_iterations` |  | `10` | Hard cap. Loop stops here regardless of finalize state. |
 | `system_prompt` |  | Sensible default | Agent instructions. Should include "call `finalize` when done." |
 | `prompt_template` |  | `{text}` | Initial user turn. Supports `{text}` + `{port_name}` + `{partition.<name>}` substitution. |
@@ -706,6 +707,37 @@ The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach f
 | `max_tokens` |  | `2048` | Per-call max completion tokens. |
 
 Emitted metadata includes `tool_call_trace`, `n_llm_calls`, `n_tool_calls`, `stop_reason` (`finalize_called` | `final_answer_no_tool` | `max_iterations`), plus per-turn latency + cost.
+
+#### `skill_keys` — Agent Skills (progressive disclosure)
+
+A step with `skill_keys` set gets two extra synthetic tools, `load_skill` and
+`read_skill_file`, alongside its MCP tools — same progressive-disclosure shape as Claude
+Code's own Skill tool: the model is told each skill's `name`/`description` up front (cheap,
+appended to the step's `system_prompt`), and only fetches a skill's full `SKILL.md` body
+when it actually decides to use it.
+
+- **`load_skill(name)`** — returns the full `SKILL.md` text for the named skill. Only
+  called once the model has chosen the skill, never inlined for every configured skill
+  up front.
+- **`read_skill_file(name, relative_path)`** — reads one file bundled alongside a skill
+  (references, templates, scripts), by path relative to the skill's own folder. A path
+  that escapes the folder, or a missing file, comes back as an `ERROR: …` tool result —
+  it never crashes the loop.
+- An unresolved `skill_keys` entry (no resource registered under that key, or a resource
+  that isn't a `SkillResource`) raises immediately at the start of the step, naming the
+  key — the same fail-loudly behavior as `mcp_servers`' `server_resource_key`.
+
+Emitted metadata additionally includes `skills_available` (each resolved skill's
+`describe()`), `skills_loaded` (names actually fetched via `load_skill`) and
+`skill_load_count` (every `load_skill` call counts, even a repeat of the same skill) —
+all three are only emitted when `skill_keys` was actually configured for that step. The
+pipeline's asset(s) are also tagged `dagster-community/skill` with the union of every
+`skill_keys` entry across every `tool_use_loop` step (including inside `sub_pipeline`
+steps), same as how `mcp_tool_call` stamps `dagster-community/mcp-server` rather than the
+registering resource component.
+
+See [`resources/skill_resource`](../../../resources/skill_resource/README.md) for how to
+register a skill (from a git repo or a local directory) and share it across components.
 
 ### `op: handoff`
 

@@ -130,6 +130,23 @@ def _fetch_spec(spec_url: Optional[str], spec_path: Optional[str]) -> dict:
 _HTTP_METHODS = ("get", "post", "put", "patch", "delete", "head", "options")
 
 
+def _resolve_server_base_url(spec_url: Optional[str], server_url: str) -> str:
+    """OpenAPI's servers[].url may be relative (e.g. '/api/v3', as the real Swagger
+    Petstore v3 spec uses) -- per the OpenAPI 3.x spec, a relative server URL is relative
+    to the location of the document that contains it. Resolving it against spec_url is
+    what turns it into a real, schemed, absolute base URL (e.g.
+    'https://petstore3.swagger.io/api/v3'); returning it unresolved left requests going
+    out with no scheme at all. Only works when the spec was fetched via spec_url -- a
+    relative servers[].url in a spec loaded from spec_path (no originating URL) can't be
+    resolved and is treated as unusable here, falling through to api_base_url_env_var."""
+    if server_url.startswith("http://") or server_url.startswith("https://"):
+        return server_url
+    if not spec_url:
+        return ""
+    from urllib.parse import urljoin
+    return urljoin(spec_url, server_url)
+
+
 def _extract_operations(spec: dict, operation_ids: Optional[List[str]]) -> List[Dict[str, Any]]:
     """Extract every operation (any HTTP method, not just GET -- openapi_ingestion's own
     `_extract_endpoints` only looks at GET since it's building a read-only data table;
@@ -139,8 +156,6 @@ def _extract_operations(spec: dict, operation_ids: Optional[List[str]]) -> List[
     allow = set(operation_ids) if operation_ids else None
     ops: List[Dict[str, Any]] = []
     paths = spec.get("paths", {}) or {}
-    servers = spec.get("servers", [{}])
-    base_path = servers[0].get("url", "") if servers else ""
 
     for path, path_item in paths.items():
         if not isinstance(path_item, dict):
@@ -159,7 +174,10 @@ def _extract_operations(spec: dict, operation_ids: Optional[List[str]]) -> List[
                 "operation_id": op_id,
                 "method": method.upper(),
                 "path": path,
-                "full_path": f"{base_path}{path}" if base_path and not path.startswith("http") else path,
+                # The server's base path (servers[].url) is resolved + applied exactly
+                # once, by the caller when building the request URL -- NOT embedded here
+                # too, which previously doubled it (e.g. '/api/v3/api/v3/pet/1').
+                "full_path": path,
                 "summary": op.get("summary", ""),
                 "tags": op.get("tags", []) or [],
                 # $ref parameters are not resolved -- a known, documented gap (see README),
@@ -368,6 +386,7 @@ class OpenApiMcpServerResource(dg.ConfigurableResource):
     `mode="assets"` never needs it installed."""
 
     spec: Dict[str, Any] = Field(description="Parsed OpenAPI spec dict.")
+    spec_url: Optional[str] = Field(default=None, description="The URL the spec was fetched from, if any -- used to resolve a relative servers[].url into an absolute base URL.")
     server_name: str = Field(default="OpenAPI Tool Server", description="Name for the built FastMCP server.")
     operation_ids: Optional[List[str]] = Field(default=None, description="Allow-list of operationIds; None means every operation in the spec.")
     api_base_url_env_var: str = Field(default="API_BASE_URL", description="Env var with the API base URL, used only when the spec has no servers[] entry.")
@@ -400,7 +419,8 @@ class OpenApiMcpServerResource(dg.ConfigurableResource):
             headers[self.auth_header] = f"{self.auth_prefix} {key}" if self.auth_prefix else key
 
         servers = self.spec.get("servers") or [{}]
-        base_url = servers[0].get("url", "") if servers else ""
+        _raw_server_url = servers[0].get("url", "") if servers else ""
+        base_url = _resolve_server_base_url(self.spec_url, _raw_server_url) if _raw_server_url else ""
         if not base_url:
             base_url = _require_env(self.api_base_url_env_var)
 
@@ -581,6 +601,7 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
     def _build_mcp_server_defs(self, spec: dict) -> Definitions:
         resource = OpenApiMcpServerResource(
             spec=spec,
+            spec_url=self.spec_url,
             server_name=self.server_name,
             operation_ids=self.operation_ids,
             api_base_url_env_var=self.api_base_url_env_var,
@@ -643,7 +664,8 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
         owners = self.owners or []
 
         servers = spec.get("servers") or [{}]
-        base_url_from_spec = servers[0].get("url", "") if servers else ""
+        _raw_server_url = servers[0].get("url", "") if servers else ""
+        base_url_from_spec = _resolve_server_base_url(self.spec_url, _raw_server_url) if _raw_server_url else ""
 
         partitions_def = _build_partitions_def(
             self.partition_type,

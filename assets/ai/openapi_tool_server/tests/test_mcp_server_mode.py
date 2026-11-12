@@ -9,7 +9,7 @@ import asyncio
 import dagster as dg
 import pytest
 
-from .conftest import SAMPLE_SPEC, load_component_module
+from .conftest import SAMPLE_SPEC, SAMPLE_SPEC_RELATIVE_SERVER, load_component_module
 
 fastmcp = pytest.importorskip("fastmcp")
 
@@ -77,6 +77,46 @@ def test_inspection_asset_materializes_with_tool_list_metadata(mod):
     assert md["tool_count"].value == 2
     assert set(md["tool_names"].data) == {"getPetById", "listPets"}
     assert md["operation_ids_allowlist"].data == ["getPetById", "listPets"]
+
+
+@pytest.mark.parametrize(
+    "spec_url,server_url,expected",
+    [
+        ("https://petstore3.swagger.io/api/v3/openapi.json", "/api/v3", "https://petstore3.swagger.io/api/v3"),
+        ("https://petstore3.swagger.io/api/v3/openapi.json", "https://other.example.com/v1", "https://other.example.com/v1"),
+        (None, "/api/v3", ""),
+    ],
+)
+def test_resolve_server_base_url(mod, spec_url, server_url, expected):
+    assert mod._resolve_server_base_url(spec_url, server_url) == expected
+
+
+def test_relative_server_url_resolved_in_built_client(mod, monkeypatch):
+    """Regression test for the same Petstore bug fixed in mode='assets': mode='mcp_server'
+    built its httpx client's base_url from the raw (possibly relative, schemeless)
+    servers[].url too -- now resolved against spec_url first."""
+    captured = {}
+    try:
+        import httpx2 as _httpx  # component tries this first -- patch whichever it'll actually use
+    except ImportError:
+        import httpx as _httpx
+
+    real_async_client = _httpx.AsyncClient
+
+    class _CapturingAsyncClient(real_async_client):
+        def __init__(self, *args, **kwargs):
+            captured["base_url"] = str(kwargs.get("base_url"))
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(_httpx, "AsyncClient", _CapturingAsyncClient)
+
+    resource = mod.OpenApiMcpServerResource(
+        spec=SAMPLE_SPEC_RELATIVE_SERVER,
+        spec_url="https://petstore3.swagger.io/api/v3/openapi.json",
+        server_name="Test",
+    )
+    resource.build_server()
+    assert captured["base_url"] == "https://petstore3.swagger.io/api/v3"
 
 
 def test_fastmcp_missing_raises_actionable_error(mod, monkeypatch):

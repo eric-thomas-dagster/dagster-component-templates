@@ -41,3 +41,21 @@ SAMPLE_SPEC = {
         },
     },
 }
+
+# Same shape as the real Swagger Petstore v3 spec (https://petstore3.swagger.io/api/v3/openapi.json)
+# -- servers[].url is relative ('/api/v3'), resolved against the host that served the spec.
+SAMPLE_SPEC_RELATIVE_SERVER = {
+    "openapi": "3.0.0",
+    "info": {"title": "Sample Pet API", "version": "1.0"},
+    "servers": [{"url": "/api/v3"}],
+    "paths": {
+        "/pet/{id}": {
+            "get": {
+                "operationId": "getPetById",
+                "summary": "Get a pet by id",
+                "parameters": [{"name": "id", "in": "path", "required": True, "schema": {"type": "string"}}],
+                "responses": {"200": {"description": "ok"}},
+            },
+        },
+    },
+}

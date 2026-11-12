@@ -123,6 +123,7 @@ Every operation asset emits this metadata on each materialization, the same disc
 - **Required path/query params aren't validated.** If an operation declares a required `in: path` parameter and `operation_args` doesn't supply it, the call is made with the literal `{paramName}` segment still in the URL (which a real API will reject, loudly — not a silent wrong-data bug, just an unvalidated one).
 - **`$ref`-indirected parameters aren't resolved.** An operation whose parameters are declared via `$ref` (rather than inline) has those entries skipped during extraction; any arg you pass for them is sent as a request body field instead of being placed in path/query/header.
 - **`mode="assets"` fetches the spec at every `build_defs` call** (no state caching). `openapi_ingestion` uses `StateBackedComponent` to avoid re-fetching a large spec on every code-server reload; this component doesn't (yet) — a large remote spec means a slower reload. Worth adopting the same caching if this becomes a problem in practice.
+- **A relative `servers[].url` only resolves when the spec was fetched via `spec_url`** (not `spec_path`). The real Swagger Petstore v3 spec is relative (`servers: [{url: "/api/v3"}]`, resolved against the host that served it) — this is now resolved correctly against `spec_url` in both modes; a spec loaded from `spec_path` with a relative `servers[].url` and no `spec_url` can't be resolved the same way and falls through to `api_base_url_env_var`.
 
 ---
 

@@ -4,7 +4,7 @@ templating, partition handling, and dg.materialize() are all real."""
 import dagster as dg
 import pytest
 
-from .conftest import SAMPLE_SPEC, load_component_module
+from .conftest import SAMPLE_SPEC, SAMPLE_SPEC_RELATIVE_SERVER, load_component_module
 
 
 @pytest.fixture()
@@ -149,6 +149,22 @@ def test_args_templating_with_partition_key(mod, calls):
     assert r.success
     call = next(c for c in calls if "/pets/2024-01-03" in c["url"])
     assert call is not None
+
+
+def test_relative_server_url_resolved_against_spec_url_not_doubled(mod, calls, monkeypatch):
+    """Regression test for a real bug: Petstore's servers[].url is relative ('/api/v3'),
+    resolved against the host that served the spec -- not concatenated a second time on
+    top of the operation path (which already produced '/api/v3/api/v3/pet/1' with no
+    scheme at all)."""
+    monkeypatch.setattr(mod, "_fetch_spec", lambda *a, **k: SAMPLE_SPEC_RELATIVE_SERVER)
+    component = mod.OpenApiToolServerComponent(
+        spec_url="https://petstore3.swagger.io/api/v3/openapi.json",
+        operation_ids=["getPetById"],
+        operation_args={"getPetById": {"id": "1"}},
+    )
+    _run(component)
+    assert len(calls) == 1
+    assert calls[0]["url"] == "https://petstore3.swagger.io/api/v3/pet/1"
 
 
 def test_auth_header_applied(mod, calls, monkeypatch):

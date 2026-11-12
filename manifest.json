@@ -59692,15 +59692,15 @@
       "id": "skill_resource",
       "name": "skill_resource",
       "category": "resource",
-      "description": "Register a skill (Anthropic Agent Skills format: a SKILL.md file with YAML front matter + markdown body) once, referenced by name (skill_keys) from the MCP-aware agent components instead of repeating the same source fields inline in every one of them.",
+      "description": "Register a skill (Anthropic Agent Skills format: a SKILL.md file with YAML front matter + markdown body) once, referenced by name (skill_keys) from the MCP-aware agent components instead of repeating the same source fields inline in every one of them. mode='collection' registers every skill in a repo/directory at once (e.g. all of anthropics/skills).",
       "path": "resources/skill_resource",
       "tags": [],
       "icon": "BookOpen",
       "component_type": "dagster_community_components.SkillResourceComponent",
       "agent_hints": {
-        "inputs": "None -- declares a skill's source (git repo + path + ref, or a local directory).",
-        "outputs": "A Dagster resource (SkillResource) other components reference via skill_keys.",
-        "side_effects": "None at build time beyond resolving name/description from SKILL.md front matter (a git clone or local file read) -- the full skill body is only fetched when a consuming agent actually loads it."
+        "inputs": "None -- declares a skill's source (git repo + path + ref, a local directory, or a download URL), or mode='collection' for a directory of many skills at once.",
+        "outputs": "One Dagster resource (SkillResource) per skill, each other components reference via skill_keys -- keyed by resource_key (mode='single') or by folder name (mode='collection').",
+        "side_effects": "None at build time beyond resolving name/description from each skill's SKILL.md front matter (a git clone, local file read, or URL download) -- the full skill body is only fetched when a consuming agent actually loads it."
       },
       "produces": [
         "resource"
@@ -59709,7 +59709,9 @@
         "agent skills",
         "skill.md",
         "shared resource",
-        "progressive disclosure"
+        "progressive disclosure",
+        "skill collection",
+        "anthropics/skills"
       ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/skill_resource/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/skill_resource/component.py",

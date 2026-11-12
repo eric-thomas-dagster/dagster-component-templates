@@ -8,35 +8,35 @@
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "description": "Dagster resource key other components reference via skill_keys.",
+      "description": "mode='single' only. Dagster resource key other components reference via skill_keys.",
       "required": false,
       "default": "skill"
     },
     "name": {
       "type": "string",
       "label": "Name",
-      "description": "Skill name override. If unset, read from the SKILL.md front matter at component load time.",
+      "description": "mode='single' only. Skill name override. If unset, read from the SKILL.md front matter at component load time.",
       "required": false,
       "default": null
     },
     "description": {
       "type": "string",
       "label": "Description",
-      "description": "Skill description override. If unset, read from the SKILL.md front matter at component load time.",
+      "description": "mode='single' only. Skill description override. If unset, read from the SKILL.md front matter at component load time.",
       "required": false,
       "default": null
     },
     "git_url": {
       "type": "string",
       "label": "Git Url",
-      "description": "Git remote URL to fetch the skill from (e.g. https://github.com/org/repo.git). Exactly one of git_url / local_path is required.",
+      "description": "Git remote URL to fetch the skill(s) from (e.g. https://github.com/org/repo.git). Exactly one of git_url / local_path / url is required.",
       "required": false,
       "default": null
     },
     "git_path": {
       "type": "string",
       "label": "Git Path",
-      "description": "Path within the git repo to the skill directory containing SKILL.md. Defaults to the repo root.",
+      "description": "Path within the git repo to the skill directory (mode='single') or the directory of skill subfolders (mode='collection'). Defaults to the repo root.",
       "required": false,
       "default": ""
     },
@@ -50,7 +50,7 @@
     "local_path": {
       "type": "string",
       "label": "Local Path",
-      "description": "Local filesystem directory containing SKILL.md. Exactly one of git_url / local_path is required.",
+      "description": "Local filesystem directory containing SKILL.md (mode='single') or a directory of skill subfolders (mode='collection'). Exactly one of git_url / local_path / url is required.",
       "required": false,
       "default": null
     },
@@ -58,6 +58,47 @@
       "type": "string",
       "label": "Git Token Env Var",
       "description": "Env var holding a token for private-repo git auth (sent as an Authorization: Bearer header during clone).",
+      "required": false
+    },
+    "url": {
+      "type": "string",
+      "label": "Url",
+      "description": "mode='single' only. URL to download the skill from -- either a raw SKILL.md file, or a .zip archive containing a skill folder (SKILL.md + any bundled files). Exactly one of git_url / local_path / url is required.",
+      "required": false
+    },
+    "url_headers_env": {
+      "type": "string",
+      "label": "Url Headers Env",
+      "description": "Env var holding a JSON object of HTTP headers to send with the download request (e.g. '{\"Authorization\": \"Bearer ...\"}'), for authenticated downloads.",
+      "required": false
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "single",
+        "collection"
+      ],
+      "label": "Mode",
+      "description": "'single': register one skill under resource_key. 'collection': treat git_path/local_path as a directory of MULTIPLE skill subfolders (e.g. a cloned anthropics/skills repo) and register one resource per subfolder, keyed by folder name.",
+      "required": false,
+      "default": "single"
+    },
+    "include": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Include",
+      "description": "mode='collection' only: allow-list of subfolder names to register. Leave unset to register every subfolder that contains a SKILL.md.",
+      "required": false
+    },
+    "exclude": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude",
+      "description": "mode='collection' only: subfolder names to skip, applied after include.",
       "required": false
     }
   }

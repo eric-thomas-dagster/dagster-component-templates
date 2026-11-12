@@ -39,29 +39,67 @@ as `MCPServerResourceComponent`), so that tag is stamped by the consuming agent,
 way `dagster-community/mcp-server` is stamped by `mcp_tool_call` rather than by
 `MCPServerResourceComponent`.
 
-## Source: git or local
+## Source: git, local, or a download URL
 
-Exactly one of `git_url` or `local_path` is required -- setting both, or neither, raises
-a clear error at component load:
+Exactly one of `git_url`, `local_path`, or `url` is required -- setting more than one,
+or none, raises a clear error at component load:
 
 - **`git_url`** (+ optional `git_path`, `git_ref`, `git_token_env_var`): shallow-clones
   the repo (`git clone --depth 1 --branch <git_ref> --single-branch`) and reads
-  `<git_path>/SKILL.md` from it. Requires a `git` binary on `PATH`. `git_ref` must be a
-  branch or tag name -- shallow-cloning an arbitrary commit SHA isn't guaranteed to work
-  (depends on whether the remote's server allows fetching by SHA; most don't).
-  `git_token_env_var` names an env var holding a token for a private repo, sent as an
-  `Authorization: Bearer <token>` header during clone (`-c http.extraHeader=...`) --
+  `<git_path>/SKILL.md` from it (or, with `mode="collection"`, treats `<git_path>` as a
+  directory of skill subfolders -- see below). Requires a `git` binary on `PATH`.
+  `git_ref` must be a branch or tag name -- shallow-cloning an arbitrary commit SHA isn't
+  guaranteed to work (depends on whether the remote's server allows fetching by SHA; most
+  don't). `git_token_env_var` names an env var holding a token for a private repo, sent as
+  an `Authorization: Bearer <token>` header during clone (`-c http.extraHeader=...`) --
   works for GitHub/GitLab/Bitbucket/Forgejo HTTPS remotes alike; not applicable to
   `ssh://` URLs (use your normal SSH agent/known_hosts setup for those instead).
-- **`local_path`**: reads `<local_path>/SKILL.md` directly off the local filesystem.
+- **`local_path`**: reads `<local_path>/SKILL.md` directly off the local filesystem (or,
+  with `mode="collection"`, treats it as a directory of skill subfolders).
+- **`url`** (+ optional `url_headers_env`) -- `mode="single"` only: downloads either a
+  raw `SKILL.md` file or a `.zip` archive, for skills distributed by a marketplace
+  (e.g. mcpmarket) that doesn't expose a git source. The content is sniffed from the
+  response body itself (zip magic bytes), not just the URL's extension. A zip that wraps
+  its contents in one top-level folder (common for a single-skill export) is handled --
+  if `SKILL.md` isn't at the zip root but is exactly one directory down, that directory
+  is treated as the real skill root. `url_headers_env` names an env var holding a JSON
+  object of HTTP headers (e.g. `'{"Authorization": "Bearer ..."}'`) for authenticated
+  downloads.
+
+## `mode="collection"`: register every skill in a repo/directory at once
+
+Point `git_path` (under `git_url`) or `local_path` at a directory that **contains
+multiple skill subfolders** -- e.g. a clone of
+[`anthropics/skills`](https://github.com/anthropics/skills), which has ~19 skills as
+top-level folders -- and every immediate subfolder with a `SKILL.md` is registered as its
+own resource, keyed by its folder name:
+
+```yaml
+type: dagster_community_components.SkillResourceComponent
+attributes:
+  mode: collection
+  git_url: https://github.com/anthropics/skills.git
+  git_ref: main
+```
+
+This registers one resource per skill (`pdf`, `docx`, `xlsx`, `pptx`, ...), so
+`skill_keys: [pdf]` works directly in any skill-aware agent component -- without a
+separate `SkillResourceComponent` instance (and a separate line in the Resources UI) per
+skill. `include`/`exclude` filter by folder name (`exclude` applied after `include`); a
+subfolder with no `SKILL.md` at all is silently skipped as "not a skill folder" either
+way. `name`/`description`/`url` aren't per-folder, so they're rejected with
+`mode="collection"` (each folder's own front matter is the only source for those).  A
+folder that DOES have a `SKILL.md` but no `description` is still a real configuration
+problem and fails loudly, naming that folder.
 
 ## Caching: fetch at component load, not per run
 
-A git checkout is cloned once per `(git_url, git_ref)` pair, cached under the system
-temp dir, and reused by every later component load or run that asks for the same
-`(git_url, git_ref)` -- it is **not** re-cloned on every code-location reload, and never
-re-cloned per run. `load()` (called by an agent once it actually chooses the skill) just
-reads from the already-cloned directory on disk.
+A git checkout is cloned once per `(git_url, git_ref)` pair (shared across every skill in
+a collection -- not re-cloned per skill), and a `url` download is fetched once per `url`
+-- both cached under the system temp dir and reused by every later component load or run
+that asks for the same source. Neither is re-fetched on every code-location reload, and
+never re-fetched per run. `load()` (called by an agent once it actually chooses the
+skill) just reads from the already-fetched directory on disk.
 
 ## Name/description resolution -- fails loudly, not silently
 
@@ -99,23 +137,33 @@ The registered `SkillResource` exposes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"skill"` | Dagster resource key other components reference via skill_keys. |
+| `resource_key` | `str` | `"skill"` | mode='single' only. Dagster resource key other components reference via skill_keys. |
+| `url` | `str` | — | mode='single' only. URL to download the skill from -- either a raw SKILL.md file, or a .zip archive containing a skill folder (SKILL.md + any bundled files). Exactly one of git_url / local_path / url is required. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `description` | `str` | — | Skill description override. If unset, read from the SKILL.md front matter at component load time. |
+| `description` | `str` | — | mode='single' only. Skill description override. If unset, read from the SKILL.md front matter at component load time. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `mode` | `Literal['single', 'collection']` | `"single"` | 'single': register one skill under resource_key. 'collection': treat git_path/local_path as a directory of MULTIPLE skill subfolders (e.g. a cloned anthropics/skills repo) and register one resource per subfolder, keyed by folder name. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `str` | — | Skill name override. If unset, read from the SKILL.md front matter at component load time. |
-| `git_url` | `str` | — | Git remote URL to fetch the skill from (e.g. https://github.com/org/repo.git). Exactly one of git_url / local_path is required. |
-| `git_path` | `str` | — | Path within the git repo to the skill directory containing SKILL.md. Defaults to the repo root. |
+| `name` | `str` | — | mode='single' only. Skill name override. If unset, read from the SKILL.md front matter at component load time. |
+| `git_url` | `str` | — | Git remote URL to fetch the skill(s) from (e.g. https://github.com/org/repo.git). Exactly one of git_url / local_path / url is required. |
+| `git_path` | `str` | — | Path within the git repo to the skill directory (mode='single') or the directory of skill subfolders (mode='collection'). Defaults to the repo root. |
 | `git_ref` | `str` | `"main"` | Git branch or tag to check out. An arbitrary commit SHA isn't guaranteed to work (depends on whether the remote allows fetching by SHA). |
 | `git_token_env_var` | `str` | — | Env var holding a token for private-repo git auth (sent as an Authorization: Bearer header during clone). |
-| `local_path` | `str` | — | Local filesystem directory containing SKILL.md. Exactly one of git_url / local_path is required. |
+| `local_path` | `str` | — | Local filesystem directory containing SKILL.md (mode='single') or a directory of skill subfolders (mode='collection'). Exactly one of git_url / local_path / url is required. |
+| `url_headers_env` | `str` | — | Env var holding a JSON object of HTTP headers to send with the download request (e.g. '{"Authorization": "Bearer ..."}'), for authenticated downloads. |
+| `include` | `List[str]` | — | mode='collection' only: allow-list of subfolder names to register. Leave unset to register every subfolder that contains a SKILL.md. |
+| `exclude` | `List[str]` | — | mode='collection' only: subfolder names to skip, applied after include. |
 
 [//]: # (FIELDS:END)

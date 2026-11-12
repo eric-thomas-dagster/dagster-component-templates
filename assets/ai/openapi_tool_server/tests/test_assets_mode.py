@@ -97,6 +97,28 @@ def test_tags_mark_tool_source_and_operation(mod):
     assert tags["dagster-community/openapi-operation"] == "getPetById"
 
 
+def test_kinds_always_include_api_and_openapi(mod):
+    """mode='assets' always adds both 'api' and 'openapi' kinds, the way mcp_tool_call always
+    adds 'mcp' -- so a UI can find every operation asset this component emits by kind alone,
+    even if the user sets their own kinds list."""
+    defs = _component(mod, kinds=["custom"]).build_defs(None)
+    asset_def = next(a for a in defs.assets if next(iter(a.keys)).to_user_string() == "getPetById")
+    key = next(iter(asset_def.keys))
+    tags = asset_def.specs_by_key[key].tags
+    assert "dagster/kind/api" in tags
+    assert "dagster/kind/openapi" in tags
+    assert "dagster/kind/custom" in tags
+
+
+def test_kinds_default_to_api_and_openapi_only(mod):
+    defs = _component(mod).build_defs(None)
+    asset_def = next(a for a in defs.assets if next(iter(a.keys)).to_user_string() == "getPetById")
+    key = next(iter(asset_def.keys))
+    tags = asset_def.specs_by_key[key].tags
+    kind_tags = {t for t in tags if t.startswith("dagster/kind/")}
+    assert kind_tags == {"dagster/kind/api", "dagster/kind/openapi"}
+
+
 def test_asset_name_prefix_applied(mod):
     defs = _component(mod, asset_name_prefix="petstore").build_defs(None)
     keys = {next(iter(a.keys)).to_user_string() for a in defs.assets}
@@ -110,6 +132,7 @@ def test_metadata_includes_analogous_keys(mod, calls):
     md = events[-1].materialization.metadata
     assert md["operation_id"].value == "getPetById"
     assert md["method"].value == "GET"
+    assert md["path"].value == "/pets/{id}"
     assert md["transport"].value == "http"
     assert md["status_code"].value == 200
     assert md["parsed_as"].value == "json"

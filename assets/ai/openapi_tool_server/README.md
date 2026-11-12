@@ -90,10 +90,31 @@ Same convention as `openapi_ingestion`: `api_key_env_var` names an env var read 
 | Backfill | `backfill_policy` (`single_run` / `multi_run`) |
 | Freshness | `freshness_max_lag_minutes` + `freshness_cron` |
 | Retry | `retry_policy_max_retries` + `retry_policy_delay_seconds` + `retry_policy_backoff` |
-| Kinds | `kinds` (defaults to `['api']`) |
+| Kinds | `kinds` (`mode="assets"` always adds `api` and `openapi`, even on top of your own list — the same way `mcp_tool_call` always adds `mcp`) |
 | Owners / Tags / Description / Group | `owners`, `asset_tags`, `description`, `group_name` |
 
 `mode="mcp_server"` only emits the resource + the one inspection asset — partitioning / backfill / retry / freshness fields are ignored in that mode (there's only one asset, and it doesn't call the API itself).
+
+---
+
+## Output metadata (mode="assets")
+
+Every operation asset emits this metadata on each materialization, the same discoverable-by-name convention as `mcp_tool_call`:
+
+| Key | Meaning |
+|---|---|
+| `operation_id` | The OpenAPI `operationId` this asset was built from. |
+| `method` | HTTP method (`GET`, `POST`, ...). |
+| `path` | The raw OpenAPI path template, e.g. `/pets/{id}` (unsubstituted — see `url` for the resolved call). |
+| `url` | The fully resolved URL actually called. |
+| `status_code` | HTTP status code of the response. |
+| `latency_seconds` | Wall-clock time of the HTTP call (summed across partition keys on a multi-partition run). |
+| `response_bytes` | Size of the raw response body in bytes (summed across partition keys on a multi-partition run). |
+| `transport` | Always `"http"` — present so a UI can tell an `openapi_tool_server` asset's call transport apart from an `mcp_tool_call` asset's `transport` value (`"stdio"`/`"sse"`/`"http"`). |
+| `parsed_as` | `"json"` or `"text"`, per `parse_as` / actual response content. |
+| `response_preview` | First ~20 list items / dict keys (or first 2000 chars of raw text) of the response. |
+| `args` | The resolved request args actually sent (post-templating). |
+| `partition_keys` | Only present on a partition-range run: the list of partition keys covered. |
 
 ---
 
@@ -133,7 +154,7 @@ Verified by introspecting the installed `fastmcp==4.1.8` package directly, and l
 | `description` | `str` | — | Asset description. mode='assets': applied to every emitted operation asset unless the operation has its own OpenAPI summary. |
 | `owners` | `List[str]` | — | Asset owners. |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags, applied to every emitted asset. |
-| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-includes 'api' if not set. |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. mode='assets' always adds 'api' and 'openapi' (even if you set your own kinds), the same way mcp_tool_call always adds 'mcp' -- so a UI can find every operation asset this component emits by kind alone. |
 | `backfill_policy` | `Literal['single_run', 'multi_run']` | — | mode='assets' only. 'single_run' materializes an entire backfill range in one run (one HTTP call per partition in the range, each with its own {partition_key} substitution). 'multi_run' launches one run per partition. Le… _(full docs in schema.json + component README)_ |
 
 ### Freshness

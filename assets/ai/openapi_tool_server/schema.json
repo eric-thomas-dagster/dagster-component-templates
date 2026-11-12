@@ -162,7 +162,7 @@
       "type": "array",
       "items": {"type": "string"},
       "label": "Kinds",
-      "description": "Asset kinds for the Dagster catalog. Auto-includes 'api' if not set.",
+      "description": "Asset kinds for the Dagster catalog. mode='assets' always adds 'api' and 'openapi' (even if you set your own kinds), the same way mcp_tool_call always adds 'mcp' -- so a UI can find every operation asset this component emits by kind alone.",
       "required": false,
       "default": null
     },

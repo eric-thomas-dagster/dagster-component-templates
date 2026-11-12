@@ -513,7 +513,7 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
     description: Optional[str] = Field(default=None, description="Asset description. mode='assets': applied to every emitted operation asset unless the operation has its own OpenAPI summary.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Extra asset tags, applied to every emitted asset.")
-    kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the Dagster catalog. Auto-includes 'api' if not set.")
+    kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the Dagster catalog. mode='assets' always adds 'api' and 'openapi' (even if you set your own kinds), the same way mcp_tool_call always adds 'mcp' -- so a UI can find every operation asset this component emits by kind alone.")
 
     partition_type: Optional[str] = Field(default=None, description="mode='assets' only. 'daily' | 'weekly' | 'monthly' | 'hourly' | 'cron' | 'static' | 'multi' | 'dynamic'. Applied to every emitted operation asset.")
     partition_cron_schedule: Optional[str] = Field(default=None, description="Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.")
@@ -660,6 +660,8 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
         _inferred_kinds = list(self.kinds or [])
         if "api" not in _inferred_kinds:
             _inferred_kinds.append("api")
+        if "openapi" not in _inferred_kinds:
+            _inferred_kinds.append("openapi")
 
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
@@ -774,6 +776,7 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
                 md = {
                     "operation_id": MetadataValue.text(_op["operation_id"]),
                     "method": MetadataValue.text(_op["method"]),
+                    "path": MetadataValue.text(_op["path"]),
                     "url": MetadataValue.text(result["url"]),
                     "status_code": MetadataValue.int(result["status_code"]),
                     "args": MetadataValue.json(resolved_args_out),

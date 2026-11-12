@@ -345,14 +345,16 @@ def test_load_time_guards(mod, tmp_path):
                                             outputs={"assets": ["d"]}, **kw).build_defs(None)
     d = _llm("d", "Draft: {text}")
     with pytest.raises(ValueError, match="invoke_component.*mode: wait"):
-        build([d, {"id": "ic", "op": "invoke_component", "component_type": "x"}, gate])
+        build([d, {"id": "ic", "op": "invoke_component", "component_type": "x", "attributes": {}}, gate])
     with pytest.raises(ValueError, match="sub_pipeline.*top-level"):
         build([d, {"id": "sp", "op": "sub_pipeline", "steps": [gate]}])
     with pytest.raises(ValueError, match="wait_seconds"):
         build([d, {**gate, "wait_seconds": 30}])
     with pytest.raises(ValueError, match="only apply to mode: park"):
         build([d, {**gate, "mode": "wait", "max_resumes": 2}])
-    with pytest.raises(ValueError, match="mode must be"):
+    # Caught earlier now, by the step model's own Literal type, with Pydantic's own error
+    # message naming the exact field path -- not the old custom runtime ValueError text.
+    with pytest.raises(ValueError, match="approve.mode"):
         build([d, {**gate, "mode": "sleep"}])
     with pytest.raises(ValueError, match="park_expires_hours"):
         build([d, {**gate, "park_expires_hours": 0}])

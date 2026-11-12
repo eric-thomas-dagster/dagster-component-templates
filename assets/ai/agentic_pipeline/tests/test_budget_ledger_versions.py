@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 import dagster as dg
 import pytest
 
+from .conftest import step_dicts
+
 STEP = {"op": "llm_call", "model": "gpt-4o-mini", "prompt_template": "{text}"}
 
 
@@ -481,7 +483,7 @@ def test_versions_flow_into_materialization_metadata(mod, fake_litellm, per_step
     c.per_step_ops = per_step_ops
     m = {e.materialization.asset_key.to_user_string(): e.materialization.metadata
          for e in dg.materialize(c.build_defs(None).assets).get_asset_materialization_events()}
-    pv = mod.prompt_versions({"steps": c.steps, "personas": c.personas})
+    pv = mod.prompt_versions({"steps": step_dicts(c.steps), "personas": c.personas})
     assert m["v_a"]["agentic_prompt_version"].value == pv["a"]["version"]
     assert m["v_b"]["agentic_prompt_hash"].value == pv["b"]["hash"]
     assert m["v_c"]["agentic_prompt_versions"].value == {k: v["version"] for k, v in pv.items()}

@@ -190,6 +190,18 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
         default_factory=list,
         description="List of MCP servers to expose as tools.",
     )
+    allowed_tools: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), "
+            "'*' wildcards supported (fnmatch), applied across every mcp_servers entry. "
+            "Default: all discovered tools. A server can expose many tools the agent "
+            "shouldn't be able to call (e.g. a hosted Dagster+ MCP server's "
+            "terminate_run/rerun_run/delete_alert_policy alongside read-only ones) -- this "
+            "is the lever to restrict an agent to a safe subset, e.g. "
+            "['dagster_plus__list_*', 'dagster_plus__get_*']."
+        ),
+    )
     skill_keys: Optional[List[str]] = Field(
         default=None,
         description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
@@ -271,6 +283,7 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
         reasoning_effort = self.reasoning_effort
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
+        allowed_tools = self.allowed_tools
         skill_keys = self.skill_keys
         group_name = self.group_name
         description = self.description
@@ -408,6 +421,7 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                     mcp_servers=resolved_mcp_servers,
                     reasoning_effort=reasoning_effort,
                     skill_resources=skill_resources,
+                    allowed_tools=allowed_tools,
                 )
             )
 
@@ -569,6 +583,15 @@ def _resolve_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str]:
     return headers
 
 
+def _tool_name_allowed(name: str, allowed: Optional[List[str]]) -> bool:
+    """`allowed` is a list of names/fnmatch patterns ('*' wildcards) matched against the
+    namespaced tool name ('{server}__{tool}'). No allowlist = everything allowed."""
+    if not allowed:
+        return True
+    import fnmatch
+    return any(fnmatch.fnmatch(name, pattern) for pattern in allowed)
+
+
 async def _run_agent(
     log,
     prompt: str,
@@ -583,6 +606,7 @@ async def _run_agent(
     mcp_servers: List[Dict[str, Any]],
     reasoning_effort: Optional[str] = None,
     skill_resources: Optional[Dict[str, Any]] = None,
+    allowed_tools: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     import json
     import os
@@ -667,6 +691,8 @@ async def _run_agent(
             tools_response = await session.list_tools()
             for tool in tools_response.tools:
                 prefixed = f"{name}__{tool.name}"
+                if not _tool_name_allowed(prefixed, allowed_tools):
+                    continue
                 tool_index[prefixed] = (session, tool, tool.name)
                 openai_tools.append(
                     {

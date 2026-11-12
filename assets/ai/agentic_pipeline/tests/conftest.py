@@ -19,6 +19,14 @@ def load_component_module():
     return mod
 
 
+def step_dicts(steps):
+    """`component.steps` is the real discriminated-union (StepUnion) field now, not plain
+    dicts -- tests that inspect/compare/mutate step config directly (not through
+    build_defs, which does this same conversion internally) need this. Same
+    exclude_unset=True + by_alias=True round-trip build_defs itself uses."""
+    return [s.model_dump(exclude_unset=True, by_alias=True) for s in steps]
+
+
 class FakeLiteLLM(types.ModuleType):
     """Scripted litellm: each completion() pops the next scripted reply and records the kwargs it was called with."""
 

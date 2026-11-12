@@ -199,7 +199,9 @@ def test_bad_options_are_rejected_at_load(mod, tmp_path):
         return mod.AgenticPipelineComponent(
             asset_name_prefix="p", source={"kind": "literal", "text": "t"},
             steps=[{"id": "g", "op": "approve", "approval_dir": str(tmp_path), **kw}], outputs={"assets": ["g"]}).build_defs(None)
-    with pytest.raises(ValueError, match="reuse must be one of"):
+    # Caught earlier now, by the step model's own Literal type, with Pydantic's own error
+    # message naming the exact field path -- not the old custom runtime ValueError text.
+    with pytest.raises(ValueError, match="steps.0.approve.reuse"):
         build(reuse="forever")
     with pytest.raises(ValueError, match="max_age_hours must be a number > 0"):
         build(max_age_hours=0)

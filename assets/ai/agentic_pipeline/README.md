@@ -287,6 +287,8 @@ Solid arrows = `source:` field on the next step's YAML. The three source-lines i
 
 Each asset name is `{asset_name_prefix}_{step_id}` (`research_bot_routed`, `research_bot_critiqued`, …). All four appear in the Dagster catalog and get typed metadata on every materialization.
 
+**Catalog-visible before anything ever runs.** Every step asset also carries a `dagster-community/agentic-pipeline` tag (value: `asset_name_prefix`) and definition-level metadata -- `pipeline`, `step`, `op`, `reads` (the step id(s) or the reserved `source` it reads from), and `partition_type` -- set at `build_defs` time, not materialization time. A pipeline that's only been defined in code, never run, is still identifiable as one (and filterable by which pipeline, not just by `dagster/kind/<op>`) from the asset's own definition.
+
 ### Scaffold this exact demo end-to-end
 
 The walkthrough at [`examples/agentic_pipeline.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/agentic_pipeline.md) ships a one-liner that scaffolds a working `create-dagster` project with this 5-step pipeline preloaded, partitioned across 3 static partitions:
@@ -597,7 +599,7 @@ The router / specialist / drafter / critic / proposer / arbitrator / synthesizer
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `model` | ✅ | — | LiteLLM model string (`gpt-4o`, `claude-haiku-4-5-20251001`, `gemini/gemini-2.5-flash`, `ollama/llama3.2`, `bedrock/…`, `groq/…`, …). |
+| `model` | | — | LiteLLM model string (`gpt-4o`, `claude-haiku-4-5-20251001`, `gemini/gemini-2.5-flash`, `ollama/llama3.2`, `bedrock/…`, `groq/…`, …). Optional if `persona:` on the step resolves it (the same holds for every op's top-level `model` field below — marked optional there for the same reason, even where omitting it with no persona would be a real runtime error). |
 | `api_key_env_var` |  | Provider default (e.g. `OPENAI_API_KEY`) | Env var holding the provider's API key. |
 | `api_base_env_var` |  | — | Env var holding a custom base URL (self-hosted, proxies, Azure OpenAI). |
 | `system_prompt` |  | — | System prompt for this LLM's persona. |
@@ -605,6 +607,7 @@ The router / specialist / drafter / critic / proposer / arbitrator / synthesizer
 | `max_tokens` |  | `2048` | Max completion tokens. |
 | `reasoning_effort` |  | — | Reasoning-model effort level (`low` / `medium` / `high`). Forwarded to OpenAI `o1` / `o3` models via LiteLLM `reasoning_effort`. Silently dropped by models that don't accept it (LiteLLM `drop_params=true`). |
 | `thinking_budget` |  | — | Max tokens the model may spend on reasoning traces before the visible answer. Forwarded to Gemini 2.5+ (`thinking_budget`) and Anthropic thinking models. Set `0` on Gemini for short structured outputs to avoid silent truncation (thinking tokens are drawn from `max_tokens`). Silently dropped by models that don't accept it. |
+| `prompt_caching` |  | `false` | Anthropic models only: wraps the system prompt with `cache_control: ephemeral`. Only has a confirmed effect inside `tool_use_loop` today. |
 
 ### `op: llm_call`
 
@@ -612,13 +615,16 @@ Single completion. LLM sub-config lives inline on the step (no `model` nesting).
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `model` | ✅ | — | LiteLLM model string. |
+| `model` | | — | LiteLLM model string. Optional if `persona:` on the step resolves it. |
 | `api_key_env_var` |  | Provider default | Env var holding API key. |
 | `system_prompt` |  | — | System prompt. |
 | `prompt_template` |  | `"{text}"` | Template around the source's text; `{text}` is the source text, standard `{partition_key}` etc. tokens also substituted. |
 | `temperature` |  | `0.0` | Sampling temperature. |
 | `max_tokens` |  | `2048` | Max completion tokens. |
 | `api_base_env_var` |  | — | Custom base URL env var. |
+| `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
+| `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
+| `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system prompt. |
 
 ### `op: route`
 
@@ -648,7 +654,8 @@ Drafter writes; critic reviews; drafter revises; repeat.
 |---|---|---|---|
 | `drafter` | ✅ | — | LLM sub-config for the drafter. |
 | `critic` | ✅ | — | LLM sub-config for the critic. |
-| `iterations` | ✅ | — | Number of drafter → critic → drafter cycles. Total LLM calls = `2 * iterations + 1`. |
+| `iterations` | | `2` | Number of drafter → critic → drafter cycles. Total LLM calls = `2 * iterations + 1` (unless `until_score_gte` stops it early). |
+| `until_score_gte` | | — | Early-stop: appends a scoring instruction to the critic's system prompt (`SCORE: N/100`); once the score clears this threshold (0-100), skips the final revise. `iterations` still bounds it as a hard cap. |
 
 ### `op: synthesize`
 
@@ -662,13 +669,14 @@ Two input modes — pick one:
 |---|---|---|---|
 | `inputs` | one of | — | `{port_name: {from: step_id} | {literal: value}}`. Typed named multi-input join. |
 | `sources` | one of | — | `[<step_ids>]`. Positional list — legacy shape. |
-| `model` | ✅ | — | LiteLLM model string. |
+| `model` | | — | LiteLLM model string. Optional if `persona:` on the step resolves it. |
 | `api_key_env_var` |  | Provider default | Env var holding API key. |
 | `system_prompt` |  | — | System prompt. `{port_name}` placeholders substitute when `inputs:` is used. |
 | `prompt_template` |  | `inputs`: labeled per-port sections; `sources`: `{combined}` fan-in | Prompt template. |
 | `temperature` |  | `0.0` | Sampling temperature. |
 | `max_tokens` |  | `4096` | Max completion tokens. |
 | `api_base_env_var` |  | — | Custom base URL env var. |
+| `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system prompt. |
 
 ### `op: mcp_call`
 
@@ -693,8 +701,9 @@ The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach f
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `model` | ✅ | — | LLM the agent runs on. |
+| `model` | | — | LLM the agent runs on. Optional if `persona:` on the step resolves it. |
 | `api_key_env_var` |  | — | Env var holding the model provider's key. |
+| `api_base_env_var` |  | — | Custom base URL env var. |
 | `mcp_servers` | ✅ | — | List of MCP server configs (same shape as `mcp_call.server`). Tools from every server are auto-discovered (every `tools/list` page is followed) and namespaced `<server name>__<tool name>`; duplicate server names or colliding namespaced names are rejected up front. A stdio server is started fresh for each call (state in the server does not survive between calls). |
 | `skill_keys` |  | — | List of `resource_key`s, each a shared skill registered via `resources/skill_resource`'s `SkillResourceComponent` (see that component's README). Each key must resolve to a registered `SkillResource` — an unresolved key, or a resource that doesn't look like one (no `describe()`/`load()`), raises immediately, naming the offending key. |
 | `max_iterations` |  | `10` | Hard cap. Loop stops here regardless of finalize state. |
@@ -705,6 +714,9 @@ The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach f
 | `tool_result_max_chars` |  | `20000` | Characters of one tool result shown to the model; longer results are cut with a visible `...[truncated: N more chars not shown]` marker (`0` = no cap). The trajectory records `tool_result_chars` / `tool_result_truncated` / `tool_result_is_error`; a tool-reported failure reaches the model as `ERROR: tool reported failure: …`. |
 | `temperature` |  | `0.0` | |
 | `max_tokens` |  | `2048` | Per-call max completion tokens. |
+| `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
+| `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
+| `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system message (the one confirmed real effect of this field today). |
 
 Emitted metadata includes `tool_call_trace`, `n_llm_calls`, `n_tool_calls`, `stop_reason` (`finalize_called` | `final_answer_no_tool` | `max_iterations`), plus per-turn latency + cost.
 
@@ -914,14 +926,20 @@ Apply an LLM call to each item in a list source. Aggregates per-item results int
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `model` | ✅ | — | LLM per item. |
+| `model` | | — | LLM per item. Optional if `persona:` on the step resolves it. |
 | `api_key_env_var` |  | — | Env var for the model provider. |
+| `api_base_env_var` |  | — | Custom base URL env var. |
 | `prompt_template` |  | `{item}` | Per-item prompt. Placeholders: `{item}` (current), `{index}`, `{n}` (total), `{text}` (raw source), plus typed inputs `{port_name}`. |
 | `system_prompt` |  | — | Applied to every per-item call. |
 | `max_concurrent` |  | `1` | Thread-pool workers. `1` = sequential; higher for I/O-bound throughput. |
-| `output_join` |  | `newlines` | How to join per-item texts into the top-level `text`. `newlines` (double-newline separator) / `jsonl` / `none` (downstream reads `items[]`). |
+| `output_join` |  | `newlines` | How to join per-item texts into the top-level `text`. `newlines` (double-newline separator) / `jsonl` / `none` (downstream reads `items[]`) / `records` (requires `output_schema` — merges `{**item, **extracted}` per item into a JSON array). |
+| `output_schema` |  | — | JSON Schema object — forces per-item structured output via `tool_choice=required` (same mechanism as `extract`). Required for `output_join: records`. |
+| `strict` |  | `true` | With `output_schema` set: missing required fields raise (`false` → return the extracted dict as-is). |
 | `temperature` |  | `0.0` | |
 | `max_tokens` |  | `1024` | Per-call max completion tokens. |
+| `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
+| `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
+| `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system prompt. |
 
 Source parsing: JSON array → items. Falls back to `dict → data|items|results|values` list, then to non-empty newlines.
 
@@ -931,14 +949,18 @@ Structured JSON extraction — text → dict matching an `output_schema`. Uses `
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `model` | ✅ | — | |
+| `model` | | — | Optional if `persona:` on the step resolves it. |
 | `api_key_env_var` |  | — | |
+| `api_base_env_var` |  | — | Custom base URL env var. |
 | `output_schema` | ✅ | — | JSON Schema object (`{type: object, properties: {...}, required: [...]}`). |
 | `strict` |  | `true` | Missing required fields raise. `false` → return the extracted dict as-is. |
 | `system_prompt` |  | Sensible default | Override for domain-specific extraction instructions. |
 | `prompt_template` |  | `{text}` | User prompt template. |
 | `temperature` |  | `0.0` | |
 | `max_tokens` |  | `1024` | |
+| `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
+| `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
+| `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system prompt. |
 
 Extracted dict → `metadata.extracted` + JSON-serialized → `text` (so downstream steps can `source: <this step>` normally).
 
@@ -948,14 +970,18 @@ Text → label from a fixed set. Simplest, most common enterprise op. Uses `tool
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `model` | ✅ | — | Small model is fine (`gpt-4o-mini` etc.). |
+| `model` | | — | Small model is fine (`gpt-4o-mini` etc.). Optional if `persona:` on the step resolves it. |
 | `api_key_env_var` |  | — | |
+| `api_base_env_var` |  | — | Custom base URL env var. |
 | `labels` | ✅ | — | Non-empty list of label strings — the enum. |
 | `include_rationale` |  | `true` | Include a one-sentence explanation. `false` → cheaper. |
 | `system_prompt` |  | Sensible default | |
 | `prompt_template` |  | `{text}` | |
 | `temperature` |  | `0.0` | |
 | `max_tokens` |  | `256` | |
+| `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
+| `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
+| `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system prompt. |
 
 `text` = the picked label. `metadata.label` + `metadata.rationale` + `metadata.labels` (the full set). Raises if the LLM returns a label outside `labels`.
 
@@ -965,14 +991,18 @@ Fold an LLM over chunks of a list. Solves "list too big for one context window" 
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `model` | ✅ | — | |
+| `model` | | — | Optional if `persona:` on the step resolves it. |
 | `api_key_env_var` |  | — | |
+| `api_base_env_var` |  | — | Custom base URL env var. |
 | `chunk_size` |  | `10` | Items per fold call. Bigger chunk → fewer calls + wider context requirement. |
 | `initial_prompt_template` |  | Sensible default | First-chunk prompt. Placeholders: `{items}` (rendered), `{n}`. |
 | `fold_prompt_template` |  | Sensible default | Subsequent-chunk prompt. Placeholders: `{prior}` (running summary), `{items}`, `{n}`, `{chunk_index}`, `{n_chunks}`. |
 | `system_prompt` |  | — | Applied to every fold call. |
 | `temperature` |  | `0.0` | |
 | `max_tokens` |  | `2048` | Per-call max completion tokens (for the growing summary). |
+| `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
+| `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
+| `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system prompt. |
 
 Metadata: `n_items`, `n_chunks`, `chunk_size`, model fingerprint like `gpt-4o-mini@reduce×5`.
 
@@ -982,12 +1012,16 @@ ONE LLM call that produces draft + self-critique + revised. Cost-sensitive alter
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `model` | ✅ | — | |
+| `model` | | — | Optional if `persona:` on the step resolves it. |
 | `api_key_env_var` |  | — | |
+| `api_base_env_var` |  | — | Custom base URL env var. |
 | `system_prompt` |  | Sensible default | Override to force domain-specific critique dimensions. |
 | `prompt_template` |  | `{text}` | |
 | `temperature` |  | `0.0` | |
 | `max_tokens` |  | `4096` | Needs room for all three sections. |
+| `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
+| `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
+| `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system prompt. |
 
 Metadata: `draft`, `critique`, `revised`, `parsed` (bool — whether the structured parse succeeded; `false` → whole response returned as `text`). Cheaper than a 2-iteration critique_loop (~40% of the calls) at some quality cost.
 
@@ -1115,6 +1149,143 @@ steps:
 | `source` / `inputs` |  | — | Its text is parsed as a JSON list (same parser `map`/`reduce` use) and converted to a DataFrame for the target's input. |
 
 Metadata: `component_type`, `asset_name`, `input_kwarg`, `n_input_rows`, `latency_ms`. Output `items`/`text` are in the same shape `map`/`classify` produce, so `invoke_component` composes freely with any other op before or after it — including `delegate`, for exactly the "deterministic filter/rank/dedupe mid-stream between two agent steps" pattern.
+
+## Reasoning & governance ops
+
+Seven more ops, real and dispatched since before 0.10.141 but never previously documented here — found and added while making `steps` a typed discriminated union (every field below is also in `steps`' own JSON schema now).
+
+### `op: verify`
+
+Checks an answer against evidence — a grounding/hallucination check.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | | — | LLM making the verdict. Optional if `persona:` on the step resolves it. |
+| `evidence_source` | | — | Step id(s) (str or list) holding the evidence. Required unless `inputs: {evidence: ...}` is given. |
+| `api_key_env_var` | | — | Env var holding API key. |
+| `system_prompt` | | — | Override. |
+| `min_score` | | `0.7` | Pass threshold (0-1). |
+| `on_fail` | | `continue` | `continue` \| `fail` — what happens when the verdict doesn't clear `min_score`. |
+
+Result: `verdict` (supported/partially_supported/unsupported), `score` (0-1), `passed`, `unsupported_claims`, `issues`.
+
+### `op: eval`
+
+LLM-as-judge rubric scoring.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | | — | LLM judge. Optional if `persona:` on the step resolves it. |
+| `criteria` | | `["overall quality"]` | List of criterion names, or `{name, description, weight}` dicts. |
+| `scale` | | `5` | Score scale (e.g. 1-5). |
+| `reference_source` | | — | Optional step id holding the expected/reference answer. |
+| `fail_below` | | — | Hard gate on the weighted mean score. Omit for no gate. |
+| `system_prompt` | | — | Override. |
+
+Result: `overall` (float), `scale`, `scores` (per-criterion), `rationales`, `passed`.
+
+### `op: best_of_n`
+
+N candidates, pick the best one.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `n` | | `3` | Number of candidates to generate (≥1). |
+| `models` | | — | Cycles across candidates for an ensemble. Falls back to `[model]` if unset. |
+| `model` | | — | Single-model fallback when `models:` is unset. |
+| `prompt_template` | | `{text}` | Per-candidate prompt. |
+| `system_prompt` | | — | Applied to every candidate. |
+| `temperature` | | `0.8` | Sampling temperature. |
+| `select` | | `verifier` if `verifier:` set, else `vote` | `verifier` \| `vote` \| `first_valid`. |
+| `verifier` | required if `select: verifier` | — | Shared verifier config (below). |
+| `parallel` | | `true` | Generate candidates concurrently. |
+| `max_workers` | | `4` | Thread-pool size when `parallel: true`. |
+| `on_none_pass` | | `best` | `best` \| `fail` — what happens when no candidate passes the verifier. |
+
+Result: `selected_index`, `selected_model`, `select`, `n`, `any_passed`, `agreement` (vote mode only), `candidates` (each truncated to 400 chars).
+
+### `op: cascade`
+
+Cheapest-first model escalation: try the cheapest model, escalate to a stronger one only if the answer doesn't pass acceptance.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `models` | ✅ | — | Ordered cheapest → strongest (1+). |
+| `prompt_template` | | `{text}` | Prompt sent to each model in turn. |
+| `system_prompt` | | — | Applied to every attempt. |
+| `accept` | | — | Shared verifier/acceptance config (below). Omit to accept any non-empty answer. |
+| `on_exhausted` | | `last` | `last` \| `fail` — what happens if even the strongest model doesn't pass. |
+
+Result: `model_used`, `accepted`, `n_escalations`, `escalations` (per-attempt: model, accepted, score, reason, cost_usd).
+
+### `op: plan`
+
+Plan → execute → verify → replan → synthesize. The open-ended multi-step reasoning op.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `goal_template` | | `{text}` | The goal given to the planner. |
+| `model` | | — | Default model for planner/executor/verifier roles unless each overrides it. |
+| `planner` | | — | Override for the planning LLM (shared LLM sub-config shape). |
+| `executor` | | — | Override for the executing LLM. Set `mcp_servers` here to run each executed task as an inline `tool_use_loop` instead of a plain completion. |
+| `verifier` | | — | Shared verifier config (below). Gates each executed task. |
+| `max_steps` | | `8` | Hard cap on planned tasks. |
+| `max_replans` | | `2` | Hard cap on replanning cycles. |
+| `synthesize` | | `true` | Whether to synthesize a final answer from the executed steps. |
+| `on_fail` | | `continue` | `continue` \| `fail` — what happens when the plan can't complete. |
+
+Result: `status` (completed/max_steps/failed), `n_replans`, `n_steps_executed`, `plan` (initial task list), `steps` (executed task records, output clipped to 800 chars).
+
+### `op: decide`
+
+Named-outcome decision record — the model picks one of a fixed, named set of outcomes.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `model` | | — | LLM making the decision. Optional if `persona:` on the step resolves it. |
+| `outcomes` | ✅ | — | `{outcome_name: 'when to choose it'}` — 2+ entries. |
+| `evidence_source` | | — | Step id(s) (str or list) holding supporting evidence. |
+| `default_outcome` | | — | Used when the model's pick isn't a valid `outcomes` key. Omit to make an invalid pick a hard error. |
+| `system_prompt` | | — | Override. |
+
+Result: `outcome`, `reason`, `confidence` (0-1 or null), `evidence` (`[{source, quote}]`), `used_default_outcome`.
+
+### `op: approve`
+
+Human-in-the-loop gate. An approval token (written by anything — a Slack bot, Retool, a CLI) is checked against a fingerprint bound to what was approved, so re-running a partition whose input changed asks again instead of reusing an old yes.
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `approval_dir` | ✅ | — | Local path or fsspec URI where approval tokens + the pending review queue live. |
+| `key` | | partition key, else step id | Approval record key. |
+| `summary` | | 600-char clip of source text | Shown to the reviewer. |
+| `reuse` | | `until_changed` | `until_changed` (honoured while the fingerprint matches) \| `once` (consumed after one pass) \| `always` (any token approves every later run, fingerprint ignored). |
+| `bind_to` | | `[text, summary]` | What the approval fingerprint is bound to — use `[summary]` when the source text is regenerated on every run. |
+| `max_age_hours` | | no expiry | Older token = expired. |
+| `mode` | | `wait` | `wait` (hold a worker, polling) \| `park` (end the run at the gate; a generated sensor resumes it later). |
+| `on_timeout` | | `reject` | `reject` \| `approve` \| `pending` \| `fail` — what happens if nobody answers in time. |
+| `on_reject` | | `stop` | `stop` (raise, nothing downstream runs) \| `continue`. |
+| `wait_seconds` | `mode: wait` only | `0` (don't block) | |
+| `poll_seconds` | `mode: wait` only | `5` (min `0.05`) | |
+| `checkpoint_dir` | `mode: park` only | `<approval_dir>/checkpoints` | |
+| `park_expires_hours` | `mode: park` only | no expiry | Optional expiry for the parked checkpoint. |
+| `max_resumes` | `mode: park` only | — | Optional cap on resume attempts. |
+| `on_config_change` | `mode: park` only | `fail` | What happens if the pipeline's config changed since it was parked. |
+
+A `mode: park` step is incompatible with `invoke_component` steps and with being nested inside `sub_pipeline` — both rejected at load, since a parked run's checkpoint/resume mechanism needs the full top-level step graph.
+
+### Shared verifier/acceptance config (`best_of_n.verifier`, `cascade.accept`, `plan.verifier`)
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `kind` | | `llm` if a model is resolvable, else `regex` | `llm` \| `regex` \| `json` \| `contains`. |
+| `pattern` | `kind: regex` only | — | Python regex, `re.search` case-insensitive+dotall. |
+| `contains` | `kind: contains` only | — | Substring(s) to check for (str or list). |
+| `all` | `kind: contains` only | `true` | Require ALL substrings (vs. ANY). |
+| `required_keys` | `kind: json` only | — | Keys that must be present in the parsed JSON. |
+| `rubric` | `kind: llm` only | sensible default | Scoring rubric text. |
+| `min_score` | `kind: llm` only | `0.7` | Pass threshold (0-1). |
+| ...plus any shared LLM sub-config field (`model`, `api_key_env_var`, ...) | | | Merged with the step's own model settings unless overridden. |
 
 ## State model
 
@@ -1307,7 +1478,7 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 |---|---|---|
 | `asset_name_prefix` | `str` | Prefix for emitted asset names. Each step in outputs.assets becomes '{prefix}_{step_id}'. |
 | `source` | `Dict[str, Any]` | Data source. Shapes: {kind: literal, text: '...'} \| {kind: file, path: '...'} \| {kind: url, url: '...'} \| {kind: database, query: 'SELECT ...', database_url: '...' or database_url_env_var: '...', row_limit: 500} (quer… _(full docs in schema.json + component README)_ |
-| `steps` | `List[Dict[str, Any]]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args}. Two wiring modes (choose per step, they compose): 1. **Legacy single-source**: `source: <step_id>` reads that step's text into `{text}` in the prompt (def… _(full docs in schema.json + component README)_ |
+| `steps` | `List[StepUnion]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args} -- `op` picks which of the 25 typed step shapes below applies (each with its own required/optional fields, types, defaults, and descriptions -- see schema… _(full docs in schema.json + component README)_ |
 | `outputs` | `Dict[str, Any]` | Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; `text_sinks:` writes step text to disk; `json_sinks:` w… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata

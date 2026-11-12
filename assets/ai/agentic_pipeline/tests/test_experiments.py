@@ -12,6 +12,8 @@ from types import SimpleNamespace
 import dagster as dg
 import pytest
 
+from .conftest import step_dicts
+
 ROOT = pathlib.Path(__file__).resolve().parents[4]
 STORE_PY = ROOT / "resources" / "context_receipt_store" / "component.py"
 RAG_PY = ROOT / "assets" / "ai" / "rag_pipeline" / "component.py"
@@ -126,9 +128,9 @@ def test_overrides_apply_to_the_named_step_only(mod, fake_litellm, store, per_st
 def test_the_configured_step_is_never_mutated(mod, fake_litellm, store):
     script(fake_litellm, lambda kw: "ok")
     c = comp(mod, experiments=exp(fraction=1), receipts={"resource_key": KEY})
-    before = json.dumps(c.steps, sort_keys=True)
+    before = json.dumps(step_dicts(c.steps), sort_keys=True)
     run(c, store, "p0")
-    assert json.dumps(c.steps, sort_keys=True) == before and fake_litellm.calls[-1]["model"] == "gpt-4o"
+    assert json.dumps(step_dicts(c.steps), sort_keys=True) == before and fake_litellm.calls[-1]["model"] == "gpt-4o"
 
 
 # ── versions: effective per variant, and the base asset code_version is untouched ──
@@ -137,8 +139,8 @@ def test_the_configured_step_is_never_mutated(mod, fake_litellm, store):
 def test_the_effective_version_is_what_the_receipt_and_metadata_record(mod, fake_litellm, store, per_step_ops):
     script(fake_litellm, lambda kw: "ok")
     c = comp(mod, experiments=exp(), receipts={"resource_key": KEY}, per_step_ops=per_step_ops)
-    base = mod.prompt_versions({"steps": c.steps, "personas": None})["polish"]["version"]
-    cand_steps = [dict(s, **{"model": "gpt-4o", "system_prompt": "Be warm", "temperature": 0.9}) if s["id"] == "polish" else s for s in c.steps]
+    base = mod.prompt_versions({"steps": step_dicts(c.steps), "personas": None})["polish"]["version"]
+    cand_steps = [dict(s, **{"model": "gpt-4o", "system_prompt": "Be warm", "temperature": 0.9}) if s["id"] == "polish" else s for s in step_dicts(c.steps)]
     cand = mod.prompt_versions({"steps": cand_steps, "personas": None})["polish"]["version"]
     assert base != cand
     for key in ("p0", "p1", "p2", "p3", "p4", "p5"):
@@ -400,7 +402,7 @@ def test_ready_to_promote_is_reported_and_nothing_is_promoted(mod, fake_litellm,
     c, inst = e2e(mod, fake_litellm, store, tmp_path, 60, extra={"promote_when": {"confidence": 0.9, "min_outcomes": 20}})
     m = {k: v.value for k, v in verdict_check(mod, c, store, inst).metadata.items()}
     assert m["ready_to_promote"] is True
-    assert [s["model"] for s in c.steps if s["id"] == "gen"] == ["gpt-4o-mini"]     # the base config is untouched
+    assert [s["model"] for s in step_dicts(c.steps) if s["id"] == "gen"] == ["gpt-4o-mini"]     # the base config is untouched
 
 
 def test_too_little_evidence_is_insufficient_not_a_verdict(mod, fake_litellm, store, tmp_path):

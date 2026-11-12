@@ -9,6 +9,7 @@ import pathlib
 import dagster as dg
 import pytest
 
+from .conftest import step_dicts
 from .test_park import BOTH, Pipe, _env, _llm, err_text, fk, md, mats  # noqa: F401  (fixtures re-used)
 
 CHECK = "pending_approvals"
@@ -128,7 +129,7 @@ def test_agentic_parked_runs_metadata_on_the_parked_runs_first_asset_and_listed_
 
 def changed(p, tmp_path, edit, per_step_ops=False, **kw):
     """The same pipeline over the SAME approval dir after the YAML was edited: edit(steps) -> steps."""
-    steps = edit([dict(s) for s in p.comp.steps])
+    steps = edit(step_dicts(p.comp.steps))
     gate = next(s for s in steps if s["id"] == "gate")
     q = Pipe(p.mod, tmp_path, per_step_ops, steps=steps, gate={k: v for k, v in gate.items() if k not in ("id", "op")}, **kw)
     q.inst = p.inst
@@ -261,7 +262,9 @@ def test_a_checkpoint_from_before_step_versions_falls_back_to_the_old_warning(mo
 
 
 def test_on_config_change_is_validated_and_park_only(mod, tmp_path):
-    with pytest.raises(ValueError, match="on_config_change must be fail \\| continue"):
+    # Caught earlier now, by the step model's own Literal type, with Pydantic's own error
+    # message naming the exact field path -- not the old custom runtime ValueError text.
+    with pytest.raises(ValueError, match="approve.on_config_change"):
         Pipe(mod, tmp_path, gate={"on_config_change": "ignore"})
     with pytest.raises(ValueError, match="only apply to mode: park"):
         mod._validate_approve_options([{"id": "g", "op": "approve", "approval_dir": "x", "mode": "wait", "on_config_change": "continue"}])

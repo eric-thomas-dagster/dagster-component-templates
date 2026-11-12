@@ -228,3 +228,26 @@ def test_result_helper_structured_only_and_snake_case(mod):
     tool = R(name="x", inputSchema=None, input_schema={"type": "object", "properties": {"q": {}}})
     assert mod._mcp_field(tool, "inputSchema", None)["properties"] == {"q": {}}
     assert mod._mcp_field({"inputSchema": {"k": 1}}, "inputSchema", None) == {"k": 1}
+
+
+def test_tool_name_allowed_exact_and_wildcard_and_default(mod):
+    assert mod._tool_name_allowed("mini__echo", None) is True  # no allowlist = everything allowed
+    assert mod._tool_name_allowed("mini__echo", ["mini__echo"]) is True
+    assert mod._tool_name_allowed("mini__boom", ["mini__echo"]) is False
+    assert mod._tool_name_allowed("mini__echo", ["mini__ec*"]) is True
+    assert mod._tool_name_allowed("mini__boom", ["mini__ec*"]) is False
+
+
+def test_allowed_tools_filters_connected_tools(mod, stdio_cfg):
+    """The real stdio server exposes echo + boom; allowed_tools restricts discovery to
+    only the matching one -- this is the lever for a server exposing tools an agent
+    shouldn't be able to call (terminate_run/rerun_run alongside read-only ones)."""
+    from contextlib import AsyncExitStack
+
+    async def go():
+        async with AsyncExitStack() as stack:
+            tool_index, _tools, _servers = await mod._connect_mcp(stack, _Log(), [stdio_cfg], ["mini__ec*"])
+            return set(tool_index)
+
+    names = _run(go())
+    assert names == {"mini__echo"}, f"allowed_tools did not filter out mini__boom: {names}"

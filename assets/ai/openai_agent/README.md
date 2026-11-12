@@ -184,6 +184,7 @@ validation doesn't allow commas, so multiple keys are `-`-joined instead).
 | `reasoning_effort` | `str` | — | Reasoning-model effort level: 'low' \| 'medium' \| 'high'. Forwarded to OpenAI o1/o3/o4 reasoning models. Passed through unchanged for other OpenAI models — OpenAI returns 400 if the model doesn't accept it, so only set… _(full docs in schema.json + component README)_ |
 | `max_iterations` | `int` | `10` | Max tool-call rounds before bailing. |
 | `mcp_servers` | `List[MCPServerSpec]` | `list()` | List of MCP servers to expose as tools. |
+| `allowed_tools` | `List[str]` | — | Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), '*' wildcards supported (fnmatch), applied across every mcp_servers entry. Default: all discovered tools. A server can expose many tools the a… _(full docs in schema.json + component README)_ |
 | `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 

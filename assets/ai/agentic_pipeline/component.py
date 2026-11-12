@@ -7983,6 +7983,494 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# ── Step models: a real discriminated union on `op` ──────────────────────────────────────────────────────────────────
+#
+# `steps` used to be `List[Dict[str, Any]]` -- free-form, so neither `dg`, the UI, nor an
+# agent could know what any given `op` accepts without reading the README tables by hand.
+# This makes `steps` a real `Annotated[Union[...], Field(discriminator="op")]` of 25 typed
+# models (one per op, including the 7 real-but-previously-undocumented "reasoning &
+# governance" ops: verify/eval/best_of_n/cascade/plan/decide/approve), so schema.json
+# carries every op's fields/types/required/defaults/descriptions for free.
+#
+# Two things verified directly against the installed dagster version before writing this
+# (not assumed): (1) these per-op models must be PLAIN `pydantic.BaseModel`, not `dg.Model`
+# -- `dg.Model`'s generated YAML-resolution schema forces `additionalProperties: false`
+# regardless of a subclass's own `ConfigDict(extra="allow")` override (confirmed via direct
+# schema introspection), which would reject any step key this pass didn't anticipate and
+# break existing YAML. A plain `BaseModel` with `extra="allow"` correctly produces
+# `additionalProperties: true`. (2) A genuinely recursive discriminated union (a step whose
+# own field is `List[StepUnion]`, needed for `sub_pipeline`) crashes Dagster's schema
+# generation (`RecursionError` / `ResolutionException`) even though plain pydantic
+# construction handles it fine -- so `sub_pipeline.steps` stays `List[Dict[str, Any]]`
+# (same recursive step schema, just not strictly validated at that one nesting level).
+#
+# Validated strictly here, then immediately converted back to a plain dict in build_defs
+# via `.model_dump(exclude_unset=True, by_alias=True)` -- every existing runtime helper in
+# this file (_run_step, _OPS, the park/experiment/validation helpers, ...) keeps reading
+# steps as plain dicts, completely unchanged. `exclude_unset=True` means a key never set in
+# the YAML is never fabricated into the dict with its schema default -- an exact behavioral
+# match for what a free-form dict already held.
+from typing import Annotated  # noqa: E402
+from pydantic import BaseModel, ConfigDict  # noqa: E402
+
+
+class _InputPort(BaseModel):
+    """One typed named input port: `{port_name: {from: step_id} | {literal: value}}`."""
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    from_: Optional[str] = Field(default=None, alias="from", description="Upstream step id to read this port from.")
+    literal: Optional[Any] = Field(default=None, description="A fixed literal value instead of reading from a step.")
+
+
+class _WhenGuard(BaseModel):
+    """Per-step skip condition: `{source: <step id>, field?: <result key>, <predicate>, not?: bool}`."""
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    source: str = Field(description="Prior step id whose result this predicate inspects.")
+    field: Optional[str] = Field(default=None, description="Result key to inspect (default: the step's text).")
+    equals: Optional[str] = Field(default=None, description="Predicate: exact match (case-insensitive, stripped).")
+    contains: Optional[str] = Field(default=None, description="Predicate: substring match (case-insensitive).")
+    regex: Optional[str] = Field(default=None, description="Predicate: `re.search`, case-insensitive.")
+    in_: Optional[List[Any]] = Field(default=None, alias="in", description="Predicate: value is one of this list.")
+    truthy: Optional[bool] = Field(default=None, description="Predicate: value's truthiness equals this.")
+    falsy: Optional[bool] = Field(default=None, description="Predicate: value's falsiness equals this.")
+    gt: Optional[float] = Field(default=None, description="Predicate: numeric greater-than.")
+    gte: Optional[float] = Field(default=None, description="Predicate: numeric greater-than-or-equal.")
+    lt: Optional[float] = Field(default=None, description="Predicate: numeric less-than.")
+    lte: Optional[float] = Field(default=None, description="Predicate: numeric less-than-or-equal.")
+    not_: Optional[bool] = Field(default=None, alias="not", description="Negate the predicate's result.")
+
+
+class _PolicyConfig(BaseModel):
+    """Security/governance policy -- pipeline-level (`AgenticPipelineComponent.policy`) or a
+    per-step override (which can only be MORE restrictive than the pipeline-level one).
+    Section sub-shapes are intentionally loose (Dict/List) -- this models the real section
+    names so an agent/UI can discover them, not every nested validation rule
+    (`policy.budget.ledger`/`breaker`/`tools.arg_rules` stay unexpanded for now)."""
+    model_config = ConfigDict(extra="allow")
+    on_violation: Optional[Literal["fail", "warn"]] = Field(default=None, description="Hard-fail the step, or warn and continue, when a policy check fails.")
+    env: Optional[Dict[str, List[str]]] = Field(default=None, description="{'allow': [env var names]} -- restricts which env vars a step's MCP/tool calls may read.")
+    filesystem: Optional[Dict[str, List[str]]] = Field(default=None, description="{'read'/'write': [path prefixes]} -- restricts filesystem access.")
+    network: Optional[Dict[str, List[str]]] = Field(default=None, description="{'allow_hosts': [hostnames]} -- restricts which hosts a step's network calls may reach.")
+    tools: Optional[Dict[str, Any]] = Field(default=None, description="{'allow'/'deny': [tool names], 'max_calls_per_run': int, 'arg_rules': [{arg, ...}]} -- restricts tool-call names and argument shapes.")
+    components: Optional[Dict[str, List[str]]] = Field(default=None, description="{'allow': [component type paths]} -- restricts invoke_component's allowed component_type values.")
+    budget: Optional[Dict[str, Any]] = Field(default=None, description="Cost/usage caps: max_cost_usd, max_tokens, max_llm_calls, max_seconds, per-day/month/partition caps (need 'ledger'), 'breaker', 'on_unknown_cost'.")
+
+
+class _LLMSubConfig(BaseModel):
+    """Shared LLM sub-config shape for a NESTED LLM call (router, specialists[], proposers[],
+    arbitrator, drafter, critic, picker, planner/executor/verifier) -- as opposed to an op
+    whose own step fields ARE the LLM config (llm_call, synthesize, map, ...), which declare
+    these same field names directly rather than nesting this model. `temperature`/`max_tokens`
+    are left unset here (each nesting context applies its own effective default at runtime,
+    e.g. debate's arbitrator defaults to max_tokens=512) rather than the model asserting one
+    fixed default that wouldn't be accurate everywhere this shape is reused."""
+    model_config = ConfigDict(extra="allow")
+    model: Optional[str] = Field(default=None, description="LiteLLM model string (gpt-4o, claude-haiku-4-5-20251001, gemini/gemini-2.5-flash, ollama/llama3.2, bedrock/…, groq/…, …). Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding the provider's API key (default: the provider's conventional env var name).")
+    api_base_env_var: Optional[str] = Field(default=None, description="Env var holding a custom base URL (self-hosted, proxies, Azure OpenAI).")
+    system_prompt: Optional[str] = Field(default=None, description="System prompt for this LLM's persona.")
+    temperature: Optional[float] = Field(default=None, description="Sampling temperature. Context-specific default if unset.")
+    max_tokens: Optional[int] = Field(default=None, description="Max completion tokens. Context-specific default if unset.")
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level, forwarded to OpenAI o1/o3 models via LiteLLM. Silently dropped by models that don't accept it.")
+    thinking_budget: Optional[int] = Field(default=None, description="Max tokens the model may spend on reasoning traces, forwarded to Gemini 2.5+/Anthropic thinking models. Silently dropped by models that don't accept it.")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only: wraps the system prompt with cache_control: ephemeral (only has a confirmed effect inside tool_use_loop).")
+
+
+class _SpecialistConfig(_LLMSubConfig):
+    """One specialist in `route`/`conditional_route`'s `specialists:` list."""
+    name: str = Field(description="Valid identifier -- used as the router's tool-call name (route) or the `then:`/`default:` target (conditional_route).")
+    description: Optional[str] = Field(default=None, description="Seeds the router's routing decision (route only; unused by conditional_route's deterministic pick).")
+
+
+class _MCPServerSpec(BaseModel):
+    """MCP server spec, shared by `mcp_call.server`, `tool_use_loop.mcp_servers[]`, and
+    `plan.executor.mcp_servers`. Exactly one of (`name` + transport fields) or
+    `server_resource_key` is required -- enforced at runtime (_resolve_mcp_server_cfg), not
+    by this schema, since a discriminated sub-union here would need its own tag field this
+    spec doesn't have."""
+    model_config = ConfigDict(extra="allow")
+    name: Optional[str] = Field(default=None, description="Label for logs/errors. Required unless server_resource_key is set.")
+    type: Literal["stdio", "http", "streamable_http", "streamable-http", "sse", "fastmcp"] = Field(default="stdio", description="Transport.")
+    command: Optional[List[str]] = Field(default=None, description="stdio only: [executable, *args].")
+    env: Optional[Dict[str, str]] = Field(default=None, description="stdio only: literal env vars merged with the inherited parent env (or restricted via policy.env.allow).")
+    url: Optional[str] = Field(default=None, description="http/sse/fastmcp: endpoint URL.")
+    headers: Optional[Dict[str, str]] = Field(default=None, description="http/sse/fastmcp: literal HTTP headers.")
+    headers_env: Optional[Dict[str, str]] = Field(default=None, description="{header_name: env_var_name} -- deferred header value lookup.")
+    config: Optional[Dict[str, Any]] = Field(default=None, description="fastmcp only: inline mcp.json-style {mcpServers: {...}} dict.")
+    bearer_env: Optional[str] = Field(default=None, description="fastmcp only: env var -> Authorization: Bearer <value> header.")
+    timeout_seconds: int = Field(default=300, description="Bounds connect + handshake + the call (fastmcp: the only timeout that applies).")
+    startup_timeout_seconds: int = Field(default=60, description="Bounds the MCP initialize handshake only (stdio/http/sse).")
+    server_resource_key: Optional[str] = Field(default=None, description="Shares a registered MCPServerResource instead of an inline name+transport spec. Exactly one of this or `name` is required.")
+
+
+class _VerifierConfig(_LLMSubConfig):
+    """Shared verifier/acceptance config: `best_of_n.verifier`, `cascade.accept`, `plan.verifier`."""
+    kind: Optional[Literal["llm", "regex", "json", "contains"]] = Field(default=None, description="Verification method. Default: 'llm' if a model is resolvable, else 'regex'.")
+    pattern: Optional[str] = Field(default=None, description="regex only: Python regex, re.search case-insensitive+dotall.")
+    contains: Optional[Union[str, List[str]]] = Field(default=None, description="contains only: substring(s) to check for.")
+    all: Optional[bool] = Field(default=True, description="contains only: require ALL substrings (True) vs. ANY (False).")
+    required_keys: Optional[List[str]] = Field(default=None, description="json only: keys that must be present in the parsed JSON.")
+    rubric: Optional[str] = Field(default=None, description="llm only: scoring rubric text.")
+    min_score: Optional[float] = Field(default=0.7, description="llm only: pass threshold (0-1).")
+
+
+class _ConditionSpec(BaseModel):
+    """One entry in `conditional_route.conditions`: `{when: {...}, then: <specialist_name>}`."""
+    model_config = ConfigDict(extra="allow")
+    when: Dict[str, Any] = Field(description="One of {regex: str} | {contains: str} | {equals: str} | {jsonpath: str} (combine jsonpath with value_equals/value_contains for exact/substring comparison on the resolved node).")
+    then: str = Field(description="Specialist name to run when this condition matches. First match wins.")
+
+
+class _StepBase(BaseModel):
+    """Fields every op shares, read generically before op-specific dispatch."""
+    model_config = ConfigDict(extra="allow")
+    id: str = Field(description="Step identifier, referenced by other steps' source/sources/inputs.")
+    source: Optional[str] = Field(default=None, description="Upstream step id to read from. Defaults to the reserved id 'source' (the pipeline's initial input) when omitted.")
+    inputs: Optional[Dict[str, _InputPort]] = Field(default=None, description="Typed named input ports: {port_name: {from: step_id} | {literal: value}}, substituted as {port_name} in templates.")
+    when: Optional[_WhenGuard] = Field(default=None, description="Skip condition -- step only runs if this predicate against a prior step's result holds; otherwise a passthrough {skipped: true} result.")
+    policy: Optional[_PolicyConfig] = Field(default=None, description="Per-step policy override -- can only be MORE restrictive than the pipeline-level policy:.")
+    persona: Optional[str] = Field(default=None, description="Name resolved against the top-level personas: block; expands into this step's LLM sub-config(s).")
+    version: Optional[str] = Field(default=None, description="Human-readable prompt version name, surfaced in agentic_prompt_version metadata. Falls back to the persona's own version if the step omits it.")
+
+
+class LlmCallStep(_StepBase):
+    """Single completion. LLM sub-config lives inline on the step."""
+    op: Literal["llm_call"]
+    model: Optional[str] = Field(default=None, description="LiteLLM model string. Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding API key.")
+    api_base_env_var: Optional[str] = Field(default=None, description="Custom base URL env var.")
+    system_prompt: Optional[str] = Field(default=None, description="System prompt.")
+    prompt_template: str = Field(default="{text}", description="Template around the source's text.")
+    temperature: float = Field(default=0.0, description="Sampling temperature.")
+    max_tokens: int = Field(default=2048, description="Max completion tokens.")
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level.")
+    thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models).")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only: cache_control: ephemeral on the system prompt.")
+
+
+class RouteStep(_StepBase):
+    """Router LLM picks a specialist by name via tool-call; specialist LLM answers."""
+    op: Literal["route"]
+    router: _LLMSubConfig = Field(description="LLM sub-config for the router.")
+    specialists: List[_SpecialistConfig] = Field(description="List of specialist LLMs (2+).")
+    fallback: Optional[str] = Field(default=None, description="Specialist name to fall back to if the router can't pick. Unset: an invalid pick raises.")
+    include_reasoning: bool = Field(default=True, description="If true, surfaces the router's free-text reasoning as router_reasoning metadata.")
+
+
+class ConditionalRouteStep(_StepBase):
+    """Deterministic picker -- regex/contains/equals/JSON-path against upstream text -- routes to the matching specialist. No LLM call for the pick itself."""
+    op: Literal["conditional_route"]
+    conditions: List[_ConditionSpec] = Field(description="First match wins.")
+    default: str = Field(description="Specialist that runs when no condition matches.")
+    specialists: List[_SpecialistConfig] = Field(description="Same shape as route's specialists.")
+
+
+class DebateStep(_StepBase):
+    """Proposers each write a proposal; arbitrator judges + picks a winner."""
+    op: Literal["debate"]
+    proposers: List[_LLMSubConfig] = Field(description="2+ proposer LLM sub-configs. Each sees the source text + its own system_prompt (seed its persona/argument there).")
+    arbitrator: _LLMSubConfig = Field(description="LLM sub-config for the judge. Sees the source + all proposals, picks winner_index, surfaces arbitrator_reasoning.")
+
+
+class CritiqueLoopStep(_StepBase):
+    """Drafter writes; critic reviews; drafter revises; repeat."""
+    op: Literal["critique_loop"]
+    drafter: _LLMSubConfig = Field(description="LLM sub-config for the drafter.")
+    critic: _LLMSubConfig = Field(description="LLM sub-config for the critic.")
+    iterations: int = Field(default=2, description="Number of drafter -> critic -> drafter cycles. Total LLM calls = 2*iterations+1 (unless until_score_gte stops it early).")
+    until_score_gte: Optional[float] = Field(default=None, description="Early-stop: appends a scoring instruction to the critic's system prompt (SCORE: N/100); once the score clears this threshold (0-100), skips the final revise. iterations still bounds it as a hard cap.")
+
+
+class SynthesizeStep(_StepBase):
+    """One LLM merges the outputs of N prior steps into a single response -- the fan-in shape. Two input modes: inputs: (named join, preferred) or sources: (positional legacy)."""
+    op: Literal["synthesize"]
+    sources: Optional[List[str]] = Field(default=None, description="Positional legacy fan-in: [<step_ids>]. Each source's text is labeled and concatenated; template uses {combined}+{n_sources}.")
+    model: Optional[str] = Field(default=None, description="LiteLLM model string. Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding API key.")
+    api_base_env_var: Optional[str] = Field(default=None, description="Custom base URL env var.")
+    system_prompt: Optional[str] = Field(default=None, description="System prompt. {port_name} placeholders substitute when inputs: is used.")
+    prompt_template: Optional[str] = Field(default=None, description="Default: inputs -> labeled per-port sections; sources -> {combined} fan-in.")
+    temperature: float = Field(default=0.0, description="Sampling temperature.")
+    max_tokens: int = Field(default=4096, description="Max completion tokens.")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only: cache_control: ephemeral on the system prompt.")
+
+
+class McpCallStep(_StepBase):
+    """Direct MCP tool call -- no LLM, deterministic step."""
+    op: Literal["mcp_call"]
+    server: _MCPServerSpec = Field(description="MCP server spec.")
+    mcp_tool_name: str = Field(description="Tool name as the MCP server exposes it.")
+    tool_args: Optional[Dict[str, Any]] = Field(default=None, description="{arg_name: value}. String values support {text}+{port_name} substitution.")
+    parse_as: Literal["auto", "json", "text"] = Field(default="auto", description="auto tries JSON, falls back to text.")
+
+
+class ToolUseLoopStep(_StepBase):
+    """Open-ended agent tool-use loop, bounded by max_iterations OR the LLM calling the synthetic finalize tool. One Dagster asset materializes with the full tool-call trajectory in metadata."""
+    op: Literal["tool_use_loop"]
+    model: Optional[str] = Field(default=None, description="LLM the agent runs on. Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding the model provider's key.")
+    api_base_env_var: Optional[str] = Field(default=None, description="Custom base URL env var.")
+    mcp_servers: List[_MCPServerSpec] = Field(description="Tools auto-discovered and namespaced <server name>__<tool name>.")
+    skill_keys: Optional[List[str]] = Field(default=None, description="resource_keys of shared SkillResources -- adds load_skill/read_skill_file tools, progressive disclosure.")
+    max_iterations: int = Field(default=10, description="Hard cap. Loop stops here regardless of finalize state.")
+    system_prompt: Optional[str] = Field(default=None, description="Agent instructions. Should include 'call finalize when done.'")
+    prompt_template: str = Field(default="{text}", description="Initial user turn.")
+    allowed_tools: Optional[List[str]] = Field(default=None, description="Optional allowlist (tool names). Default: all discovered.")
+    finalize_tool_name: str = Field(default="finalize", description="Name of the synthetic finalize tool the LLM calls to end the loop.")
+    tool_result_max_chars: int = Field(default=20000, description="Characters of one tool result shown to the model (0 = no cap).")
+    temperature: float = Field(default=0.0, description="Sampling temperature.")
+    max_tokens: int = Field(default=2048, description="Per-call max completion tokens.")
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level.")
+    thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens.")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only: cache_control: ephemeral on the system message.")
+
+
+class HandoffStep(_StepBase):
+    """Framework-composition op. Invoke a user-provided callable -- bring your own LangGraph/AutoGen/CrewAI/DSPy code as ONE step."""
+    op: Literal["handoff"]
+    entry_module: str = Field(description="Python module path, e.g. my_project.reasoners.")
+    entry_callable: str = Field(description="Function name in that module. Signature: def fn(**initial_state) -> dict.")
+    initial_state: Dict[str, Any] = Field(default_factory=dict, description="Kwargs passed to the callable. String values get {text}+{port_name}+{partition.<name>} substitution.")
+    output_text_key: str = Field(default="final_answer", description="Key in the returned dict whose value is the downstream text.")
+    framework: Optional[str] = Field(default=None, description="Metadata-only label (langgraph/autogen/crewai/dspy/...).")
+
+
+class MapStep(_StepBase):
+    """Apply an LLM call to each item in a list source. Aggregates per-item results into ONE Dagster asset -- fan-out inside a single step."""
+    op: Literal["map"]
+    model: Optional[str] = Field(default=None, description="LLM per item. Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var for the model provider.")
+    api_base_env_var: Optional[str] = Field(default=None, description="Custom base URL env var.")
+    prompt_template: str = Field(default="{item}", description="Per-item prompt. Placeholders: {item}, {index}, {n}, {text} (raw source), {port_name}.")
+    system_prompt: Optional[str] = Field(default=None, description="Applied to every per-item call.")
+    max_concurrent: int = Field(default=1, description="Thread-pool workers. 1 = sequential.")
+    output_join: Literal["newlines", "jsonl", "none", "records"] = Field(default="newlines", description="How to join per-item texts: newlines (double-newline separator) / jsonl / none (downstream reads items[]) / records (requires output_schema -- merges {**item, **extracted} per item into a JSON array).")
+    temperature: float = Field(default=0.0, description="Sampling temperature.")
+    max_tokens: int = Field(default=1024, description="Per-call max completion tokens.")
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level.")
+    thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens.")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only.")
+    output_schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON Schema object -- forces per-item structured output via tool_choice=required (same mechanism as extract), required for output_join='records'.")
+    strict: bool = Field(default=True, description="With output_schema set: missing required fields raise (false: return the extracted dict as-is).")
+
+
+class ExtractStep(_StepBase):
+    """Structured JSON extraction -- text -> dict matching an output_schema, forced via tool_choice=required."""
+    op: Literal["extract"]
+    model: Optional[str] = Field(default=None, description="LiteLLM model string. Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding API key.")
+    api_base_env_var: Optional[str] = Field(default=None, description="Custom base URL env var.")
+    output_schema: Dict[str, Any] = Field(description="JSON Schema object: {type: object, properties: {...}, required: [...]}.")
+    strict: bool = Field(default=True, description="Missing required fields raise (false: return the extracted dict as-is).")
+    system_prompt: Optional[str] = Field(default=None, description="Override for domain-specific extraction instructions.")
+    prompt_template: str = Field(default="{text}", description="User prompt template.")
+    temperature: float = Field(default=0.0, description="Sampling temperature.")
+    max_tokens: int = Field(default=1024, description="Max completion tokens.")
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level.")
+    thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens.")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only.")
+
+
+class ClassifyStep(_StepBase):
+    """Text -> label from a fixed set, forced via tool_choice=required with a single-field enum parameter."""
+    op: Literal["classify"]
+    model: Optional[str] = Field(default=None, description="Small model is fine (gpt-4o-mini etc.). Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding API key.")
+    api_base_env_var: Optional[str] = Field(default=None, description="Custom base URL env var.")
+    labels: List[str] = Field(description="Non-empty list of label strings -- the enum.")
+    include_rationale: bool = Field(default=True, description="Include a one-sentence explanation (false: cheaper).")
+    system_prompt: Optional[str] = Field(default=None, description="Override for domain-specific instructions.")
+    prompt_template: str = Field(default="{text}", description="User prompt template.")
+    temperature: float = Field(default=0.0, description="Sampling temperature.")
+    max_tokens: int = Field(default=256, description="Max completion tokens.")
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level.")
+    thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens.")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only.")
+
+
+class ReduceStep(_StepBase):
+    """Fold an LLM over chunks of a list, sequentially: prior summary + next chunk -> updated summary."""
+    op: Literal["reduce"]
+    model: Optional[str] = Field(default=None, description="LiteLLM model string. Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding API key.")
+    api_base_env_var: Optional[str] = Field(default=None, description="Custom base URL env var.")
+    chunk_size: int = Field(default=10, description="Items per fold call.")
+    initial_prompt_template: Optional[str] = Field(default=None, description="First-chunk prompt. Placeholders: {items}, {n}.")
+    fold_prompt_template: Optional[str] = Field(default=None, description="Subsequent-chunk prompt. Placeholders: {prior}, {items}, {n}, {chunk_index}, {n_chunks}.")
+    system_prompt: Optional[str] = Field(default=None, description="Applied to every fold call.")
+    temperature: float = Field(default=0.0, description="Sampling temperature.")
+    max_tokens: int = Field(default=2048, description="Per-call max completion tokens (for the growing summary).")
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level.")
+    thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens.")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only.")
+
+
+class SelfReflectStep(_StepBase):
+    """ONE LLM call that produces draft + self-critique + revised -- cheaper alternative to critique_loop."""
+    op: Literal["self_reflect"]
+    model: Optional[str] = Field(default=None, description="LiteLLM model string. Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding API key.")
+    api_base_env_var: Optional[str] = Field(default=None, description="Custom base URL env var.")
+    system_prompt: Optional[str] = Field(default=None, description="Override to force domain-specific critique dimensions.")
+    prompt_template: str = Field(default="{text}", description="User prompt template.")
+    temperature: float = Field(default=0.0, description="Sampling temperature.")
+    max_tokens: int = Field(default=4096, description="Needs room for all three (DRAFT/CRITIQUE/REVISED) sections.")
+    reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level.")
+    thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens.")
+    prompt_caching: bool = Field(default=False, description="Anthropic models only.")
+
+
+class SubPipelineStep(_StepBase):
+    """Invoke an inline sub-pipeline (a steps: list) as ONE step of the outer pipeline."""
+    op: Literal["sub_pipeline"]
+    steps: List[Dict[str, Any]] = Field(description="Nested sub-pipeline steps -- same step schema as the outer pipeline, recursively. Kept as a loose dict here (not the strict discriminated union) -- a genuinely recursive discriminated union crashes Dagster's own schema generation; validated instead at the same runtime dispatch (_OPS) every step already goes through.")
+    output_step_id: Optional[str] = Field(default=None, description="Defaults to the last sub-step.")
+    sub_source: Optional[Dict[str, Any]] = Field(default=None, description="Optional {kind: literal|file|url|database, ...} source override for the sub-pipeline.")
+
+
+class AgentCallStep(_StepBase):
+    """Call a pre-built agent by name, declared once in the top-level agents: block."""
+    op: Literal["agent_call"]
+    agent: str = Field(description="Name in the top-level agents: block.")
+    prompt_template: str = Field(default="{text}", description="Template for the prompt sent to the agent.")
+    system_prompt: Optional[str] = Field(default=None, description="System prompt; forwarded to remote_agent payloads / handoff callable kwargs where supported.")
+    extra_context: Optional[Dict[str, Any]] = Field(default=None, description="{extra.<key>} placeholders available to the agent's own templates.")
+
+
+class DelegateStep(_StepBase):
+    """Dynamic sibling of route/agent_call: the candidate pool is discovered (AgentCardComponent siblings and/or an external manifest) and a picker LLM matches task: against each candidate before invoking the pick over MCP or HTTP."""
+    op: Literal["delegate"]
+    task: str = Field(description="Free-text description of what this step needs done; also passed to the invoked agent as its instruction.")
+    required_tags: Optional[List[str]] = Field(default=None, description="Pre-filter candidates by skill tag before the picker LLM ever sees them.")
+    required_capabilities: Optional[List[str]] = Field(default=None, description="Pre-filter candidates by capabilities (a verb taxonomy specific to this project) before the picker LLM ever sees them.")
+    input_mode: str = Field(default="text/plain", description="MIME type of what this step is sending.")
+    registry: Optional[Dict[str, Any]] = Field(default=None, description="{discover_siblings: true, manifest_url/manifest_path, max_candidates: 20}.")
+    picker: _LLMSubConfig = Field(description="LLM sub-config making the pick.")
+    fallback: Optional[str] = Field(default=None, description="agent_id to use if the picker fails to pick validly.")
+    validate_mcp_schema: bool = Field(default=True, description="For an MCP-backed pick: validates tool_args against the picked tool's real inputSchema before calling.")
+
+
+class InvokeComponentStep(_StepBase):
+    """Reuse a deterministic transform already in this repo's component catalog mid-pipeline, without it appearing as a new asset-graph node."""
+    op: Literal["invoke_component"]
+    component_type: str = Field(description="Dotted path, e.g. dagster_community_components.FilterComponent.")
+    attributes: Dict[str, Any] = Field(description="Dict passed to the target component's constructor -- same shape as its own YAML attributes: block.")
+    input_kwarg: Optional[str] = Field(default=None, description="Which of the target asset's input names receives this step's data. Auto-detected when the target declares exactly one input.")
+    asset_name: Optional[str] = Field(default=None, description="If the target's build_defs() returns more than one asset, which one to invoke.")
+    resources: Optional[Dict[str, Any]] = Field(default=None, description="Forwarded to build_asset_context(resources=...), for a target that needs a real Dagster resource.")
+    partition_key: Optional[str] = Field(default=None, description="Forwarded to build_asset_context(partition_key=...).")
+
+
+class VerifyStep(_StepBase):
+    """Checks an answer against evidence -- a grounding/hallucination check."""
+    op: Literal["verify"]
+    evidence_source: Optional[Union[str, List[str]]] = Field(default=None, description="Step id(s) holding the evidence. Required unless inputs: {evidence: ...} is given.")
+    model: Optional[str] = Field(default=None, description="LLM making the verdict. Optional if `persona:` on the step resolves it.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding API key.")
+    system_prompt: Optional[str] = Field(default=None, description="Override.")
+    min_score: float = Field(default=0.7, description="Pass threshold (0-1).")
+    on_fail: Literal["continue", "fail"] = Field(default="continue", description="What happens when the verdict doesn't clear min_score.")
+
+
+class EvalStep(_StepBase):
+    """LLM-as-judge rubric scoring."""
+    op: Literal["eval"]
+    criteria: List[Union[str, Dict[str, Any]]] = Field(default_factory=lambda: ["overall quality"], description="List of criterion names, or {name, description, weight} dicts.")
+    scale: int = Field(default=5, description="Score scale (e.g. 1-5).")
+    reference_source: Optional[str] = Field(default=None, description="Optional step id holding the expected/reference answer.")
+    fail_below: Optional[float] = Field(default=None, description="Hard gate on the weighted mean score. Omit for no gate.")
+    model: Optional[str] = Field(default=None, description="LLM judge. Optional if `persona:` on the step resolves it.")
+    system_prompt: Optional[str] = Field(default=None, description="Override.")
+
+
+class BestOfNStep(_StepBase):
+    """N candidates, pick the best one."""
+    op: Literal["best_of_n"]
+    prompt_template: str = Field(default="{text}", description="Per-candidate prompt.")
+    system_prompt: Optional[str] = Field(default=None, description="Applied to every candidate.")
+    n: int = Field(default=3, description="Number of candidates to generate (>=1).")
+    models: Optional[List[str]] = Field(default=None, description="Cycles across candidates for an ensemble. Falls back to [model] if unset.")
+    model: Optional[str] = Field(default=None, description="Single-model fallback when models: is unset.")
+    temperature: float = Field(default=0.8, description="Sampling temperature.")
+    select: Optional[Literal["verifier", "vote", "first_valid"]] = Field(default=None, description="Selection strategy. Default: 'verifier' if verifier: is set, else 'vote'.")
+    verifier: Optional[_VerifierConfig] = Field(default=None, description="Required if select='verifier'.")
+    parallel: bool = Field(default=True, description="Generate candidates concurrently.")
+    max_workers: int = Field(default=4, description="Thread-pool size when parallel=true.")
+    on_none_pass: Literal["best", "fail"] = Field(default="best", description="What happens when no candidate passes the verifier.")
+
+
+class CascadeStep(_StepBase):
+    """Cheapest-first model escalation: try the cheapest model, escalate to a stronger one only if the answer doesn't pass acceptance."""
+    op: Literal["cascade"]
+    prompt_template: str = Field(default="{text}", description="Prompt sent to each model in turn.")
+    system_prompt: Optional[str] = Field(default=None, description="Applied to every attempt.")
+    models: List[str] = Field(description="Ordered cheapest -> strongest (1+).")
+    accept: Optional[_VerifierConfig] = Field(default=None, description="Acceptance check. Omit to accept any non-empty answer.")
+    on_exhausted: Literal["last", "fail"] = Field(default="last", description="What happens if even the strongest model doesn't pass.")
+
+
+class PlanStep(_StepBase):
+    """Plan -> execute -> verify -> replan -> synthesize. The open-ended multi-step reasoning op."""
+    op: Literal["plan"]
+    goal_template: str = Field(default="{text}", description="The goal given to the planner.")
+    model: Optional[str] = Field(default=None, description="Default model for planner/executor/verifier roles unless each overrides it.")
+    planner: Optional[_LLMSubConfig] = Field(default=None, description="Override for the planning LLM.")
+    executor: Optional[Dict[str, Any]] = Field(default=None, description="Override for the executing LLM. Set mcp_servers here to run each executed task as an inline tool_use_loop instead of a plain completion.")
+    verifier: Optional[_VerifierConfig] = Field(default=None, description="Gates each executed task.")
+    max_steps: int = Field(default=8, description="Hard cap on planned tasks.")
+    max_replans: int = Field(default=2, description="Hard cap on replanning cycles.")
+    synthesize: bool = Field(default=True, description="Whether to synthesize a final answer from the executed steps.")
+    on_fail: Literal["continue", "fail"] = Field(default="continue", description="What happens when the plan can't complete.")
+
+
+class DecideStep(_StepBase):
+    """Named-outcome decision record -- the model picks one of a fixed, named set of outcomes."""
+    op: Literal["decide"]
+    outcomes: Dict[str, str] = Field(description="{outcome_name: 'when to choose it'} -- 2+ entries.")
+    evidence_source: Optional[Union[str, List[str]]] = Field(default=None, description="Step id(s) holding supporting evidence.")
+    default_outcome: Optional[str] = Field(default=None, description="Used when the model's pick isn't a valid outcomes key. Omit to make an invalid pick a hard error.")
+    model: Optional[str] = Field(default=None, description="LLM making the decision. Optional if `persona:` on the step resolves it.")
+    system_prompt: Optional[str] = Field(default=None, description="Override.")
+
+
+class ApproveStep(_StepBase):
+    """Human-in-the-loop gate. An approval token (written by anything -- a Slack bot, Retool, a CLI) is checked against a fingerprint bound to what was approved."""
+    op: Literal["approve"]
+    approval_dir: str = Field(description="Local path or fsspec URI where approval tokens + the pending review queue live.")
+    key: Optional[str] = Field(default=None, description="Defaults to the partition key, else the step id.")
+    summary: Optional[str] = Field(default=None, description="Shown to the reviewer. Defaults to a 600-char clip of the source text.")
+    reuse: Literal["once", "until_changed", "always"] = Field(default="until_changed", description="until_changed: honoured while the fingerprint matches. once: consumed after one pass. always: any token approves every later run, fingerprint ignored.")
+    bind_to: Optional[List[Literal["text", "summary"]]] = Field(default=None, description="What the approval fingerprint is bound to. Default: both.")
+    max_age_hours: Optional[float] = Field(default=None, description="Older token = expired. Default: no expiry.")
+    mode: Literal["wait", "park"] = Field(default="wait", description="wait: hold a worker, polling. park: end the run at the gate; a generated sensor resumes it later.")
+    on_timeout: Literal["reject", "approve", "pending", "fail"] = Field(default="reject", description="What happens if nobody answers in time.")
+    on_reject: Literal["stop", "continue"] = Field(default="stop", description="stop: raise, nothing downstream runs.")
+    wait_seconds: Optional[float] = Field(default=None, description="mode=wait only. Default 0 = don't block.")
+    poll_seconds: Optional[float] = Field(default=None, description="mode=wait only. Default 5 (minimum enforced: 0.05).")
+    checkpoint_dir: Optional[str] = Field(default=None, description="mode=park only. Defaults to <approval_dir>/checkpoints.")
+    park_expires_hours: Optional[float] = Field(default=None, description="mode=park only. Optional expiry for the parked checkpoint.")
+    max_resumes: Optional[int] = Field(default=None, description="mode=park only. Optional cap on resume attempts.")
+    on_config_change: Literal["fail", "continue"] = Field(default="fail", description="mode=park only. What happens if the pipeline's config changed since it was parked.")
+
+
+_STEP_MODELS: Dict[str, type] = {
+    "llm_call": LlmCallStep, "route": RouteStep, "conditional_route": ConditionalRouteStep,
+    "debate": DebateStep, "critique_loop": CritiqueLoopStep, "synthesize": SynthesizeStep,
+    "mcp_call": McpCallStep, "tool_use_loop": ToolUseLoopStep, "handoff": HandoffStep,
+    "map": MapStep, "extract": ExtractStep, "classify": ClassifyStep, "reduce": ReduceStep,
+    "self_reflect": SelfReflectStep, "sub_pipeline": SubPipelineStep, "agent_call": AgentCallStep,
+    "delegate": DelegateStep, "invoke_component": InvokeComponentStep, "verify": VerifyStep,
+    "eval": EvalStep, "best_of_n": BestOfNStep, "cascade": CascadeStep, "plan": PlanStep,
+    "decide": DecideStep, "approve": ApproveStep,
+}
+assert set(_STEP_MODELS) == set(_OPS), f"_STEP_MODELS is missing/has extra ops vs _OPS: {set(_OPS) ^ set(_STEP_MODELS)}"
+
+StepUnion = Annotated[
+    Union[tuple(_STEP_MODELS.values())],  # type: ignore[arg-type]
+    Field(discriminator="op"),
+]
+# ── END step models ───────────────────────────────────────────────────────────────────────────────────────────────
+
+
 class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     """Standardized agentic pipeline — one YAML, one asset (with named outputs).
 
@@ -8040,10 +8528,14 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "All string fields are {partition_key}-templated."
         ),
     )
-    steps: List[Dict[str, Any]] = Field(
+    steps: List[StepUnion] = Field(
         description=(
-            "Ordered pipeline steps. Each step: {id, op, ...op-specific args}. "
-            "\n\nTwo wiring modes (choose per step, they compose):\n"
+            "Ordered pipeline steps. Each step: {id, op, ...op-specific args} -- `op` "
+            "picks which of the 25 typed step shapes below applies (each with its own "
+            "required/optional fields, types, defaults, and descriptions -- see "
+            "schema.json or `describe_op`/the op's own model for the full, authoritative "
+            "field list per op; this field only covers what's common to every op).\n\n"
+            "Two wiring modes (choose per step, they compose):\n"
             "  1. **Legacy single-source**: `source: <step_id>` reads that step's "
             "text into `{text}` in the prompt (default, when omitted: the pipeline's "
             "original input -- NOT whatever step ran last. Dependency structure is "
@@ -8057,43 +8549,10 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "AND `system_prompt` (and, for `mcp_call`, in string `tool_args`). "
             "Any step can join from any number of prior steps by port name — the "
             "shape common in agentic-orchestration graphs (fan-out → typed-join).\n\n"
-            "8 ops. LLM ops (llm_call/route/debate/critique_loop/synthesize) all "
-            "support optional `max_tokens`, `temperature`, `system_prompt`, "
-            "`prompt_template`:\n"
-            "  - **llm_call**: {model, api_key_env_var}. One LLM call. Supports "
-            "both `source:` and `inputs:` for multi-input joins.\n"
-            "  - **route**: {router: {model, api_key_env_var}, specialists: [{name, "
-            "description, model, api_key_env_var, system_prompt}], fallback: name}. "
-            "Router picks specialist, specialist answers.\n"
-            "  - **debate**: {proposers: [{model, api_key_env_var, system_prompt}], "
-            "arbitrator: {model, api_key_env_var, system_prompt}}. N proposers, "
-            "arbitrator picks winner.\n"
-            "  - **critique_loop**: {drafter: {model, api_key_env_var, system_prompt}, "
-            "critic: {model, api_key_env_var, system_prompt}, iterations: int}. "
-            "Drafter → critic → drafter, N iterations.\n"
-            "  - **synthesize**: {model, api_key_env_var, sources: [<step_ids>] | "
-            "inputs: {port: {from: id}}}. Merge multiple upstream step outputs. "
-            "Prefer `inputs:` for named typed joins (Prefect-style execution-plan "
-            "shape); `sources:` for positional legacy shape.\n"
-            "  - **mcp_call**: {server: {name, type: stdio|http|sse|fastmcp, "
-            "command|url, env|headers|headers_env} OR {server_resource_key: <an "
-            "MCPServerResource component's resource_key>, to share one registered "
-            "server instead of declaring it inline -- exactly one of the two is "
-            "required}, mcp_tool_name, tool_args, "
-            "parse_as: auto|json|text}. Direct MCP tool call (no LLM); "
-            "string `tool_args` support `{text}` substitution against source "
-            "AND `{port_name}` substitution from `inputs:`.\n"
-            "  - **tool_use_loop**: {model, api_key_env_var, mcp_servers: "
-            "[...] (each entry the same shape as mcp_call.server, inline or "
-            "server_resource_key), max_iterations, [system_prompt, allowed_tools, "
-            "finalize_tool_name, temperature, max_tokens]}. Open-ended "
-            "tool-use loop — LLM sees MCP tools, picks one, tool runs, "
-            "LLM sees result, picks next tool, etc. Bounded by "
-            "max_iterations OR the LLM calling the synthetic "
-            "`finalize` tool with its final answer. The shape LangGraph "
-            "is known for, done as ONE Dagster asset with the final "
-            "answer as `text` + full tool-call trajectory in metadata. "
-            "Cost/latency/tokens roll up across every internal call."
+            "25 ops: llm_call, route, conditional_route, debate, critique_loop, "
+            "synthesize, mcp_call, tool_use_loop, handoff, map, extract, classify, "
+            "reduce, self_reflect, sub_pipeline, agent_call, delegate, invoke_component, "
+            "verify, eval, best_of_n, cascade, plan, decide, approve."
         ),
     )
     outputs: Dict[str, Any] = Field(
@@ -8353,7 +8812,14 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _validate_policy(self.policy)  # typos in a security config must fail loudly, not silently allow everything
         prefix = self.asset_name_prefix
-        steps = list(self.steps)
+        # self.steps is the real discriminated union (StepUnion) for schema/validation
+        # purposes -- converted back to plain dicts here, immediately, so every runtime
+        # helper below (_run_step, _OPS, park/experiment/validation helpers, ...) keeps
+        # reading steps exactly as it always has. exclude_unset=True + by_alias=True
+        # faithfully replicates the original free-form dict (only keys actually present in
+        # the YAML, "from"/"not"/"in" restored from their Python-safe aliases) -- no schema
+        # default gets fabricated into a key that was never set.
+        steps = [s.model_dump(exclude_unset=True, by_alias=True) for s in self.steps]
         source_config = dict(self.source)
         outputs = dict(self.outputs)
         asset_ids: List[str] = list(outputs.get("assets", []))
@@ -8390,6 +8856,11 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         # catalog by "show me every debate step" or "every route step".
         op_by_id = {s.get("id"): s.get("op") for s in steps if s.get("id") and s.get("op")}
 
+        # Resolved partition type for definition metadata -- a single human-readable
+        # label regardless of which partitioning shape this pipeline actually uses
+        # (flat partition_type, or the multi-axis partition_dimensions shape).
+        _resolved_partition_type = self.partition_type or ("multi" if self.partition_dimensions else "none")
+
         outs = {}
         for aid in asset_ids:
             per_asset_tags = dict(base_tags)
@@ -8398,13 +8869,37 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             op = op_by_id.get(aid)
             if op:
                 per_asset_tags[f"dagster/kind/{op}"] = ""
+            # Catalog visibility for a pipeline no one has run yet (0.10.141 only
+            # tagged dagster/kind/<op> -- nothing distinguished a never-materialized
+            # pipeline's step assets from any other asset at all): a tag naming
+            # this pipeline, plus definition metadata identifying which pipeline,
+            # which step, which op, what it reads, and the partition shape.
+            per_asset_tags["dagster-community/agentic-pipeline"] = _safe_tag_value(prefix)
+            _step = next((st for st in steps if st.get("id") == aid), None) or {}
+            _reads_refs: List[str] = []
+            _src = _step.get("source")
+            if isinstance(_src, str):
+                _reads_refs.append(_src)
+            for _sid in (_step.get("sources") or []):
+                if isinstance(_sid, str):
+                    _reads_refs.append(_sid)
+            for _spec in (_step.get("inputs") or {}).values():
+                if isinstance(_spec, dict) and isinstance(_spec.get("from"), str):
+                    _reads_refs.append(_spec["from"])
+            _reads = ",".join(_reads_refs) if _reads_refs else "source"
             outs[f"{prefix}_{aid}"] = dg.AssetOut(
-                code_version=_step_code_version(
-                    next((st for st in steps if st.get("id") == aid), None), self.personas, self.policy),
+                code_version=_step_code_version(_step, self.personas, self.policy),
                 group_name=group_name,
                 description=self.description,
                 owners=self.owners or None,
                 tags=per_asset_tags,
+                metadata={
+                    "pipeline": dg.MetadataValue.text(prefix),
+                    "step": dg.MetadataValue.text(aid),
+                    "op": dg.MetadataValue.text(op or ""),
+                    "reads": dg.MetadataValue.text(_reads),
+                    "partition_type": dg.MetadataValue.text(_resolved_partition_type),
+                },
                 # is_required=False lets can_subset=True omit outputs when
                 # the caller materializes a strict subset. When ALL outputs
                 # are selected (the default UX), every emission still fires

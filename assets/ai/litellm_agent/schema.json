@@ -291,6 +291,15 @@
       "label": "Skill Keys",
       "description": "SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
       "required": false
+    },
+    "allowed_tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allowed Tools",
+      "description": "Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), '*' wildcards supported (fnmatch), applied across every mcp_servers entry. Default: all discovered tools. A server can expose many tools the agent shouldn't be able to call (e.g. a hosted Dagster+ MCP server's terminate_run/rerun_run/delete_alert_policy alongside read-only ones) -- this is the lever to restrict an agent to a safe subset, e.g. ['dagster_plus__list_*', 'dagster_plus__get_*'].",
+      "required": false
     }
   }
 }

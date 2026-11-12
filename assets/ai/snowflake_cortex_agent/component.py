@@ -154,6 +154,18 @@ class SnowflakeCortexAgentComponent(Component, Model, Resolvable):
     max_tokens: int = Field(default=2048, description="Max tokens per model call.")
     max_iterations: int = Field(default=10, ge=1, le=100, description="Max tool-call rounds.")
     mcp_servers: List[MCPServerSpec] = Field(default_factory=list, description="MCP servers to expose as tools.")
+    allowed_tools: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), "
+            "'*' wildcards supported (fnmatch), applied across every mcp_servers entry. "
+            "Default: all discovered tools. A server can expose many tools the agent "
+            "shouldn't be able to call (e.g. a hosted Dagster+ MCP server's "
+            "terminate_run/rerun_run/delete_alert_policy alongside read-only ones) -- this "
+            "is the lever to restrict an agent to a safe subset, e.g. "
+            "['dagster_plus__list_*', 'dagster_plus__get_*']."
+        ),
+    )
     skill_keys: Optional[List[str]] = Field(
         default=None,
         description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
@@ -229,6 +241,7 @@ class SnowflakeCortexAgentComponent(Component, Model, Resolvable):
         max_tokens = self.max_tokens
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
+        allowed_tools = self.allowed_tools
         skill_keys = self.skill_keys
         request_timeout_seconds = self.request_timeout_seconds
         group_name = self.group_name
@@ -363,6 +376,7 @@ class SnowflakeCortexAgentComponent(Component, Model, Resolvable):
                     request_timeout_seconds=request_timeout_seconds,
                     mcp_servers=resolved_mcp_servers,
                     skill_resources=skill_resources,
+                    allowed_tools=allowed_tools,
                 )
             )
 
@@ -500,7 +514,16 @@ def _resolve_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str]:
     return headers
 
 
-async def _connect_mcp(stack, log, mcp_servers):
+def _tool_name_allowed(name: str, allowed: Optional[List[str]]) -> bool:
+    """`allowed` is a list of names/fnmatch patterns ('*' wildcards) matched against the
+    namespaced tool name ('{server}__{tool}'). No allowlist = everything allowed."""
+    if not allowed:
+        return True
+    import fnmatch
+    return any(fnmatch.fnmatch(name, pattern) for pattern in allowed)
+
+
+async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
     """Same MCP connect + tool discovery as the other agents."""
     tool_index: Dict[str, Any] = {}
     cortex_tools: List[Dict[str, Any]] = []
@@ -547,6 +570,8 @@ async def _connect_mcp(stack, log, mcp_servers):
         tools_resp = await session.list_tools()
         for tool in tools_resp.tools:
             prefixed = f"{name}__{tool.name}"
+            if not _tool_name_allowed(prefixed, allowed_tools):
+                continue
             tool_index[prefixed] = (session, tool, tool.name)
             # Cortex COMPLETE accepts OpenAI-format tool definitions (same as openai_agent).
             cortex_tools.append({
@@ -575,6 +600,7 @@ async def _run_agent(
     request_timeout_seconds: int,
     mcp_servers: List[Dict[str, Any]],
     skill_resources: Optional[Dict[str, Any]] = None,
+    allowed_tools: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     import json
     import os
@@ -602,7 +628,7 @@ async def _run_agent(
     }
 
     async with AsyncExitStack() as stack:
-        tool_index, cortex_tools, servers_used = await _connect_mcp(stack, log, mcp_servers)
+        tool_index, cortex_tools, servers_used = await _connect_mcp(stack, log, mcp_servers, allowed_tools)
 
         loaded_skill_names: set = set()
         skill_load_count = 0

@@ -227,3 +227,39 @@ def test_result_helper_structured_only_and_snake_case(mod):
     tool = R(name="x", inputSchema=None, input_schema={"type": "object", "properties": {"q": {}}})
     assert mod._mcp_field(tool, "inputSchema", None)["properties"] == {"q": {}}
     assert mod._mcp_field({"inputSchema": {"k": 1}}, "inputSchema", None) == {"k": 1}
+
+
+def test_tool_name_allowed_exact_and_wildcard_and_default(mod):
+    assert mod._tool_name_allowed("mini__echo", None) is True  # no allowlist = everything allowed
+    assert mod._tool_name_allowed("mini__echo", ["mini__echo"]) is True
+    assert mod._tool_name_allowed("mini__boom", ["mini__echo"]) is False
+    assert mod._tool_name_allowed("mini__echo", ["mini__ec*"]) is True
+    assert mod._tool_name_allowed("mini__boom", ["mini__ec*"]) is False
+
+
+def test_allowed_tools_filters_the_tool_list_sent_to_the_model(mod, stdio_cfg, monkeypatch):
+    """The real stdio server exposes echo + boom; allowed_tools restricts the model to
+    only the matching one -- this is the lever for a server exposing tools an agent
+    shouldn't be able to call (terminate_run/rerun_run alongside read-only ones)."""
+    seen = {}
+
+    class Msg:
+        def __init__(self, content):
+            self.content, self.tool_calls = content, None
+
+        def model_dump(self, exclude_none=True):
+            return {"role": "assistant", "content": self.content}
+
+    async def acompletion(messages, **kw):
+        seen["tools"] = kw["tools"]
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=Msg("done"))])
+
+    fake = types.ModuleType("litellm")
+    fake.acompletion = acompletion
+    monkeypatch.setitem(sys.modules, "litellm", fake)
+    _run(mod._run_agent(**_call_kwargs(
+        mod._run_agent, stdio_cfg, api_key_env_var=None, api_base_env_var=None,
+        allowed_tools=["mini__ec*"],
+    )))
+    names = {t["function"]["name"] for t in seen["tools"]}
+    assert names == {"mini__echo"}, f"allowed_tools did not filter out mini__boom: {names}"

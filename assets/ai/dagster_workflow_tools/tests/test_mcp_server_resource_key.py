@@ -12,13 +12,32 @@ def test_unset_mcp_server_resource_key_registers_only_the_existing_resource(mod,
     assert set(defs.resources) == {"wf_tools"}
 
 
-def test_mcp_server_resource_key_requires_dagster_home_in_env(mod, defs_module_spec, monkeypatch):
+def test_build_defs_never_reads_dagster_home_at_build_time(mod, defs_module_spec, monkeypatch):
+    """DAGSTER_HOME is read at run time (model_dump() call), not at component load --
+    build_defs must succeed even when it's completely unset."""
     monkeypatch.delenv("DAGSTER_HOME", raising=False)
     component = mod.DagsterWorkflowToolsComponent(
         resource_key="wf_tools", definitions_module=defs_module_spec, mcp_server_resource_key="wf_mcp",
     )
-    with pytest.raises(ValueError, match="DAGSTER_HOME"):
-        component.build_defs(None)
+    defs = component.build_defs(None)  # must not raise
+    cfg = defs.resources["wf_mcp"].model_dump()
+    assert "DAGSTER_HOME" not in cfg["env"]
+
+
+def test_dagster_home_is_read_fresh_at_model_dump_time_not_build_time(mod, instance, defs_module_spec, monkeypatch):
+    """The resource object is built once (component load); DAGSTER_HOME in its model_dump()
+    output must reflect whatever's in the environment at CALL time, even if that's set
+    AFTER build_defs already ran -- proving it's genuinely read at run time."""
+    monkeypatch.delenv("DAGSTER_HOME", raising=False)
+    component = mod.DagsterWorkflowToolsComponent(
+        resource_key="wf_tools", definitions_module=defs_module_spec, mcp_server_resource_key="wf_mcp",
+    )
+    defs = component.build_defs(None)
+    resource = defs.resources["wf_mcp"]
+    assert "DAGSTER_HOME" not in resource.model_dump()["env"]
+
+    monkeypatch.setenv("DAGSTER_HOME", instance.root_directory)
+    assert resource.model_dump()["env"]["DAGSTER_HOME"] == instance.root_directory
 
 
 def test_mcp_server_resource_key_registers_stdio_mcp_shaped_resource(mod, instance, defs_module_spec, monkeypatch):

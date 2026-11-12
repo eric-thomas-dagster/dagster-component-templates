@@ -53,7 +53,7 @@
     "mcp_server_resource_key": {
       "type": "string",
       "label": "Mcp Server Resource Key",
-      "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with DAGSTER_HOME and the DAGSTER_WORKFLOW_TOOLS_* env vars set automatically from definitions_module/allow/allow_assets/allow_jobs/default_tags. Any mcp_servers-aware component (mcp_tool_call, mcp_tool_picker, the agent components, agentic_pipeline) can then reference it via server_resource_key instead of hand-writing an inline command+env entry. Leave unset to skip this -- existing resource_key-only behavior is unchanged.",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the DAGSTER_WORKFLOW_TOOLS_* env vars set from definitions_module/allow/allow_assets/allow_jobs/default_tags. DAGSTER_HOME is read fresh from the environment at run time (when a consumer actually resolves this resource), not baked in at component load. Any mcp_servers-aware component (mcp_tool_call, mcp_tool_picker, the agent components, agentic_pipeline) can then reference it via server_resource_key instead of hand-writing an inline command+env entry. Leave unset to skip this -- existing resource_key-only behavior is unchanged.",
       "required": false
     }
   }

@@ -56,10 +56,14 @@ The YAML above works, but it repeats `DAGSTER_HOME`/`DAGSTER_WORKFLOW_TOOLS_*` b
 `mcp_servers:` entry that wants this toolset. Set `mcp_server_resource_key` on the component
 instead, and it registers a second, [`MCPServerResource`](../../../resources/mcp_server_resource)-
 shaped resource under that key -- built from this component's own `definitions_module`/`allow`/
-`allow_assets`/`allow_jobs`/`default_tags` settings, with `DAGSTER_HOME` read from the current
-process's environment at component-load time (raises a clear error if it isn't set -- MCP's stdio
-client does **not** inherit the parent's full environment, only a small Dagster-unaware safe-list,
-so `DAGSTER_HOME` has to be forwarded explicitly either way):
+`allow_assets`/`allow_jobs`/`default_tags` settings. `DAGSTER_HOME` is read from the environment
+at **run time** (every time a consumer resolves this resource and calls its `.model_dump()`, not
+once at component load) -- so it reflects whatever `DAGSTER_HOME` actually is when a run executes,
+not a value frozen at code-location-load time. MCP's stdio client does **not** inherit the parent's
+full environment (only a small Dagster-unaware safe-list), so `DAGSTER_HOME` still has to be
+forwarded explicitly; if it's unset when the resource is actually resolved, the spawned server
+process's own `main()` raises a clear `SystemExit` the moment it starts (the same way it always
+has for a bare `python -m` invocation) rather than the component failing to build.
 
 ```yaml
 type: dagster_community_components.DagsterWorkflowToolsComponent
@@ -154,6 +158,6 @@ real Dagster+ GraphQL `launchRun` call against a running deployment) -- not impl
 | `allow_assets` | `List[str]` | — | Hard allow-list of asset keys materialize_assets may target (default: any asset in definitions_module). Recommended in production -- an agent should materialize specific, intended assets, not anything in the repo. |
 | `allow_jobs` | `List[str]` | — | Hard allow-list of job names run_job may target (default: any job in definitions_module). |
 | `default_tags` | `Dict[str, str]` | — | Tags merged onto every triggered run, alongside dagster-community/workflow-tool=true (e.g. {'triggered_by': 'support-agent'}) -- for run-tag attribution/audit. |
-| `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with DAGSTER_HOME and t… _(full docs in schema.json + component README)_ |
+| `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the DAGSTER_WORKFL… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

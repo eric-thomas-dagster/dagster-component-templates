@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from .conftest import load_component_module, requires_lancedb
+from .conftest import load_component_module, requires_lancedb, requires_pinecone, requires_qdrant_client
 
 
 @pytest.fixture()
@@ -39,6 +39,7 @@ def test_unsupported_provider_raises_clearly(mod):
         mod._do_embed(df, {"provider": "sentence_transformers", "model": "m", "reuse_from": {"provider": "not_real"}}, _FakeCtx())
 
 
+@requires_qdrant_client
 def test_qdrant_reuse_from_mocked_sdk(mod):
     """Every chunk is already indexed and unchanged -- nothing new to compute, so this never
     calls _do_embed_raw at all (no real model needed)."""
@@ -60,6 +61,7 @@ def test_qdrant_reuse_from_mocked_sdk(mod):
     assert list(out["embedding"])[0] == pytest.approx([0.1, 0.2])
 
 
+@requires_pinecone
 def test_pinecone_reuse_from_mocked_sdk(mod):
     df = _df(["c1"], ["unchanged text"])
     fake_index = MagicMock()

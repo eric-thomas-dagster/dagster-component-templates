@@ -54,6 +54,22 @@ def _lancedb_available() -> bool:
         return False
 
 
+def _pinecone_available() -> bool:
+    try:
+        import pinecone  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _qdrant_client_available() -> bool:
+    try:
+        import qdrant_client  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def _duckdb_available() -> bool:
     try:
         import duckdb  # noqa: F401
@@ -106,6 +122,12 @@ requires_chromadb = pytest.mark.skipif(
 )
 requires_lancedb = pytest.mark.skipif(
     not _lancedb_available(), reason="requires lancedb (pip install lancedb)",
+)
+requires_pinecone = pytest.mark.skipif(
+    not _pinecone_available(), reason="requires pinecone (pip install pinecone)",
+)
+requires_qdrant_client = pytest.mark.skipif(
+    not _qdrant_client_available(), reason="requires qdrant-client (pip install qdrant-client)",
 )
 requires_duckdb = pytest.mark.skipif(
     not _duckdb_available(),

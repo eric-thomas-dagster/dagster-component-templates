@@ -59547,6 +59547,43 @@
       }
     },
     {
+      "id": "skill_resource",
+      "name": "skill_resource",
+      "category": "resource",
+      "description": "Register a skill (Anthropic Agent Skills format: a SKILL.md file with YAML front matter + markdown body) once, referenced by name (skill_keys) from the MCP-aware agent components instead of repeating the same source fields inline in every one of them.",
+      "path": "resources/skill_resource",
+      "tags": [],
+      "icon": "BookOpen",
+      "component_type": "dagster_community_components.SkillResourceComponent",
+      "agent_hints": {
+        "inputs": "None -- declares a skill's source (git repo + path + ref, or a local directory).",
+        "outputs": "A Dagster resource (SkillResource) other components reference via skill_keys.",
+        "side_effects": "None at build time beyond resolving name/description from SKILL.md front matter (a git clone or local file read) -- the full skill body is only fetched when a consuming agent actually loads it."
+      },
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "agent skills",
+        "skill.md",
+        "shared resource",
+        "progressive disclosure"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/skill_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/skill_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/skill_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/skill_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/skill_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pyyaml>=6.0.0"
+        ]
+      }
+    },
+    {
       "id": "sla_asset",
       "name": "SLA Asset",
       "category": "decorator",
@@ -72434,5 +72471,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1391
+  "total": 1392
 }

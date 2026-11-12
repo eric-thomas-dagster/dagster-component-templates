@@ -1,0 +1,6 @@
+type: dagster_community_components.SkillResourceComponent
+attributes:
+  resource_key: pdf_report_skill
+  git_url: https://github.com/your-org/agent-skills.git
+  git_path: skills/pdf-report
+  git_ref: main

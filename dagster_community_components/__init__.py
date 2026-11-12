@@ -1257,6 +1257,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SigmaWorkbookIngestionComponent": "assets/ingestion/sigma_workbook_ingestion/component.py",
     "SimulationSamplingComponent": "assets/analytics/simulation_sampling/component.py",
     "SitemapCrawlerIngestionComponent": "assets/ingestion/sitemap_crawler_ingestion/component.py",
+    "SkillResourceComponent": "resources/skill_resource/component.py",
     "SlaAssetComponent": "assets/infrastructure/sla_asset/component.py",
     "SlackApprovalGateComponent": "assets/ai/slack_approval_gate/component.py",
     "SlackAuditLogIngestionComponent": "ingestion/slack_audit_log_ingestion/component.py",

@@ -1,0 +1,64 @@
+{
+  "component_type": "dagster_community_components.SkillResourceComponent",
+  "description": "Register a skill (Anthropic Agent Skills format: a SKILL.md file with YAML front matter + markdown body) once, referenced by name (skill_keys) from the MCP-aware agent components instead of repeating the same source fields inline in every one of them.",
+  "category": "resource",
+  "icon": "BookOpen",
+  "x-dagster-io": {},
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key other components reference via skill_keys.",
+      "required": false,
+      "default": "skill"
+    },
+    "name": {
+      "type": "string",
+      "label": "Name",
+      "description": "Skill name override. If unset, read from the SKILL.md front matter at component load time.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Skill description override. If unset, read from the SKILL.md front matter at component load time.",
+      "required": false,
+      "default": null
+    },
+    "git_url": {
+      "type": "string",
+      "label": "Git Url",
+      "description": "Git remote URL to fetch the skill from (e.g. https://github.com/org/repo.git). Exactly one of git_url / local_path is required.",
+      "required": false,
+      "default": null
+    },
+    "git_path": {
+      "type": "string",
+      "label": "Git Path",
+      "description": "Path within the git repo to the skill directory containing SKILL.md. Defaults to the repo root.",
+      "required": false,
+      "default": ""
+    },
+    "git_ref": {
+      "type": "string",
+      "label": "Git Ref",
+      "description": "Git branch or tag to check out. An arbitrary commit SHA isn't guaranteed to work (depends on whether the remote allows fetching by SHA).",
+      "required": false,
+      "default": "main"
+    },
+    "local_path": {
+      "type": "string",
+      "label": "Local Path",
+      "description": "Local filesystem directory containing SKILL.md. Exactly one of git_url / local_path is required.",
+      "required": false,
+      "default": null
+    },
+    "git_token_env_var": {
+      "type": "string",
+      "label": "Git Token Env Var",
+      "description": "Env var holding a token for private-repo git auth (sent as an Authorization: Bearer header during clone).",
+      "required": false
+    }
+  }
+}

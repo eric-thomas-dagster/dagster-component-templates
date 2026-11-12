@@ -46,21 +46,21 @@ The native `route` op does this exact pattern too — a router LLM picks from an
 
 ## Running it for real
 
-**Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — the three specialist YAMLs as extra files sitting next to `pipeline.yaml` are never actually loaded as components. In your project's `defs/` folder, lay these out as four sibling directories, each containing one file renamed to `defs.yaml`:
+**Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — the three specialist YAMLs as extra files sitting next to `pipeline.yaml` are never actually loaded as components. **Keep `specialist_agent_server.py` OUT of `defs/` entirely** -- Dagster's scanner also tries to import loose `.py` files it finds inside a defs directory as a definitions module, so a script sitting next to a `defs.yaml` can break the whole code location's loading, not just go unused. In your project's `defs/` folder, lay the YAMLs out as four sibling directories, each containing one file renamed to `defs.yaml`, with the script in a separate `scripts/` folder next to (not inside) `defs/`:
 
 ```
-defs/
-  specialist_routing/
-    defs.yaml                  # pipeline.yaml, renamed
-  billing_specialist/
-    defs.yaml                   # billing_specialist_agent.yaml, renamed
-    specialist_agent_server.py
-  technical_specialist/
-    defs.yaml                   # technical_specialist_agent.yaml, renamed
-    specialist_agent_server.py  # (a copy, or point command: at a shared location)
-  general_specialist/
-    defs.yaml                   # general_specialist_agent.yaml, renamed
-    specialist_agent_server.py
+your_project/
+  defs/
+    specialist_routing/
+      defs.yaml                  # pipeline.yaml, renamed
+    billing_specialist/
+      defs.yaml                   # billing_specialist_agent.yaml, renamed
+    technical_specialist/
+      defs.yaml                   # technical_specialist_agent.yaml, renamed
+    general_specialist/
+      defs.yaml                   # general_specialist_agent.yaml, renamed
+  scripts/
+    specialist_agent_server.py    # ONE shared copy, outside defs/
 ```
 
-Set `OPENAI_API_KEY`, then materialize `specialist_routing_routed`. Edit `defs.yaml`'s `source.text` to try a different question. `delegate`'s sibling-discovery scans the shared *parent* directory (`defs/` above), so all three specialists need to be true siblings of `specialist_routing`, not nested inside it.
+Each specialist's `defs.yaml` command path becomes `[python3, "../../scripts/specialist_agent_server.py", "<persona>"]` (`billing` / `technical` / `general`). Set `OPENAI_API_KEY`, then materialize `specialist_routing_routed`. Edit `defs.yaml`'s `source.text` to try a different question. `delegate`'s sibling-discovery scans the shared *parent* directory (`defs/` above), so all three specialists need to be true siblings of `specialist_routing`, not nested inside it.

@@ -6,17 +6,17 @@ with its own persona/system prompt, same pattern as the triage agent in
 ../support_ticket_triage/triage_mcp_server.py. Forced structured output
 (summary + action_items) rather than free text, so downstream steps or
 asset metadata get a real list to act on, not prose to re-parse.
+
+Works on mcp 1.x and 2.x (same compat shim this repo's own MCP server
+components use -- FastMCP was renamed MCPServer in 2.x).
 """
-import asyncio
 import json
 import os
 
-import mcp.server.stdio
-from mcp.server import Server, NotificationOptions
-from mcp.server.models import InitializationOptions
-from mcp.types import Tool, TextContent
-
-server = Server("summarizer-mcp")
+try:  # mcp 2.x renamed FastMCP -> MCPServer (mcp.server.fastmcp now raises ModuleNotFoundError)
+    from mcp.server.mcpserver import MCPServer as _Server
+except ImportError:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as _Server
 
 SUMMARIZER_SYSTEM_PROMPT = """You are an executive assistant. Given a \
 document, produce a short executive summary (2-4 sentences, no jargon, \
@@ -41,8 +41,12 @@ SUMMARIZE_TOOL = {
     },
 }
 
+mcp = _Server("summarizer-mcp")
 
-def _run_summarizer_llm(document_text: str) -> dict:
+
+@mcp.tool()
+def summarize_document(document_text: str) -> dict:
+    """Produce an executive summary + action items for a document."""
     import litellm
 
     resp = litellm.completion(
@@ -60,42 +64,5 @@ def _run_summarizer_llm(document_text: str) -> dict:
     return json.loads(tool_call.function.arguments)
 
 
-@server.list_tools()
-async def list_tools():
-    return [
-        Tool(
-            name="summarize_document",
-            description="Produce an executive summary + action items for a document.",
-            inputSchema={
-                "type": "object",
-                "properties": {"document_text": {"type": "string"}},
-                "required": ["document_text"],
-            },
-        )
-    ]
-
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict):
-    if name != "summarize_document":
-        raise ValueError(f"unknown tool {name!r}")
-    result = _run_summarizer_llm(arguments.get("document_text", ""))
-    return [TextContent(type="text", text=json.dumps(result))]
-
-
-async def main():
-    async with mcp.server.stdio.stdio_server() as (read, write):
-        await server.run(
-            read, write,
-            InitializationOptions(
-                server_name="summarizer-mcp",
-                server_version="0.1.0",
-                capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(), experimental_capabilities={}
-                ),
-            ),
-        )
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    mcp.run(transport="stdio")

@@ -19,6 +19,7 @@ every row across both pages lands in the materialized DataFrame.
 import importlib.util
 import json
 import pathlib
+from typing import List
 
 import dagster as dg
 import pytest
@@ -62,8 +63,22 @@ def _gitlab_calls(calls):
 def _fake_send_two_pages(page_1_rows, page_2_rows, next_url):
     """Returns a `requests.Session.send` replacement serving `page_1_rows` with a Link:
     rel="next" header pointing at `next_url`, then `page_2_rows` with no Link header
-    (signaling the paginator to stop)."""
+    (signaling the paginator to stop).
+
+    Real bug caught here: this used to decide "page 1 vs page 2" by raw call
+    position (`len(calls) == 1`) -- but dlt sends its own telemetry ping over this
+    same monkeypatched `requests.Session.send`, and whether that ping lands BEFORE
+    or after the real GitLab request depends on dlt's own internal timing, which in
+    turn depends on what else already ran earlier in the same pytest process (e.g.
+    a real dlt pipeline in another test file). When the ping won the race, the fake
+    Link header landed on the telemetry response instead of the first real GitLab
+    page, so the actual first GitLab request was served "page 2" content with no
+    Link header -- the paginator correctly stopped after one page, because nothing
+    ever told it there was a next one. Counting only requests to gitlab.example.com
+    (same filter `_gitlab_calls` already applies for assertions) makes the fake
+    immune to how many other requests interleave, in whatever order."""
     calls = []
+    gitlab_calls: List[str] = []
 
     def _send(self, prepared_request, **kwargs):
         calls.append(prepared_request.url)
@@ -71,7 +86,11 @@ def _fake_send_two_pages(page_1_rows, page_2_rows, next_url):
         resp.status_code = 200
         resp.url = prepared_request.url
         resp.request = prepared_request
-        if len(calls) == 1:
+        if "gitlab.example.com" not in prepared_request.url:
+            resp._content = b"{}"  # dlt's telemetry ping (or anything else unrelated) -- ignored
+            return resp
+        gitlab_calls.append(prepared_request.url)
+        if len(gitlab_calls) == 1:
             resp.headers["Link"] = f'<{next_url}>; rel="next"'
             resp._content = json.dumps(page_1_rows).encode()
         else:
@@ -121,7 +140,12 @@ def test_private_token_header_is_sent_on_every_request(monkeypatch):
     seen_headers = []
 
     def _send_capturing(self, prepared_request, **kwargs):
-        seen_headers.append(dict(prepared_request.headers))
+        # Same bug class as _fake_send_two_pages above: only record headers for the
+        # real GitLab calls -- dlt's own telemetry ping goes through this same
+        # monkeypatched send and has no PRIVATE-TOKEN header at all, so letting it
+        # land in seen_headers[0] would check the wrong request entirely.
+        if "gitlab.example.com" in prepared_request.url:
+            seen_headers.append(dict(prepared_request.headers))
         return fake_send(self, prepared_request, **kwargs)
 
     component = GitlabIngestionComponent(

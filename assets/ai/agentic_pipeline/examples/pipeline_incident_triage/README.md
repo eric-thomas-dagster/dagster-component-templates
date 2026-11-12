@@ -66,4 +66,16 @@ You could model this as three registered specialist agents (a vendor-checker, a 
 
 ## Running it for real
 
-Drop `pipeline.yaml`, `dispatch_mcp_server.py`, and `runbooks.json` into the same defs folder of a real `dg` project, set `OPENAI_API_KEY`, and materialize `incident_triage_diagnosis` (pulls in `incident_triage_investigate` automatically). Edit `pipeline.yaml`'s `source.text` to try a different incident, or point `get_recent_commits` at a different repo via `repo_path`.
+**Keep `dispatch_mcp_server.py` OUT of `defs/` entirely** -- Dagster's component scanner also tries to import loose `.py` files it finds inside a defs directory as a definitions module, so a script sitting next to a `defs.yaml` can break the whole code location's loading, not just go unused. Lay this out as:
+
+```
+your_project/
+  defs/
+    incident_triage/
+      defs.yaml            # pipeline.yaml, renamed
+  scripts/
+    dispatch_mcp_server.py
+    runbooks.json          # moves with the script -- it's read relative to the script's own path
+```
+
+`defs.yaml`'s command path becomes `[python3, "../../scripts/dispatch_mcp_server.py"]`. Set `OPENAI_API_KEY`, then materialize `incident_triage_diagnosis` (pulls in `incident_triage_investigate` automatically). Edit `pipeline.yaml`'s `source.text` to try a different incident, or point `get_recent_commits` at a different repo via `repo_path`.

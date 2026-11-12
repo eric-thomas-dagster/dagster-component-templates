@@ -27,7 +27,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Literal, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -800,6 +800,64 @@ def _load_receipt_store(spec: Optional[str]):
     return getattr(importlib.import_module(mod_name), attr)()
 
 
+class _McpServerShapeResource(dg.ConfigurableResource):
+    """Minimal MCPServerResource-shaped resource (name/type/command/url/env/headers/
+    headers_env) -- inlined here rather than imported from resources/mcp_server_resource
+    (confirmed not importable across components; same duck-typed copy every
+    mcp_servers-aware consumer already expects). Byte-identical to dagster_workflow_tools'
+    own copy (structurally checked in tests/test_drift.py) -- same reasoning: `env`'s
+    DAGSTER_HOME (and any live_env_passthrough names) is deliberately NOT baked in at
+    construction time, read fresh from the environment every time model_dump() is
+    actually called instead, since that's run time (when a consuming component resolves
+    this resource to make the actual MCP connection), and can differ from code-location
+    load time."""
+
+    name: str
+    type: Literal["http", "sse", "stdio"] = "stdio"
+    command: Optional[List[str]] = None
+    url: Optional[str] = None
+    env: Optional[Dict[str, str]] = None
+    headers: Optional[Dict[str, str]] = None
+    headers_env: Optional[Dict[str, str]] = None
+    live_env_passthrough: Optional[List[str]] = None
+
+    def model_dump(self, *args, **kwargs):
+        dumped = super().model_dump(*args, **kwargs)
+        passthrough = dumped.pop("live_env_passthrough", None)
+        if dumped.get("type") == "stdio" and passthrough:
+            env = dict(dumped.get("env") or {})
+            for var_name in passthrough:
+                value = os.environ.get(var_name)
+                if value:
+                    env[var_name] = value
+            dumped["env"] = env
+        return dumped
+
+
+def _this_module_name() -> str:
+    """The real importable dotted path for the `python -m <this>` stdio server invocation.
+    `__name__` alone is unreliable: it's literally `"__main__"` both for a bare
+    `python component.py` invocation AND for `python -m dotted.path`. `__spec__.name` is the
+    fix (same mechanism/rationale as dagster_workflow_tools'/knowledge_search_server's own
+    `_this_module_name`, duplicated here -- not imported, per this repo's self-contained-
+    component convention). This tool itself doesn't need job reconstruction (read-only, no
+    execute_job), so a bare `python component.py` invocation (this file's own original
+    docstring) still works fine on its own -- `-m` is only needed for the
+    mcp_server_resource_key path below, for the same reason the other two components use
+    it: a dotted `-m` invocation works wherever the package is installed, independent of
+    knowing this file's absolute path."""
+    if __spec__ is not None:
+        return __spec__.name
+    raise RuntimeError(
+        "dagster_instance_tools's mcp_server_resource_key path must be run as "
+        "`python -m <dotted.path.to.this.module>` (e.g. `python -m "
+        "dagster_community_components.assets.ai.dagster_instance_tools.component`), not "
+        "`python component.py` directly -- that bare-script form still works for "
+        "`python component.py` itself (no __spec__ needed there), just not for this path. "
+        "See README.md."
+    )
+
+
 # ── Dagster component: registers the toolset as a resource ──────────────────────────────────────────────────────────
 class DagsterInstanceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     """Registers read-only Dagster-instance tools as a resource (default key `dagster_instance_tools`).
@@ -822,11 +880,38 @@ class DagsterInstanceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Optional resource key of a ContextReceiptStore; enables the receipt_stats tool.",
     )
+    mcp_server_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/"
+            "env shape as MCPServerResource) under this key, built from this component's own "
+            "settings -- python -m this module, with the DAGSTER_INSTANCE_TOOLS_* env vars set "
+            "from allow/max_result_chars/definitions_module/store_resource_key's spec. "
+            "DAGSTER_HOME, DAGSTER_CLOUD_DEPLOYMENT_NAME, and anything listed in "
+            "mcp_extra_env_vars are read fresh from the environment at run time (when a consumer "
+            "actually resolves this resource), not baked in at component load. Any "
+            "mcp_servers-aware component (mcp_tool_call, mcp_tool_picker, the agent components, "
+            "agentic_pipeline) can then reference it via server_resource_key instead of "
+            "hand-writing an inline command+env entry. Leave unset to skip this -- existing "
+            "resource_key-only behavior is unchanged."
+        ),
+    )
+    mcp_extra_env_vars: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "mcp_server_resource_key only. Extra env var NAMES to copy (their current value, read "
+            "fresh every time a consumer resolves the resource) from this process into the "
+            "spawned MCP server's env. MCP's stdio client does not inherit the rest of the "
+            "environment, so anything your Dagster instance's own config needs beyond DAGSTER_HOME "
+            "-- e.g. a Dagster+ agent's DAGSTER_CLOUD_AGENT_LABEL -- must be listed here, or the "
+            "spawned server crashes at startup trying to resolve its instance."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=("allow",), csv=(), tags=())
+        return coerce_field_shapes(data, lists=("allow", "mcp_extra_env_vars"), csv=(), tags=())
 
     @classmethod
     def get_form_config(cls):
@@ -857,7 +942,34 @@ class DagsterInstanceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             resource_fn=_init, required_resource_keys={store_key} if store_key else set(),
             description="Read-only Dagster instance tools for agents.",
         )
-        return dg.Definitions(resources={self.resource_key: res})
+        resources: Dict[str, Any] = {self.resource_key: res}
+
+        if self.mcp_server_resource_key:
+            # DAGSTER_HOME / DAGSTER_CLOUD_DEPLOYMENT_NAME / mcp_extra_env_vars are
+            # deliberately NOT read here (component-load time) -- see
+            # _McpServerShapeResource.model_dump(), which reads them fresh at run time
+            # instead. Everything else here IS this component's own config, legitimately
+            # fixed at build time.
+            mcp_env: Dict[str, str] = {}
+            if allow:
+                mcp_env["DAGSTER_INSTANCE_TOOLS_ALLOW"] = ",".join(allow)
+            mcp_env["DAGSTER_INSTANCE_TOOLS_MAX_CHARS"] = str(max_chars)
+            if defs_module:
+                mcp_env["DAGSTER_INSTANCE_TOOLS_DEFINITIONS_MODULE"] = defs_module
+            # store_resource_key resolves an in-process resource (context.resources.<key>)
+            # -- not reconstructable from a bare env var in a separate spawned process, so
+            # the receipt_stats tool isn't available through mcp_server_resource_key. A
+            # spawned server needing it would need its own `pkg.module:factory` spec via
+            # DAGSTER_INSTANCE_TOOLS_RECEIPT_STORE (main()'s own env, set by hand).
+            resources[self.mcp_server_resource_key] = _McpServerShapeResource(
+                name=self.mcp_server_resource_key,
+                type="stdio",
+                command=[sys.executable, "-m", _this_module_name()],
+                env=mcp_env,
+                live_env_passthrough=["DAGSTER_HOME", "DAGSTER_CLOUD_DEPLOYMENT_NAME", *(self.mcp_extra_env_vars or [])],
+            )
+
+        return dg.Definitions(resources=resources)
 
 
 # ── stdio MCP server entrypoint:  python component.py  (reads DAGSTER_HOME) ─────────────────────────────────────────
@@ -915,7 +1027,8 @@ def build_mcp_server(tools: DagsterInstanceTools):
 
 
 def main(argv: Optional[List[str]] = None) -> None:
-    """Env: DAGSTER_HOME (required), DAGSTER_INSTANCE_TOOLS_ALLOW (csv), _MAX_CHARS, _DEFINITIONS_MODULE, _RECEIPT_STORE (pkg.mod:factory)."""
+    """Env: DAGSTER_HOME (required), DAGSTER_INSTANCE_TOOLS_ALLOW (csv), _MAX_CHARS, _DEFINITIONS_MODULE, _RECEIPT_STORE (pkg.mod:factory).
+    DAGSTER_CLOUD_DEPLOYMENT_NAME (optional) -- set this on a Dagster+ agent so queries read the right deployment; see below."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     if not os.environ.get("DAGSTER_HOME"):
         raise SystemExit("DAGSTER_HOME must point at the Dagster instance directory (the one with dagster.yaml)")
@@ -924,8 +1037,18 @@ def main(argv: Optional[List[str]] = None) -> None:
     store = _load_receipt_store(os.environ.get("DAGSTER_INSTANCE_TOOLS_RECEIPT_STORE"))
     if store is None:
         allow = [t for t in (allow if allow is not None else ALL_TOOLS) if t != "receipt_stats"]
+
+    instance = dg.DagsterInstance.get()
+    deployment_name = os.environ.get("DAGSTER_CLOUD_DEPLOYMENT_NAME")
+    if deployment_name and hasattr(instance, "ref_for_deployment"):
+        # dg.DagsterInstance.get() inside a Dagster+ agent's own process builds the AGENT's
+        # instance -- which serves every deployment the agent manages, not any one of them.
+        # Same fix as dagster_workflow_tools' main(): scope down to the one deployment this
+        # server should actually read runs/assets from.
+        instance = dg.DagsterInstance.from_ref(instance.ref_for_deployment(deployment_name))
+
     tools = DagsterInstanceTools(
-        dg.DagsterInstance.get(),
+        instance,
         definitions=load_definitions(os.environ.get("DAGSTER_INSTANCE_TOOLS_DEFINITIONS_MODULE")),
         allow=allow,
         max_result_chars=int(os.environ.get("DAGSTER_INSTANCE_TOOLS_MAX_CHARS", "8000")),

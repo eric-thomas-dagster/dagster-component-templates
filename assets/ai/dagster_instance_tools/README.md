@@ -44,6 +44,30 @@ attributes: {allow: [asset_status, get_run_summary], definitions_module: my_proj
 ```
 `context.resources.dagster_instance_tools.call("asset_status", {"asset_key": "orders"})`. With `store_resource_key` set, the named resource (a ContextReceiptStore) powers `receipt_stats`.
 
+## Referencing it by key (`mcp_server_resource_key`)
+
+Agents pick an MCP server by `server_resource_key` only -- the inline `command: [python, /abs/path/to/component.py]` shape above works, but every `mcp_servers:` entry that wants this toolset has to repeat `DAGSTER_HOME`/`DAGSTER_INSTANCE_TOOLS_*` by hand. Set `mcp_server_resource_key` on the component instead, and it registers a second, [`MCPServerResource`](../../../resources/mcp_server_resource)-shaped resource under that key -- built from this component's own `allow`/`max_result_chars`/`definitions_module` settings. `DAGSTER_HOME` and `DAGSTER_CLOUD_DEPLOYMENT_NAME` are read from the environment at **run time** (every time a consumer resolves this resource and calls its `.model_dump()`, not once at component load), same mechanism `dagster_workflow_tools` uses.
+
+Inside a Dagster+ agent process, `main()` scopes the instance to one deployment via `instance.ref_for_deployment(DAGSTER_CLOUD_DEPLOYMENT_NAME)` when that env var is set -- the agent's own `DagsterInstance.get()` otherwise serves every deployment it manages, which read tools (listing runs, asset status) can return confusingly across, the same multi-deployment ambiguity `dagster_workflow_tools` hit for launching runs. `DAGSTER_CLOUD_DEPLOYMENT_NAME` is forwarded automatically, no need to list it in `mcp_extra_env_vars`.
+
+MCP's stdio client doesn't inherit anything else from the current environment either -- if your Dagster instance's own config needs more (e.g. a Dagster+ agent's `DAGSTER_CLOUD_AGENT_LABEL`), list those names in `mcp_extra_env_vars` too, or the spawned server crashes at startup trying to resolve its instance.
+
+```yaml
+type: dagster_community_components.DagsterInstanceToolsComponent
+attributes:
+  resource_key: dagster_instance_tools
+  mcp_server_resource_key: dagster_instance_tools_mcp
+  allow: [list_recent_failures, get_run_summary, get_run_logs, asset_status, asset_lineage]
+  definitions_module: my_project.definitions
+```
+
+Then, in any MCP-aware component instead of an inline `server:`:
+```yaml
+server_resource_key: dagster_instance_tools_mcp
+```
+
+`store_resource_key` (and so `receipt_stats`) isn't available through this path -- it resolves an in-process Dagster resource, which a separately spawned stdio server can't reach; a spawned server needing it would set its own `DAGSTER_INSTANCE_TOOLS_RECEIPT_STORE` (`pkg.mod:factory`) by hand.
+
 ## What needs the code location (`definitions_module`)
 
 The instance (event log) alone cannot know the asset graph or partition set. Without `definitions_module`:
@@ -83,5 +107,7 @@ With it: full graph lineage, partition total/failed/missing, and Dagster's own d
 | `max_result_chars` | `int` | `8000` | Upper bound on the serialized size of any tool result. |
 | `definitions_module` | `str` | — | Optional 'pkg.module[:attr]' that yields your Definitions (attr defaults to `defs`). Enables downstream lineage, partition totals/missing, data-version staleness. Without it those degrade to event-log-only answers. |
 | `store_resource_key` | `str` | — | Optional resource key of a ContextReceiptStore; enables the receipt_stats tool. |
+| `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the DAGSTER_INSTAN… _(full docs in schema.json + component README)_ |
+| `mcp_extra_env_vars` | `List[str]` | — | mcp_server_resource_key only. Extra env var NAMES to copy (their current value, read fresh every time a consumer resolves the resource) from this process into the spawned MCP server's env. MCP's stdio client does not inh… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

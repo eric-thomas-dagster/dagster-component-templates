@@ -1078,6 +1078,8 @@ defs/
 
 `delegate`'s sibling scan reads the shared *parent* directory (`defs/` above) — so siblings need to be, structurally, siblings of the pipeline, not files alongside it in the same directory.
 
+**One call, one decision, for the whole batch -- not one per item.** When `source:` points at several items (e.g. a filtered list of severe tickets), `delegate` sends them to the picked agent in a single call and gets back a single decision -- it does not fan out and triage each item separately. Confirmed via a real run in [`examples/support_ticket_triage/`](examples/support_ticket_triage/README.md): a batch of several severe tickets produced exactly one `{team, urgency, reasoning}` for the whole batch, not one per ticket. If you need a decision per item, use `op: map` over the list instead (plain, no-tools `map`, not `delegate`) -- each item gets its own call. `delegate` itself has no per-item mode today; neither does `tool_use_loop` (it currently reasons over the whole batch it's given, the same shape support workflows that need a tool-using step per ticket would actually want). Treat `delegate` as "pick which registered agent handles this batch-level task," not "triage each item."
+
 ### `op: invoke_component`
 
 Reuse a deterministic transform already in this repo's component catalog — `FilterComponent`, `SortComponent`, `UniqueDedupComponent`, `RankComponent`, or any of the ~112 `assets/transforms/*` components — mid-pipeline, between two agent steps, without reimplementing its logic and without it appearing as a new node in your asset lineage.
@@ -1189,6 +1191,8 @@ All string fields on sources support `{partition_key}` substitution — a partit
 |---|---|---|
 | `kind` | ✅ | `upstream_asset` |
 | `upstream_asset_key` | ✅ | Asset key of the Dagster asset to load. Its output becomes the pipeline's initial source text — the pipeline's inputs then show as parents in the asset graph. |
+
+**How partition matching works (confirmed from the implementation, not just the YAML surface):** the pipeline wires the upstream asset in as a real `dagster.AssetIn(key=upstream_asset_key)` input, with no custom `partition_mapping` set. When both the pipeline and the upstream asset share the same (or a Dagster-default-mappable) `partitions_def`, Dagster's own default partition mapping loads the upstream's materialization for the **same partition key** the pipeline run is executing — e.g. materializing the pipeline for `2026-03-05` reads the upstream asset's own `2026-03-05` partition, automatically, with no `{partition_key}` template needed on `upstream_asset_key` itself (unlike `file`/`url`, there's nothing to template — the match happens through the asset graph, not a string substitution). This is why `{partition_key}` templating doesn't apply to `upstream_asset` sources the way it does to `file`/`url`/`literal`. **Not separately verified:** behavior when the upstream asset's `partitions_def` does NOT match the pipeline's own (e.g. a different partition type or a `MultiPartitionsDefinition` on one side only) — that falls through to whatever Dagster's own default mapping rules do in that mismatched case, which this component doesn't override or special-case.
 
 ## Sinks — where the outputs go
 
@@ -1321,12 +1325,12 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | Partition type: 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None (unpartitioned). |
+| `partition_type` | `str` | — | Partition type: 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'cron' \| 'static' \| 'dynamic' \| 'multi' \| None (unpartitioned). 'multi' here means setting partition_dimensions (two or more axes) rather than a single… _(full docs in schema.json + component README)_ |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
 | `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
-| `partition_start` | `str` | — | ISO date for time-based partition types (daily/weekly/monthly/hourly/multi). |
+| `partition_start` | `str` | — | Start of the time-based partition set. daily/weekly/monthly/multi: a plain ISO date, 'YYYY-MM-DD' (e.g. '2026-01-01'). hourly is different -- passed straight through to Dagster's own HourlyPartitionsDefinition(start_date… _(full docs in schema.json + component README)_ |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated string OR list — the fixed partition keys for static/multi partitioning. e.g. ['NVDA', 'TSLA', 'META'] or 'NVDA,TSLA,META'. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}. Set instead of partition_type for multi-dimensional partitioning. |
 | `partition_key_parser` | `str` | — | Format template for parsing composite partition keys into named fields — e.g. '{owner}/{repo}#{issue_number}' means partition key 'dagster-io/dagster#30000' → {owner: 'dagster-io', repo: 'dagster', issue_number: '30000'}… _(full docs in schema.json + component README)_ |

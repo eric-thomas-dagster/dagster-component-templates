@@ -50,16 +50,18 @@ This example's document is short enough to fit in one call. For a document (or s
 
 ## Running it for real
 
-**Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — `summarizer_agent.yaml` as an extra file sitting next to `pipeline.yaml` is never actually loaded as a component. In your project's `defs/` folder, lay these out as two sibling directories, each containing one file renamed to `defs.yaml`:
+**Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — `summarizer_agent.yaml` as an extra file sitting next to `pipeline.yaml` is never actually loaded as a component. **Keep `summarizer_agent_server.py` OUT of `defs/` entirely** -- Dagster's scanner also tries to import loose `.py` files it finds inside a defs directory as a definitions module, so a script sitting next to a `defs.yaml` can break the whole code location's loading, not just go unused. In your project's `defs/` folder, lay the YAMLs out as two sibling directories, each containing one file renamed to `defs.yaml`, with the script in a separate `scripts/` folder next to (not inside) `defs/`:
 
 ```
-defs/
-  doc_summary/
-    defs.yaml            # pipeline.yaml, renamed
-    document.txt
-  summarizer_agent/
-    defs.yaml             # summarizer_agent.yaml, renamed
+your_project/
+  defs/
+    doc_summary/
+      defs.yaml            # pipeline.yaml, renamed
+      document.txt
+    summarizer_agent/
+      defs.yaml             # summarizer_agent.yaml, renamed
+  scripts/
     summarizer_agent_server.py
 ```
 
-Set `OPENAI_API_KEY`, then materialize `doc_summary_summarized`. `delegate`'s sibling-discovery scans the shared *parent* directory (`defs/` above), so `summarizer_agent` needs to be a true sibling of `doc_summary`, not nested inside it.
+`summarizer_agent/defs.yaml`'s command path becomes `[python3, "../../scripts/summarizer_agent_server.py"]`. Set `OPENAI_API_KEY`, then materialize `doc_summary_summarized`. `delegate`'s sibling-discovery scans the shared *parent* directory (`defs/` above), so `summarizer_agent` needs to be a true sibling of `doc_summary`, not nested inside it.

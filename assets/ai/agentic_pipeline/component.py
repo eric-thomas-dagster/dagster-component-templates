@@ -1566,7 +1566,10 @@ def _require_one_partition(context, partitioned: bool) -> None:
     if partitioned or _run_is_partitioned(context):
         raise RuntimeError(
             "AgenticPipelineComponent: this run covers several partitions (or none), but the pipeline resolves "
-            "{partition_key}, sink paths and approval keys per single partition. Launch one partition per run.")
+            "{partition_key}, sink paths and approval keys per single partition. Launch one partition per run -- "
+            "Materialize and backfills already do this for you (one run per partition), splitting any range you "
+            "select automatically; this error means a run was launched directly against a partition range by hand "
+            "(e.g. a custom RunRequest/launchRun call), not through either of those.")
 
 
 def _build_partitions_def(
@@ -8224,8 +8227,15 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     partition_type: Optional[str] = Field(
         default=None,
         description=(
-            "Partition type: 'daily' | 'weekly' | 'monthly' | 'hourly' | "
-            "'static' | 'dynamic' | 'multi' | None (unpartitioned)."
+            "Partition type: 'daily' | 'weekly' | 'monthly' | 'hourly' | 'cron' | "
+            "'static' | 'dynamic' | 'multi' | None (unpartitioned). 'multi' here means "
+            "setting partition_dimensions (two or more axes) rather than a single flat "
+            "type -- it isn't one of partition_type's own literal values; "
+            "partition_dimensions is set INSTEAD of partition_type (setting both is "
+            "rejected at load). 'cron' requires partition_cron_schedule; its "
+            "partition_start format follows partition_cron_fmt (default plain "
+            "'YYYY-MM-DD', same as daily/weekly/monthly -- only change it for a "
+            "sub-daily cron schedule)."
         ),
     )
 
@@ -8257,7 +8267,16 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     partition_start: Optional[str] = Field(
         default=None,
-        description="ISO date for time-based partition types (daily/weekly/monthly/hourly/multi).",
+        description=(
+            "Start of the time-based partition set. daily/weekly/monthly/multi: a plain "
+            "ISO date, 'YYYY-MM-DD' (e.g. '2026-01-01'). hourly is different -- passed "
+            "straight through to Dagster's own HourlyPartitionsDefinition(start_date=...) "
+            "with no reformatting, which expects 'YYYY-MM-DD-HH:MM' (confirmed directly "
+            "against the installed dagster version), e.g. '2026-01-01-00:00' for "
+            "midnight. A bare date like '2026-01-01' for partition_type='hourly' fails "
+            "with a confusing dagster-internal ValueError (\"time data '...' does not "
+            "match format '%Y-%m-%d-%H:%M%z'\"), not a clear error from this component."
+        ),
     )
     partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,

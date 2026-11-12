@@ -8,17 +8,17 @@ realistic way to stand up your own agent for `delegate` to call: any team
 can wrap a prompt like this behind MCP, register it as an AgentCardComponent,
 and it becomes callable exactly like a hosted third-party agent would be --
 no external service required, just an LLM API key.
+
+Works on mcp 1.x and 2.x (same compat shim this repo's own MCP server
+components use -- FastMCP was renamed MCPServer in 2.x).
 """
-import asyncio
 import json
 import os
 
-import mcp.server.stdio
-from mcp.server import Server, NotificationOptions
-from mcp.server.models import InitializationOptions
-from mcp.types import Tool, TextContent
-
-server = Server("triage-mcp")
+try:  # mcp 2.x renamed FastMCP -> MCPServer (mcp.server.fastmcp now raises ModuleNotFoundError)
+    from mcp.server.mcpserver import MCPServer as _Server
+except ImportError:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as _Server
 
 TRIAGE_SYSTEM_PROMPT = """You are a senior support triage specialist. Given a \
 severe support ticket's context, decide which engineering team should own it \
@@ -44,10 +44,12 @@ TRIAGE_TOOL = {
     },
 }
 
+mcp = _Server("triage-mcp")
 
-def _run_triage_llm(ticket_context: str) -> dict:
-    """The agent's actual "brain" -- a real LLM call with a specialist
-    persona, using the same litellm wrapper agentic_pipeline itself uses."""
+
+@mcp.tool()
+def triage_ticket(ticket_context: str) -> dict:
+    """Assign an owning team and urgency to a severe support ticket."""
     import litellm
 
     resp = litellm.completion(
@@ -65,42 +67,5 @@ def _run_triage_llm(ticket_context: str) -> dict:
     return json.loads(tool_call.function.arguments)
 
 
-@server.list_tools()
-async def list_tools():
-    return [
-        Tool(
-            name="triage_ticket",
-            description="Assign an owning team and urgency to a severe support ticket.",
-            inputSchema={
-                "type": "object",
-                "properties": {"ticket_context": {"type": "string"}},
-                "required": ["ticket_context"],
-            },
-        )
-    ]
-
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict):
-    if name != "triage_ticket":
-        raise ValueError(f"unknown tool {name!r}")
-    decision = _run_triage_llm(arguments.get("ticket_context", ""))
-    return [TextContent(type="text", text=json.dumps(decision))]
-
-
-async def main():
-    async with mcp.server.stdio.stdio_server() as (read, write):
-        await server.run(
-            read, write,
-            InitializationOptions(
-                server_name="triage-mcp",
-                server_version="0.1.0",
-                capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(), experimental_capabilities={}
-                ),
-            ),
-        )
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    mcp.run(transport="stdio")

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dagster-community-components"
-version = "0.10.140"
+version = "0.10.141"
 description = "Community-maintained Dagster components — ingestion, transforms, IO managers, sensors, sinks, resources, and more."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -133,3 +133,18 @@ gateway = ["fastmcp>=2.0", "sentence-transformers", "chromadb"]
 # `destination` is left unset) -- a fresh install without either failed with an opaque
 # ModuleNotFoundError until this extra existed.
 sitemap_crawler = ["beautifulsoup4>=4.12.0", "duckdb>=0.9.0"]
+
+[tool.pytest.ini_options]
+# Durable fix for a real, repeatedly-hit class of bug: with pytest's default "prepend"
+# import mode, two different components' tests/conftest.py (or two same-named test_*.py
+# files) both lacking a package __init__.py chain resolve to the SAME computed dotted
+# module name (e.g. bare "tests.conftest") and collide -- pytest crashes the whole run
+# with "Plugin already registered under a different name" (conftest.py) or
+# ImportPathMismatchError (a regular test file). `--import-mode=importlib` identifies
+# every file by its actual filesystem path instead of a computed dotted name, so this
+# collision can't happen regardless of which components do or don't have __init__.py.
+# Previously only full-test-suite.yml passed this flag by hand (and the missing
+# __init__.py files it was working around still crashed it at least once); setting it
+# here makes it the default for every pytest invocation -- CI, any future workflow, and
+# local `pytest` -- rather than something to remember to pass explicitly.
+addopts = "--import-mode=importlib"

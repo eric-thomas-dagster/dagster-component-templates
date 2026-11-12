@@ -13,18 +13,21 @@ All three tools do real work, not simulated:
     but the search itself is real, not canned).
   - get_recent_commits: real `git log` against a real repo path (defaults
     to this very repo), not fabricated commit history.
+
+Works on mcp 1.x and 2.x (same compat shim this repo's own MCP server
+components use -- FastMCP was renamed MCPServer in 2.x).
 """
-import asyncio
 import json
 import os
 import subprocess
+from typing import Optional
 
 import requests
 
-import mcp.server.stdio
-from mcp.server import Server, NotificationOptions
-from mcp.server.models import InitializationOptions
-from mcp.types import Tool, TextContent
+try:  # mcp 2.x renamed FastMCP -> MCPServer (mcp.server.fastmcp now raises ModuleNotFoundError)
+    from mcp.server.mcpserver import MCPServer as _Server
+except ImportError:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as _Server
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 RUNBOOKS_PATH = os.path.join(THIS_DIR, "runbooks.json")
@@ -37,10 +40,12 @@ VENDOR_STATUS_URLS = {
     "snowflake": "https://status.snowflake.com/api/v2/status.json",
 }
 
-server = Server("dispatch-mcp")
+mcp = _Server("dispatch-mcp")
 
 
-def _check_vendor_status(vendor: str) -> dict:
+@mcp.tool()
+def check_vendor_status(vendor: str) -> dict:
+    """Check a vendor's REAL live public status page (github, fivetran, dbt, snowflake)."""
     url = VENDOR_STATUS_URLS.get(vendor.lower())
     if not url:
         return {
@@ -62,7 +67,9 @@ def _check_vendor_status(vendor: str) -> dict:
         return {"vendor": vendor, "status": "error", "description": f"Could not reach status page: {e}"}
 
 
-def _search_runbooks(query: str) -> dict:
+@mcp.tool()
+def search_runbooks(query: str) -> dict:
+    """Search internal runbooks/institutional knowledge for guidance matching an error description."""
     with open(RUNBOOKS_PATH) as f:
         runbooks = json.load(f)
     q_words = set(query.lower().split())
@@ -76,7 +83,9 @@ def _search_runbooks(query: str) -> dict:
     return {"query": query, "matches": matches if matches else "no matching runbook found"}
 
 
-def _get_recent_commits(n: int, repo_path: str = None) -> dict:
+@mcp.tool()
+def get_recent_commits(n: int, repo_path: Optional[str] = None) -> dict:
+    """Get the N most recent git commits from the pipeline's repo, to check for a recent deploy that might explain the failure."""
     path = repo_path or DEFAULT_REPO_PATH
     try:
         result = subprocess.run(
@@ -89,68 +98,5 @@ def _get_recent_commits(n: int, repo_path: str = None) -> dict:
         return {"repo_path": path, "error": str(e)}
 
 
-@server.list_tools()
-async def list_tools():
-    return [
-        Tool(
-            name="check_vendor_status",
-            description="Check a vendor's REAL live public status page (github, fivetran, dbt, snowflake).",
-            inputSchema={
-                "type": "object",
-                "properties": {"vendor": {"type": "string", "enum": list(VENDOR_STATUS_URLS)}},
-                "required": ["vendor"],
-            },
-        ),
-        Tool(
-            name="search_runbooks",
-            description="Search internal runbooks/institutional knowledge for guidance matching an error description.",
-            inputSchema={
-                "type": "object",
-                "properties": {"query": {"type": "string"}},
-                "required": ["query"],
-            },
-        ),
-        Tool(
-            name="get_recent_commits",
-            description="Get the N most recent git commits from the pipeline's repo, to check for a recent deploy that might explain the failure.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "n": {"type": "integer", "description": "Number of commits to fetch."},
-                    "repo_path": {"type": "string", "description": "Optional repo path; defaults to this project's repo."},
-                },
-                "required": ["n"],
-            },
-        ),
-    ]
-
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict):
-    if name == "check_vendor_status":
-        result = _check_vendor_status(arguments["vendor"])
-    elif name == "search_runbooks":
-        result = _search_runbooks(arguments["query"])
-    elif name == "get_recent_commits":
-        result = _get_recent_commits(arguments.get("n", 10), arguments.get("repo_path"))
-    else:
-        raise ValueError(f"unknown tool {name!r}")
-    return [TextContent(type="text", text=json.dumps(result, default=str))]
-
-
-async def main():
-    async with mcp.server.stdio.stdio_server() as (read, write):
-        await server.run(
-            read, write,
-            InitializationOptions(
-                server_name="dispatch-mcp",
-                server_version="0.1.0",
-                capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(), experimental_capabilities={}
-                ),
-            ),
-        )
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    mcp.run(transport="stdio")

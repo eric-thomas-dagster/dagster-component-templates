@@ -1,7 +1,7 @@
 {
   "summary": {
-    "PASS": 1250,
-    "WARN": 17,
+    "PASS": 1255,
+    "WARN": 12,
     "FAIL": 6,
     "SKIP_OPTIONAL_DEP": 52,
     "SKIP_PROJECT_REQUIRED": 30,
@@ -121,6 +121,7 @@
       "path": "assets/transforms/address_standardize",
       "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
@@ -567,9 +568,7 @@
       "id": "asset_reference",
       "path": "core/asset_reference",
       "status": "PASS",
-      "warnings": [
-        "DependencyWarning: SOCKS support in urllib3 requires the installation of optional dependencies: specifically, PySocks.  For more information, see https://urllib3.readthedocs.io/en/latest/advanced-usage.html#socks-proxies"
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -621,14 +620,7 @@
       "id": "audio_transform_asset",
       "path": "assets/transforms/audio_transform_asset",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.29) expected library version (0.29.29) and `dagster-airbyte` (0.29.28).",
-        "BetaWarning: Class `AirbyteCloudWorkspace` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
-        "BetaWarning: Class `BaseAirbyteWorkspace` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
-        "BetaWarning: Function `build_airbyte_assets_definitions` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
-        "BetaWarning: Class `DagsterAirbyteTranslator` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
-        "BetaWarning: Function `load_airbyte_asset_specs` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -644,7 +636,16 @@
       "id": "audit_logs_to_chronicle",
       "path": "sinks/audit_logs_to_chronicle",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.29) expected library version (0.29.29) and `dagster-airbyte` (0.29.28).",
+        "BetaWarning: Class `AirbyteCloudWorkspace` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
+        "BetaWarning: Class `BaseAirbyteWorkspace` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
+        "BetaWarning: Function `build_airbyte_assets_definitions` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
+        "BetaWarning: Class `DagsterAirbyteTranslator` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
+        "BetaWarning: Function `load_airbyte_asset_specs` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
+        "BetaWarning: Class `AirbyteCloudWorkspace` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
+        "BetaWarning: Class `BaseAirbyteWorkspace` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
       "error": null,
       "error_class": null
     },
@@ -809,7 +810,7 @@
       "path": "integrations/aws_dms",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'hfnk+Ymg3VBHVwqu3NYtPxNk05Krg5gxhqRfL8MBqD8='.",
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'i1wHGcAGfB//z4Yq8mKx+d4zqW5/l7WL23VUXnEKI0g='.",
       "error_class": null
     },
     {
@@ -849,7 +850,7 @@
       "path": "integrations/aws_sagemaker",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'lhoOe9fcE87CRtBbsqgHY+Y7cs6QpFJ3polRJrVTsGI='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'iqWK1bpAmFqLnsbC3YRfrzYteDNnM5H/NYiz1/dStUU='.",
       "error_class": null
     },
     {
@@ -1312,11 +1313,8 @@
     {
       "id": "catalog_agent",
       "path": "assets/ai/catalog_agent",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2271,9 +2269,8 @@
     {
       "id": "data_enricher",
       "path": "assets/ai/data_enricher",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"DataEnricherComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3273,10 +3270,7 @@
       "id": "duckdb_io_manager",
       "path": "io_managers/duckdb_io_manager",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.29) expected library version (0.29.29) and `dagster-duckdb` (0.29.24).",
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.29) expected library version (0.29.29) and `dagster-duckdb-pandas` (0.29.24)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3310,7 +3304,9 @@
       "id": "duckdb_resource",
       "path": "resources/duckdb_resource",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.29) expected library version (0.29.29) and `dagster-duckdb` (0.29.24)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -4641,6 +4637,7 @@
       "path": "assets/ai/gong_call_summary_asset",
       "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
@@ -5233,10 +5230,8 @@
     {
       "id": "image_exif_extractor",
       "path": "assets/transforms/image_exif_extractor",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"ImageCaptionerComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5483,6 +5478,14 @@
     {
       "id": "iws_integration",
       "path": "integrations/iws_integration",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jams_integration",
+      "path": "integrations/jams_integration",
       "status": "WARN",
       "warnings": [
         "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
@@ -5490,14 +5493,6 @@
         "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
         "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
       ],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "jams_integration",
-      "path": "integrations/jams_integration",
-      "status": "PASS",
-      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5872,8 +5867,9 @@
     {
       "id": "language_detector",
       "path": "assets/ai/language_detector",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5882,13 +5878,8 @@
     {
       "id": "lattice_ingestion",
       "path": "assets/ingestion/lattice_ingestion",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -6221,10 +6212,8 @@
     {
       "id": "llm_evaluator",
       "path": "assets/ai/llm_evaluator",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -6536,9 +6525,8 @@
     {
       "id": "medical_record_extractor",
       "path": "assets/ai/medical_record_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -6555,8 +6543,11 @@
     {
       "id": "memcached_cache_flush_job",
       "path": "jobs/memcached_cache_flush_job",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -6659,18 +6650,18 @@
     {
       "id": "mixpanel_resource",
       "path": "resources/mixpanel_resource",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"MistralOcrComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "ml_pipeline",
       "path": "assets/analytics/ml_pipeline",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"MistralOcrComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7356,10 +7347,8 @@
     {
       "id": "onedrive_ingestion",
       "path": "assets/ingestion/onedrive_ingestion",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -8148,8 +8137,9 @@
     {
       "id": "precision_match",
       "path": "assets/ai/precision_match",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"PrecisionMatchComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -8174,10 +8164,8 @@
     {
       "id": "prefect_flow_run_sensor",
       "path": "sensors/prefect_flow_run_sensor",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"PrecisionMatchComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -9275,7 +9263,11 @@
       "id": "sendgrid_contact_upsert",
       "path": "assets/reverse_etl/sendgrid_contact_upsert",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "BetaWarning: Parameter `include_sources` of function `AssetSelection.groups` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
+        "BetaWarning: Parameter `include_sources` of function `AssetSelection.groups` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases.",
+        "BetaWarning: Parameter `include_sources` of function `AssetSelection.groups` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
       "error": null,
       "error_class": null
     },
@@ -9574,12 +9566,12 @@
       "path": "resources/skill_resource",
       "status": "FAIL",
       "warnings": [],
-      "error": "git clone of 'https://github.com/your-org/agent-skills.git' at ref 'main' failed: Cloning into '/var/folders/84/n83b05vs2b5fz8nkxcfk5dj40000gn/T/dagster_community_components_skill_cache/git/99d4b1b159c17b4579183004.partial-34476'...\nremote: Repository not found.\nfatal: repository 'https://github.com/your-org/agent-skills.git/' not found",
+      "error": "git clone of 'https://github.com/your-org/agent-skills.git' at ref 'main' failed: Cloning into '/var/folders/84/n83b05vs2b5fz8nkxcfk5dj40000gn/T/dagster_community_components_skill_cache/git/99d4b1b159c17b4579183004.partial-40588'...\nremote: Repository not found.\nfatal: repository 'https://github.com/your-org/agent-skills.git/' not found",
       "error_class": "RuntimeError",
       "traceback": [
         "  File \"/Users/ericthomasii/https-::github.com:eric-thomas-dagster:dagster-component-templates/dagster-component-templates/resources/skill_resource/component.py\", line 92, in _ensure_git_checkout",
         "    raise RuntimeError(f\"git clone of {git_url!r} at ref {git_ref!r} failed: {result.stderr.strip()[:500]}\")",
-        "RuntimeError: git clone of 'https://github.com/your-org/agent-skills.git' at ref 'main' failed: Cloning into '/var/folders/84/n83b05vs2b5fz8nkxcfk5dj40000gn/T/dagster_community_components_skill_cache/git/99d4b1b159c17b4579183004.partial-34476'...",
+        "RuntimeError: git clone of 'https://github.com/your-org/agent-skills.git' at ref 'main' failed: Cloning into '/var/folders/84/n83b05vs2b5fz8nkxcfk5dj40000gn/T/dagster_community_components_skill_cache/git/99d4b1b159c17b4579183004.partial-40588'...",
         "remote: Repository not found.",
         "fatal: repository 'https://github.com/your-org/agent-skills.git/' not found"
       ]
@@ -9700,7 +9692,9 @@
       "id": "smtp_resource",
       "path": "resources/smtp_resource",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.29) expected library version (0.29.29) and `dagster-slack` (0.29.25)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -9716,9 +9710,7 @@
       "id": "snapshot_asset",
       "path": "assets/infrastructure/snapshot_asset",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.29) expected library version (0.29.29) and `dagster-slack` (0.29.25)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -10040,6 +10032,7 @@
       "status": "WARN",
       "warnings": [
         "UserWarning: Field name \"model\" in \"SqlGeneratorComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SqlGeneratorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -10048,10 +10041,8 @@
     {
       "id": "sql_monitor",
       "path": "sensors/sql_monitor",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"SqlGeneratorComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -10215,7 +10206,9 @@
       "id": "streaming_consumer",
       "path": "assets/ingestion/streaming_consumer",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "DependencyWarning: SOCKS support in urllib3 requires the installation of optional dependencies: specifically, PySocks.  For more information, see https://urllib3.readthedocs.io/en/latest/advanced-usage.html#socks-proxies"
+      ],
       "error": null,
       "error_class": null
     },
@@ -10348,8 +10341,13 @@
     {
       "id": "supervisor_agent",
       "path": "assets/ai/supervisor_agent",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },

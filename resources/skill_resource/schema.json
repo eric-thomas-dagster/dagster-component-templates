@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SkillResourceComponent",
-  "description": "Register a skill (Anthropic Agent Skills format: a SKILL.md file with YAML front matter + markdown body) once, referenced by name (skill_keys) from the MCP-aware agent components instead of repeating the same source fields inline in every one of them.",
+  "description": "Register a skill (Anthropic Agent Skills format: a SKILL.md file with YAML front matter + markdown body) once, referenced by name (skill_keys) from the MCP-aware agent components instead of repeating the same source fields inline in every one of them. mode='collection' registers every skill in a repo/directory at once (e.g. all of anthropics/skills).",
   "category": "resource",
   "icon": "BookOpen",
   "x-dagster-io": {},

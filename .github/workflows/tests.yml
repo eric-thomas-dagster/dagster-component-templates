@@ -38,6 +38,7 @@ env:
     assets/ai/gemini_agent/tests
     assets/ai/vercel_ai_gateway_agent/tests
     assets/ai/snowflake_cortex_agent/tests
+    resources/skill_resource/tests
 
 jobs:
   checks:

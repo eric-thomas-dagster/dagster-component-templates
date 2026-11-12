@@ -47,7 +47,40 @@ Tools are namespaced by the loop as `dagster_workflow__materialize_assets`, etc.
 `dagster_instance_tools`, a write tool must know its own scope, there is no degrade-gracefully-
 without-it mode), `..._ALLOW` (csv, default both tools), `..._ALLOW_ASSETS` / `..._ALLOW_JOBS`
 (csv hard allow-lists -- strongly recommended in production: an agent should materialize specific,
-intended targets, not anything in the repo).
+intended targets, not anything in the repo), `..._DEFAULT_TAGS` (JSON object, set automatically by
+`mcp_server_resource_key` below -- see "Referencing it by key").
+
+## Referencing it by key (`mcp_server_resource_key`)
+
+The YAML above works, but it repeats `DAGSTER_HOME`/`DAGSTER_WORKFLOW_TOOLS_*` by hand in every
+`mcp_servers:` entry that wants this toolset. Set `mcp_server_resource_key` on the component
+instead, and it registers a second, [`MCPServerResource`](../../../resources/mcp_server_resource)-
+shaped resource under that key -- built from this component's own `definitions_module`/`allow`/
+`allow_assets`/`allow_jobs`/`default_tags` settings, with `DAGSTER_HOME` read from the current
+process's environment at component-load time (raises a clear error if it isn't set -- MCP's stdio
+client does **not** inherit the parent's full environment, only a small Dagster-unaware safe-list,
+so `DAGSTER_HOME` has to be forwarded explicitly either way):
+
+```yaml
+type: dagster_community_components.DagsterWorkflowToolsComponent
+attributes:
+  definitions_module: my_project.definitions
+  allow_assets: [orders, orders_summary]
+  mcp_server_resource_key: dagster_workflow_mcp
+```
+
+Then, in any `mcp_servers`-aware component (`mcp_tool_call`, `mcp_tool_picker`, the agent
+components, `agentic_pipeline`'s `tool_use_loop`/`mcp_call`):
+
+```yaml
+mcp_servers:
+  - server_resource_key: dagster_workflow_mcp
+```
+
+No inline `command`/`env` to hand-write or keep in sync. Leave `mcp_server_resource_key` unset to
+skip this entirely -- the existing `resource_key`-only, in-process `context.resources.
+dagster_workflow_tools.call(...)` path is unchanged either way, and the two can coexist (the
+component can register both resources at once).
 
 ## As a Dagster resource
 
@@ -121,5 +154,6 @@ real Dagster+ GraphQL `launchRun` call against a running deployment) -- not impl
 | `allow_assets` | `List[str]` | — | Hard allow-list of asset keys materialize_assets may target (default: any asset in definitions_module). Recommended in production -- an agent should materialize specific, intended assets, not anything in the repo. |
 | `allow_jobs` | `List[str]` | — | Hard allow-list of job names run_job may target (default: any job in definitions_module). |
 | `default_tags` | `Dict[str, str]` | — | Tags merged onto every triggered run, alongside dagster-community/workflow-tool=true (e.g. {'triggered_by': 'support-agent'}) -- for run-tag attribution/audit. |
+| `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with DAGSTER_HOME and t… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

@@ -1162,7 +1162,7 @@
           "requests",
           "sqlalchemy>=1.4",
           "pandas>=1.5.0",
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)",
+          "mcp>=1.30,<3",
           "jsonschema>=4.0.0"
         ]
       },
@@ -5544,7 +5544,7 @@
       "dependencies": {
         "pip": [
           "anthropic>=0.40.0",
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)"
+          "mcp>=1.30,<3"
         ]
       },
       "produces": [
@@ -15525,8 +15525,8 @@
       "dependencies": {
         "pip": [
           "dagster>=1.7.0",
-          "boto3>=1.34  # only if archive_target=s3",
-          "google-cloud-storage>=2.10  # only if archive_target=gcs"
+          "boto3>=1.34",
+          "google-cloud-storage>=2.10"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_compute_logs_archive_job/README.md",
@@ -29482,7 +29482,7 @@
       "dependencies": {
         "pip": [
           "google-genai>=0.7.0",
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)"
+          "mcp>=1.30,<3"
         ]
       },
       "produces": [
@@ -36388,8 +36388,8 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "pyarrow>=14.0   # for papermill backend's parquet handoff",
-          "papermill>=2.5  # only required when backend='papermill'"
+          "pyarrow>=14.0",
+          "papermill>=2.5"
         ]
       },
       "produces": [
@@ -39213,7 +39213,7 @@
       "dependencies": {
         "pip": [
           "litellm>=1.30.0",
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)"
+          "mcp>=1.30,<3"
         ]
       },
       "produces": [
@@ -41360,7 +41360,7 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)"
+          "mcp>=1.30,<3"
         ]
       },
       "agent_hints": {
@@ -41398,7 +41398,7 @@
         "pip": [
           "pandas>=1.5.0",
           "openai>=1.0.0",
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)"
+          "mcp>=1.30,<3"
         ]
       },
       "validation": {
@@ -46626,7 +46626,7 @@
       "dependencies": {
         "pip": [
           "openai>=1.30.0",
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)"
+          "mcp>=1.30,<3"
         ]
       },
       "produces": [
@@ -46887,7 +46887,7 @@
         "pip": [
           "requests>=2.31.0",
           "pyyaml>=6.0.0",
-          "fastmcp>=2.0  # optional, only for mode=\"mcp_server\" -- lazily imported, see component.py docstring"
+          "fastmcp>=2.0"
         ]
       },
       "agent_hints": {
@@ -56800,7 +56800,7 @@
       "dependencies": {
         "pip": [
           "requests>=2.28",
-          "PyJWT[crypto]>=2.8  # optional — only imported when auth_mode='jwt_bearer'"
+          "PyJWT[crypto]>=2.8"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesforce_resource/README.md",
@@ -60718,7 +60718,7 @@
       "dependencies": {
         "pip": [
           "requests>=2.28",
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)",
+          "mcp>=1.30,<3",
           "PyJWT>=2.0",
           "cryptography>=40.0"
         ]
@@ -62822,7 +62822,7 @@
         "pip": [
           "sqlalchemy>=1.4",
           "jinja2>=3.0",
-          "pandas>=1.5.0  # only needed when return_dataframe=true"
+          "pandas>=1.5.0"
         ]
       },
       "validation": {
@@ -68928,7 +68928,7 @@
       "dependencies": {
         "pip": [
           "openai>=1.0.0",
-          "mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)"
+          "mcp>=1.30,<3"
         ]
       },
       "produces": [

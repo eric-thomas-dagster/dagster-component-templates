@@ -55,7 +55,7 @@ import logging
 import os
 import re
 import sys
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Literal, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -295,6 +295,22 @@ def _this_module_name() -> str:
     )
 
 
+class _McpServerShapeResource(dg.ConfigurableResource):
+    """Minimal MCPServerResource-shaped resource (name/type/command/url/env/headers/
+    headers_env) -- inlined here rather than imported from resources/mcp_server_resource,
+    per this repo's self-contained-component convention. Any mcp_servers-aware
+    component's server_resource_key path only needs `.model_dump()` to produce this
+    exact dict shape; it doesn't care which component registered it."""
+
+    name: str
+    type: Literal["http", "sse", "stdio"] = "stdio"
+    command: Optional[List[str]] = None
+    url: Optional[str] = None
+    env: Optional[Dict[str, str]] = None
+    headers: Optional[Dict[str, str]] = None
+    headers_env: Optional[Dict[str, str]] = None
+
+
 # ── Dagster component: registers the toolset as a resource ──────────────────────────────────────────────────────────
 class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     """Registers WRITE-capable Dagster-workflow tools as a resource (default key
@@ -324,6 +340,19 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Tags merged onto every triggered run, alongside dagster-community/workflow-tool=true (e.g. {'triggered_by': 'support-agent'}) -- for run-tag attribution/audit.",
     )
+    mcp_server_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/"
+            "env shape as MCPServerResource) under this key, built from this component's own "
+            "settings -- python -m this module, with DAGSTER_HOME and the DAGSTER_WORKFLOW_TOOLS_* "
+            "env vars set automatically from definitions_module/allow/allow_assets/allow_jobs/"
+            "default_tags. Any mcp_servers-aware component (mcp_tool_call, mcp_tool_picker, the "
+            "agent components, agentic_pipeline) can then reference it via "
+            "server_resource_key instead of hand-writing an inline command+env entry. Leave unset "
+            "to skip this -- existing resource_key-only behavior is unchanged."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -352,7 +381,38 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         res = dg.ResourceDefinition(resource_fn=_init, description="WRITE-capable Dagster workflow tools for agents (materialize_assets/run_job).")
-        return dg.Definitions(resources={self.resource_key: res})
+        resources: Dict[str, Any] = {self.resource_key: res}
+
+        if self.mcp_server_resource_key:
+            dagster_home = os.environ.get("DAGSTER_HOME")
+            if not dagster_home:
+                raise ValueError(
+                    "DagsterWorkflowToolsComponent: mcp_server_resource_key is set, but DAGSTER_HOME "
+                    "isn't set in this process's environment. MCP's stdio client does NOT inherit the "
+                    "parent process's full environment (only a small, Dagster-unaware safe-list), so "
+                    "DAGSTER_HOME must be forwarded explicitly into the spawned server's env -- set it "
+                    "before loading this code location."
+                )
+            mcp_env = {
+                "DAGSTER_HOME": dagster_home,
+                "DAGSTER_WORKFLOW_TOOLS_DEFINITIONS_MODULE": definitions_module,
+            }
+            if allow:
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_ALLOW"] = ",".join(allow)
+            if allow_assets:
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_ALLOW_ASSETS"] = ",".join(allow_assets)
+            if allow_jobs:
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_ALLOW_JOBS"] = ",".join(allow_jobs)
+            if default_tags:
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_DEFAULT_TAGS"] = json.dumps(default_tags)
+            resources[self.mcp_server_resource_key] = _McpServerShapeResource(
+                name=self.mcp_server_resource_key,
+                type="stdio",
+                command=["python", "-m", _this_module_name()],
+                env=mcp_env,
+            )
+
+        return dg.Definitions(resources=resources)
 
 
 # ── stdio MCP server entrypoint:  python -m <dotted.path.to.this.module>  (reads DAGSTER_HOME) ──────────────────────
@@ -390,7 +450,10 @@ def build_mcp_server(tools: DagsterWorkflowTools):
 
 def main(argv: Optional[List[str]] = None) -> None:
     """Env: DAGSTER_HOME (required), DAGSTER_WORKFLOW_TOOLS_DEFINITIONS_MODULE (required),
-    _ALLOW (csv), _ALLOW_ASSETS (csv), _ALLOW_JOBS (csv)."""
+    DAGSTER_WORKFLOW_TOOLS_ALLOW (csv), DAGSTER_WORKFLOW_TOOLS_ALLOW_ASSETS (csv),
+    DAGSTER_WORKFLOW_TOOLS_ALLOW_JOBS (csv), DAGSTER_WORKFLOW_TOOLS_DEFAULT_TAGS (JSON object) --
+    this last one is what DagsterWorkflowToolsComponent's mcp_server_resource_key path sets so the
+    MCP-server entrypoint has the same default_tags the in-process resource_key path gets."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     if not os.environ.get("DAGSTER_HOME"):
         raise SystemExit("DAGSTER_HOME must point at the Dagster instance directory (the one with dagster.yaml)")
@@ -403,10 +466,12 @@ def main(argv: Optional[List[str]] = None) -> None:
     allow_assets = [t.strip() for t in allow_assets_env.split(",") if t.strip()] if allow_assets_env else None
     allow_jobs_env = os.environ.get("DAGSTER_WORKFLOW_TOOLS_ALLOW_JOBS")
     allow_jobs = [t.strip() for t in allow_jobs_env.split(",") if t.strip()] if allow_jobs_env else None
+    default_tags_env = os.environ.get("DAGSTER_WORKFLOW_TOOLS_DEFAULT_TAGS")
+    default_tags = json.loads(default_tags_env) if default_tags_env else None
     tools = DagsterWorkflowTools(
         dg.DagsterInstance.get(),
         definitions_module=definitions_module,
-        allow=allow, allow_assets=allow_assets, allow_jobs=allow_jobs,
+        allow=allow, allow_assets=allow_assets, allow_jobs=allow_jobs, default_tags=default_tags,
     )
     build_mcp_server(tools).run(transport="stdio")
 

@@ -111,7 +111,13 @@ def build_derivable_fields(component_dir: Path) -> dict:
     if requirements_file.exists():
         entry["requirements_url"] = f"{BASE_URL}/{rel_str}/requirements.txt"
         with open(requirements_file) as f:
-            pip_deps = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+            for raw_line in f:
+                # Strip a trailing inline comment too (e.g. "mcp>=1.30,<3   # verified
+                # with..."), not just whole-line comments -- a UI reading this to say
+                # "what's missing" shouldn't see explanatory prose baked into a pip spec.
+                line = raw_line.split("#", 1)[0].strip()
+                if line:
+                    pip_deps.append(line)
     entry["_pip_deps"] = pip_deps  # consumed by caller, not written as-is
     return entry
 

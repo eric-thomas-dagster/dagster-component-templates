@@ -19,7 +19,7 @@ _COMMON_FIELDS = {"id", "op", "source", "inputs", "when", "policy", "persona", "
 _OP_HEADING = {op: f"`op: {op}`" for op in (
     "llm_call", "route", "conditional_route", "debate", "critique_loop", "synthesize",
     "mcp_call", "tool_use_loop", "handoff", "map", "extract", "classify", "reduce",
-    "self_reflect", "sub_pipeline", "agent_call", "delegate", "invoke_component",
+    "self_reflect", "sub_pipeline", "agent_call", "delegate", "invoke_component", "filter",
     "verify", "eval", "best_of_n", "cascade", "plan", "decide", "approve",
 )}
 
@@ -87,6 +87,13 @@ def test_readme_table_matches_the_real_step_model(mod, op):
 def test_every_op_in__OPS_has_a_step_model_and_a_readme_section(mod):
     assert set(mod._STEP_MODELS) == set(mod._OPS), (
         f"_STEP_MODELS vs _OPS mismatch: {set(mod._OPS) ^ set(mod._STEP_MODELS)}"
+    )
+    # _OP_HEADING itself is hand-maintained (a new op's name must be added here too, by hand) -- this catches a
+    # new op added to _STEP_MODELS/_OPS without a corresponding entry here (which `missing` below, checking only
+    # the ops ALREADY in _OP_HEADING, cannot: a key absent from the dict it iterates is invisible to it).
+    assert set(_OP_HEADING) == set(mod._STEP_MODELS), (
+        f"_OP_HEADING vs _STEP_MODELS mismatch -- a new op needs an entry added to _OP_HEADING in this test file "
+        f"too, not just a model + README section: {set(mod._STEP_MODELS) ^ set(_OP_HEADING)}"
     )
     text = _readme_text()
     missing = [op for op, heading in _OP_HEADING.items() if heading not in text]

@@ -344,8 +344,9 @@ def test_load_time_guards(mod, tmp_path):
         return mod.AgenticPipelineComponent(asset_name_prefix="g", source={"kind": "literal", "text": "x"}, steps=steps,
                                             outputs={"assets": ["d"]}, **kw).build_defs(None)
     d = _llm("d", "Draft: {text}")
-    with pytest.raises(ValueError, match="invoke_component.*mode: wait"):
-        build([d, {"id": "ic", "op": "invoke_component", "component_type": "x", "attributes": {}}, gate])
+    # invoke_component before a park gate used to be rejected unconditionally at load time; its `items` output is
+    # now coerced JSON-safe at the source (_json_safe_record), so this builds fine.
+    build([d, {"id": "ic", "op": "invoke_component", "component_type": "x", "attributes": {}}, gate])
     with pytest.raises(ValueError, match="sub_pipeline.*top-level"):
         build([d, {"id": "sp", "op": "sub_pipeline", "steps": [gate]}])
     with pytest.raises(ValueError, match="wait_seconds"):
@@ -574,3 +575,40 @@ def test_two_real_resume_runs_at_once_do_the_downstream_work_once(mod, fk, tmp_p
     [t.join() for t in ts]
     assert fk.n("Publish:") == 1 and sum(1 for r in out if r.success) == 1
     assert json.loads(pathlib.Path(p.ap, "k1.json").read_text())["consumed_at"]   # `once` consumed by the single winner
+
+
+# ── invoke_component before a park gate (numpy/pandas types must checkpoint as real JSON) ──────────────────────────
+
+def test_invoke_component_before_a_park_gate_checkpoints_real_numpy_pandas_typed_rows(mod, tmp_path):
+    """FilterComponent ("keep only matching items") run via invoke_component, immediately followed by a park gate --
+    the exact "label, keep the urgent ones, ask a person" shape. The DataFrame FilterComponent filters has numpy
+    int64 columns (pandas infers this automatically even from plain JSON input) -- these are not JSON-safe on their
+    own; _json_safe_record must coerce them so the park checkpoint (strict JSON, no default=str, no pickle) can
+    actually be written."""
+    ap = str(tmp_path / "approvals")
+    comp = mod.AgenticPipelineComponent(
+        asset_name_prefix="p",
+        source={"kind": "literal", "text": '[{"id": 1, "amount": 100}, {"id": 2, "amount": 5}, {"id": 3, "amount": 200}]'},
+        steps=[
+            {
+                "id": "kept", "op": "invoke_component",
+                "component_type": "dagster_community_components.FilterComponent",
+                "attributes": {"asset_name": "filter_out", "upstream_asset_key": "filter_in", "condition": "amount > 10"},
+            },
+            {"id": "gate", "op": "approve", "source": "kept", "approval_dir": ap, "mode": "park", "key": "k1"},
+        ],
+        outputs={"assets": ["kept", "gate"]},
+    )
+    defs = comp.build_defs(None)  # must NOT raise -- this is the exact load-time rejection being fixed
+    result = dg.materialize(defs.assets, instance=dg.DagsterInstance.ephemeral())
+    assert result.success
+
+    md = {k: v.value for e in result.get_asset_materialization_events() for k, v in e.materialization.metadata.items() if e.materialization.asset_key == dg.AssetKey("p_kept")}
+    kept_items = json.loads(md["kept__text"])
+    assert {r["id"] for r in kept_items} == {1, 3}, "the filter itself must still behave correctly"
+    assert all(isinstance(r["id"], int) and isinstance(r["amount"], int) for r in kept_items), "coerced values must stay real ints, not stringified"
+
+    ckpt_files = list((tmp_path / "approvals" / "checkpoints").glob("*.json"))
+    assert len(ckpt_files) == 1, "the park gate must actually write a checkpoint -- confirms build_defs succeeding wasn't a fluke"
+    ckpt = json.loads(ckpt_files[0].read_text())  # must parse as real JSON -- this is what _to_jsonable would have rejected before the fix
+    assert ckpt["state"]["kept"]["items"][0]["item"]["id"] in (1, 3)

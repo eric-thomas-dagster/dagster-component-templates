@@ -1172,7 +1172,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/requirements.txt",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline/schema.json",
       "agent_hints": {
-        "when_to_use": "User wants a standardized multi-step agentic workflow shape declared in ONE YAML. 25 ops available (llm_call | route | conditional_route | debate | critique_loop | synthesize | mcp_call | tool_use_loop | handoff | map | extract | classify | reduce | self_reflect | sub_pipeline | agent_call | delegate | invoke_component | verify | eval | best_of_n | cascade | plan | decide | approve); `steps:` is a real, typed, discriminated union on `op` (schema.json/ops_schema.json carry one real per-op JSON Schema each, and the `agentic_pipeline_authoring_tools` MCP server's `describe_op`/`list_ops` expose the same schemas live). Supports typed named `inputs:` on every text-emitting op — any op can join from any prior op by port name (execution-plan graph shape). Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain. `partition_key_parser:` lets a composite partition key (like `dagster-io/dagster#30000`) unpack into `{partition.owner}` / `{partition.repo}` / `{partition.issue_number}` placeholders reachable in every string field (tool_args, prompt_template, system_prompt, source.text, sink paths). Pair with `PartitionedAssetLauncherJobComponent` for the config-driven-partition pattern. `tool_use_loop` — open-ended agent loop with MCP tools, LangGraph-style, bounded by max_iterations, materialized as ONE Dagster asset with the full tool-call trajectory in metadata. `handoff` composes with existing framework runtimes (LangGraph / AutoGen / CrewAI / DSPy) — user's callable becomes ONE step of the Dagster pipeline; adjacent steps stay Dagster-native. Framework's per-node lineage is inside that asset's metadata, not the Dagster graph. Every step asset also carries a `dagster-community/agentic-pipeline` tag + pipeline/step/op/reads/partition_type definition metadata, so a pipeline is recognizable in the catalog without running it.",
+        "when_to_use": "User wants a standardized multi-step agentic workflow shape declared in ONE YAML. 26 ops available (llm_call | route | conditional_route | debate | critique_loop | synthesize | mcp_call | tool_use_loop | handoff | map | extract | classify | reduce | self_reflect | sub_pipeline | agent_call | delegate | invoke_component | filter | verify | eval | best_of_n | cascade | plan | decide | approve); `steps:` is a real, typed, discriminated union on `op` (schema.json/ops_schema.json carry one real per-op JSON Schema each, and the `agentic_pipeline_authoring_tools` MCP server's `describe_op`/`list_ops` expose the same schemas live). Supports typed named `inputs:` on every text-emitting op — any op can join from any prior op by port name (execution-plan graph shape). Sibling of ml_pipeline / polars_pipeline / warehouse_pipeline for the LLM domain. `partition_key_parser:` lets a composite partition key (like `dagster-io/dagster#30000`) unpack into `{partition.owner}` / `{partition.repo}` / `{partition.issue_number}` placeholders reachable in every string field (tool_args, prompt_template, system_prompt, source.text, sink paths). Pair with `PartitionedAssetLauncherJobComponent` for the config-driven-partition pattern. `tool_use_loop` — open-ended agent loop with MCP tools, LangGraph-style, bounded by max_iterations, materialized as ONE Dagster asset with the full tool-call trajectory in metadata. `handoff` composes with existing framework runtimes (LangGraph / AutoGen / CrewAI / DSPy) — user's callable becomes ONE step of the Dagster pipeline; adjacent steps stay Dagster-native. Framework's per-node lineage is inside that asset's metadata, not the Dagster graph. Every step asset also carries a `dagster-community/agentic-pipeline` tag + pipeline/step/op/reads/partition_type definition metadata, so a pipeline is recognizable in the catalog without running it.",
         "typical_upstream": "Literal text prompt, a fetched URL / doc, a file, another Dagster asset (via upstream_asset source), or a direct MCP tool call (via mcp_call op — no upstream needed).",
         "typical_downstream": "Text sinks (files), JSON sinks (full step dicts w/ per-op metadata), or downstream Dagster assets that consume any of the emitted step-output asset keys — every step is a first-class asset.",
         "example_prompts": [
@@ -2076,6 +2076,43 @@
                 "partition_key": {
                   "type": "string",
                   "description": "Forwarded to build_asset_context(partition_key=...)."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "filter",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "condition"
+              ],
+              "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "filter"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to most recent. Its text is parsed as a JSON list of records."
+                },
+                "inputs": {
+                  "type": "object"
+                },
+                "condition": {
+                  "type": "string",
+                  "description": "Pandas query expression, e.g. 'amount > 10 and status == \"urgent\"'. Evaluated over the upstream records."
+                },
+                "negate": {
+                  "type": "boolean",
+                  "description": "Invert the match: keep rows that do NOT satisfy condition. Default false."
                 }
               },
               "additionalProperties": false
@@ -4515,7 +4552,7 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-11-12",
-        "evidence": "tests/ in the component dir: all 6 tools driven directly against the real agentic_pipeline/component.py (loaded by path, not mocked) -- list_ops/describe_op against all 25 real op models, validate_pipeline/preview_pipeline against real valid/invalid/partitioned/multi-step pipelines (confirming step_index/step_id/op/field error reporting and real asset/edge/needs output), plus a real stdio MCP server spawned as a subprocess with zero inherited environment and driven by a real mcp client."
+        "evidence": "tests/ in the component dir: all 6 tools driven directly against the real agentic_pipeline/component.py (loaded by path, not mocked) -- list_ops/describe_op against all real op models (read live, so this stays in sync as ops are added), validate_pipeline/preview_pipeline against real valid/invalid/partitioned/multi-step pipelines (confirming step_index/step_id/op/field error reporting and real asset/edge/needs output), plus a real stdio MCP server spawned as a subprocess with zero inherited environment and driven by a real mcp client."
       },
       "agent_hints": {
         "inputs": "allow (tool allow-list), max_result_chars; validate_pipeline/preview_pipeline take a `yaml` string (bare attributes mapping or a full component.yaml).",
@@ -65379,7 +65416,7 @@
       "path": "assets/ai/teams_approval_gate",
       "category": "ai",
       "icon": "si:microsoftteams",
-      "description": "Microsoft Teams HITL approval gate. Slack analog — same asset + sensor shape, same JSON token format, composes with HumanApprovalGateComponent via shared `approval_dir`. Uses MS Graph API (Azure AD app registration with application permissions ChannelMessage.Read.All + ChannelMessage.Send + admin consent). Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
+      "description": "Microsoft Teams HITL approval gate. Slack analog — same asset + sensor shape, same JSON token format. target: human_approval_gate (default) composes with HumanApprovalGateComponent via shared `approval_dir`; target: agentic_pipeline watches agentic_pipeline's own approve/mode:park review queue directly. Uses MS Graph API with a DELEGATED OAuth token (app-only/client-credentials does not work for sending a channel message, confirmed against Microsoft's own docs) — a one-time interactive consent captures a refresh token, which this component refreshes (and persists if Microsoft rotates it) on every poll, pure outbound HTTPS. Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
       "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/example.yaml",

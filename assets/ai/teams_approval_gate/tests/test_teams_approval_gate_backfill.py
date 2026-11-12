@@ -12,7 +12,7 @@ PARTS = dg.DailyPartitionsDefinition("2024-01-01")
 
 def _build(monkeypatch, tmp_path, calls, backfill_policy=None):
     mod = load_component_module()
-    monkeypatch.setattr(mod, "_get_teams_bearer", lambda tenant, client_id, secret: "fake-bearer")
+    monkeypatch.setattr(mod, "_get_teams_bearer", lambda fs, tenant, client_id, secret, refresh_token: "fake-bearer")
 
     def fake_post(bearer, team_id, channel_id, html):
         calls.append(html)

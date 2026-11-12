@@ -1,9 +1,12 @@
 # teams_approval_gate
 
 Microsoft Teams HITL approval gate. Slack analog for `SlackApprovalGate`
-— same asset + sensor shape, same JSON token format, composes with
-`HumanApprovalGateComponent` via the shared `approval_dir` (drop-in swap
-of Slack for Teams).
+— same asset + sensor shape, same JSON token format. Two modes, picked with `target:`:
+
+- **`target: human_approval_gate`** *(default)* — composes with `HumanApprovalGateComponent` via the shared
+  `approval_dir` (drop-in swap of Slack for Teams).
+- **`target: agentic_pipeline`** — watches `agentic_pipeline`'s own `approve` op (`mode: park`) review queue
+  directly: no separate `HumanApprovalGateComponent` needed. See [Using with agentic_pipeline](#using-with-agentic_pipeline) below.
 
 ## Type
 
@@ -31,22 +34,26 @@ surprised / sad / angry) — no custom emoji, unlike Slack. Two modes:
 
 Both modes read votes via MS Graph and write the same token format.
 
-## Auth (Azure AD app registration)
+## Auth (Azure AD app registration) — a DELEGATED token, not app-only
 
-You need an Azure AD app registration with **application permissions**
-(client-credentials flow, tenant admin consent required):
+**Corrected from an earlier version of this README**, which claimed application (app-only) permissions worked for
+sending. Confirmed directly against Microsoft Graph's own docs: sending a channel message
+(`POST /teams/{id}/channels/{id}/messages`) has **no working application permission** — only `Teamwork.Migrate.All`
+is listed for app-only, and that is explicitly scoped to migration/import tooling (Microsoft's own Q&A confirms
+app-only send attempts fail with "not supported in application-only context"). `ChannelMessage.Send` is a
+**delegated** permission only — so, unlike an app-only client-credentials flow, posting needs a real user (the
+"approval bot") to consent once, interactively, and capture an OAuth refresh token. After that one-time step,
+everything is pure outbound HTTPS — no public inbound webhook/bot endpoint, same Dagster+ Serverless constraint
+this component's reactions/replies-polling design already respects elsewhere.
 
-- `ChannelMessage.Read.All` — poll reactions / replies
-- `ChannelMessage.Send` — post approval + escalation messages
+**One-time setup:**
 
-Register at:
-
-> Azure Portal → Azure Active Directory → App registrations → New
-
-Grant application permissions + click **"Grant admin consent"**. Copy:
-- **Tenant ID** (from Overview page)
-- **Client ID** (from Overview page)
-- **Client Secret** (create under Certificates & secrets)
+1. Register an app at Azure Portal → Azure Active Directory → App registrations → New.
+2. Grant **delegated** permissions `ChannelMessage.Send` + `ChannelMessage.Read.All` (or the resource-specific
+   `ChannelMessage.Read.Group`) + `offline_access`.
+3. Create a client secret under Certificates & secrets.
+4. Run an interactive OAuth consent ONCE, signed in as a dedicated "approval bot" Teams account (added to the
+   target team/channel) — e.g. via MSAL's device-code flow — to capture the first refresh token.
 
 Export as:
 
@@ -54,7 +61,43 @@ Export as:
 export TEAMS_TENANT_ID=<tenant-guid>
 export TEAMS_CLIENT_ID=<client-guid>
 export TEAMS_CLIENT_SECRET=<secret-value>
+export TEAMS_REFRESH_TOKEN=<refresh-token-from-step-4>
 ```
+
+**Azure AD can rotate the refresh token on any refresh call.** `TEAMS_REFRESH_TOKEN` (or whatever env var
+`teams_refresh_token_env_var` names) is only the INITIAL seed — once Microsoft returns a different refresh token,
+it's persisted to `<approval_dir>/.teams_oauth_state.json` and preferred over the env var from then on.
+
+## Using with agentic_pipeline
+
+`agentic_pipeline`'s own `approve` op (`mode: park`) writes a pending-review record at `<approval_dir>/pending/<key>.json` (fields include `summary`, `preview`, `fingerprint`, and `approve_by_writing`) and ends the run; a separately-generated `<asset>_approval_resume_sensor` later resumes it once a valid, correctly-fingerprinted decision token exists at `<approval_dir>/<key>.json`. A hand-written decision file with no `fingerprint` is **not** honoured — by default (`reuse: until_changed`) the pipeline refuses it.
+
+`target: agentic_pipeline` closes this loop without a separate `HumanApprovalGateComponent`:
+
+```yaml
+type: dagster_community_components.TeamsApprovalGateComponent
+attributes:
+  asset_name: triage_gate
+  target: agentic_pipeline
+  approval_dir: /shared/approvals/triage    # the SAME approval_dir your approve step uses
+  teams_team_id: "19:abc123@thread.tacv2"
+  teams_channel_id: "19:xyz789@thread.tacv2"
+  teams_tenant_id_env_var: TEAMS_TENANT_ID
+  teams_client_id_env_var: TEAMS_CLIENT_ID
+  teams_client_secret_env_var: TEAMS_CLIENT_SECRET
+  teams_refresh_token_env_var: TEAMS_REFRESH_TOKEN
+  mode: reply
+  approver_allowlist: [aad-user-id-1]
+  required_approvers: 1
+```
+
+This emits only `{asset_name}_pending_watcher` (no asset — there's no single upstream asset to post; the pipeline's own `approve` step is the source). Each tick:
+
+1. Scans `<approval_dir>/pending/*.json` for records with no decision yet.
+2. For a newly-seen record, posts the pipeline's own `summary` to the channel (same `message_template`/`{upstream_text}` placeholder as the other mode — `{upstream_text}` is the pending record's `summary`, falling back to its `preview`).
+3. Once quorum is reached (or on timeout, per `on_timeout`), writes the decision by copying the pending record's `fingerprint` into the token — the same contract `agentic_pipeline`'s own `approve_pending()` reviewer-tooling helper uses — so the pipeline's resume sensor honours it.
+
+`upstream_asset_key` is ignored in this mode. Partitioning / `kinds` / `group_name` / `tags` / `owners` / `backfill_policy` are also ignored — there's no asset for them to apply to.
 
 ## Minimal example
 
@@ -67,6 +110,8 @@ attributes:
 
   teams_team_id:    "19:abc123@thread.tacv2"
   teams_channel_id: "19:xyz789@thread.tacv2"
+  # TEAMS_TENANT_ID / TEAMS_CLIENT_ID / TEAMS_CLIENT_SECRET / TEAMS_REFRESH_TOKEN env vars must be set --
+  # see "Auth" above. These field names (teams_*_env_var) all have defaults matching those var names.
 
   approver_allowlist:
     - "aad-user-id-1"
@@ -85,9 +130,8 @@ See `example.yaml`.
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor. |
-| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset whose text is posted to Teams for approval. |
-| `approval_dir` | `str` | Absolute path to the shared approval-token directory. Matches HumanApprovalGateComponent's `approval_dir` so the existing downstream gate + sensor pipeline just works. |
+| `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline). |
+| `approval_dir` | `str` | Absolute path to the shared approval-token directory. Matches HumanApprovalGateComponent's `approval_dir` so the existing downstream gate + sensor pipeline just works. Also holds `.teams_oauth_state.json` (a rotated refr… _(full docs in schema.json + component README)_ |
 | `teams_team_id` | `str` | Teams team id (from Teams client → team → three-dot menu → Get link). |
 | `teams_channel_id` | `str` | Teams channel id inside the team (e.g. `19:xxx@thread.tacv2`). |
 | `approver_allowlist` | `List[str]` | Azure AD object IDs (GUIDs) of users allowed to vote. Reactions/replies from anyone else are ignored. Find via Azure Portal → Azure AD → Users → {user} → Object ID. |
@@ -116,9 +160,17 @@ See `example.yaml`.
 | `partition_type` | `str` | — | — |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `Any` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
+
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `target` | `Literal['human_approval_gate', 'agentic_pipeline']` | `"human_approval_gate"` | 'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'ag… _(full docs in schema.json + component README)_ |
 
 ### Source / target
 
@@ -130,9 +182,11 @@ See `example.yaml`.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | target: human_approval_gate only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Teams for approval. |
 | `teams_tenant_id_env_var` | `str` | `"TEAMS_TENANT_ID"` | Env var holding the Azure AD tenant id. |
 | `teams_client_id_env_var` | `str` | `"TEAMS_CLIENT_ID"` | Env var holding the Azure AD app registration client id. |
 | `teams_client_secret_env_var` | `str` | `"TEAMS_CLIENT_SECRET"` | Env var holding the Azure AD app registration client secret. |
+| `teams_refresh_token_env_var` | `str` | `"TEAMS_REFRESH_TOKEN"` | Env var holding the INITIAL OAuth refresh token (from the one-time interactive consent for the dedicated approval-bot account -- see this file's module docstring, 'Auth'). Only the seed -- if Microsoft ever rotates it, t… _(full docs in schema.json + component README)_ |
 | `approve_reaction` | `str` | `"like"` | Reaction type for approval. One of: like, heart, laugh, surprised, sad, angry. |
 | `reject_reaction` | `str` | `"angry"` | Reaction type for rejection. |
 | `approve_reply_keyword` | `str` | `"APPROVE"` | Keyword (case-insensitive) that marks a reply as an approval vote (mode='reply'). |

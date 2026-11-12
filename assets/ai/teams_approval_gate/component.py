@@ -1,25 +1,43 @@
 """TeamsApprovalGateComponent — Microsoft Teams HITL approval gate.
 
-Slack analog for MS Teams. Composes with `HumanApprovalGateComponent`
-via the shared `approval_dir` — Teams side handles posting + polling +
-quorum; the existing gate consumes the resulting token unchanged. Same
-file convention, same token format, same downstream sensor.
+Slack analog for MS Teams. Two modes, picked with `target:` (mirroring `slack_approval_gate` exactly):
 
-Emits one asset (`{asset_name}_posted`) + one sensor
-(`{asset_name}_watcher`). Every partition that hasn't been tokened yet
-is polled every `poll_interval_seconds`.
+- `target: human_approval_gate` (default): composes with `HumanApprovalGateComponent` via the shared
+  `approval_dir` — Teams side handles posting + polling + quorum; the existing gate consumes the resulting token
+  unchanged. Emits `{asset_name}_posted` + `{asset_name}_watcher`.
+- `target: agentic_pipeline`: watches agentic_pipeline's own `approve`/`mode: park` review queue
+  (`<approval_dir>/pending/*.json`) directly — no separate `HumanApprovalGateComponent` needed. Emits only
+  `{asset_name}_pending_watcher` (no asset).
 
-## Auth (Azure AD app registration)
+Every partition/pending record that hasn't been tokened yet is polled every `poll_interval_seconds`.
 
-Teams needs an Azure AD app registration with **application permissions**
-(client-credentials flow, tenant admin consent required):
+## Auth -- a DELEGATED token, not app-only (corrected; see below)
 
-    ChannelMessage.Read.All        (poll reactions / replies)
-    ChannelMessage.Send            (post approval message)
+Confirmed directly against Microsoft Graph's own docs: sending a channel message
+(`POST /teams/{id}/channels/{id}/messages`) has **no working application (app-only) permission** -- only
+`Teamwork.Migrate.All` is listed for app-only, and that is explicitly scoped to migration/import tooling, not live
+sending (Microsoft's own Q&A confirms app-only send attempts fail with "not supported in application-only
+context"). `ChannelMessage.Send` is a **delegated** permission only. So, unlike an app-only client-credentials
+flow, posting requires a real user ("the approval bot") to consent once, interactively, to capture an OAuth
+refresh token -- after that one-time step, everything is pure outbound HTTPS (no public inbound webhook/bot
+endpoint, the same Dagster+ Serverless constraint this component's reactions/replies-polling design already
+respects elsewhere).
 
-Register at https://portal.azure.com → Azure AD → App registrations →
-New. Grant application permissions + admin consent. Copy tenant_id,
-client_id, and generate a client_secret.
+**One-time setup:**
+1. Register an app in Azure AD (Entra ID) with **delegated** permissions `ChannelMessage.Send` and
+   `ChannelMessage.Read.All` (or the resource-specific `ChannelMessage.Read.Group`), plus `offline_access`.
+2. Create a client secret for it.
+3. Run an interactive OAuth consent ONCE, signed in as the dedicated "approval bot" account (a normal Teams user
+   added to the target team/channel) -- e.g. via MSAL's device-code flow -- to capture the first refresh token.
+4. Export `TEAMS_TENANT_ID` / `TEAMS_CLIENT_ID` / `TEAMS_CLIENT_SECRET` / `TEAMS_REFRESH_TOKEN` (or your own
+   configured env var names).
+
+**Azure AD can rotate the refresh token on any refresh call.** `teams_refresh_token_env_var` is only the INITIAL
+seed; once Microsoft returns a different refresh token, it is persisted to `<approval_dir>/.teams_oauth_state.json`
+and preferred over the env var on every later call -- a real, deliberate difference from how some other
+OAuth-refresh-token components in this repo work (e.g. `xero_ingestion`, confirmed to treat their configured
+refresh token as permanently static), which is fine for providers that don't rotate but would silently break this
+component's whole approval loop otherwise.
 
 ## Approval mode: reactions vs replies
 
@@ -203,38 +221,69 @@ _TEAMS_STATE_SUFFIX = ".teams_state.json"
 _GRAPH = "https://graph.microsoft.com/v1.0"
 
 
-def _get_teams_bearer(tenant_id_env: str, client_id_env: str, client_secret_env: str) -> str:
-    """Client-credentials OAuth against Azure AD. Returns bearer token.
+def _oauth_state_path(fs: "_ApprovalFS") -> str:
+    return fs.path(".teams_oauth_state.json")
 
-    Requires an app registration with application permissions
-    (ChannelMessage.Read.All + ChannelMessage.Send) + tenant admin consent.
+
+def _get_teams_bearer(fs: "_ApprovalFS", tenant_id_env: str, client_id_env: str, client_secret_env: str, refresh_token_env: str) -> str:
+    """OAuth2 refresh-token grant against Azure AD. Returns a bearer token.
+
+    **Not client-credentials (app-only)** -- confirmed directly against Microsoft's own Graph docs that sending a
+    channel message has no working application permission (only `Teamwork.Migrate.All`, explicitly scoped to
+    migration/import tooling; Microsoft's own Q&A confirms app-only send attempts fail with "not supported in
+    application-only context"). Posting therefore needs a DELEGATED token: a real user (the dedicated "approval
+    bot" account) consents once, interactively, to capture a refresh token; from then on this is pure outbound
+    OAuth refresh (no public inbound endpoint, same Dagster+ Serverless constraint the rest of this component's
+    design already respects). See this module's docstring ("Auth") for the one-time setup.
+
+    Azure AD can rotate the refresh token on any refresh call -- `refresh_token_env` is only the INITIAL seed;
+    once Microsoft returns a different refresh_token, it is persisted to `<approval_dir>/.teams_oauth_state.json`
+    and preferred over the env var on every later call.
     """
     import requests
     tenant_id = os.environ.get(tenant_id_env)
     client_id = os.environ.get(client_id_env)
     client_secret = os.environ.get(client_secret_env)
-    if not (tenant_id and client_id and client_secret):
+    seed_refresh_token = os.environ.get(refresh_token_env)
+    if not (tenant_id and client_id and client_secret and seed_refresh_token):
         raise RuntimeError(
             f"Teams auth env vars not all set: "
             f"{tenant_id_env}={'✓' if tenant_id else '✗'}, "
             f"{client_id_env}={'✓' if client_id else '✗'}, "
-            f"{client_secret_env}={'✓' if client_secret else '✗'}. "
+            f"{client_secret_env}={'✓' if client_secret else '✗'}, "
+            f"{refresh_token_env}={'✓' if seed_refresh_token else '✗'}. "
             f"Register an app at https://portal.azure.com → Azure AD → "
-            f"App registrations → New."
+            f"App registrations → New, and run the one-time interactive consent for the approval-bot account "
+            f"(see this component's README)."
         )
+    refresh_token = seed_refresh_token
+    state_path = _oauth_state_path(fs)
+    if fs.exists(state_path):
+        try:
+            saved = fs.read_json(state_path)
+            if saved.get("refresh_token"):
+                refresh_token = saved["refresh_token"]
+        except Exception:  # noqa: BLE001 -- a corrupt state file falls back to the seed token, not a crash
+            pass
+
     url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
     r = requests.post(
         url,
         data={
             "client_id": client_id,
             "client_secret": client_secret,
-            "scope": "https://graph.microsoft.com/.default",
-            "grant_type": "client_credentials",
+            "scope": "https://graph.microsoft.com/.default offline_access",
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
         },
         timeout=30,
     )
     r.raise_for_status()
-    return r.json()["access_token"]
+    body = r.json()
+    new_refresh_token = body.get("refresh_token")
+    if new_refresh_token and new_refresh_token != refresh_token:
+        fs.write_json(state_path, {"refresh_token": new_refresh_token, "rotated_at": _now_iso()})
+    return body["access_token"]
 
 
 def _post_teams_message(
@@ -341,6 +390,40 @@ def _classify_reply_votes(
     return {"approve": sorted(set(approvers)), "reject": sorted(set(rejecters))}
 
 
+def _fetch_votes(bearer: str, team_id: str, channel_id: str, message_id: str, mode: str,
+                  approve_label: str, reject_label: str, allowlist: List[str]) -> Dict[str, List[str]]:
+    """Shared by both watcher sensors (target: human_approval_gate's `_watcher` and target: agentic_pipeline's
+    `_pending_watcher`) -- same reactions-vs-reply dispatch either way."""
+    if mode == "reactions":
+        message = _get_teams_message(bearer, team_id, channel_id, message_id)
+        return _classify_reaction_votes(message, approve_label, reject_label, allowlist)
+    replies = _get_teams_replies(bearer, team_id, channel_id, message_id)
+    return _classify_reply_votes(replies, approve_label, reject_label, allowlist)
+
+
+# BEGIN agentic-pipeline approval contract (inlined per this repo's self-contained-component convention rather
+# than importing agentic_pipeline's component.py -- that file is not on the import path outside a built/installed
+# wheel; see slack_approval_gate's own identical copy. Mirrors agentic_pipeline's own `approve_pending()`
+# byte-for-byte -- same pending-record read + token-write shape.)
+def _approve_pending_record(approval_dir: str, key: str, *, approved: bool, approver: str, reason: str) -> Dict[str, Any]:
+    """Approve (or reject) the pending record AS WRITTEN by agentic_pipeline's `approve` op (mode: park): copies its
+    `fingerprint` into the token, so the decision is bound to exactly what the reviewer was shown. Raises
+    FileNotFoundError when nothing is pending for the key (e.g. it was already resolved by something else)."""
+    fs = _ApprovalFS(approval_dir)
+    pending_path = fs.path("pending", f"{key}.json")
+    if not fs.exists(pending_path):
+        raise FileNotFoundError(f"no pending approval for key {key!r} at {pending_path}")
+    pend = fs.read_json(pending_path)
+    tok = {
+        **(pend.get("approve_by_writing") or {}).get("json", {}),
+        "approved": bool(approved), "approver": approver, "reason": reason,
+        "fingerprint": pend["fingerprint"], "approved_at": _now_iso(),
+    }
+    fs.write_json(fs.path(f"{key}.json"), tok)
+    return tok
+# END agentic-pipeline approval contract
+
+
 # ── Component ─────────────────────────────────────────────────────────
 
 
@@ -435,16 +518,31 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(
-        description="Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor.",
+        description="Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline).",
     )
-    upstream_asset_key: Union[str, List[str]] = Field(
-        description="Upstream asset whose text is posted to Teams for approval.",
+    target: Literal["human_approval_gate", "agentic_pipeline"] = Field(
+        default="human_approval_gate",
+        description=(
+            "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a "
+            "separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's "
+            "original behavior. "
+            "'agentic_pipeline': instead of posting an upstream asset, watch `<approval_dir>/pending/*.json` "
+            "records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- "
+            "post each pending record's `summary`, and on quorum write the decision the same way agentic_pipeline's "
+            "own `approve_pending()` reviewer-tooling helper does (copies the pending record's fingerprint into "
+            "the token). `upstream_asset_key` is ignored in this mode; no asset is emitted, only the watcher sensor."
+        ),
+    )
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="target: human_approval_gate only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Teams for approval.",
     )
     approval_dir: str = Field(
         description=(
             "Absolute path to the shared approval-token directory. Matches "
             "HumanApprovalGateComponent's `approval_dir` so the existing "
-            "downstream gate + sensor pipeline just works."
+            "downstream gate + sensor pipeline just works. Also holds "
+            "`.teams_oauth_state.json` (a rotated refresh token, if Microsoft ever issues one)."
         ),
     )
 
@@ -460,6 +558,15 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     teams_client_secret_env_var: str = Field(
         default="TEAMS_CLIENT_SECRET",
         description="Env var holding the Azure AD app registration client secret.",
+    )
+    teams_refresh_token_env_var: str = Field(
+        default="TEAMS_REFRESH_TOKEN",
+        description=(
+            "Env var holding the INITIAL OAuth refresh token (from the one-time interactive consent for the "
+            "dedicated approval-bot account -- see this file's module docstring, 'Auth'). Only the seed -- if "
+            "Microsoft ever rotates it, the rotated token is persisted to `<approval_dir>/.teams_oauth_state.json` "
+            "and preferred over this env var from then on."
+        ),
     )
     teams_team_id: str = Field(
         description="Teams team id (from Teams client → team → three-dot menu → Get link).",
@@ -609,7 +716,8 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
-        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
+        optional = isinstance(data, dict) and data.get("target") == "agentic_pipeline"
+        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=optional)
 
     @classmethod
     def get_form_config(cls):
@@ -618,13 +726,17 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         asset_name = self.asset_name
+        target = self.target
         posted_asset_name = f"{asset_name}_posted"
         upstream_asset_key = self.upstream_asset_key
+        if target == "human_approval_gate" and not upstream_asset_key:
+            raise ValueError("target: human_approval_gate requires upstream_asset_key (the asset whose text is posted for approval)")
         approval_dir = self.approval_dir
 
         tenant_env = self.teams_tenant_id_env_var
         client_id_env = self.teams_client_id_env_var
         client_secret_env = self.teams_client_secret_env_var
+        refresh_token_env = self.teams_refresh_token_env_var
         team_id = self.teams_team_id
         channel_id = self.teams_channel_id
 
@@ -663,6 +775,16 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError(f"on_timeout must be escalate|reject|approve; got {on_timeout!r}")
         escalate_teams_user = self.escalate_teams_user
         poll_interval_seconds = self.poll_interval_seconds
+
+        if target == "agentic_pipeline":
+            return self._build_agentic_pipeline_watcher_defs(
+                asset_name=asset_name, approval_dir=approval_dir, tenant_env=tenant_env,
+                client_id_env=client_id_env, client_secret_env=client_secret_env, refresh_token_env=refresh_token_env,
+                team_id=team_id, channel_id=channel_id, mode=mode, approve_label=approve_label, reject_label=reject_label,
+                message_template=message_template, vote_hint=vote_hint, required_approvers=required_approvers,
+                approver_allowlist=approver_allowlist, timeout_hours=timeout_hours, on_timeout=on_timeout,
+                escalate_teams_user=escalate_teams_user, poll_interval_seconds=poll_interval_seconds,
+            )
 
         kinds = self.kinds or ["human", "approval", "teams"]
         tag_map = dict(self.tags or {})
@@ -718,7 +840,7 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 )
                 return state
 
-            bearer = _get_teams_bearer(tenant_env, client_id_env, client_secret_env)
+            bearer = _get_teams_bearer(fs, tenant_env, client_id_env, client_secret_env, refresh_token_env)
             upstream_text = _extract_upstream_text(upstream)[:2000]
             html = message_template.format(
                 upstream_text=upstream_text.replace("<", "&lt;").replace(">", "&gt;"),
@@ -750,6 +872,7 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 "tenant_env": tenant_env,
                 "client_id_env": client_id_env,
                 "client_secret_env": client_secret_env,
+                "refresh_token_env": refresh_token_env,
                 "approval_dir": fs.root,
                 "escalated_at": None,
             }
@@ -804,24 +927,12 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
 
                 try:
                     bearer = _get_teams_bearer(
-                        state["tenant_env"], state["client_id_env"], state["client_secret_env"],
+                        fs, state["tenant_env"], state["client_id_env"], state["client_secret_env"], state["refresh_token_env"],
                     )
-                    if state["mode"] == "reactions":
-                        message = _get_teams_message(
-                            bearer, state["team_id"], state["channel_id"], state["message_id"],
-                        )
-                        votes = _classify_reaction_votes(
-                            message, state["approve_label"], state["reject_label"],
-                            state["approver_allowlist"],
-                        )
-                    else:  # reply mode
-                        replies = _get_teams_replies(
-                            bearer, state["team_id"], state["channel_id"], state["message_id"],
-                        )
-                        votes = _classify_reply_votes(
-                            replies, state["approve_label"], state["reject_label"],
-                            state["approver_allowlist"],
-                        )
+                    votes = _fetch_votes(
+                        bearer, state["team_id"], state["channel_id"], state["message_id"], state["mode"],
+                        state["approve_label"], state["reject_label"], state["approver_allowlist"],
+                    )
                 except Exception as e:  # noqa: BLE001
                     context.log.error(
                         f"Teams fetch failed for {safe_key}: {e}. Skipping this tick."
@@ -907,3 +1018,113 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.SensorResult(skip_reason="; ".join(actions))
 
         return dg.Definitions(assets=[_posted_asset], sensors=[_watcher])
+
+    def _build_agentic_pipeline_watcher_defs(
+        self, *, asset_name, approval_dir, tenant_env, client_id_env, client_secret_env, refresh_token_env,
+        team_id, channel_id, mode, approve_label, reject_label, message_template, vote_hint, required_approvers,
+        approver_allowlist, timeout_hours, on_timeout, escalate_teams_user, poll_interval_seconds,
+    ) -> dg.Definitions:
+        """target: agentic_pipeline. No asset -- there is no single upstream asset to post; the pipeline's own
+        `approve` step (mode: park) is the source. Watches `<approval_dir>/pending/*.json` (the review queue
+        agentic_pipeline itself writes) instead of an upstream asset's materialization, and on quorum writes the
+        decision through `_approve_pending_record()` so the fingerprint is copied in correctly and the pipeline's
+        own resume sensor honours it."""
+        sensor_name = f"{asset_name}_pending_watcher"
+
+        @dg.sensor(name=sensor_name, minimum_interval_seconds=poll_interval_seconds, default_status=dg.DefaultSensorStatus.RUNNING)
+        def _pending_watcher(context: dg.SensorEvaluationContext):
+            fs = _ApprovalFS(approval_dir)
+            if not fs.is_uri and not Path(fs.root).exists():
+                return dg.SensorResult(skip_reason=f"approval_dir does not exist yet: {fs.root}")
+
+            pending_paths = fs.glob("pending/*.json")
+            if not pending_paths:
+                return dg.SensorResult(skip_reason="no pending approvals")
+
+            actions: List[str] = []
+            for pending_path in pending_paths:
+                try:
+                    pend = fs.read_json(pending_path)
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"skipping malformed pending record {pending_path}: {e}")
+                    continue
+
+                key = pend.get("key")
+                if not key:
+                    continue
+                token_path = fs.path(f"{key}.json")
+                if fs.exists(token_path):
+                    continue
+
+                sidecar_path = fs.path(f"{key}{_TEAMS_STATE_SUFFIX}")
+                if not fs.exists(sidecar_path):
+                    html = message_template.format(
+                        upstream_text=(pend.get("summary") or pend.get("preview") or "(no summary provided)").replace("<", "&lt;").replace(">", "&gt;"),
+                        approve=approve_label, reject=reject_label, required_approvers=required_approvers,
+                        n_allowlisted=len(approver_allowlist), partition_key=key, mode=mode, vote_hint=vote_hint,
+                    )
+                    bearer = _get_teams_bearer(fs, tenant_env, client_id_env, client_secret_env, refresh_token_env)
+                    posted = _post_teams_message(bearer, team_id, channel_id, html)
+                    state = {
+                        "message_id": posted["message_id"], "web_url": posted.get("web_url", ""),
+                        "team_id": team_id, "channel_id": channel_id, "partition_key": key,
+                        "safe_partition_key": key, "posted_at": _now_iso(), "required_approvers": required_approvers,
+                        "approver_allowlist": approver_allowlist, "mode": mode, "approve_label": approve_label,
+                        "reject_label": reject_label, "timeout_hours": timeout_hours, "on_timeout": on_timeout,
+                        "escalate_teams_user": escalate_teams_user, "tenant_env": tenant_env,
+                        "client_id_env": client_id_env, "client_secret_env": client_secret_env,
+                        "refresh_token_env": refresh_token_env, "approval_dir": fs.root, "escalated_at": None,
+                    }
+                    fs.write_json(sidecar_path, state)
+                    actions.append(f"{key}: posted")
+                    continue
+
+                state = fs.read_json(sidecar_path)
+                try:
+                    bearer = _get_teams_bearer(fs, state["tenant_env"], state["client_id_env"], state["client_secret_env"], state["refresh_token_env"])
+                    votes = _fetch_votes(bearer, state["team_id"], state["channel_id"], state["message_id"], state["mode"],
+                                         state["approve_label"], state["reject_label"], state["approver_allowlist"])
+                except Exception as e:  # noqa: BLE001
+                    context.log.error(f"Teams fetch failed for {key}: {e}. Skipping this tick.")
+                    continue
+
+                required = state["required_approvers"]
+                decision = None  # (approved, approver, reason)
+                if len(votes["approve"]) >= required:
+                    decision = (True, ",".join(votes["approve"]), f"Teams quorum reached: {len(votes['approve'])}/{required} approved")
+                elif len(votes["reject"]) >= required:
+                    decision = (False, ",".join(votes["reject"]), f"Teams rejection quorum reached: {len(votes['reject'])}/{required} rejected")
+                else:
+                    timeout = state.get("timeout_hours")
+                    if timeout is not None:
+                        posted_at = datetime.fromisoformat(state["posted_at"])
+                        if datetime.now(timezone.utc) - posted_at > timedelta(hours=timeout):
+                            on_to = state["on_timeout"]
+                            if on_to == "reject":
+                                decision = (False, "timeout", f"Timed out after {timeout}h with no quorum; auto-rejected.")
+                            elif on_to == "approve":
+                                decision = (True, "timeout", f"Timed out after {timeout}h with no quorum; auto-approved (per policy).")
+                            elif on_to == "escalate" and state.get("escalate_teams_user") and not state.get("escalated_at"):
+                                try:
+                                    mention_html = f"<at id=\"0\">{state['escalate_teams_user']}</at>"
+                                    escalation_body = f"{mention_html} — approval pending `{key}` has been waiting {timeout}h. Please review."
+                                    _post_teams_reply(bearer, state["team_id"], state["channel_id"], state["message_id"], escalation_body)
+                                    state["escalated_at"] = _now_iso()
+                                    fs.write_json(sidecar_path, state)
+                                    actions.append(f"{key}: escalated")
+                                except Exception as e:  # noqa: BLE001
+                                    context.log.warning(f"escalation post failed for {key}: {e}")
+
+                if decision is not None:
+                    approved, approver, reason = decision
+                    try:
+                        _approve_pending_record(approval_dir, key, approved=approved, approver=approver, reason=reason)
+                        actions.append(f"{key}: wrote decision ({'approved' if approved else 'rejected'})")
+                    except FileNotFoundError:
+                        context.log.warning(f"pending record for {key!r} disappeared before a decision could be written (already resolved?)")
+
+            if not actions:
+                return dg.SensorResult(skip_reason=f"polled {len(pending_paths)} pending approval(s); no quorum changes")
+            return dg.SensorResult(skip_reason="; ".join(actions))
+
+        return dg.Definitions(sensors=[_pending_watcher])

@@ -410,6 +410,7 @@ See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generato
 | `agent_call` | Invoke a pre-declared agent by name | Dispatch to an agent declared in the top-level `agents:` block. Kinds: `openai_assistant` (thread + run against OpenAI Assistants API), `remote_agent` (authenticated HTTP call to your own deployed agent — sync or async polling), `handoff` (Python callable for LangGraph/AutoGen/CrewAI). One asset materializes with the agent's reply + latency + cost. |
 | `delegate` | 1 picker LLM → 1 DISCOVERED agent (MCP or HTTP) | Dynamic sibling of `route`/`agent_call`: instead of a fixed inline list, the candidate pool is discovered at build time from `AgentCardComponent` instances in the same defs folder and/or an external agent-card manifest. `required_tags`/`required_capabilities`/`input_mode` cheaply pre-filter the pool (no LLM involved) before a picker LLM matches your `task:` against each surviving candidate's declared `skills` (same forced-function-call mechanism as `route`); the pick is then invoked — over MCP (reusing this file's own `_call_mcp_tool_async`, which validates the rendered `tool_args` against the picked agent's real, server-declared `inputSchema` before calling, by default) or plain HTTP (reusing `_call_remote_agent`). Use this when the set of agents isn't known at pipeline-write time, scales to hundreds of registered agents, or changes without a YAML edit. |
 | `invoke_component` | Call an EXISTING component's real asset directly, in-process | Reuse a deterministic transform already in this repo's catalog (`FilterComponent`, `SortComponent`, `UniqueDedupComponent`, ...) mid-pipeline, between two agent steps — without reimplementing its logic and without it showing up as a new node in your asset lineage. Resolves `component_type`, instantiates it with `attributes` (same shape as its own YAML config), calls its real `build_defs()`, then calls the resulting `AssetsDefinition` directly as a function with `dagster.build_asset_context()` (a real Dagster testing utility for invoking an asset's body outside of a run) and this step's data as a DataFrame. No materialization event, no graph node — pure in-process reuse of real, already-tested logic. |
+| `filter` | Deterministic row filter, no LLM | Same `condition` syntax as the standalone `FilterComponent` (a pandas `.query()` expression) without the `invoke_component` overhead of instantiating/invoking another component's full `build_defs()` just to drop rows. Output is always real JSON, so it composes freely with a later `approve: {mode: park}` gate. |
 | `plan` | planner → executor (± tools) → verifier → **replan** → synthesis | Plan-and-execute. The planner breaks the goal into ordered tasks; the executor does each (a plain call, or a tool loop when `executor.mcp_servers` is set) with the results so far; an optional `verifier` checks each task and a failure **replans the remaining work** (`max_replans`); a final call writes the answer. |
 | `best_of_n` | N candidates → verifier/vote → 1 winner | Sample N answers (optionally across `models:`), keep the best by a `verifier` (`llm` / `regex` / `json` / `contains`) or by majority vote (self-consistency). Candidates, scores and agreement land in metadata. |
 | `cascade` | models cheapest→strongest, escalate on failure | Try the cheap/local model first; escalate only when its answer fails `accept` (a verifier) or errors. `escalations` records which model answered and why earlier ones didn't. |
@@ -1164,7 +1165,31 @@ steps:
 | `partition_key` |  | — | Forwarded to `build_asset_context(partition_key=...)`. |
 | `source` / `inputs` |  | — | Its text is parsed as a JSON list (same parser `map`/`reduce` use) and converted to a DataFrame for the target's input. |
 
-Metadata: `component_type`, `asset_name`, `input_kwarg`, `n_input_rows`, `latency_ms`. Output `items`/`text` are in the same shape `map`/`classify` produce, so `invoke_component` composes freely with any other op before or after it — including `delegate`, for exactly the "deterministic filter/rank/dedupe mid-stream between two agent steps" pattern.
+Metadata: `component_type`, `asset_name`, `input_kwarg`, `n_input_rows`, `latency_ms`. Output `items`/`text` are in the same shape `map`/`classify` produce, so `invoke_component` composes freely with any other op before or after it — including `delegate`, for exactly the "deterministic filter/rank/dedupe mid-stream between two agent steps" pattern. Its `items` are coerced JSON-safe (numpy/pandas scalar types like `int64`/`Timestamp` converted to plain Python values) regardless of what the invoked component's own compute function returns, so an `invoke_component` step may freely precede an `approve: {mode: park}` gate — this was unconditionally rejected at load time before; it no longer is.
+
+### `op: filter`
+
+A deterministic row filter — no LLM, no asset/lineage node, and no `invoke_component` overhead (no instantiating/invoking another component's full build_defs() just to drop rows). Same `condition` syntax as the standalone `FilterComponent` (a pandas `.query()` expression). This is the "label the urgent ones, keep only those, ask a person" step without reaching for `invoke_component`.
+
+```yaml
+steps:
+  - id: urgent_only
+    op: filter
+    source: categorized_tickets          # a prior step whose text is a JSON list
+    condition: 'severity == "urgent"'
+  - id: gate
+    op: approve
+    source: urgent_only
+    approval_dir: /shared/approvals
+    mode: park
+```
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `condition` | ✅ | — | Pandas query expression, e.g. `'amount > 10 and status == "urgent"'`. Evaluated over the upstream records (parsed the same way `map`/`invoke_component` parse a list: JSON array, `dict` → `data`\|`items`\|`results`\|`values`, else non-empty newlines). |
+| `negate` |  | `false` | Invert the match — keep rows that do **not** satisfy `condition`. |
+
+Metadata: `condition`, `negate`, `n_input_rows`, `n_items`, `latency_ms`. Output is always real, plain JSON (built via pandas' own `to_json`, which correctly converts numpy/pandas scalar types) — composes freely with a later `approve: {mode: park}` gate.
 
 ## Reasoning & governance ops
 
@@ -1288,7 +1313,7 @@ Human-in-the-loop gate. An approval token (written by anything — a Slack bot, 
 | `max_resumes` | `mode: park` only | — | Optional cap on resume attempts. |
 | `on_config_change` | `mode: park` only | `fail` | What happens if the pipeline's config changed since it was parked. |
 
-A `mode: park` step is incompatible with `invoke_component` steps and with being nested inside `sub_pipeline` — both rejected at load, since a parked run's checkpoint/resume mechanism needs the full top-level step graph.
+A `mode: park` step is incompatible with being nested inside `sub_pipeline`/`map` — rejected at load, since a parked run's checkpoint/resume mechanism needs the full top-level step graph. An `invoke_component` step may freely precede it (its `items` are coerced JSON-safe regardless of what the invoked component returns).
 
 ### Shared verifier/acceptance config (`best_of_n.verifier`, `cascade.accept`, `plan.verifier`)
 
@@ -1456,7 +1481,7 @@ A token that exists but cannot be honoured is never a mysterious failure: the ru
 
 What the Dagster UI shows after the parked run: the steps before the gate **are materialized** (their values are final); the gate's asset and everything after it are **not materialized** by that run (no event, so a never-run asset stays "never materialized" and a previously materialized one keeps its old value and shows as stale), and the gate's asset carries an `AssetObservation` with `agentic_parked`. The first materialized asset has `agentic_parked: true`; the run is tagged `agentic/parked`. With `per_step_ops: true` the steps after the gate still appear as instant no-op steps in the parked run. Steps are parked by list position: independent branches listed after the gate also wait.
 
-Rules worth knowing: a failed resume leaves the checkpoint resumable (new run per attempt) up to `max_resumes`, then it needs a person; per-run caps in `policy.budget` (calls/tokens/cost) are cumulative across a parked pipeline's runs while the wall-clock cap restarts, and the budget ledger records the resumed run's spend under its own run id; if the YAML changed while parked, `on_config_change` on the approve step decides (see below); a new input for the same key supersedes the old checkpoint. Load-time errors: `park` with `wait_seconds`, a `park` gate inside a `sub_pipeline`/`map`, or an `invoke_component` step before the gate (its raw records need not be JSON; a non-JSON value elsewhere fails the run naming the step, use `mode: wait` there). `wait` and `park` gates can be mixed. Not exercised: a live Dagster daemon and a real object store (tests drive the sensor with `build_sensor_context` and run what it requests); exclusive-create is atomic on a local filesystem and on fsspec backends that honour it.
+Rules worth knowing: a failed resume leaves the checkpoint resumable (new run per attempt) up to `max_resumes`, then it needs a person; per-run caps in `policy.budget` (calls/tokens/cost) are cumulative across a parked pipeline's runs while the wall-clock cap restarts, and the budget ledger records the resumed run's spend under its own run id; if the YAML changed while parked, `on_config_change` on the approve step decides (see below); a new input for the same key supersedes the old checkpoint. Load-time errors: `park` with `wait_seconds`, or a `park` gate inside a `sub_pipeline`/`map`. `wait` and `park` gates can be mixed. Not exercised: a live Dagster daemon and a real object store (tests drive the sensor with `build_sensor_context` and run what it requests); exclusive-create is atomic on a local filesystem and on fsspec backends that honour it.
 
 **Nothing says work is pending? It does.** A run whose steps all park ends SUCCESS (so does a backfill of such runs) with assets only partly materialized. When any approve step is `mode: park` the component adds a WARN asset check **`pending_approvals`** on the pipeline's first asset: it counts this pipeline's unfinished checkpoints (in a partitioned run, that run's partition; `pending_count_all_partitions` has the rest) and reports `pending_count`, `oldest_age_hours`, `partitions`, `waiting_approve_steps` (which approve step each is waiting at) and `checkpoint_ids` as check metadata. `passed: true` when none; `passed: false` (WARN, never fails the run) when any is parked at least `park_warn_after_hours` (component field, default 0 = any parked run warns). A check only runs when its asset is materialized, and a resumed run does not re-materialize the first asset, so a second generated sensor, `<prefix>_pending_approvals_sensor`, runs a checks-only job (`<prefix>_pending_approvals_job`) whenever the set of parked runs changes (a run parks, a resume finishes, one passes the warn threshold): the WARN appears when a run parks and clears when the last one finishes. If the first asset is itself after the gate (so the parked run does not emit it), the check first appears on that sensor's run. The run that parks also puts the numeric metadata `agentic_parked_runs` (INTEGER; the pipeline's unfinished parked runs including this one; registered in `INSIGHTS_METRICS` and the `insights_custom_metrics_sync` preset) on its first emitted asset.
 

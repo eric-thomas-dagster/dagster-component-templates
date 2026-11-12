@@ -70,10 +70,10 @@ outputs: {assets: [draft, tools]}
 """
 
 
-def test_list_ops_covers_all_25_ops_with_real_summaries(tools):
+def test_list_ops_covers_all_26_ops_with_real_summaries(tools):
     result = tools.call("list_ops")
     ops = result["ops"]
-    assert len(ops) == 25
+    assert len(ops) == 26
     assert {o["op"] for o in ops} >= {"llm_call", "approve", "delegate", "tool_use_loop", "verify"}
     assert all(o["summary"] for o in ops), "every op must have a non-empty one-line summary (from its model's docstring)"
 

@@ -5416,6 +5416,44 @@ def _resolve_component_class(component_type: str):
     return cls
 
 
+def _json_safe_record(obj: Any) -> Any:
+    """Recursively coerce a value into something guaranteed JSON-safe (None/str/bool/int/float/list/dict with str
+    keys) -- the exact set `_to_jsonable` (the park checkpoint writer) accepts. Duck-typed, no numpy/pandas import
+    needed: a numpy scalar's `.item()` returns its native Python equivalent; a pandas Timestamp/date's `.isoformat()`
+    returns a string; NaN/NaT-like sentinels compare unequal to themselves. Never raises -- anything unrecognized
+    is stringified, the same fallback `json.dumps(..., default=str)` already uses for the human-readable preview.
+    Used by `_do_invoke_component` so its `items` output can always be park-checkpointed, regardless of what the
+    invoked component's own compute function returned (a DataFrame, a list of dicts, anything)."""
+    if obj is None:
+        return None
+    if isinstance(obj, (str, bool, int, float)):
+        if isinstance(obj, float) and obj != obj:  # NaN
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {str(k): _json_safe_record(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe_record(v) for v in obj]
+    try:
+        if obj != obj:  # NaN/NaT-like sentinels
+            return None
+    except Exception:
+        pass
+    item = getattr(obj, "item", None)
+    if callable(item):
+        try:
+            return _json_safe_record(item())
+        except Exception:
+            pass
+    isoformat = getattr(obj, "isoformat", None)
+    if callable(isoformat):
+        try:
+            return isoformat()
+        except Exception:
+            pass
+    return str(obj)
+
+
 def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Invoke an EXISTING component's real asset compute function directly,
     in-process, against the pipeline's current in-flight data -- without
@@ -5579,8 +5617,12 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
         records = None
 
     if records is not None:
-        text = json.dumps(records, default=str)
-        items_out = [{"item": r, "text": json.dumps(r, default=str)} for r in records]
+        # Coerced JSON-safe (not just str()-ified): numpy/pandas scalar types (int64, Timestamp, NaN, ...) a
+        # DataFrame result commonly carries are not guaranteed JSON-safe on their own, and a park gate later in
+        # the pipeline checkpoints the full state as strict JSON (_to_jsonable) -- see _json_safe_record.
+        safe_records = [_json_safe_record(r) for r in records]
+        text = json.dumps(safe_records, default=str)
+        items_out = [{"item": r, "text": json.dumps(r, default=str)} for r in safe_records]
         n_items = len(records)
     else:
         text = str(result)
@@ -5598,6 +5640,52 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
         "materialized_at": materialized_at,
         "latency_ms": latency_ms,
         "op": "invoke_component",
+    }
+
+
+def _do_filter(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Deterministic row filter -- no LLM, no asset/lineage node, no invoke_component overhead. Same `condition`
+    syntax as the standalone FilterComponent (a pandas `.query()` expression, e.g. `'amount > 10 and status ==
+    "urgent"'`) -- the common "label, keep the matching ones, ask a person" shape without reaching for
+    invoke_component just to filter rows. Output is always JSON-safe (built via pandas' own `to_json`, which
+    correctly converts numpy/pandas scalar types), so it composes freely with a later `approve: {mode: park}` gate."""
+    import pandas as pd
+
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    condition = step.get("condition")
+    if not condition:
+        raise ValueError("filter requires `condition:` (a pandas query expression)")
+    negate = bool(step.get("negate", False))
+
+    items_in = _parse_items(src_text) if src_text else []
+    df = pd.DataFrame(items_in)
+    t0 = time.time()
+    if df.empty:
+        kept = df
+    else:
+        expr = condition if not negate else f"not ({condition})"
+        try:
+            kept = df.query(expr)
+        except Exception as e:
+            raise ValueError(f"filter: condition {condition!r} failed: {e}") from e
+    records = json.loads(kept.to_json(orient="records")) if not kept.empty else []
+    latency_ms = int((time.time() - t0) * 1000)
+    text = json.dumps(records)
+    items_out = [{"item": r, "text": json.dumps(r)} for r in records]
+    context.log.info(f"[filter:{step.get('id', '?')}] {len(items_in)} row(s) -> {len(records)} kept (condition={condition!r}, negate={negate})")
+
+    return {
+        "text": text,
+        "items": items_out,
+        "n_items": len(records),
+        "n_input_rows": len(items_in),
+        "condition": condition,
+        "negate": negate,
+        "materialized_at": materialized_at,
+        "latency_ms": latency_ms,
+        "op": "filter",
     }
 
 
@@ -7056,22 +7144,15 @@ def _validate_park_steps(steps: List[Dict[str, Any]]) -> None:
         if isinstance(node, list):
             return any(nested_park(v) for v in node)
         return False
-    seen: List[Dict[str, Any]] = []
+    # A step before a park gate whose output isn't JSON-safe used to be rejected here by name (invoke_component
+    # specifically) -- no longer needed: invoke_component's own `items` is coerced JSON-safe at the source
+    # (_json_safe_record, in _do_invoke_component), so any step type may now precede a park gate.
     for st in steps:
         if not isinstance(st, dict):
             continue
-        if st.get("op") == "approve":
-            if st.get("mode") == "park":
-                for prev in seen:
-                    if prev.get("op") == "invoke_component":
-                        raise ValueError(
-                            f"approve step {st.get('id')!r} is mode: park, but step {prev.get('id')!r} (invoke_component) before it keeps raw "
-                            "records in its result (`items`), which are not guaranteed to be JSON, so the pipeline could not be "
-                            "checkpointed. Put the gate before it, or use mode: wait.")
-        elif nested_park(st):
+        if st.get("op") != "approve" and nested_park(st):
             raise ValueError(f"step {st.get('id')!r} (op {st.get('op')!r}) contains an approve with mode: park; a gate inside a sub_pipeline/map "
                              "cannot be checkpointed and resumed. Put the park gate in the top-level steps (mode: wait works nested).")
-        seen.append(st)
 
 
 # ── resume sensor ────────────────────────────────────────────────────────────
@@ -7200,6 +7281,7 @@ _OPS = {
     "reduce": _do_reduce,
     "self_reflect": _do_self_reflect,
     "sub_pipeline": _do_sub_pipeline,
+    "filter": _do_filter,
     "agent_call": _do_agent_call,
     "delegate": _do_delegate,
     "invoke_component": _do_invoke_component,
@@ -8007,10 +8089,12 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 #
 # `steps` used to be `List[Dict[str, Any]]` -- free-form, so neither `dg`, the UI, nor an
 # agent could know what any given `op` accepts without reading the README tables by hand.
-# This makes `steps` a real `Annotated[Union[...], Field(discriminator="op")]` of 25 typed
+# This makes `steps` a real `Annotated[Union[...], Field(discriminator="op")]` of 26 typed
 # models (one per op, including the 7 real-but-previously-undocumented "reasoning &
-# governance" ops: verify/eval/best_of_n/cascade/plan/decide/approve), so schema.json
-# carries every op's fields/types/required/defaults/descriptions for free.
+# governance" ops: verify/eval/best_of_n/cascade/plan/decide/approve, and `filter`, a
+# deterministic row filter so "label, keep the matching ones, ask a person" doesn't need
+# invoke_component just to filter rows), so schema.json carries every op's
+# fields/types/required/defaults/descriptions for free.
 #
 # Two things verified directly against the installed dagster version before writing this
 # (not assumed): (1) these per-op models must be PLAIN `pydantic.BaseModel`, not `dg.Model`
@@ -8380,6 +8464,13 @@ class InvokeComponentStep(_StepBase):
     partition_key: Optional[str] = Field(default=None, description="Forwarded to build_asset_context(partition_key=...).")
 
 
+class FilterStep(_StepBase):
+    """Deterministic row filter over the upstream step's list of records -- no LLM, no asset/lineage node. Same `condition` syntax as the standalone FilterComponent."""
+    op: Literal["filter"]
+    condition: str = Field(description="Pandas query expression, e.g. 'amount > 10 and status == \"urgent\"'. Evaluated over the upstream records (parsed the same way map/invoke_component parse a list: JSON array, dict -> data|items|results|values, else non-empty newlines).")
+    negate: bool = Field(default=False, description="Invert the match: keep rows that do NOT satisfy condition.")
+
+
 class VerifyStep(_StepBase):
     """Checks an answer against evidence -- a grounding/hallucination check."""
     op: Literal["verify"]
@@ -8478,7 +8569,7 @@ _STEP_MODELS: Dict[str, type] = {
     "mcp_call": McpCallStep, "tool_use_loop": ToolUseLoopStep, "handoff": HandoffStep,
     "map": MapStep, "extract": ExtractStep, "classify": ClassifyStep, "reduce": ReduceStep,
     "self_reflect": SelfReflectStep, "sub_pipeline": SubPipelineStep, "agent_call": AgentCallStep,
-    "delegate": DelegateStep, "invoke_component": InvokeComponentStep, "verify": VerifyStep,
+    "delegate": DelegateStep, "invoke_component": InvokeComponentStep, "filter": FilterStep, "verify": VerifyStep,
     "eval": EvalStep, "best_of_n": BestOfNStep, "cascade": CascadeStep, "plan": PlanStep,
     "decide": DecideStep, "approve": ApproveStep,
 }
@@ -8551,7 +8642,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     steps: List[StepUnion] = Field(
         description=(
             "Ordered pipeline steps. Each step: {id, op, ...op-specific args} -- `op` "
-            "picks which of the 25 typed step shapes below applies (each with its own "
+            "picks which of the 26 typed step shapes below applies (each with its own "
             "required/optional fields, types, defaults, and descriptions -- see "
             "schema.json or `describe_op`/the op's own model for the full, authoritative "
             "field list per op; this field only covers what's common to every op).\n\n"
@@ -8569,10 +8660,10 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "AND `system_prompt` (and, for `mcp_call`, in string `tool_args`). "
             "Any step can join from any number of prior steps by port name — the "
             "shape common in agentic-orchestration graphs (fan-out → typed-join).\n\n"
-            "25 ops: llm_call, route, conditional_route, debate, critique_loop, "
+            "26 ops: llm_call, route, conditional_route, debate, critique_loop, "
             "synthesize, mcp_call, tool_use_loop, handoff, map, extract, classify, "
             "reduce, self_reflect, sub_pipeline, agent_call, delegate, invoke_component, "
-            "verify, eval, best_of_n, cascade, plan, decide, approve."
+            "filter, verify, eval, best_of_n, cascade, plan, decide, approve."
         ),
     )
     outputs: Dict[str, Any] = Field(

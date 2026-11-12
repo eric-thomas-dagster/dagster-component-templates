@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.TeamsApprovalGateComponent",
-  "description": "Microsoft Teams HITL approval gate. Slack analog — same asset + sensor shape, same JSON token format, composes with HumanApprovalGateComponent via shared `approval_dir`. Uses MS Graph API (Azure AD app registration with application permissions ChannelMessage.Read.All + ChannelMessage.Send + admin consent). Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
+  "description": "Microsoft Teams HITL approval gate. Slack analog — same asset + sensor shape, same JSON token format. target: human_approval_gate (default) composes with HumanApprovalGateComponent via shared `approval_dir`; target: agentic_pipeline watches agentic_pipeline's own approve/mode:park review queue directly. Uses MS Graph API with a DELEGATED OAuth token (app-only/client-credentials does not work for sending a channel message, confirmed against Microsoft's own docs) — a one-time interactive consent captures a refresh token, which this component refreshes (and persists if Microsoft rotates it) on every poll, pure outbound HTTPS. Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
   "category": "ai",
   "icon": "GroupAdd",
   "x-dagster-io": {
@@ -21,9 +21,9 @@
       "label": "Asset Name"
     },
     "upstream_asset_key": {
-      "description": "Upstream asset whose text is posted to Teams for approval.",
+      "description": "target: human_approval_gate only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Teams for approval.",
       "type": "string",
-      "required": true,
+      "required": false,
       "label": "Upstream Asset Key"
     },
     "approval_dir": {
@@ -271,6 +271,22 @@
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
       "required": false,
       "default": null
+    },
+    "target": {
+      "type": "string",
+      "enum": [
+        "human_approval_gate",
+        "agentic_pipeline"
+      ],
+      "label": "Target",
+      "description": "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'agentic_pipeline': instead of posting an upstream asset, watch `<approval_dir>/pending/*.json` records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- post each pending record's `summary`, and on quorum write the decision the same way agentic_pipeline's own `approve_pending()` reviewer-tooling helper does (copies the pending record's fingerprint into the token). `upstream_asset_key` is ignored in this mode; no asset is emitted, only the watcher sensor.",
+      "required": false
+    },
+    "teams_refresh_token_env_var": {
+      "type": "string",
+      "label": "Teams Refresh Token Env Var",
+      "description": "Env var holding the INITIAL OAuth refresh token (from the one-time interactive consent for the dedicated approval-bot account -- see this file's module docstring, 'Auth'). Only the seed -- if Microsoft ever rotates it, the rotated token is persisted to `<approval_dir>/.teams_oauth_state.json` and preferred over this env var from then on.",
+      "required": false
     }
   }
 }

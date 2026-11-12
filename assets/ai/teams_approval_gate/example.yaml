@@ -7,11 +7,15 @@ attributes:
   # downstream gate stays exactly as-is.
   approval_dir: /tmp/mir_approvals
 
-  # Azure AD app registration (application permissions:
-  # ChannelMessage.Read.All + ChannelMessage.Send + admin consent).
+  # Azure AD app registration (DELEGATED permissions: ChannelMessage.Read.All +
+  # ChannelMessage.Send + offline_access -- app-only/client-credentials does NOT
+  # work for sending; see this component's README "Auth" section). The refresh
+  # token comes from a one-time interactive consent for a dedicated "approval
+  # bot" account.
   teams_tenant_id_env_var:     TEAMS_TENANT_ID
   teams_client_id_env_var:     TEAMS_CLIENT_ID
   teams_client_secret_env_var: TEAMS_CLIENT_SECRET
+  teams_refresh_token_env_var: TEAMS_REFRESH_TOKEN
 
   teams_team_id:    "19:abc123@thread.tacv2"       # from Teams → team → three-dot → Get link → parse ID
   teams_channel_id: "19:xyz789@thread.tacv2"

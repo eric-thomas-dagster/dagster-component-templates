@@ -45,7 +45,7 @@ def test_stdio_server_with_zero_inherited_env_lists_and_serves_all_tools():
     assert names == sorted([
         "list_ops", "describe_op", "list_examples", "get_example", "validate_pipeline", "preview_pipeline",
     ])
-    assert len(ops["ops"]) == 25
+    assert len(ops["ops"]) == 26
 
 
 def test_stdio_server_describe_op_and_validate_pipeline_with_zero_inherited_env():

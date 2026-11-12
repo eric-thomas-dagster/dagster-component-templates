@@ -7189,6 +7189,458 @@
     },
     "summary": "Structured JSON extraction -- text -> dict matching an output_schema, forced via tool_choice=required."
   },
+  "filter": {
+    "schema": {
+      "$defs": {
+        "_InputPort": {
+          "additionalProperties": true,
+          "description": "One typed named input port: `{port_name: {from: step_id} | {literal: value}}`.",
+          "properties": {
+            "from": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Upstream step id to read this port from.",
+              "title": "From"
+            },
+            "literal": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "A fixed literal value instead of reading from a step.",
+              "title": "Literal"
+            }
+          },
+          "title": "_InputPort",
+          "type": "object"
+        },
+        "_PolicyConfig": {
+          "additionalProperties": true,
+          "description": "Security/governance policy -- pipeline-level (`AgenticPipelineComponent.policy`) or a\nper-step override (which can only be MORE restrictive than the pipeline-level one).\nSection sub-shapes are intentionally loose (Dict/List) -- this models the real section\nnames so an agent/UI can discover them, not every nested validation rule\n(`policy.budget.ledger`/`breaker`/`tools.arg_rules` stay unexpanded for now).",
+          "properties": {
+            "budget": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Cost/usage caps: max_cost_usd, max_tokens, max_llm_calls, max_seconds, per-day/month/partition caps (need 'ledger'), 'breaker', 'on_unknown_cost'.",
+              "title": "Budget"
+            },
+            "components": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "{'allow': [component type paths]} -- restricts invoke_component's allowed component_type values.",
+              "title": "Components"
+            },
+            "env": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "{'allow': [env var names]} -- restricts which env vars a step's MCP/tool calls may read.",
+              "title": "Env"
+            },
+            "filesystem": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "{'read'/'write': [path prefixes]} -- restricts filesystem access.",
+              "title": "Filesystem"
+            },
+            "network": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "{'allow_hosts': [hostnames]} -- restricts which hosts a step's network calls may reach.",
+              "title": "Network"
+            },
+            "on_violation": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fail",
+                    "warn"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Hard-fail the step, or warn and continue, when a policy check fails.",
+              "title": "On Violation"
+            },
+            "tools": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "{'allow'/'deny': [tool names], 'max_calls_per_run': int, 'arg_rules': [{arg, ...}]} -- restricts tool-call names and argument shapes.",
+              "title": "Tools"
+            }
+          },
+          "title": "_PolicyConfig",
+          "type": "object"
+        },
+        "_WhenGuard": {
+          "additionalProperties": true,
+          "description": "Per-step skip condition: `{source: <step id>, field?: <result key>, <predicate>, not?: bool}`.",
+          "properties": {
+            "contains": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: substring match (case-insensitive).",
+              "title": "Contains"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: exact match (case-insensitive, stripped).",
+              "title": "Equals"
+            },
+            "falsy": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: value's falsiness equals this.",
+              "title": "Falsy"
+            },
+            "field": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Result key to inspect (default: the step's text).",
+              "title": "Field"
+            },
+            "gt": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: numeric greater-than.",
+              "title": "Gt"
+            },
+            "gte": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: numeric greater-than-or-equal.",
+              "title": "Gte"
+            },
+            "in": {
+              "anyOf": [
+                {
+                  "items": {},
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: value is one of this list.",
+              "title": "In"
+            },
+            "lt": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: numeric less-than.",
+              "title": "Lt"
+            },
+            "lte": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: numeric less-than-or-equal.",
+              "title": "Lte"
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Negate the predicate's result.",
+              "title": "Not"
+            },
+            "regex": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: `re.search`, case-insensitive.",
+              "title": "Regex"
+            },
+            "source": {
+              "description": "Prior step id whose result this predicate inspects.",
+              "title": "Source",
+              "type": "string"
+            },
+            "truthy": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Predicate: value's truthiness equals this.",
+              "title": "Truthy"
+            }
+          },
+          "required": [
+            "source"
+          ],
+          "title": "_WhenGuard",
+          "type": "object"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Deterministic row filter over the upstream step's list of records -- no LLM, no asset/lineage node. Same `condition` syntax as the standalone FilterComponent.",
+      "properties": {
+        "condition": {
+          "description": "Pandas query expression, e.g. 'amount > 10 and status == \"urgent\"'. Evaluated over the upstream records (parsed the same way map/invoke_component parse a list: JSON array, dict -> data|items|results|values, else non-empty newlines).",
+          "title": "Condition",
+          "type": "string"
+        },
+        "id": {
+          "description": "Step identifier, referenced by other steps' source/sources/inputs.",
+          "title": "Id",
+          "type": "string"
+        },
+        "inputs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/_InputPort"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Typed named input ports: {port_name: {from: step_id} | {literal: value}}, substituted as {port_name} in templates.",
+          "title": "Inputs"
+        },
+        "negate": {
+          "default": false,
+          "description": "Invert the match: keep rows that do NOT satisfy condition.",
+          "title": "Negate",
+          "type": "boolean"
+        },
+        "op": {
+          "const": "filter",
+          "title": "Op",
+          "type": "string"
+        },
+        "persona": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name resolved against the top-level personas: block; expands into this step's LLM sub-config(s).",
+          "title": "Persona"
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/_PolicyConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Per-step policy override -- can only be MORE restrictive than the pipeline-level policy:."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Upstream step id to read from. Defaults to the reserved id 'source' (the pipeline's initial input) when omitted.",
+          "title": "Source"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable prompt version name, surfaced in agentic_prompt_version metadata. Falls back to the persona's own version if the step omits it.",
+          "title": "Version"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/_WhenGuard"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Skip condition -- step only runs if this predicate against a prior step's result holds; otherwise a passthrough {skipped: true} result."
+        }
+      },
+      "required": [
+        "id",
+        "op",
+        "condition"
+      ],
+      "title": "FilterStep",
+      "type": "object"
+    },
+    "summary": "Deterministic row filter over the upstream step's list of records -- no LLM, no asset/lineage node. Same `condition` syntax as the standalone FilterComponent."
+  },
   "handoff": {
     "schema": {
       "$defs": {

@@ -29,6 +29,9 @@ env:
     assets/ai/run_failure_remediation/tests
     assets/ai/mcp_tool_picker/tests
     assets/sources/mcp_tool_call/tests
+    resources/mcp_server_resource/tests
+    assets/ai/dagster_workflow_tools/tests
+    assets/ai/openapi_tool_server/tests
     assets/ai/litellm_agent/tests
     assets/ai/openai_agent/tests
     assets/ai/anthropic_agent/tests

@@ -26,6 +26,8 @@ MCP_COMPONENTS = {
     "assets/ai/vercel_ai_gateway_agent": "client",
     "assets/ai/snowflake_cortex_agent": "client",
     "resources/context_receipt_store": "server (fastmcp gateway examples)",
+    "assets/ai/dagster_workflow_tools": "server",
+    "assets/ai/openapi_tool_server": "server (fastmcp from_openapi)",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

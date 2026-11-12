@@ -77,9 +77,13 @@ class RedisStreamsMonitorSensorComponent(Component, Model, Resolvable):
 
     resource_key: Optional[str] = Field(
         default=None,
-        description="Optional Dagster resource key providing a pre-configured client. "
-                    "When set, context.resources.<resource_key> is used instead of creating "
-                    "a connection from the other fields. See README for the expected interface."
+        description=(
+            "Optional key of a registered RedisResourceComponent (resources/redis_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "host/port/password_env_var/db/use_tls fields -- lets one credential serve this sensor and other "
+            "components without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
     )
 
     default_status: str = Field(
@@ -126,30 +130,40 @@ class RedisStreamsMonitorSensorComponent(Component, Model, Resolvable):
             """Sensor that reads new entries from a Redis Stream."""
             import os
 
-            try:
-                import redis
-            except ImportError:
-                return SensorResult(skip_reason="redis is not installed. Run: pip install redis")
-
             # cursor stores the last-seen entry ID
             # "0-0" reads from beginning; "$" reads only new entries
             last_id = context.cursor or ("0-0" if start_from_beginning else "$")
 
-            password = os.environ.get(password_env_var) if password_env_var else None
+            if resource_key:
+                # Credentials/host/port come from the registered RedisResource;
+                # its get_client() returns a ready-to-use redis.Redis client.
+                try:
+                    r = getattr(context.resources, resource_key).get_client()
+                    r.ping()
+                except Exception as e:
+                    context.log.error(f"Failed to connect to Redis via resource '{resource_key}': {e}")
+                    return SensorResult(skip_reason=f"Failed to connect to Redis: {e}")
+            else:
+                try:
+                    import redis
+                except ImportError:
+                    return SensorResult(skip_reason="redis is not installed. Run: pip install redis")
 
-            try:
-                r = redis.Redis(
-                    host=host,
-                    port=port,
-                    db=db,
-                    password=password,
-                    ssl=use_tls,
-                    decode_responses=True,
-                )
-                r.ping()
-            except Exception as e:
-                context.log.error(f"Failed to connect to Redis at {host}:{port}: {e}")
-                return SensorResult(skip_reason=f"Failed to connect to Redis: {e}")
+                password = os.environ.get(password_env_var) if password_env_var else None
+
+                try:
+                    r = redis.Redis(
+                        host=host,
+                        port=port,
+                        db=db,
+                        password=password,
+                        ssl=use_tls,
+                        decode_responses=True,
+                    )
+                    r.ping()
+                except Exception as e:
+                    context.log.error(f"Failed to connect to Redis at {host}:{port}: {e}")
+                    return SensorResult(skip_reason=f"Failed to connect to Redis: {e}")
 
             run_requests = []
             new_last_id = last_id

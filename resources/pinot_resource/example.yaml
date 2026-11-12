@@ -1,0 +1,6 @@
+type: dagster_community_components.PinotResourceComponent
+attributes:
+  resource_key: pinot_resource
+  broker_url: http://pinot-broker:8099
+  username: admin
+  password_env_var: PINOT_PASSWORD

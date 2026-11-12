@@ -26,6 +26,7 @@ Single-entity counterpart to the auto-discovered dynamic-table assets in `snowfl
 | `password_env_var` | `str` | — | Env var with Snowflake password. |
 | `warehouse_env_var` | `str` | — | Env var with Snowflake warehouse. |
 | `role_env_var` | `str` | — | Env var with Snowflake role. |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account_env_var/user_env_var/password… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -76,6 +77,11 @@ attributes:
 ## Auth options
 
 Same as `snowflake_task_execute_asset` — password / PAT / keypair.
+
+Alternatively, set `resource_key` to the key of a registered `SnowflakeResourceComponent`
+(`resources/snowflake_resource`) and skip the inline account/user/password/warehouse/role
+fields entirely — useful when another component already registers the same Snowflake
+credentials and you don't want to configure them twice.
 
 ## Requirements
 

@@ -218,6 +218,12 @@
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered DorisResourceComponent (resources/doris_resource). When set, the query runs against that resource's SQLAlchemy engine at run time instead of the inline host_env_var/query_port/database/username_env_var/password_env_var/connection_string_env_var fields -- lets one credential serve this asset and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
     }
   }
 }

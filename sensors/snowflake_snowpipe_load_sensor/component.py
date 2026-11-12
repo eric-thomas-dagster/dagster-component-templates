@@ -127,6 +127,17 @@ class SnowflakeSnowpipeLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable
     description: Optional[str] = Field(default=None)
     owners: Optional[List[str]] = Field(default=None)
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account/user/password/warehouse/role/authenticator/private_key_file/token fields -- lets one credential serve "
+            "this sensor and other components without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -163,6 +174,7 @@ class SnowflakeSnowpipeLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
+        resource_key = self.resource_key
         default_status = (
             DefaultSensorStatus.RUNNING if self.default_status == "running"
             else DefaultSensorStatus.STOPPED
@@ -173,11 +185,20 @@ class SnowflakeSnowpipeLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable
             job_name=_self.job_name,
             minimum_interval_seconds=_self.minimum_interval_seconds,
             default_status=default_status,
+            required_resource_keys=({resource_key} if resource_key else None),
             description=_self.description or
                 f"Watches Snowpipe {_self.pipe_name} for new file ingestions.",
         )
         def snowflake_snowpipe_load_sensor(context: SensorEvaluationContext, **_resources):
-            conn = _self._connect()
+            import contextlib
+
+            _snow_stack = contextlib.ExitStack()
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                conn = _self._connect()
             try:
                 cur = conn.cursor()
                 # COPY_HISTORY is a table function; we filter by destination
@@ -203,6 +224,7 @@ class SnowflakeSnowpipeLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable
                 return SensorResult(skip_reason=f"COPY_HISTORY query failed: {e}")
             finally:
                 conn.close()
+                _snow_stack.close()
 
             if not rows:
                 return SensorResult(skip_reason="No loads in lookback window.")

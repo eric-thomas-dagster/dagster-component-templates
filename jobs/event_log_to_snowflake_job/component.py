@@ -105,6 +105,17 @@ class EventLogToSnowflakeJobComponent(dg.Component, dg.Model, dg.Resolvable):
     table: str = Field(default="DAGSTER_EVENTS", description="Target table name.")
     role: Optional[str] = Field(default=None, description="Optional role.")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account/user/password_env/role fields -- lets one credential serve this component and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
+
     initial_lookback_hours: int = Field(default=24, ge=1, description="On first run, pull events from last N hours.")
     batch_limit: int = Field(default=5000, ge=1, description="Max events per tick.")
 
@@ -120,23 +131,32 @@ class EventLogToSnowflakeJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
+        resource_key = self.resource_key
 
-        @dg.op(name=f"{self.job_name}_op")
+        @dg.op(name=f"{self.job_name}_op", required_resource_keys=({resource_key} if resource_key else None))
         def _export(context: dg.OpExecutionContext):
-            import os
-            import snowflake.connector as sc
+            import contextlib
 
-            password = os.environ.get(_self.password_env)
-            if not password:
-                raise RuntimeError(f"Missing {_self.password_env} env var")
+            _snow_stack = contextlib.ExitStack()
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                import os
+                import snowflake.connector as sc
 
-            conn_kwargs = dict(
-                account=_self.account, user=_self.user, password=password,
-                warehouse=_self.warehouse, database=_self.database, schema=_self.snowflake_schema,
-            )
-            if _self.role:
-                conn_kwargs["role"] = _self.role
-            conn = sc.connect(**conn_kwargs)
+                password = os.environ.get(_self.password_env)
+                if not password:
+                    raise RuntimeError(f"Missing {_self.password_env} env var")
+
+                conn_kwargs = dict(
+                    account=_self.account, user=_self.user, password=password,
+                    warehouse=_self.warehouse, database=_self.database, schema=_self.snowflake_schema,
+                )
+                if _self.role:
+                    conn_kwargs["role"] = _self.role
+                conn = sc.connect(**conn_kwargs)
 
             try:
                 # Cursor from prior run.
@@ -195,6 +215,7 @@ class EventLogToSnowflakeJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 return {"inserted": len(rows), "last_storage_id": new_cursor}
             finally:
                 conn.close()
+                _snow_stack.close()
 
         @dg.job(name=self.job_name, tags=self.tags or None)
         def _the_job():

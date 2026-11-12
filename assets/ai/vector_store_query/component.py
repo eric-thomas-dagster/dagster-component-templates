@@ -3,6 +3,7 @@
 Query vector databases for semantic search using embeddings.
 """
 
+import contextlib
 import os
 from typing import Any, Dict, List, Optional, Union, Literal
 import pandas as pd
@@ -508,6 +509,7 @@ def _increment_retrieval_counts(
     results: List[Dict[str, Any]], *, provider: str, demo_mode: bool, connection_string: Optional[str],
     collection_name: str, vector_bucket_name: Optional[str], aws_region: Optional[str],
     expanded_api_key: Optional[str], context: Any,
+    chroma_resource_key: Optional[str] = None, qdrant_resource_key: Optional[str] = None,
 ) -> None:
     """Opt-in write side-effect (track_retrieval_count): bumps each returned hit's own
     'retrieval_count' metadata by 1, persisted back into the vector store via each provider's
@@ -518,14 +520,18 @@ def _increment_retrieval_counts(
     try:
         if provider == "chromadb":
             import chromadb
-            client = chromadb.PersistentClient(path=connection_string or "./chroma_db")
-            collection = client.get_collection(name=collection_name)
-            ids = [r["id"] for r in results]
-            metadatas = [
-                {**(r.get("metadata") or {}), "retrieval_count": (r.get("metadata") or {}).get("retrieval_count", 0) + 1}
-                for r in results
-            ]
-            collection.update(ids=ids, metadatas=metadatas)
+            if chroma_resource_key:
+                _chroma_cm = getattr(context.resources, chroma_resource_key).get_client()
+            else:
+                _chroma_cm = contextlib.nullcontext(chromadb.PersistentClient(path=connection_string or "./chroma_db"))
+            with _chroma_cm as client:
+                collection = client.get_collection(name=collection_name)
+                ids = [r["id"] for r in results]
+                metadatas = [
+                    {**(r.get("metadata") or {}), "retrieval_count": (r.get("metadata") or {}).get("retrieval_count", 0) + 1}
+                    for r in results
+                ]
+                collection.update(ids=ids, metadatas=metadatas)
 
         elif provider == "pinecone":
             from pinecone import Pinecone
@@ -537,12 +543,16 @@ def _increment_retrieval_counts(
 
         elif provider == "qdrant":
             from qdrant_client import QdrantClient
-            client = QdrantClient(url=connection_string or "localhost", api_key=expanded_api_key)
-            for r in results:
-                count = (r.get("payload") or {}).get("retrieval_count", 0) + 1
-                client.set_payload(
-                    collection_name=collection_name, payload={"retrieval_count": count}, points=[r["id"]],
-                )
+            if qdrant_resource_key:
+                _qdrant_cm = getattr(context.resources, qdrant_resource_key).get_client()
+            else:
+                _qdrant_cm = contextlib.nullcontext(QdrantClient(url=connection_string or "localhost", api_key=expanded_api_key))
+            with _qdrant_cm as client:
+                for r in results:
+                    count = (r.get("payload") or {}).get("retrieval_count", 0) + 1
+                    client.set_payload(
+                        collection_name=collection_name, payload={"retrieval_count": count}, points=[r["id"]],
+                    )
 
         elif provider == "faiss":
             import pickle
@@ -619,6 +629,26 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     top_k: int = Field(default=10, description="Number of results")
     connection_string: Optional[str] = Field(default=None, description="Connection string")
     api_key: Optional[str] = Field(default=None, description="API key (use ${VAR_NAME} for environment variable)")
+    chroma_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered ChromaResourceComponent (resources/chroma_resource). Only "
+            "used when provider='chromadb'. When set, the client comes from that resource's "
+            "get_client() instead of building a fresh chromadb.PersistentClient from "
+            "connection_string -- lets one Chroma connection serve this query asset and other "
+            "components without configuring it twice. Leave unset to use connection_string "
+            "(existing behavior, unchanged)."
+        ),
+    )
+    qdrant_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only "
+            "used when provider='qdrant'. When set, the client comes from that resource's "
+            "get_client() instead of building a fresh QdrantClient from connection_string/api_key. "
+            "Leave unset to use connection_string/api_key (existing behavior, unchanged)."
+        ),
+    )
     filter_metadata: Optional[str] = Field(default=None, description="JSON filter for metadata")
     include_distances: bool = Field(default=True, description="Include similarity distances")
     embedding_column: Union[str, int] = Field(default="embedding", description="Column name containing query embeddings in the upstream DataFrame")
@@ -961,6 +991,8 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
         top_k = self.top_k
         connection_string = self.connection_string
         api_key = self.api_key
+        chroma_resource_key = self.chroma_resource_key
+        qdrant_resource_key = self.qdrant_resource_key
         filter_metadata = self.filter_metadata
         include_distances = self.include_distances
         embedding_column = self.embedding_column
@@ -1083,6 +1115,12 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
         if upstream_asset_key:
             _ins_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
 
+        _required_resource_keys = set()
+        if chroma_resource_key:
+            _required_resource_keys.add(chroma_resource_key)
+        if qdrant_resource_key:
+            _required_resource_keys.add(qdrant_resource_key)
+
         _asset_deco = asset(retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
             description=description,
@@ -1091,6 +1129,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
+            required_resource_keys=(_required_resource_keys or None),
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             **_ins_kwargs,
         )
@@ -1197,29 +1236,33 @@ group_name=group_name,
 
                 if provider == "chromadb":
                     import chromadb
-                    client = chromadb.PersistentClient(path=connection_string or "./chroma_db")
-                    collection = client.get_collection(name=collection_name)
+                    if chroma_resource_key:
+                        _chroma_cm = getattr(context.resources, chroma_resource_key).get_client()
+                    else:
+                        _chroma_cm = contextlib.nullcontext(chromadb.PersistentClient(path=connection_string or "./chroma_db"))
+                    with _chroma_cm as client:
+                        collection = client.get_collection(name=collection_name)
 
-                    query_results = collection.query(
-                        query_embeddings=[query_embedding] if query_embedding else None,
-                        # Only chromadb's own default embedder as a last resort -- never reached
-                        # when embed_provider produced a real query_embedding above.
-                        query_texts=[_row_query_text] if query_embedding is None and _row_query_text else None,
-                        n_results=_fetch_k
-                    )
+                        query_results = collection.query(
+                            query_embeddings=[query_embedding] if query_embedding else None,
+                            # Only chromadb's own default embedder as a last resort -- never reached
+                            # when embed_provider produced a real query_embedding above.
+                            query_texts=[_row_query_text] if query_embedding is None and _row_query_text else None,
+                            n_results=_fetch_k
+                        )
 
-                    for i in range(len(query_results['ids'][0])):
-                        result = {
-                            "query_row_index": idx,
-                            "id": query_results['ids'][0][i],
-                            "document": query_results['documents'][0][i] if 'documents' in query_results else None,
-                            "metadata": query_results['metadatas'][0][i] if 'metadatas' in query_results else {},
-                        }
-                        if query_text_column and query_text_column in row.index:
-                            result["query"] = row[query_text_column]
-                        if include_distances and 'distances' in query_results:
-                            result["distance"] = query_results['distances'][0][i]
-                        results.append(result)
+                        for i in range(len(query_results['ids'][0])):
+                            result = {
+                                "query_row_index": idx,
+                                "id": query_results['ids'][0][i],
+                                "document": query_results['documents'][0][i] if 'documents' in query_results else None,
+                                "metadata": query_results['metadatas'][0][i] if 'metadatas' in query_results else {},
+                            }
+                            if query_text_column and query_text_column in row.index:
+                                result["query"] = row[query_text_column]
+                            if include_distances and 'distances' in query_results:
+                                result["distance"] = query_results['distances'][0][i]
+                            results.append(result)
 
                 elif provider == "pinecone":
                     from pinecone import Pinecone
@@ -1238,21 +1281,24 @@ group_name=group_name,
 
                 elif provider == "qdrant":
                     from qdrant_client import QdrantClient
-                    client = QdrantClient(url=connection_string or "localhost", api_key=expanded_api_key)
+                    if qdrant_resource_key:
+                        _qdrant_cm = getattr(context.resources, qdrant_resource_key).get_client()
+                    else:
+                        _qdrant_cm = contextlib.nullcontext(QdrantClient(url=connection_string or "localhost", api_key=expanded_api_key))
+                    with _qdrant_cm as client:
+                        search_results = client.search(
+                            collection_name=collection_name,
+                            query_vector=query_embedding,
+                            limit=_fetch_k
+                        )
 
-                    search_results = client.search(
-                        collection_name=collection_name,
-                        query_vector=query_embedding,
-                        limit=_fetch_k
-                    )
-
-                    for hit in search_results:
-                        results.append({
-                            "query_row_index": idx,
-                            "id": hit.id,
-                            "score": hit.score,
-                            "payload": hit.payload
-                        })
+                        for hit in search_results:
+                            results.append({
+                                "query_row_index": idx,
+                                "id": hit.id,
+                                "score": hit.score,
+                                "payload": hit.payload
+                            })
 
                 elif provider == "faiss":
                     import faiss
@@ -1358,6 +1404,7 @@ group_name=group_name,
                         connection_string=connection_string, collection_name=collection_name,
                         vector_bucket_name=vector_bucket_name, aws_region=aws_region,
                         expanded_api_key=expanded_api_key, context=context,
+                        chroma_resource_key=chroma_resource_key, qdrant_resource_key=qdrant_resource_key,
                     )
 
                 all_results.extend(results)

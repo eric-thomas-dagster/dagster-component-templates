@@ -312,7 +312,7 @@ class ExternalRedisStreamAsset(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=required_resource_keys,
             asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
         )
-        def _redis_obs(context: dg.SensorEvaluationContext):
+        def _redis_obs(context: dg.SensorEvaluationContext, **_resources):
             import json as _json
             from dagster._core.definitions.data_version import DATA_VERSION_TAG
             _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation

@@ -24,6 +24,7 @@ Plain HTTP+JSON API -- no native QuestDB Python client required.
 |---|---|---|---|
 | `username` | `str` | — | HTTP basic auth username, if QuestDB's built-in auth is enabled. |
 | `password_env_var` | `str` | — | Env var holding the basic auth password. |
+| `resource_key` | `str` | — | Optional key of a registered `QuestdbResourceComponent` (resources/questdb_resource). When set, the host URL/auth/headers are read from that resource at run time instead of the inline fields -- lets one connection serve this asset and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged). |
 
 ### Catalog metadata
 
@@ -90,6 +91,20 @@ attributes:
     SAMPLE BY 1d
   group_name: iot
   kinds: [questdb]
+```
+
+## Sharing a connection via `questdb_resource`
+
+Set `resource_key` to the key of a registered [`questdb_resource`](../../../resources/questdb_resource/README.md) instead of redeclaring `host_url`/`username`/`password_env_var` here:
+
+```yaml
+attributes:
+  asset_name: daily_sensor_readings
+  query: |
+    SELECT timestamp, sensor_id, avg(value) AS avg_value
+    FROM sensor_readings
+    SAMPLE BY 1d
+  resource_key: questdb_resource
 ```
 
 ## Requirements

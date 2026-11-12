@@ -134,6 +134,21 @@ attributes:
   write_mode: list
 ```
 
+## Sharing a connection across components
+
+Instead of the inline `host_env_var`/`port`/`password_env_var`/`db`/`ssl` fields, set
+`resource_key` to the key of a registered `RedisResourceComponent` (`resources/redis_resource`)
+so this sink shares one set of credentials with other Redis components in the same project:
+
+```yaml
+type: dagster_community_components.RedisWriterComponent
+attributes:
+  asset_name: write_user_features_to_redis
+  upstream_asset_key: computed_user_features
+  key_column: user_id
+  resource_key: redis_resource
+```
+
 ## Write Modes
 
 | Mode | Redis Command | Description |

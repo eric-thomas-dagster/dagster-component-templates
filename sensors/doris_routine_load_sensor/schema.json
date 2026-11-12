@@ -89,6 +89,12 @@
       "required": false,
       "description": "When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation — free of Dagster+ credit charges, but the target asset renders as observed-external (dashed border, gray) and downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. Both event types carry the same dagster/data_version tag.",
       "default": true
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered DorisResourceComponent (resources/doris_resource). When set, the SHOW ROUTINE LOAD query runs against that resource's SQLAlchemy engine at run time instead of the inline host_env_var/query_port/username_env_var/password_env_var/database fields -- lets one credential serve this sensor and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged). Note: `database` is still required even when resource_key is set, since the resource's own database may differ from the one this sensor watches.",
+      "required": false
     }
   }
 }

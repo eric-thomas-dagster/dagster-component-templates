@@ -116,6 +116,12 @@
       "type": "array",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password/warehouse/role/authenticator/private_key_file/token fields -- lets one credential serve this sensor and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
     }
   }
 }

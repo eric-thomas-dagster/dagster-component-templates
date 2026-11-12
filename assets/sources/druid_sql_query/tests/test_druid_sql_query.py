@@ -144,3 +144,49 @@ def test_single_run_over_a_range_joins_partition_keys_into_the_query(druid_serve
     })
     assert result.success
     assert "2024-01-01,2024-01-02,2024-01-03" in _DruidHandler.requests_received[0]["query"]
+
+
+# ------------------------------------------------------------------ resource_key
+
+def test_resource_key_unset_required_resource_keys_is_empty(druid_server):
+    comp = _comp(druid_server)
+    asset = list(comp.build_defs(None).assets)[0]
+    assert asset.required_resource_keys - {"io_manager"} == set()
+
+
+def test_resource_key_set_adds_it_to_required_resource_keys(druid_server):
+    comp = _comp(druid_server, resource_key="druid")
+    asset = list(comp.build_defs(None).assets)[0]
+    assert asset.required_resource_keys - {"io_manager"} == {"druid"}
+
+
+def test_resource_key_set_calls_resource_execute_query_not_inline_http(druid_server):
+    # Dagster re-instantiates the resource for the run, so calls are recorded
+    # on a module-level list (closed over by the method) rather than an
+    # instance attribute, which wouldn't be the same object post-materialize.
+    calls_log = []
+
+    class FakeDruidResource(dg.ConfigurableResource):
+        def execute_query(self, query):
+            calls_log.append(query)
+            return [{"day": "2024-09-09", "cnt": 99}]
+
+    fake = FakeDruidResource()
+    comp = _comp(druid_server, resource_key="druid", query="SELECT day, cnt FROM counts")
+    asset = list(comp.build_defs(None).assets)[0]
+    result = dg.materialize([asset], resources={"io_manager": dg.InMemoryIOManager(), "druid": fake})
+    assert result.success
+    # The resource's execute_query was called with the rendered query...
+    assert calls_log == ["SELECT day, cnt FROM counts"]
+    # ...and the inline HTTP path (the real test server) was never hit.
+    assert _DruidHandler.requests_received == []
+    meta = next(e for e in result.all_events if e.event_type_value == "ASSET_MATERIALIZATION").event_specific_data.materialization.metadata
+    assert meta["dagster/row_count"].value == 1
+
+
+def test_resource_key_unset_still_exercises_inline_http_path(druid_server):
+    comp = _comp(druid_server)
+    asset = list(comp.build_defs(None).assets)[0]
+    result = dg.materialize([asset], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    assert len(_DruidHandler.requests_received) == 1

@@ -96,6 +96,17 @@ class SnowflakeIcebergTableComponent(Component, Model, Resolvable):
     owners: Optional[List[str]] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account/user/password/authenticator/private_key_file/token fields -- lets one credential serve this "
+            "component and other components without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
+
     # ── Retry policy ──
     retry_policy_max_retries: Optional[int] = Field(
         default=None,
@@ -168,9 +179,11 @@ class SnowflakeIcebergTableComponent(Component, Model, Resolvable):
         tags = dict(self.asset_tags or {})
         for k in kinds:
             tags[f"dagster/kind/{k}"] = ""
+        resource_key = self.resource_key
 
         @asset(
             retry_policy=_retry_policy,
+            required_resource_keys=({resource_key} if resource_key else None),
             key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
@@ -182,7 +195,14 @@ class SnowflakeIcebergTableComponent(Component, Model, Resolvable):
         def _entity_asset(context: AssetExecutionContext) -> dg.MaterializeResult:
             ddl = self._build_ddl()
             context.log.info(f"Executing DDL:\n{ddl}")
-            conn = self._connect()
+            import contextlib
+            _snow_stack = contextlib.ExitStack()
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                conn = self._connect()
             row_count = 0
             try:
                 cur = conn.cursor()
@@ -197,6 +217,7 @@ class SnowflakeIcebergTableComponent(Component, Model, Resolvable):
                 cur.close()
             finally:
                 conn.close()
+                _snow_stack.close()
             return dg.MaterializeResult(metadata={
                 "snowflake/ddl": MetadataValue.md(f"```sql\n{ddl}\n```"),
                 "snowflake/database": MetadataValue.text(self.database),

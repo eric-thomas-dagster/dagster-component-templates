@@ -228,6 +228,16 @@ class CassandraReaderComponent(Component, Model, Resolvable):
         default=None,
         description="Environment variable containing the Cassandra password",
     )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered CassandraResourceComponent (resources/cassandra_resource). When set, "
+            "connection credentials are read from that resource at run time instead of the inline "
+            "hosts/port/keyspace/username_env_var/password_env_var fields -- lets one credential serve this source "
+            "and other components without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     deps: Optional[List[str]] = Field(
         default=None,
         description="Upstream asset keys for lineage",
@@ -394,6 +404,7 @@ class CassandraReaderComponent(Component, Model, Resolvable):
         query = self.query
         username_env_var = self.username_env_var
         password_env_var = self.password_env_var
+        resource_key = self.resource_key
         deps = self.deps
         group_name = self.group_name
 
@@ -475,7 +486,7 @@ class CassandraReaderComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        @asset(retry_policy=_retry_policy, required_resource_keys=({resource_key} if resource_key else None),
             key=AssetKey.from_user_string(asset_name),
             description=self.description or (f"Cassandra query on keyspace {keyspace}"),
             partitions_def=partitions_def,
@@ -490,22 +501,25 @@ group_name=group_name,
             if context.has_partition_key:
                 context.log.info(f"Running for partition: {context.partition_key}")
             """Execute CQL query against Cassandra and return results as DataFrame."""
-            try:
-                from cassandra.cluster import Cluster
-                from cassandra.auth import PlainTextAuthProvider
-            except ImportError:
-                raise ImportError("cassandra-driver required: pip install cassandra-driver")
+            if resource_key:
+                session = getattr(context.resources, resource_key).get_session()
+            else:
+                try:
+                    from cassandra.cluster import Cluster
+                    from cassandra.auth import PlainTextAuthProvider
+                except ImportError:
+                    raise ImportError("cassandra-driver required: pip install cassandra-driver")
 
-            auth = None
-            if username_env_var:
-                auth = PlainTextAuthProvider(
-                    _require_env(username_env_var),
-                    _require_env(password_env_var),
-                )
+                auth = None
+                if username_env_var:
+                    auth = PlainTextAuthProvider(
+                        _require_env(username_env_var),
+                        _require_env(password_env_var),
+                    )
 
-            context.log.info(f"Connecting to Cassandra at {hosts} keyspace {keyspace}")
-            cluster = Cluster(hosts, port=port, auth_provider=auth)
-            session = cluster.connect(keyspace)
+                context.log.info(f"Connecting to Cassandra at {hosts} keyspace {keyspace}")
+                cluster = Cluster(hosts, port=port, auth_provider=auth)
+                session = cluster.connect(keyspace)
 
             context.log.info(f"Executing CQL: {query}")
             rows = session.execute(query)

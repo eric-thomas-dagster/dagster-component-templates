@@ -158,6 +158,9 @@ class SapHanaIngestionComponent(Component, Model, Resolvable):
     - `connection_url_env_var`: env var holding the full SQLAlchemy URL
       (e.g. `hana://user:pwd@host:443?encrypt=true`)
     - Individual fields: `host` + `port` + `user` + `password_env_var`
+    - `resource_key`: read credentials from a registered `SapHanaResourceComponent`
+      (resources/sap_hana_resource) instead -- lets one credential serve this
+      component and others without configuring it twice
 
     Source options (use ONE):
     - `query`: arbitrary SQL (supports `{partition_key}` substitution)
@@ -213,6 +216,17 @@ class SapHanaIngestionComponent(Component, Model, Resolvable):
     )
     encrypt: bool = Field(default=True, description="TLS — required for HANA Cloud")
     validate_certificate: bool = Field(default=True, description="Verify the server certificate")
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SapHanaResourceComponent (resources/sap_hana_resource). When set, "
+            "connection credentials are read from that resource's get_engine() at run time instead of the "
+            "inline connection_url_env_var/host/port/user/password_env_var fields -- lets one credential "
+            "serve this component and other components without configuring it twice. Leave unset to use the "
+            "inline fields (existing behavior, unchanged)."
+        ),
+    )
 
     # --- Source --------------------------------------------------------------
 
@@ -379,6 +393,7 @@ class SapHanaIngestionComponent(Component, Model, Resolvable):
         group_name = self.group_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
+        resource_key = self.resource_key
         component = self
 
         kinds = list(self.kinds or []) or ["hana", "sql"]
@@ -431,6 +446,7 @@ class SapHanaIngestionComponent(Component, Model, Resolvable):
             partitions_def=partitions_def,
             backfill_policy=backfill_policy_obj,
             retry_policy=retry_policy,
+            required_resource_keys=({resource_key} if resource_key else None),
         )
         def sap_hana_ingestion_asset(context: AssetExecutionContext):
             import sqlalchemy
@@ -441,8 +457,14 @@ class SapHanaIngestionComponent(Component, Model, Resolvable):
             if context.has_partition_key or context.has_partition_key_range:
                 partition_keys = list(context.partition_keys)
 
-            url = component._resolve_url()
-            engine = sqlalchemy.create_engine(url)
+            if resource_key:
+                # Connection comes from the registered SAP HANA resource's
+                # get_engine() helper (SQLAlchemy engine), instead of building
+                # one from the inline connection fields.
+                engine = getattr(context.resources, resource_key).get_engine()
+            else:
+                url = component._resolve_url()
+                engine = sqlalchemy.create_engine(url)
             try:
                 def _run_one(partition_key: Optional[str]) -> pd.DataFrame:
                     query = component._resolve_query(partition_key)

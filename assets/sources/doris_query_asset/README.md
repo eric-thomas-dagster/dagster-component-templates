@@ -24,6 +24,7 @@ Run a SQL query against Apache Doris and emit the result as a Pandas DataFrame a
 | `username_env_var` | `str` | `"DORIS_USER"` | Env var with username. |
 | `password_env_var` | `str` | `"DORIS_PASSWORD"` | Env var with password. |
 | `connection_string_env_var` | `str` | — | Env var with a full SQLAlchemy URL (mysql+pymysql://user:pw@host:9030/db). Overrides the field-by-field host/port/database/username/password configuration. |
+| `resource_key` | `str` | — | Optional key of a registered DorisResourceComponent (resources/doris_resource). When set, the query runs against that resource's SQLAlchemy engine at run time instead of the inline host_env_var/query_port/database/userna… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -44,6 +45,8 @@ Run a SQL query against Apache Doris and emit the result as a Pandas DataFrame a
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |

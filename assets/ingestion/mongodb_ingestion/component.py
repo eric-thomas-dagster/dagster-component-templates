@@ -130,6 +130,31 @@ def _apply_max_rows_per_resource(resources, max_rows_per_resource):
 # END dlt-advanced-options helper
 
 
+# BEGIN mongodb-resource-key helper (inlined per component; keep copies identical, see tests/test_resource_key.py)
+def _build_mongo_client_factory(connection_url, resource_key, context):
+    """Build the zero-arg callable the inline dlt source uses to open its MongoDB
+    connection. resource_key (a registered MongoDBResourceComponent) takes
+    precedence when set; otherwise falls back to the inline connection_url field
+    (existing behavior, unchanged)."""
+    if resource_key:
+        def _factory():
+            return getattr(context.resources, resource_key).get_client()
+        return _factory
+    if not connection_url:
+        raise ValueError(
+            "MongoDBIngestionComponent: set either 'connection_url' or 'resource_key' "
+            "(a registered MongoDBResourceComponent)."
+        )
+
+    def _factory():
+        from pymongo import MongoClient
+
+        return MongoClient(connection_url)
+
+    return _factory
+# END mongodb-resource-key helper
+
+
 def _filter_df_to_partition(df: pd.DataFrame, context, partition_date_column, partition_static_column) -> pd.DataFrame:
     """Filter a fully-fetched DataFrame down to the current partition's rows.
 
@@ -350,7 +375,20 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    connection_url: str = Field(description="MongoDB connection URL (e.g., mongodb://localhost:27017)")
+    connection_url: Optional[str] = Field(
+        default=None,
+        description="MongoDB connection URL (e.g., mongodb://localhost:27017). Set this OR resource_key.",
+    )
+
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered MongoDBResourceComponent (resources/mongodb_resource). When set, "
+            "connection credentials are read from that resource at run time instead of the inline "
+            "connection_url field -- lets one credential serve this ingestion component and other components "
+            "without configuring it twice. Leave unset to use connection_url (existing behavior, unchanged)."
+        ),
+    )
 
     database: str = Field(description="Name of the MongoDB database to extract from")
 
@@ -774,6 +812,7 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
         connection_url = self.connection_url
+        resource_key = self.resource_key
         database = self.database
         collection_names = self.collection_names
         description = self.description or f"MongoDB data ({', '.join(collection_names)})"
@@ -887,13 +926,11 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
 
-        def _mongodb_source(conn_url: str, db: str, collections: list[str]):
+        def _mongodb_source(client_factory, db: str, collections: list[str]):
             # dlt's `dlt.sources.mongodb` is a "verified source" that has to be
             # code-generated via `dlt init mongodb <destination>` — not pip-
             # installable. We ship an inline equivalent here so the component
             # works out of the box with `pip install dlt[<destination>] pymongo`.
-            from pymongo import MongoClient
-
             @dlt.source(name="mongodb")
             def _source():
                 def _make_resource(coll_name: str):
@@ -902,7 +939,7 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
                         write_disposition="replace",
                     )
                     def _resource():
-                        client = MongoClient(conn_url)
+                        client = client_factory()
                         try:
                             for doc in client[db][coll_name].find():
                                 doc["_id"] = str(doc["_id"])  # ObjectId → str
@@ -920,6 +957,7 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
 
         if self.asset_shape == "single":
             @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                required_resource_keys=({resource_key} if resource_key else None),
                 key=AssetKey.from_user_string(asset_name),
                 description=description,
                 owners=owners,
@@ -944,7 +982,8 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
                     dataset_name=dataset_name,
                 )
 
-                source = _mongodb_source(connection_url, database, collection_names)
+                _client_factory = _build_mongo_client_factory(connection_url, resource_key, context)
+                source = _mongodb_source(_client_factory, database, collection_names)
                 _apply_table_name_overrides(source, collection_names)
                 if on_schema_change != "allow_all":
                     for _r in source.resources.values():
@@ -1049,6 +1088,7 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
             partitions_def=partitions_def,
             backfill_policy=_backfill_policy_obj,
             retry_policy=_retry_policy,
+            required_resource_keys=({resource_key} if resource_key else None),
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def mongodb_ingestion_assets(context: AssetExecutionContext):
@@ -1073,7 +1113,8 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            source = _mongodb_source(connection_url, database, selected_collections)
+            _client_factory = _build_mongo_client_factory(connection_url, resource_key, context)
+            source = _mongodb_source(_client_factory, database, selected_collections)
             _apply_table_name_overrides(source, selected_collections)
             subset_source = source.with_resources(*selected_collections)
             if on_schema_change != "allow_all":

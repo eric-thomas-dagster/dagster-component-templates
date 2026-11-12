@@ -129,6 +129,9 @@ attributes:
 - Uses `UNWIND` + `MERGE`/`CREATE` for efficient batch writes
 - All DataFrame columns become node properties
 - The `id_column` field is used as the MERGE identity key
+- Instead of the inline `uri`/`username`/`password` fields, set `resource_key` to the key of a
+  registered `Neo4jResourceComponent` (`resources/neo4j_resource`) to share one set of
+  credentials with other Neo4j components in the same project
 
 ## Environment Variables
 

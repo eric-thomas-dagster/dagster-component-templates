@@ -292,6 +292,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline snowflake_account_env_var/snowflake_user_env_var/snowflake_password_env_var/etc. fields -- lets one credential serve this asset and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
     }
   },
   "tags": [

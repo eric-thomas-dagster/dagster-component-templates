@@ -53,6 +53,7 @@ Use both if you want layered orchestration: row-count sensor for cheap polling, 
 | `private_key_file` | `str` | — | — |
 | `private_key_file_pwd` | `str` | — | — |
 | `token` | `str` | — | — |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password/warehouse/role/… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -99,6 +100,8 @@ attributes:
   minimum_interval_seconds: 60
   pass_file_metadata: true
 ```
+
+Already have a `SnowflakeResourceComponent` (`resources/snowflake_resource`) registered for other components? Point this sensor at it with `resource_key: snowflake_resource` instead of repeating `account`/`user`/`password`/`authenticator`/etc. here — the sensor then opens its COPY_HISTORY connection via that resource's `get_connection()` at run time. Leave `resource_key` unset (the default) to keep using the inline connection fields above, unchanged.
 
 ## Run config passed to the triggered job
 

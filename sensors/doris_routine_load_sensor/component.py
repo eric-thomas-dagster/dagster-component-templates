@@ -88,6 +88,19 @@ class DorisRoutineLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     username_env_var: str = Field(default="DORIS_USER", description="Env var with username.")
     password_env_var: str = Field(default="DORIS_PASSWORD", description="Env var with password.")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered DorisResourceComponent (resources/doris_resource). When set, the "
+            "SHOW ROUTINE LOAD query runs against that resource's SQLAlchemy engine at run time instead of "
+            "the inline host_env_var/query_port/username_env_var/password_env_var/database fields -- lets "
+            "one credential serve this sensor and other components without configuring it twice. Leave "
+            "unset to use the inline fields (existing behavior, unchanged). Note: `database` is still "
+            "required even when resource_key is set, since the resource's own database may differ from the "
+            "one this sensor watches."
+        ),
+    )
+
     minimum_interval_seconds: int = Field(default=60, description="Seconds between polls.")
     default_status: str = Field(default="running", description="'running' or 'stopped'.")
 
@@ -123,27 +136,39 @@ class DorisRoutineLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             minimum_interval_seconds=_self.minimum_interval_seconds,
             default_status=default_status,
             job_name=_self.job_name_target,
+            required_resource_keys=({_self.resource_key} if _self.resource_key else None),
         )
         def doris_routine_load_sensor(context: SensorEvaluationContext, **_resources):
             _event_cls = AssetMaterialization if _self.emit_materialization else AssetObservation
             import os, json
             try:
-                from sqlalchemy import create_engine, text
+                from sqlalchemy import text
             except ImportError:
                 return SensorResult(skip_reason="sqlalchemy + pymysql not installed")
-            import urllib.parse
 
-            host = os.environ.get(_self.host_env_var, "")
-            user = os.environ.get(_self.username_env_var, "")
-            pw = os.environ.get(_self.password_env_var, "")
-            if not host or not user:
-                return SensorResult(skip_reason=f"{_self.host_env_var} / {_self.username_env_var} not set")
+            if _self.resource_key:
+                # Shared DorisResource already exposes a ready-made SQLAlchemy engine.
+                # Required resources are injected as kwargs (named by key) on direct
+                # invocation, not via context.resources -- hence the **_resources catch-all.
+                engine = _resources[_self.resource_key].get_engine()
+            else:
+                try:
+                    from sqlalchemy import create_engine
+                except ImportError:
+                    return SensorResult(skip_reason="sqlalchemy + pymysql not installed")
+                import urllib.parse
 
-            pw_q = urllib.parse.quote_plus(pw)
-            conn_str = (
-                f"mysql+pymysql://{user}:{pw_q}@{host}:{_self.query_port}/{_self.database}"
-            )
-            engine = create_engine(conn_str)
+                host = os.environ.get(_self.host_env_var, "")
+                user = os.environ.get(_self.username_env_var, "")
+                pw = os.environ.get(_self.password_env_var, "")
+                if not host or not user:
+                    return SensorResult(skip_reason=f"{_self.host_env_var} / {_self.username_env_var} not set")
+
+                pw_q = urllib.parse.quote_plus(pw)
+                conn_str = (
+                    f"mysql+pymysql://{user}:{pw_q}@{host}:{_self.query_port}/{_self.database}"
+                )
+                engine = create_engine(conn_str)
 
             sql = (
                 f"SHOW ROUTINE LOAD FOR {_self.database}.{_self.job_name}"

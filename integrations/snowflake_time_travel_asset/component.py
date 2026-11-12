@@ -114,6 +114,17 @@ class SnowflakeTimeTravelAssetComponent(Component, Model, Resolvable):
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account/user/password/authenticator/private_key_file/token fields -- lets one credential serve this component "
+            "and other components without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -183,9 +194,11 @@ class SnowflakeTimeTravelAssetComponent(Component, Model, Resolvable):
         tags = dict(self.asset_tags or {})
         for k in kinds:
             tags[f"dagster/kind/{k}"] = ""
+        resource_key = self.resource_key
 
         @asset(
             retry_policy=_retry_policy,
+            required_resource_keys=({resource_key} if resource_key else None),
             key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
@@ -195,15 +208,24 @@ class SnowflakeTimeTravelAssetComponent(Component, Model, Resolvable):
             kinds=set(kinds),
         )
         def _tt_asset(context: AssetExecutionContext):
+            import contextlib
+
             import pandas as pd
             sql = self._build_sql()
             context.log.info(f"Time-travel SELECT:\n{sql}")
-            conn = self._connect()
+            _snow_stack = contextlib.ExitStack()
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                conn = self._connect()
             df: Any = None
             try:
                 df = pd.read_sql(sql, conn)
             finally:
                 conn.close()
+                _snow_stack.close()
             row_count = len(df) if df is not None else 0
             return dg.MaterializeResult(
                 value=df,

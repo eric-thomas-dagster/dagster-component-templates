@@ -1,0 +1,6 @@
+type: dagster_community_components.QuestdbResourceComponent
+attributes:
+  resource_key: questdb_resource
+  host_url: http://questdb:9000
+  username: admin
+  password_env_var: QUESTDB_PASSWORD

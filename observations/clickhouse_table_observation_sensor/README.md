@@ -2,7 +2,7 @@
 
 Periodically connects to ClickHouse and emits `AssetObservation` events for an external ClickHouse table. Captures row count, disk size, active parts count, engine type, and last modified timestamp from ClickHouse system tables.
 
-Connect via a `ClickHouseResource` (using `resource_key`) or directly via env vars.
+Connect via a `ClickHouseResource` (using `resource_key`) or directly via env vars. `resource_key` accepts either a custom resource exposing `.observe(source) -> dict`, or (new) a registered `ClickHouseResourceComponent` (`resources/clickhouse_resource`) exposing only `.get_client()` -- the sensor then runs the same system-table queries against that shared client that the native env-var path runs, so one credential can back this sensor and other ClickHouse components.
 
 ## Required packages
 
@@ -31,7 +31,7 @@ clickhouse-connect>=0.6.0
 | `port` | `int` | `8443` | ClickHouse port |
 | `username_env_var` | `str` | — | Env var with ClickHouse username |
 | `password_env_var` | `str` | — | Env var with ClickHouse password |
-| `resource_key` | `str` | — | Key of a ClickHouseResource. When set, env var fields are ignored. |
+| `resource_key` | `str` | — | Key of a registered resource. When set, env var fields are ignored. Two resource shapes are supported: (1) a custom resource exposing `.observe(source) -> dict` (source is 'database.table'), which returns `{'data_version… _(full docs in schema.json + component README)_ |
 
 ### Sensor configuration
 

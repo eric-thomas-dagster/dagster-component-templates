@@ -1,0 +1,62 @@
+{
+  "component_type": "dagster_community_components.DruidResourceComponent",
+  "description": "Register an Apache Druid broker SQL HTTP API resource for use by other components",
+  "category": "resource",
+  "icon": "si:apachedruid",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "druid_resource"
+  ],
+  "attributes": {
+    "broker_url": {
+      "type": "string",
+      "label": "Broker URL",
+      "description": "Base URL of the Druid broker, e.g. 'http://druid-broker:8082'.",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Basic auth username, if the broker requires it.",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var holding the basic auth password.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "request_headers": {
+      "type": "object",
+      "label": "Request Headers",
+      "description": "Extra HTTP headers, e.g. a bearer token if Druid sits behind an authenticating proxy.",
+      "required": false,
+      "default": null
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "HTTP request timeout.",
+      "required": false,
+      "default": 120
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "druid_resource"
+    }
+  },
+  "tags": [
+    "resource",
+    "druid",
+    "sql",
+    "olap",
+    "real-time"
+  ],
+  "name": "Druid Resource"
+}

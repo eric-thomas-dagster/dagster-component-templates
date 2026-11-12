@@ -146,3 +146,49 @@ def test_single_run_over_a_range_joins_partition_keys_into_the_query(pinot_serve
     })
     assert result.success
     assert "2024-01-01,2024-01-02,2024-01-03" in _PinotHandler.requests_received[0]["sql"]
+
+
+# ------------------------------------------------------------------ resource_key
+
+def test_resource_key_unset_required_resource_keys_is_empty(pinot_server):
+    comp = _comp(pinot_server)
+    asset = list(comp.build_defs(None).assets)[0]
+    assert asset.required_resource_keys - {"io_manager"} == set()
+
+
+def test_resource_key_set_adds_it_to_required_resource_keys(pinot_server):
+    comp = _comp(pinot_server, resource_key="pinot")
+    asset = list(comp.build_defs(None).assets)[0]
+    assert asset.required_resource_keys - {"io_manager"} == {"pinot"}
+
+
+def test_resource_key_set_calls_resource_execute_query_not_inline_http(pinot_server):
+    # Dagster re-instantiates the resource for the run, so calls are recorded
+    # on a module-level list (closed over by the method) rather than an
+    # instance attribute, which wouldn't be the same object post-materialize.
+    calls_log = []
+
+    class FakePinotResource(dg.ConfigurableResource):
+        def execute_query(self, sql):
+            import pandas as pd
+            calls_log.append(sql)
+            return pd.DataFrame([{"day": "2024-09-09", "cnt": 99}])
+
+    fake = FakePinotResource()
+    comp = _comp(pinot_server, resource_key="pinot", query="SELECT day, cnt FROM counts")
+    asset = list(comp.build_defs(None).assets)[0]
+    result = dg.materialize([asset], resources={"io_manager": dg.InMemoryIOManager(), "pinot": fake})
+    assert result.success
+    assert calls_log == ["SELECT day, cnt FROM counts"]
+    # The inline HTTP path (the real test server) was never hit.
+    assert _PinotHandler.requests_received == []
+    meta = next(e for e in result.all_events if e.event_type_value == "ASSET_MATERIALIZATION").event_specific_data.materialization.metadata
+    assert meta["dagster/row_count"].value == 1
+
+
+def test_resource_key_unset_still_exercises_inline_http_path(pinot_server):
+    comp = _comp(pinot_server)
+    asset = list(comp.build_defs(None).assets)[0]
+    result = dg.materialize([asset], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    assert len(_PinotHandler.requests_received) == 1

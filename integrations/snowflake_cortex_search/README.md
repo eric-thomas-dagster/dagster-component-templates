@@ -51,6 +51,7 @@ Then point this component at it via the `service_name` field.
 | `private_key_file` | `str` | — | — |
 | `private_key_file_pwd` | `str` | — | — |
 | `token` | `str` | — | — |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password/authenticator f… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -116,6 +117,10 @@ The asset's value is a list of result dicts: `[{ID: ..., TITLE: ..., CONTENT: ..
 
 - `'{"@eq": {"category": "docs"}}'` — exact-match
 - `'{"@contains": {"tags": "billing"}}'` — array contains
+
+## Connecting via a shared resource
+
+Instead of the inline `account` / `user` / `password` / `authenticator` fields, set `resource_key` to the key of a registered `SnowflakeResourceComponent` (`resources/snowflake_resource`) to query through that shared connection — handy when this component and other Snowflake components in the same code location should share one set of credentials. Leave `resource_key` unset to keep using the inline fields exactly as above.
 - `'{"@and": [{"@eq": {"team": "platform"}}, {"@gte": {"updated_at": "2025-01-01"}}]}'` — compound
 
 ## Reference

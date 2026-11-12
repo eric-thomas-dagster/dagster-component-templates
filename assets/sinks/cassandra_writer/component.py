@@ -291,6 +291,16 @@ class CassandraWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Environment variable containing the Cassandra password",
     )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered CassandraResourceComponent (resources/cassandra_resource). When set, "
+            "connection credentials are read from that resource at run time instead of the inline "
+            "hosts/port/keyspace/username_env_var/password_env_var fields -- lets one credential serve this sink "
+            "and other components without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     include_preview_metadata: bool = Field(
         default=False,
         description=(
@@ -487,6 +497,7 @@ class CassandraWriterComponent(Component, Model, Resolvable):
         if_exists = self.if_exists
         username_env_var = self.username_env_var
         password_env_var = self.password_env_var
+        resource_key = self.resource_key
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -577,7 +588,7 @@ class CassandraWriterComponent(Component, Model, Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
-        @asset(retry_policy=_retry_policy, backfill_policy=_backfill_policy_obj,
+        @asset(retry_policy=_retry_policy, backfill_policy=_backfill_policy_obj, required_resource_keys=({resource_key} if resource_key else None),
             key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
@@ -616,22 +627,29 @@ group_name=group_name,
                 upstream = upstream[_keep]
             """Write DataFrame rows to Cassandra table using INSERT CQL."""
             try:
-                from cassandra.cluster import Cluster
-                from cassandra.auth import PlainTextAuthProvider
                 from cassandra.query import BatchStatement
             except ImportError:
                 raise ImportError("cassandra-driver required: pip install cassandra-driver")
 
-            auth = None
-            if username_env_var:
-                auth = PlainTextAuthProvider(
-                    _require_env(username_env_var),
-                    _require_env(password_env_var),
-                )
+            if resource_key:
+                session = getattr(context.resources, resource_key).get_session()
+            else:
+                try:
+                    from cassandra.cluster import Cluster
+                    from cassandra.auth import PlainTextAuthProvider
+                except ImportError:
+                    raise ImportError("cassandra-driver required: pip install cassandra-driver")
 
-            context.log.info(f"Connecting to Cassandra at {hosts} keyspace {keyspace}")
-            cluster = Cluster(hosts, port=port, auth_provider=auth)
-            session = cluster.connect(keyspace)
+                auth = None
+                if username_env_var:
+                    auth = PlainTextAuthProvider(
+                        _require_env(username_env_var),
+                        _require_env(password_env_var),
+                    )
+
+                context.log.info(f"Connecting to Cassandra at {hosts} keyspace {keyspace}")
+                cluster = Cluster(hosts, port=port, auth_provider=auth)
+                session = cluster.connect(keyspace)
 
             records = upstream.to_dict(orient="records")
             if not records:

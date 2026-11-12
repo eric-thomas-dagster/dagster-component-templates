@@ -92,6 +92,18 @@ class SnowflakeTaskCompletionSensorComponent(Component, Model, Resolvable):
     warehouse_env_var: Optional[str] = Field(default=None, description="Env var with Snowflake warehouse.")
     role_env_var: Optional[str] = Field(default=None, description="Env var with Snowflake role.")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account_env_var/user_env_var/password_env_var/pat_env_var/private_key_path_env_var/warehouse_env_var/role_env_var "
+            "fields -- lets one credential serve this component and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
+
     minimum_interval_seconds: int = Field(default=60, description="Seconds between polls.")
     lookback_minutes: int = Field(
         default=10,
@@ -131,6 +143,7 @@ class SnowflakeTaskCompletionSensorComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _self = self
+        resource_key = self.resource_key
         default_status = (
             DefaultSensorStatus.RUNNING if self.default_status == "running"
             else DefaultSensorStatus.STOPPED
@@ -141,17 +154,26 @@ class SnowflakeTaskCompletionSensorComponent(Component, Model, Resolvable):
             minimum_interval_seconds=_self.minimum_interval_seconds,
             default_status=default_status,
             job_name=_self.job_name,
+            required_resource_keys=({resource_key} if resource_key else None),
         )
         def snowflake_task_completion_sensor(context: SensorEvaluationContext, **_resources):
-            try:
-                import snowflake.connector
-            except ImportError:
-                return SensorResult(skip_reason="snowflake-connector-python not installed")
+            import contextlib
 
-            try:
-                conn = snowflake.connector.connect(**_self._connection_kwargs())
-            except Exception as e:
-                return SensorResult(skip_reason=f"Snowflake connect failed: {e}")
+            _snow_stack = contextlib.ExitStack()
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                try:
+                    import snowflake.connector
+                except ImportError:
+                    return SensorResult(skip_reason="snowflake-connector-python not installed")
+
+                try:
+                    conn = snowflake.connector.connect(**_self._connection_kwargs())
+                except Exception as e:
+                    return SensorResult(skip_reason=f"Snowflake connect failed: {e}")
 
             cursor = conn.cursor()
             try:
@@ -170,6 +192,7 @@ class SnowflakeTaskCompletionSensorComponent(Component, Model, Resolvable):
             except Exception as e:
                 cursor.close()
                 conn.close()
+                _snow_stack.close()
                 # Least-privilege roles (e.g. DAGSTER_RUNNER without MONITOR on
                 # the task) may not be able to read INFORMATION_SCHEMA.TASK_HISTORY
                 # even if they can EXECUTE TASK. To unblock, grant MONITOR on the
@@ -195,6 +218,7 @@ class SnowflakeTaskCompletionSensorComponent(Component, Model, Resolvable):
 
             cursor.close()
             conn.close()
+            _snow_stack.close()
 
             if not new_rows:
                 return SensorResult(skip_reason=f"No new SUCCEEDED rows for {_self.task_name}")

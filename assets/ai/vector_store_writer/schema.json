@@ -344,6 +344,18 @@
       "label": "Enabled Column",
       "description": "Column (bool-like) marking each row enabled/disabled. Written into every vector's own metadata as 'enabled' -- re-running the writer with a changed value updates it in place (upsert), no delete needed. A missing/NaN value is treated as enabled=True. Pairs with vector_store_query's exclude_disabled to filter disabled docs out of search results without removing them from the index.",
       "required": false
+    },
+    "chroma_resource_key": {
+      "type": "string",
+      "label": "Chroma Resource Key",
+      "description": "Optional key of a registered ChromaResourceComponent (resources/chroma_resource). Only used when provider='chromadb'. When set, the client comes from that resource's get_client() instead of building a fresh chromadb.PersistentClient from connection_string -- lets one Chroma connection serve this writer and other components without configuring it twice. Leave unset to use connection_string (existing behavior, unchanged).",
+      "required": false
+    },
+    "qdrant_resource_key": {
+      "type": "string",
+      "label": "Qdrant Resource Key",
+      "description": "Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only used when provider='qdrant'. When set, the client comes from that resource's get_client() instead of building a fresh QdrantClient from connection_string/api_key. Leave unset to use connection_string/api_key (existing behavior, unchanged).",
+      "required": false
     }
   },
   "tags": [

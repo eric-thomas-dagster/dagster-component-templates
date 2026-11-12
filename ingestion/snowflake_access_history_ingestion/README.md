@@ -24,6 +24,7 @@ Pull Snowflake access history (every query, every column accessed) from the ACCO
 |---|---|---|---|
 | `warehouse` | `str` | — | — |
 | `role` | `str` | `"ACCOUNTADMIN"` | Role with access to ACCOUNT_USAGE |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password_env/warehouse/r… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -78,7 +79,11 @@ Pull Snowflake access history (every query, every column accessed) from the ACCO
 [//]: # (FIELDS:END)
 
 ## Authentication
-Reads from environment variables — see the `*_env` fields in `component.py`.
+Reads from environment variables — see the `*_env` fields in `component.py`. Alternatively, set
+`resource_key` to the key of a registered `SnowflakeResourceComponent` (resources/snowflake_resource)
+and skip the inline account/user/password_env/warehouse/role fields entirely — credentials then
+come from that shared resource at run time, so one credential can serve this component and others
+without configuring it twice. Leave `resource_key` unset to keep the existing inline-field behavior.
 
 ## See also
 - [Schema](schema.json)

@@ -23,6 +23,7 @@ Watch Apache Doris Routine Load jobs (Kafka→Doris continuous ingestion) for st
 | `host_env_var` | `str` | `"DORIS_FE_HOST"` | Env var with Doris FE host. |
 | `username_env_var` | `str` | `"DORIS_USER"` | Env var with username. |
 | `password_env_var` | `str` | `"DORIS_PASSWORD"` | Env var with password. |
+| `resource_key` | `str` | — | Optional key of a registered DorisResourceComponent (resources/doris_resource). When set, the SHOW ROUTINE LOAD query runs against that resource's SQLAlchemy engine at run time instead of the inline host_env_var/query_po… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

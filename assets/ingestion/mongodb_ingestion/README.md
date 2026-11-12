@@ -14,9 +14,12 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `asset_name` | `str` | yes | Name of the output asset |
-| `connection_url` | `str` | yes | MongoDB connection URL (e.g. `mongodb://user:pass@host:27017`) |
+| `connection_url` | `str` | no | MongoDB connection URL (e.g. `mongodb://user:pass@host:27017`). Set this OR `resource_key`. |
+| `resource_key` | `str` | no | Key of a registered `MongoDBResourceComponent` (`resources/mongodb_resource`). When set, credentials come from that shared resource instead of `connection_url` — lets one credential serve this ingestion component and other MongoDB components without configuring it twice. Leave unset to keep using `connection_url`. |
 | `database` | `str` | yes | Database name |
 | `collection_names` | `List[str]` | yes | Collections to extract |
+
+One of `connection_url` or `resource_key` is required; `resource_key` takes precedence when both are set.
 
 ## Standard fields
 
@@ -53,9 +56,14 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `connection_url` | `str` | MongoDB connection URL (e.g., mongodb://localhost:27017) |
 | `database` | `str` | Name of the MongoDB database to extract from |
 | `collection_names` | `List[str]` | List of collection names to extract |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional key of a registered MongoDBResourceComponent (resources/mongodb_resource). When set, connection credentials are read from that resource at run time instead of the inline connection_url field -- lets one credenti… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -112,6 +120,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `connection_url` | `str` | — | MongoDB connection URL (e.g., mongodb://localhost:27017). Set this OR resource_key. |
 | `asset_shape` | `Literal['single', 'multi_asset']` | `"single"` | 'single' (default, matches every other multi-resource ingestion component in this repo): one asset, keyed `asset_name`, covering every collection in `collection_names` as a single unit -- rows from every collection are u… _(full docs in schema.json + component README)_ |
 | `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising… _(full docs in schema.json + component README)_ |
 | `hash_salt` | `str` | — | Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use "{{ env.VAR_NAME }}" for the inlin… _(full docs in schema.json + component README)_ |

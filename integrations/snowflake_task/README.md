@@ -44,6 +44,7 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 | `private_key_file` | `str` | — | PEM private key file path (for SNOWFLAKE_JWT). |
 | `private_key_file_pwd` | `str` | — | Passphrase for encrypted private_key_file. |
 | `token` | `str` | — | OAuth/PAT token (for PROGRAMMATIC_ACCESS_TOKEN or oauth). |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password/authenticator f… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -63,6 +64,8 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', 'multi', or None. Partition key is substituted into the task SQL via `<<partition_key>>` placeholders. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning. |
 
@@ -135,6 +138,8 @@ Every connection field (account / user / warehouse / database / schema_name / ro
 | SSO | `authenticator: externalbrowser` (no other auth field) |
 | Keypair (recommended for headless) | `authenticator: SNOWFLAKE_JWT` + `private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"` (+ `private_key_file_pwd` if encrypted) |
 | PAT | `authenticator: PROGRAMMATIC_ACCESS_TOKEN` + `token: "{{ env('SNOWFLAKE_PAT') }}"` |
+
+Alternatively, set `resource_key` to the key of a registered `SnowflakeResourceComponent` (`resources/snowflake_resource`) and skip the account/user/auth fields above entirely — the task opens its connection through that shared resource instead. Leave `resource_key` unset to keep using the inline fields exactly as above.
 
 See [`schema.json`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_task/schema.json) for the full attribute list.
 

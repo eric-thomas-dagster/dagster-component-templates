@@ -132,6 +132,16 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Snowflake virtual warehouse to use. Uses the user default if None.",
     )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, "
+            "connection credentials are read from that resource at run time instead of the inline "
+            "snowflake_account_env_var/snowflake_user_env_var/snowflake_password_env_var/etc. fields -- lets one "
+            "credential serve this asset and other components without configuring it twice. Leave unset to use the "
+            "inline fields (existing behavior, unchanged)."
+        ),
+    )
     source_table: str = Field(
         description="Source table name (fully qualified or relative to database/schema)."
     )
@@ -420,7 +430,10 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
 
-        @dg.asset(partitions_def=partitions_def, freshness_policy=_freshness_policy_obj, retry_policy=_retry_policy, 
+        resource_key = self.resource_key
+
+        @dg.asset(partitions_def=partitions_def, freshness_policy=_freshness_policy_obj, retry_policy=_retry_policy,
+            required_resource_keys=({resource_key} if resource_key else None),
             key=dg.AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name or "ai_enrichment",
             kinds={"snowflake", "ai", "sql"},
@@ -433,45 +446,50 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         def _cortex_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
-            import snowflake.connector
-
             import os
-            account = dg.EnvVar(self.snowflake_account_env_var).get_value()
-            user = dg.EnvVar(self.snowflake_user_env_var).get_value()
 
-            connect_kwargs: dict = dict(
-                account=account,
-                user=user,
-                database=self.snowflake_database,
-                schema=self.snowflake_schema,
-            )
-            if self.snowflake_warehouse:
-                connect_kwargs["warehouse"] = self.snowflake_warehouse
+            import contextlib
 
-            # Auth: keypair / SSO / token takes precedence over password if BOTH
-            # are set. Password path preserved for accounts that still allow it.
-            if self.snowflake_authenticator:
-                connect_kwargs["authenticator"] = self.snowflake_authenticator
-                if self.snowflake_private_key_file_env_var:
-                    pk_path = os.environ.get(self.snowflake_private_key_file_env_var)
-                    if pk_path:
-                        connect_kwargs["private_key_file"] = pk_path
-                    if self.snowflake_private_key_file_pwd_env_var:
-                        pk_pwd = os.environ.get(self.snowflake_private_key_file_pwd_env_var)
-                        if pk_pwd:
-                            connect_kwargs["private_key_file_pwd"] = pk_pwd
-                elif self.snowflake_token_env_var:
-                    tok = os.environ.get(self.snowflake_token_env_var)
-                    if tok:
-                        connect_kwargs["token"] = tok
-            elif self.snowflake_password_env_var and os.environ.get(self.snowflake_password_env_var):
-                connect_kwargs["password"] = _require_env(self.snowflake_password_env_var)
-            else:
-                raise EnvironmentError(
-                    "snowflake_cortex_asset: no auth configured. Set either "
-                    "snowflake_password_env_var (with password in env) OR "
-                    "snowflake_authenticator + private_key_file/token env var."
+            _snow_stack = contextlib.ExitStack()
+            if not resource_key:
+                import snowflake.connector
+
+                account = dg.EnvVar(self.snowflake_account_env_var).get_value()
+                user = dg.EnvVar(self.snowflake_user_env_var).get_value()
+
+                connect_kwargs: dict = dict(
+                    account=account,
+                    user=user,
+                    database=self.snowflake_database,
+                    schema=self.snowflake_schema,
                 )
+                if self.snowflake_warehouse:
+                    connect_kwargs["warehouse"] = self.snowflake_warehouse
+
+                # Auth: keypair / SSO / token takes precedence over password if BOTH
+                # are set. Password path preserved for accounts that still allow it.
+                if self.snowflake_authenticator:
+                    connect_kwargs["authenticator"] = self.snowflake_authenticator
+                    if self.snowflake_private_key_file_env_var:
+                        pk_path = os.environ.get(self.snowflake_private_key_file_env_var)
+                        if pk_path:
+                            connect_kwargs["private_key_file"] = pk_path
+                        if self.snowflake_private_key_file_pwd_env_var:
+                            pk_pwd = os.environ.get(self.snowflake_private_key_file_pwd_env_var)
+                            if pk_pwd:
+                                connect_kwargs["private_key_file_pwd"] = pk_pwd
+                    elif self.snowflake_token_env_var:
+                        tok = os.environ.get(self.snowflake_token_env_var)
+                        if tok:
+                            connect_kwargs["token"] = tok
+                elif self.snowflake_password_env_var and os.environ.get(self.snowflake_password_env_var):
+                    connect_kwargs["password"] = _require_env(self.snowflake_password_env_var)
+                else:
+                    raise EnvironmentError(
+                        "snowflake_cortex_asset: no auth configured. Set either "
+                        "snowflake_password_env_var (with password in env) OR "
+                        "snowflake_authenticator + private_key_file/token env var."
+                    )
 
             cortex_expr = self._build_cortex_expr()
             output_col = self.output_column
@@ -506,7 +524,12 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             context.log.info(f"Executing Cortex SQL:\n{dml}")
 
-            conn = snowflake.connector.connect(**connect_kwargs)
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                conn = snowflake.connector.connect(**connect_kwargs)
             try:
                 cur = conn.cursor()
                 for statement in statements:
@@ -518,6 +541,7 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 cur.close()
             finally:
                 conn.close()
+                _snow_stack.close()
 
             context.log.info(
                 f"Cortex {self.cortex_function} complete — {rows_processed} rows in {self.target_table}"

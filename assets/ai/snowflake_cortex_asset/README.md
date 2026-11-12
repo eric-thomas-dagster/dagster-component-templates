@@ -1,6 +1,6 @@
 # Snowflake Cortex Asset Component
 
-> **🔑 Snowflake account required.** This component runs Cortex LLM functions inside Snowflake — it does NOT call OpenAI/Anthropic. Configure via Snowflake connection fields (account, user, password/private_key, warehouse, database, schema).
+> **🔑 Snowflake account required.** This component runs Cortex LLM functions inside Snowflake — it does NOT call OpenAI/Anthropic. Configure via Snowflake connection fields (account, user, password/private_key, warehouse, database, schema). Alternatively, set `resource_key` to a registered `SnowflakeResourceComponent` (`resources/snowflake_resource`) to share one credential with other Snowflake components instead of configuring the inline `snowflake_account_env_var`/`snowflake_user_env_var`/etc. fields here too.
 
 Runs [Snowflake Cortex](https://docs.snowflake.com/en/user-guide/snowflake-cortex/llm-functions) LLM functions directly inside Snowflake and writes enriched results to a target table — no data leaves the warehouse.
 
@@ -81,6 +81,12 @@ pip install snowflake-connector-python>=3.6.0 snowflake-sqlalchemy>=1.5.0
 | `text_column` | `Union[str, int]` | Column passed as the text argument to the Cortex function. |
 | `asset_name` | `str` | Dagster asset key name. |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline snowflake_account_env_var/snowflake_u… _(full docs in schema.json + component README)_ |
+
 ### Execution
 
 | Field | Type | Default | Description |
@@ -115,6 +121,8 @@ pip install snowflake-connector-python>=3.6.0 snowflake-sqlalchemy>=1.5.0
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |

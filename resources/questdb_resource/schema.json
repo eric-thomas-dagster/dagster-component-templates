@@ -1,0 +1,62 @@
+{
+  "component_type": "dagster_community_components.QuestdbResourceComponent",
+  "description": "Register a QuestDB HTTP REST API resource for use by other components",
+  "category": "resource",
+  "icon": "si:questdb",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "questdb_resource"
+  ],
+  "attributes": {
+    "host_url": {
+      "type": "string",
+      "label": "Host URL",
+      "description": "Base URL of the QuestDB HTTP REST API, e.g. 'http://questdb:9000'.",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "HTTP basic auth username, if QuestDB's built-in auth is enabled.",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var holding the basic auth password.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "request_headers": {
+      "type": "object",
+      "label": "Request Headers",
+      "description": "Extra HTTP headers, e.g. a bearer token if QuestDB sits behind an authenticating proxy.",
+      "required": false,
+      "default": null
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "HTTP request timeout.",
+      "required": false,
+      "default": 120
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "questdb_resource"
+    }
+  },
+  "tags": [
+    "resource",
+    "questdb",
+    "sql",
+    "time-series",
+    "real-time"
+  ],
+  "name": "QuestDB Resource"
+}

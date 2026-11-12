@@ -4,6 +4,7 @@ Write embeddings to vector databases (Pinecone, Weaviate, Chroma, FAISS, Qdrant)
 Supports batch writing and metadata attachment.
 """
 
+import contextlib
 import os
 from typing import Any, Dict, List, Optional, Union
 import pandas as pd
@@ -395,6 +396,26 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
     )
     connection_string: Optional[str] = Field(default=None, description="Connection string or path")
     api_key: Optional[str] = Field(default=None, description="API key (use ${VAR_NAME} for environment variable)")
+    chroma_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered ChromaResourceComponent (resources/chroma_resource). Only "
+            "used when provider='chromadb'. When set, the client comes from that resource's "
+            "get_client() instead of building a fresh chromadb.PersistentClient from "
+            "connection_string -- lets one Chroma connection serve this writer and other components "
+            "without configuring it twice. Leave unset to use connection_string (existing behavior, "
+            "unchanged)."
+        ),
+    )
+    qdrant_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only "
+            "used when provider='qdrant'. When set, the client comes from that resource's "
+            "get_client() instead of building a fresh QdrantClient from connection_string/api_key. "
+            "Leave unset to use connection_string/api_key (existing behavior, unchanged)."
+        ),
+    )
     batch_size: int = Field(default=100, description="Batch size")
     upsert: bool = Field(default=True, description="Upsert if exists")
     description: Optional[str] = Field(default=None, description="Asset description")
@@ -598,6 +619,8 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         enabled_column = self.enabled_column
         connection_string = self.connection_string
         api_key = self.api_key
+        chroma_resource_key = self.chroma_resource_key
+        qdrant_resource_key = self.qdrant_resource_key
         batch_size = self.batch_size
         upsert = self.upsert
         vector_bucket_name = self.vector_bucket_name
@@ -706,8 +729,15 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         )
         if upstream_asset_key:
             _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+        _required_resource_keys = set()
         if source_cfg and source_cfg.get("resource_key"):
-            _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+            _required_resource_keys.add(source_cfg["resource_key"])
+        if chroma_resource_key:
+            _required_resource_keys.add(chroma_resource_key)
+        if qdrant_resource_key:
+            _required_resource_keys.add(qdrant_resource_key)
+        if _required_resource_keys:
+            _asset_kwargs["required_resource_keys"] = _required_resource_keys
 
         @asset(**_asset_kwargs)
         def vector_store_writer_asset(
@@ -774,22 +804,26 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
 
             if provider == "chromadb":
                 import chromadb
-                client = chromadb.PersistentClient(path=connection_string or "./chroma_db")
-                collection = client.get_or_create_collection(name=collection_name)
+                if chroma_resource_key:
+                    _chroma_cm = getattr(context.resources, chroma_resource_key).get_client()
+                else:
+                    _chroma_cm = contextlib.nullcontext(chromadb.PersistentClient(path=connection_string or "./chroma_db"))
+                with _chroma_cm as client:
+                    collection = client.get_or_create_collection(name=collection_name)
 
-                embeddings = df[embedding_column].tolist()
-                texts = df[text_column].tolist() if text_column in df.columns else None
-                ids = [f"doc_{i}" for i in range(len(df))]
-                metadatas = df[_effective_metadata_columns].to_dict('records') if _effective_metadata_columns else None
+                    embeddings = df[embedding_column].tolist()
+                    texts = df[text_column].tolist() if text_column in df.columns else None
+                    ids = [f"doc_{i}" for i in range(len(df))]
+                    metadatas = df[_effective_metadata_columns].to_dict('records') if _effective_metadata_columns else None
 
-                for i in range(0, len(df), batch_size):
-                    batch_end = min(i + batch_size, len(df))
-                    collection.upsert(
-                        embeddings=embeddings[i:batch_end],
-                        documents=texts[i:batch_end] if texts else None,
-                        ids=ids[i:batch_end],
-                        metadatas=metadatas[i:batch_end] if metadatas else None
-                    )
+                    for i in range(0, len(df), batch_size):
+                        batch_end = min(i + batch_size, len(df))
+                        collection.upsert(
+                            embeddings=embeddings[i:batch_end],
+                            documents=texts[i:batch_end] if texts else None,
+                            ids=ids[i:batch_end],
+                            metadatas=metadatas[i:batch_end] if metadatas else None
+                        )
 
             elif provider == "pinecone":
                 from pinecone import Pinecone
@@ -815,27 +849,30 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 from qdrant_client import QdrantClient
                 from qdrant_client.models import Distance, VectorParams, PointStruct
 
-                client = QdrantClient(url=connection_string or "localhost", api_key=expanded_api_key)
+                if qdrant_resource_key:
+                    _qdrant_cm = getattr(context.resources, qdrant_resource_key).get_client()
+                else:
+                    _qdrant_cm = contextlib.nullcontext(QdrantClient(url=connection_string or "localhost", api_key=expanded_api_key))
+                with _qdrant_cm as client:
+                    try:
+                        client.get_collection(collection_name)
+                    except Exception:
+                        embedding_dim = len(df[embedding_column].iloc[0])
+                        client.create_collection(
+                            collection_name=collection_name,
+                            vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
+                        )
 
-                try:
-                    client.get_collection(collection_name)
-                except Exception:
-                    embedding_dim = len(df[embedding_column].iloc[0])
-                    client.create_collection(
-                        collection_name=collection_name,
-                        vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
-                    )
+                    points = []
+                    for idx, row in df.iterrows():
+                        payload = {text_column: row[text_column]} if text_column in df.columns else {}
+                        for col in _effective_metadata_columns:
+                            if col in df.columns:
+                                payload[col] = row[col]
+                        points.append(PointStruct(id=idx, vector=row[embedding_column], payload=payload))
 
-                points = []
-                for idx, row in df.iterrows():
-                    payload = {text_column: row[text_column]} if text_column in df.columns else {}
-                    for col in _effective_metadata_columns:
-                        if col in df.columns:
-                            payload[col] = row[col]
-                    points.append(PointStruct(id=idx, vector=row[embedding_column], payload=payload))
-
-                for i in range(0, len(points), batch_size):
-                    client.upsert(collection_name=collection_name, points=points[i:i + batch_size])
+                    for i in range(0, len(points), batch_size):
+                        client.upsert(collection_name=collection_name, points=points[i:i + batch_size])
 
             elif provider == "faiss":
                 import faiss

@@ -45,6 +45,11 @@ Pairs with `snowflake_workspace` (which DISCOVERS existing entities) — use thi
 
 ### Connection
 
+Credentials are inline by default (`account`/`user`/`password`/`authenticator`/etc. above). Set
+`resource_key` instead to read them from a registered `snowflake_resource` component at run time —
+handy when this component and others (e.g. `dataframe_to_snowflake`) should share one credential
+rather than each configuring its own.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `warehouse` | `str` | — | — |
@@ -55,6 +60,7 @@ Pairs with `snowflake_workspace` (which DISCOVERS existing entities) — use thi
 | `private_key_file_pwd` | `str` | — | Passphrase for encrypted private_key_file. |
 | `token` | `str` | — | OAuth/PAT token. |
 | `catalog` | `str` | `"SNOWFLAKE"` | 'SNOWFLAKE' for Snowflake-managed Iceberg (default), or the name of a registered external Iceberg catalog (Glue / Polaris / Unity / Tabular). |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password/authenticator/p… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

@@ -278,6 +278,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered Neo4jResourceComponent (resources/neo4j_resource). When set, connection credentials are read from that resource at run time instead of the inline uri/username/password fields -- lets one credential serve this source and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
     }
   },
   "tags": [

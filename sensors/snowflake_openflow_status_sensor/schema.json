@@ -21,7 +21,13 @@
     "role_env_var": {"description": "Env var with Snowflake role.", "type": "string", "label": "Role Env Var", "required": false, "ui:widget": "env_var" },
     "minimum_interval_seconds": {"description": "Seconds between Telemetry polls.", "type": "integer", "label": "Minimum Interval Seconds", "required": false, "default": 120 },
     "lookback_minutes": {"description": "How far back to query TELEMETRY each tick.", "type": "integer", "label": "Lookback Minutes", "required": false, "default": 15 },
-    "default_status": {"description": "'running' or 'stopped'.", "type": "string", "label": "Default Status", "required": false, "default": "running", "enum": ["running", "stopped"] }
+    "default_status": {"description": "'running' or 'stopped'.", "type": "string", "label": "Default Status", "required": false, "default": "running", "enum": ["running", "stopped"] },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account_env_var/user_env_var/password_env_var/etc. fields -- lets one credential serve this sensor and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged; also leaves the _connect() demo/test override seam intact).",
+      "required": false
+    }
   },
   "tags": ["sensor", "snowflake", "openflow", "telemetry"],
   "name": "Snowflake OpenFlow Status Sensor"

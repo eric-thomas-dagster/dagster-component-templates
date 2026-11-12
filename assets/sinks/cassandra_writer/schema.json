@@ -305,6 +305,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered CassandraResourceComponent (resources/cassandra_resource). When set, connection credentials are read from that resource at run time instead of the inline hosts/port/keyspace/username_env_var/password_env_var fields -- lets one credential serve this sink and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
     }
   },
   "dependencies": {

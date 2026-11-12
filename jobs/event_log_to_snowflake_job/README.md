@@ -44,6 +44,11 @@ attributes:
 Username + password (from env). For SSO / key-pair auth, extend the
 component or fall back to the sink-asset alternative.
 
+Alternatively, set `resource_key` to the key of a registered `SnowflakeResourceComponent`
+(`resources/snowflake_resource`) and skip the account/user/password_env/role fields above
+entirely — the job's op opens its connection through that shared resource instead. Leave
+`resource_key` unset to keep using the inline fields exactly as above.
+
 ## Behavior
 
 - Cursor via run tag; first run pulls `initial_lookback_hours` of history.
@@ -68,6 +73,7 @@ component or fall back to the sink-asset alternative.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `role` | `str` | — | Optional role. |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password_env/role fields… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

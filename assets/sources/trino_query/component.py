@@ -176,6 +176,17 @@ class TrinoQueryComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     query: str = Field(description="Trino SQL query to execute")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered TrinoResourceComponent (resources/trino_resource). When set, "
+            "the connection is opened via that resource's get_connection() at run time instead of the "
+            "inline host/port/user/catalog/schema_name/password_env_var fields -- lets one credential "
+            "serve this component and other components without configuring it twice. Leave unset to use "
+            "the inline fields (existing behavior, unchanged)."
+        ),
+    )
+
     # Catalog / governance
     group_name: Optional[str] = Field(default=None, description="Asset group")
     description: Optional[str] = Field(default=None, description="Asset description")
@@ -322,6 +333,7 @@ class TrinoQueryComponent(dg.Component, dg.Model, dg.Resolvable):
         schema_name = self.schema_name
         password_env_var = self.password_env_var
         query = self.query
+        resource_key = self.resource_key
         group_name = self.group_name
         description = self.description or f"Trino query: {query[:60].strip()}..."
         include_preview = self.include_preview_metadata
@@ -377,22 +389,32 @@ class TrinoQueryComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=freshness_policy,
             retry_policy=retry_policy,
             backfill_policy=backfill_policy,
+            required_resource_keys=({resource_key} if resource_key else None),
         )
         def trino_query_asset(context: dg.AssetExecutionContext) -> pd.DataFrame:
-            import trino.dbapi as trino_dbapi
-            from trino.auth import BasicAuthentication
+            import contextlib
             import os
 
-            password = os.environ.get(password_env_var) if password_env_var else None
-            context.log.info(f"Connecting to Trino at {host}:{port} (catalog={catalog})")
-            conn = trino_dbapi.connect(
-                host=host,
-                port=port,
-                user=user,
-                catalog=catalog,
-                schema=schema_name,
-                auth=BasicAuthentication(user, password) if password else None,
-            )
+            _conn_stack = contextlib.ExitStack()
+            if resource_key:
+                # Connection comes from the registered TrinoResource's
+                # get_connection() context manager instead of the inline fields.
+                context.log.info(f"Connecting to Trino via resource {resource_key!r}")
+                conn = _conn_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                import trino.dbapi as trino_dbapi
+                from trino.auth import BasicAuthentication
+
+                password = os.environ.get(password_env_var) if password_env_var else None
+                context.log.info(f"Connecting to Trino at {host}:{port} (catalog={catalog})")
+                conn = trino_dbapi.connect(
+                    host=host,
+                    port=port,
+                    user=user,
+                    catalog=catalog,
+                    schema=schema_name,
+                    auth=BasicAuthentication(user, password) if password else None,
+                )
             try:
                 context.log.info(f"Executing query: {query[:100]}")
                 cur = conn.cursor()
@@ -434,7 +456,10 @@ class TrinoQueryComponent(dg.Component, dg.Model, dg.Resolvable):
                 context.add_output_metadata(metadata)
                 return df
             finally:
-                conn.close()
+                if resource_key:
+                    _conn_stack.close()
+                else:
+                    conn.close()
 
         return dg.Definitions(assets=[trino_query_asset])
 

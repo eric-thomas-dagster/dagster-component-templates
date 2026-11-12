@@ -17,6 +17,12 @@
     "table": {"description": "Target table name.", "label": "Table", "type": "string", "required": false, "default": "DAGSTER_EVENTS"},
     "role": {"description": "Optional role.", "label": "Role", "type": "string", "required": false, "default": null},
     "initial_lookback_hours": {"description": "On first run, pull events from last N hours.", "label": "Initial Lookback Hours", "type": "integer", "required": false, "default": 24},
-    "batch_limit": {"description": "Max events per tick.", "label": "Batch Limit", "type": "integer", "required": false, "default": 5000}
+    "batch_limit": {"description": "Max events per tick.", "label": "Batch Limit", "type": "integer", "required": false, "default": 5000},
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password_env/role fields -- lets one credential serve this component and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
+    }
   }
 }

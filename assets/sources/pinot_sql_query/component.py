@@ -266,6 +266,17 @@ class PinotSqlQueryComponent(dg.Component, dg.Model, dg.Resolvable):
     request_headers: Optional[Dict[str, str]] = Field(default=None, description="Extra HTTP headers, e.g. a bearer token if Pinot sits behind an authenticating proxy.")
     request_timeout_seconds: int = Field(default=120, description="HTTP request timeout.")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered PinotResourceComponent (resources/pinot_resource). When set, the broker "
+            "URL/auth/headers are read from that resource at run time instead of the inline broker_url/username/"
+            "password_env_var/request_headers/request_timeout_seconds fields -- lets one connection serve this asset "
+            "and other components without configuring it twice. Leave unset to use the inline fields (existing "
+            "behavior, unchanged)."
+        ),
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -376,6 +387,7 @@ class PinotSqlQueryComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         _self = self
+        resource_key = self.resource_key
 
         @dg.asset(
             key=dg.AssetKey.from_user_string(self.asset_name),
@@ -388,19 +400,25 @@ class PinotSqlQueryComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=freshness_policy,
             retry_policy=retry_policy,
             backfill_policy=backfill_policy,
+            required_resource_keys=({resource_key} if resource_key else None),
         )
         def pinot_sql_query_asset(context: dg.AssetExecutionContext) -> pd.DataFrame:
             self = _self
-            import os
-
-            auth = None
-            if self.username:
-                password = os.environ.get(self.password_env_var) if self.password_env_var else None
-                auth = (self.username, password or "")
 
             rendered_query = _substitute_partition(self.query, _partition_vars(context))
-            context.log.info(f"pinot_sql_query: executing against {self.broker_url}")
-            df = _run_pinot_sql(self.broker_url, rendered_query, auth, dict(self.request_headers or {}), self.request_timeout_seconds)
+            if resource_key:
+                context.log.info(f"pinot_sql_query: executing via resource {resource_key!r}")
+                df = getattr(context.resources, resource_key).execute_query(rendered_query)
+            else:
+                import os
+
+                auth = None
+                if self.username:
+                    password = os.environ.get(self.password_env_var) if self.password_env_var else None
+                    auth = (self.username, password or "")
+
+                context.log.info(f"pinot_sql_query: executing against {self.broker_url}")
+                df = _run_pinot_sql(self.broker_url, rendered_query, auth, dict(self.request_headers or {}), self.request_timeout_seconds)
             context.log.info(f"pinot_sql_query: returned {len(df)} rows, {len(df.columns)} columns")
 
             metadata: Dict[str, Any] = {"dagster/row_count": dg.MetadataValue.int(len(df))}

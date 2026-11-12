@@ -133,6 +133,18 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
     warehouse_env_var: Optional[str] = Field(default=None, description="Env var with Snowflake warehouse.")
     role_env_var: Optional[str] = Field(default=None, description="Env var with Snowflake role.")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account_env_var/user_env_var/password_env_var/pat_env_var/private_key_path_env_var/warehouse_env_var/role_env_var "
+            "fields -- lets one credential serve this component and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
+
     group_name: Optional[str] = Field(default="snowflake", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -180,6 +192,8 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
         kinds = set(self.kinds) if self.kinds else set()
         kinds.add("snowflake")
 
+        resource_key = self.resource_key
+
         @asset(
             key=dg.AssetKey(self.asset_key.split("/")),
             description=self.description or (
@@ -191,6 +205,7 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
             owners=self.owners,
             tags=self.asset_tags,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys=({resource_key} if resource_key else None),
         )
         def snowflake_dynamic_table_refresh_asset(context: AssetExecutionContext) -> MaterializeResult:
             try:
@@ -202,8 +217,16 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
                     "pip install snowflake-connector-python"
                 )
 
+            import contextlib
+
             fqn = f"{_self.database}.{_self.schema_name}.{_self.dynamic_table_name}"
-            conn = snowflake.connector.connect(**_self._connection_kwargs())
+            _snow_stack = contextlib.ExitStack()
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                conn = snowflake.connector.connect(**_self._connection_kwargs())
             cursor = conn.cursor()
             try:
                 context.log.info(f"ALTER DYNAMIC TABLE {fqn} REFRESH")
@@ -254,5 +277,6 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
             finally:
                 cursor.close()
                 conn.close()
+                _snow_stack.close()
 
         return Definitions(assets=[snowflake_dynamic_table_refresh_asset])

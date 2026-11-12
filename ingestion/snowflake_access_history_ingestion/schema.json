@@ -193,6 +193,12 @@
       "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password_env/warehouse/role fields -- lets one credential serve this component and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
     }
   }
 }

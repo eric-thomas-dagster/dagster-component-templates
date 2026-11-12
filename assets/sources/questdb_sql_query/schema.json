@@ -56,6 +56,13 @@
       "description": "HTTP request timeout.",
       "required": false
     },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered QuestdbResourceComponent (resources/questdb_resource). When set, the host URL/auth/headers are read from that resource at run time instead of the inline host_url/username/password_env_var/request_headers/request_timeout_seconds fields -- lets one connection serve this asset and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false,
+      "default": null
+    },
     "group_name": {
       "type": "string",
       "label": "Group Name",

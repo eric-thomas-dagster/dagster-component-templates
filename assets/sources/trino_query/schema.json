@@ -298,6 +298,12 @@
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered TrinoResourceComponent (resources/trino_resource). When set, the connection is opened via that resource's get_connection() at run time instead of the inline host/port/user/catalog/schema_name/password_env_var fields -- lets one credential serve this component and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
     }
   }
 }

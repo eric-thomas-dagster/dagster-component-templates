@@ -88,6 +88,17 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
     lookback_minutes: int = Field(default=15, description="How far back to query TELEMETRY each tick.")
     default_status: str = Field(default="running", description="'running' or 'stopped'.")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, "
+            "connection credentials are read from that resource at run time instead of the inline "
+            "account_env_var/user_env_var/password_env_var/etc. fields -- lets one credential serve this sensor and "
+            "other components without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged; also leaves the _connect() demo/test override seam intact)."
+        ),
+    )
+
     def _connection_kwargs(self) -> Dict[str, Any]:
         import os
         kwargs: Dict[str, Any] = {
@@ -124,6 +135,8 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _self = self
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
         default_status = (
             DefaultSensorStatus.RUNNING if self.default_status == "running"
             else DefaultSensorStatus.STOPPED
@@ -134,6 +147,7 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
             minimum_interval_seconds=_self.minimum_interval_seconds,
             default_status=default_status,
             job_name=_self.job_name,
+            required_resource_keys=required_resource_keys,
         )
         def snowflake_openflow_status_sensor(context: SensorEvaluationContext, **_resources):
             try:
@@ -141,9 +155,18 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
             except ImportError:
                 return SensorResult(skip_reason="snowflake-connector-python not installed")
 
+            import contextlib
+
+            _snow_stack = contextlib.ExitStack()
             try:
-                conn = _self._connect()
+                if resource_key:
+                    # Credentials/account/warehouse come from the registered dagster-snowflake
+                    # SnowflakeResource; its get_connection() context manager yields the connection.
+                    conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+                else:
+                    conn = _self._connect()
             except Exception as e:
+                _snow_stack.close()
                 return SensorResult(skip_reason=f"Snowflake connect failed: {e}")
 
             cursor = conn.cursor()
@@ -162,10 +185,12 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
             except Exception as e:
                 cursor.close()
                 conn.close()
+                _snow_stack.close()
                 return SensorResult(skip_reason=f"OpenFlow TELEMETRY query failed: {e}")
 
             cursor.close()
             conn.close()
+            _snow_stack.close()
 
             if not row or row[0] is None:
                 return SensorResult(skip_reason=f"No telemetry for OpenFlow flow {_self.flow_name}")

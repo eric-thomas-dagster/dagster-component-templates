@@ -1,3 +1,4 @@
+import contextlib
 import os
 from typing import Any, Dict, List, Literal, Optional, Union
 
@@ -300,6 +301,17 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     collection_name: str = Field(
         description="ChromaDB collection to get-or-create and upsert documents into."
+    )
+    chroma_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered ChromaResourceComponent (resources/chroma_resource). When "
+            "set, the client comes from that resource's get_client() instead of building a fresh "
+            "chromadb.HttpClient from chroma_host/chroma_port/chroma_api_key_env_var -- lets one "
+            "Chroma connection serve this asset and other components without configuring it twice. "
+            "Leave unset to use the inline chroma_host/chroma_port/chroma_api_key_env_var fields "
+            "(existing behavior, unchanged)."
+        ),
     )
 
     # --- DataFrame column mapping ---------------------------------------------
@@ -616,7 +628,10 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             group_name=component.group_name,
             kinds={"chromadb", "vector"},
             ins=({"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(component.upstream_asset_key))} if component.upstream_asset_key else None),
-            required_resource_keys=({component.source["resource_key"]} if (component.source and component.source.get("resource_key")) else None),
+            required_resource_keys=({
+                *({component.source["resource_key"]} if (component.source and component.source.get("resource_key")) else set()),
+                *({component.chroma_resource_key} if component.chroma_resource_key else set()),
+            } or None),
             freshness_policy=_freshness_policy,
             owners=self.owners or [],
             tags=_all_tags,
@@ -680,7 +695,15 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             # ------------------------------------------------------------------
             # Connect to ChromaDB
             # ------------------------------------------------------------------
-            if component.chroma_api_key_env_var:
+            _chroma_stack = contextlib.ExitStack()
+            if component.chroma_resource_key:
+                context.log.info(
+                    f"[ChromaDB] Using registered resource '{component.chroma_resource_key}' ..."
+                )
+                chroma_client = _chroma_stack.enter_context(
+                    getattr(context.resources, component.chroma_resource_key).get_client()
+                )
+            elif component.chroma_api_key_env_var:
                 chroma_api_key = os.environ.get(component.chroma_api_key_env_var)
                 if not chroma_api_key:
                     raise ValueError(
@@ -719,6 +742,7 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             if df.empty:
                 context.log.warning("[ChromaDB] Upstream DataFrame is empty — nothing to embed.")
+                _chroma_stack.close()
                 return dg.MaterializeResult(
                     metadata={
                         "num_documents": 0,
@@ -800,6 +824,7 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"[ChromaDB] Upsert complete: {total:,} documents in "
                 f"'{component.collection_name}'."
             )
+            _chroma_stack.close()
             return dg.MaterializeResult(
                 metadata={
                     "num_documents": total,

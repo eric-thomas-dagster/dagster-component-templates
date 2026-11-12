@@ -14,6 +14,10 @@ Native vector storage in S3 (GA since December 2025). Requires `vector_bucket_na
 
 `demo_mode` (default `true`) queries a local JSON file instead of a real AWS account -- point `connection_string` at the same path [`VectorStoreWriterComponent`](../vector_store_writer)'s demo mode wrote to (with `demo_mode: true` on both sides) to query what it wrote, with a real brute-force cosine ranking over that file. Set `demo_mode: false` for a real bucket.
 
+## Shared connections (`chroma_resource_key` / `qdrant_resource_key`)
+
+For `provider: chromadb` or `provider: qdrant`, set `chroma_resource_key` (or `qdrant_resource_key`) to the `resource_key` of a registered [`ChromaResourceComponent`](../../../resources/chroma_resource) (or [`QdrantResourceComponent`](../../../resources/qdrant_resource)) to query through that shared connection instead of `connection_string`/`api_key` -- the same resource `vector_store_writer` (or any other component) already points at. Precedence, not an exclusivity rule: set it and it wins, leave it unset and `connection_string`/`api_key` keep working exactly as before. Also honored by `track_retrieval_count`'s write-back. Ignored for every other provider.
+
 **Compatible with:**
 - Embedding Generator (producing query embeddings as array or list)
 - Any asset producing embedding array/list
@@ -129,6 +133,8 @@ Returns a Pandas DataFrame with search results containing:
 |---|---|---|---|
 | `query_text` | `str` | — | Direct query text (alternative to embedding) |
 | `top_k` | `int` | `10` | Number of results |
+| `chroma_resource_key` | `str` | — | Optional key of a registered ChromaResourceComponent (resources/chroma_resource). Only used when provider='chromadb'. When set, the client comes from that resource's get_client() instead of building a fresh chromadb.Pers… _(full docs in schema.json + component README)_ |
+| `qdrant_resource_key` | `str` | — | Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only used when provider='qdrant'. When set, the client comes from that resource's get_client() instead of building a fresh QdrantClient fr… _(full docs in schema.json + component README)_ |
 | `include_distances` | `bool` | `true` | Include similarity distances |
 | `embedding_column` | `Union[str, int]` | `"embedding"` | Column name containing query embeddings in the upstream DataFrame |
 | `query_text_column` | `Union[str, int]` | — | Column with query text to copy into output rows (helps downstream rerankers correlate query+document) |

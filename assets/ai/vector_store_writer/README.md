@@ -14,6 +14,10 @@ Native vector storage in S3 (GA since December 2025) -- no separate vector datab
 
 `demo_mode` (default `true`) is specific to this provider -- it writes to a local JSON file instead of a real AWS account, so you can build and test a pipeline before paying for anything. Point [`VectorStoreQueryComponent`](../vector_store_query)'s `connection_string` at the same path (and set its `demo_mode: true` too) to query what this component wrote in demo mode. Set `demo_mode: false` for a real bucket.
 
+## Shared connections (`chroma_resource_key` / `qdrant_resource_key`)
+
+For `provider: chromadb` or `provider: qdrant`, you can point this writer at a shared connection instead of repeating `connection_string`/`api_key` here: set `chroma_resource_key` (or `qdrant_resource_key`) to the `resource_key` of a registered [`ChromaResourceComponent`](../../../resources/chroma_resource) (or [`QdrantResourceComponent`](../../../resources/qdrant_resource)), and that resource's own client is used instead of building a fresh one. This is precedence, not an exclusivity rule -- set the resource key and it wins; leave it unset and `connection_string`/`api_key` keep working exactly as before. Ignored for every other provider.
+
 ## Ingestion
 
 Two ways to get embeddings in, set exactly one:
@@ -139,6 +143,8 @@ Returns a dictionary with status information:
 | `text_column` | `Union[str, int]` | `"text"` | Column with text |
 | `metadata_columns` | `List[str]` | — | Additional metadata columns |
 | `enabled_column` | `str` | — | Column (bool-like) marking each row enabled/disabled. Written into every vector's own metadata as 'enabled' -- re-running the writer with a changed value updates it in place (upsert), no delete needed. A missing/NaN valu… _(full docs in schema.json + component README)_ |
+| `chroma_resource_key` | `str` | — | Optional key of a registered ChromaResourceComponent (resources/chroma_resource). Only used when provider='chromadb'. When set, the client comes from that resource's get_client() instead of building a fresh chromadb.Pers… _(full docs in schema.json + component README)_ |
+| `qdrant_resource_key` | `str` | — | Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only used when provider='qdrant'. When set, the client comes from that resource's get_client() instead of building a fresh QdrantClient fr… _(full docs in schema.json + component README)_ |
 | `upsert` | `bool` | `true` | Upsert if exists |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include a sample of written rows (text/metadata columns, not the raw embedding vectors) in run metadata. |

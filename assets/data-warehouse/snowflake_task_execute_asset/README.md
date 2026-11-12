@@ -26,6 +26,7 @@ Single-entity counterpart to the multi-entity `snowflake_workspace` component �
 | `password_env_var` | `str` | — | Env var with Snowflake password (or use PAT / key auth). |
 | `warehouse_env_var` | `str` | — | Env var with Snowflake warehouse. |
 | `role_env_var` | `str` | — | Env var with Snowflake role. |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account_env_var/user_env_var/password… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -90,6 +91,11 @@ The sensor watches `TASK_HISTORY` for new SUCCESS rows and emits `AssetMateriali
 | Password | `account_env_var`, `user_env_var`, `password_env_var` |
 | Programmatic Access Token (PAT) | `account_env_var`, `user_env_var`, `pat_env_var` |
 | Keypair (JWT) | `account_env_var`, `user_env_var`, `private_key_path_env_var`, optional `private_key_passphrase_env_var` |
+
+Or skip all of the above and set `resource_key` to the key of a registered
+`SnowflakeResourceComponent` (`resources/snowflake_resource`) — the connection comes from
+that shared resource instead, so one credential can serve this asset and other components
+without configuring it twice.
 
 ## Requirements
 

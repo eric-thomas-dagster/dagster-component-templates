@@ -24,6 +24,7 @@ Plain HTTP+JSON API -- no native Pinot Python client required.
 |---|---|---|---|
 | `username` | `str` | — | Basic auth username, if the broker requires it. |
 | `password_env_var` | `str` | — | Env var holding the basic auth password. |
+| `resource_key` | `str` | — | Optional key of a registered `PinotResourceComponent` (resources/pinot_resource). When set, the broker URL/auth/headers are read from that resource at run time instead of the inline fields -- lets one connection serve this asset and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged). |
 
 ### Catalog metadata
 
@@ -100,6 +101,17 @@ Pinot reports a query error inline in the JSON response body (a non-empty `excep
 ## Authentication
 
 Set `username` + `password_env_var` for HTTP basic auth, or `request_headers` for a bearer token / custom header if the broker sits behind an authenticating proxy.
+
+## Sharing a connection via `pinot_resource`
+
+Set `resource_key` to the key of a registered [`pinot_resource`](../../../resources/pinot_resource/README.md) instead of redeclaring `broker_url`/`username`/`password_env_var` here:
+
+```yaml
+attributes:
+  asset_name: daily_active_users
+  query: "SELECT day, COUNT(DISTINCT user_id) AS dau FROM events GROUP BY day"
+  resource_key: pinot_resource
+```
 
 ## Requirements
 

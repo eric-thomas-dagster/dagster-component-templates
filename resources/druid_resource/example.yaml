@@ -1,0 +1,6 @@
+type: dagster_community_components.DruidResourceComponent
+attributes:
+  resource_key: druid_resource
+  broker_url: http://druid-broker:8082
+  username: admin
+  password_env_var: DRUID_PASSWORD

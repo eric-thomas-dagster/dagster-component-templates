@@ -300,6 +300,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered RedisResourceComponent (resources/redis_resource). When set, connection credentials are read from that resource at run time instead of the inline host/port/password/db/ssl fields -- lets one credential serve this source and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged). Distinct from the per-entry `resource_key` inside `sinks`, which names the resource each downstream warehouse sink writes through.",
+      "required": false
     }
   },
   "tags": [

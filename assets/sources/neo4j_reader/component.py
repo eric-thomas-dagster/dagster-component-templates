@@ -218,6 +218,16 @@ class Neo4jReaderComponent(Component, Model, Resolvable):
         default=None,
         description="Neo4j database name (None = default database)",
     )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered Neo4jResourceComponent (resources/neo4j_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "uri/username/password fields -- lets one credential serve this source and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     deps: Optional[List[str]] = Field(
         default=None,
         description="Upstream asset keys for lineage",
@@ -388,6 +398,7 @@ class Neo4jReaderComponent(Component, Model, Resolvable):
         database = self.database
         deps = self.deps
         group_name = self.group_name
+        resource_key = self.resource_key
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -467,7 +478,7 @@ class Neo4jReaderComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        @asset(retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
             description=self.description or ("Neo4j Cypher query results"),
             partitions_def=partitions_def,
@@ -476,29 +487,35 @@ class Neo4jReaderComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             deps=[AssetKey.from_user_string(d) for d in (deps or [])],
+            required_resource_keys=({resource_key} if resource_key else None),
         )
         def neo4j_reader_asset(context: AssetExecutionContext) -> pd.DataFrame:
             # Log partition key for source components
             if context.has_partition_key:
                 context.log.info(f"Running for partition: {context.partition_key}")
             """Execute Cypher query against Neo4j and return results as DataFrame."""
-            try:
-                from neo4j import GraphDatabase
-            except ImportError:
-                raise ImportError("neo4j required: pip install neo4j")
+            if resource_key:
+                # Credentials/uri come from the registered Neo4jResource; its
+                # get_driver() returns a ready-to-use neo4j Driver.
+                driver = getattr(context.resources, resource_key).get_driver()
+            else:
+                try:
+                    from neo4j import GraphDatabase
+                except ImportError:
+                    raise ImportError("neo4j required: pip install neo4j")
 
-            def _resolve(literal, env_var, name):
-                if literal:
-                    return literal
-                if env_var and env_var in os.environ:
-                    return _require_env(env_var)
-                raise EnvironmentError(f"Set either '{name}' or env var '{env_var}'")
-            uri = _resolve(uri_literal, uri_env_var, "uri")
-            username = _resolve(username_literal, username_env_var, "username")
-            password = _resolve(password_literal, password_env_var, "password")
-            context.log.info(f"Connecting to Neo4j at {uri}")
+                def _resolve(literal, env_var, name):
+                    if literal:
+                        return literal
+                    if env_var and env_var in os.environ:
+                        return _require_env(env_var)
+                    raise EnvironmentError(f"Set either '{name}' or env var '{env_var}'")
+                uri = _resolve(uri_literal, uri_env_var, "uri")
+                username = _resolve(username_literal, username_env_var, "username")
+                password = _resolve(password_literal, password_env_var, "password")
+                context.log.info(f"Connecting to Neo4j at {uri}")
 
-            driver = GraphDatabase.driver(uri, auth=(username, password))
+                driver = GraphDatabase.driver(uri, auth=(username, password))
 
             context.log.info(f"Executing Cypher: {query}")
             with driver.session(database=database) as session:

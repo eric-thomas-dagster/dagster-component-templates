@@ -11,6 +11,43 @@ from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import Field
 
 
+# BEGIN ClickHouse system-table observation helper (inlined per component; keep copies identical
+# with external_clickhouse_table's own copy -- see tests/test_resource_key.py)
+def _observe_via_client(client, database: str, table: str) -> dict:
+    """Query system tables for row count, disk size, active parts, and engine via a
+    clickhouse-connect-shaped client (anything exposing `.command()`). Returns
+    `{'data_version': str, **metadata}`, the same shape the native env-var path has always
+    produced -- shared so a ClickHouseResourceComponent-backed client (get_client() only, no
+    custom .observe()) can be observed the same way the native path is."""
+    row_count = client.command(f"SELECT count() FROM {database}.{table}")
+    size_bytes = client.command(
+        f"SELECT sum(bytes_on_disk) FROM system.parts "
+        f"WHERE database = '{database}' AND table = '{table}' AND active"
+    )
+    last_modified = client.command(
+        f"SELECT max(modification_time) FROM system.parts "
+        f"WHERE database = '{database}' AND table = '{table}' AND active"
+    )
+    parts_count = client.command(
+        f"SELECT count() FROM system.parts "
+        f"WHERE database = '{database}' AND table = '{table}' AND active"
+    )
+    engine = client.command(
+        f"SELECT engine FROM system.tables WHERE database = '{database}' AND name = '{table}'"
+    )
+    return {
+        "data_version": f"{int(row_count or 0)}-{last_modified or ''}",
+        "row_count": dg.MetadataValue.int(int(row_count or 0)),
+        "size_bytes": dg.MetadataValue.int(int(size_bytes or 0)),
+        "active_parts": dg.MetadataValue.int(int(parts_count or 0)),
+        "engine": dg.MetadataValue.text(str(engine or "")),
+        "last_modified": dg.MetadataValue.text(str(last_modified or "")),
+        "database": dg.MetadataValue.text(database),
+        "table": dg.MetadataValue.text(table),
+    }
+# END ClickHouse system-table observation helper
+
+
 class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Emit health observations for an external ClickHouse table.
 
@@ -54,7 +91,15 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
     # Connection via resource
     resource_key: Optional[str] = Field(
         default=None,
-        description="Key of a ClickHouseResource. When set, env var fields are ignored.",
+        description=(
+            "Key of a registered resource. When set, env var fields are ignored. Two resource "
+            "shapes are supported: (1) a custom resource exposing `.observe(source) -> dict` "
+            "(source is 'database.table'), which returns `{'data_version': str, **metadata}` "
+            "verbatim; (2) a registered ClickHouseResourceComponent (resources/clickhouse_resource) "
+            "exposing only `.get_client()` -- its clickhouse-connect client is used to run the same "
+            "system-table queries as the native path below, so one shared credential can back both "
+            "this sensor and other ClickHouse components without configuring it twice."
+        ),
     )
     check_interval_seconds: int = Field(default=300, description="Seconds between observations")
     default_status: str = Field(default="running", description="running or stopped")
@@ -103,10 +148,16 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
                 if resource is None:
                     return SensorResult(skip_reason=f"resource '{_self.resource_key}' not found on context")
                 try:
-                    source = f"{_self.database}.{_self.table}"
-                    observed: dict[str, Any] = dict(resource.observe(source))
+                    if hasattr(resource, "observe"):
+                        source = f"{_self.database}.{_self.table}"
+                        observed: dict[str, Any] = dict(resource.observe(source))
+                    else:
+                        # ClickHouseResourceComponent-style resource (get_client() only, no
+                        # custom .observe()): run the same system-table queries the native
+                        # path below runs, via the shared client.
+                        observed = _observe_via_client(resource.get_client(), _self.database, _self.table)
                 except Exception as e:
-                    context.log.error(f"resource '{_self.resource_key}'.observe failed: {e}")
+                    context.log.error(f"resource '{_self.resource_key}' observation failed: {e}")
                     return SensorResult(skip_reason=f"resource observe failed: {e}")
                 data_version = str(observed.pop("data_version", ""))
                 return SensorResult(asset_events=[_event_cls(
@@ -131,39 +182,15 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
                 secure=(_self.port == 8443),
             )
 
-            db, tbl = _self.database, _self.table
             try:
-                row_count = client.command(f"SELECT count() FROM {db}.{tbl}")
-                size_bytes = client.command(
-                    f"SELECT sum(bytes_on_disk) FROM system.parts "
-                    f"WHERE database = '{db}' AND table = '{tbl}' AND active"
-                )
-                last_modified = client.command(
-                    f"SELECT max(modification_time) FROM system.parts "
-                    f"WHERE database = '{db}' AND table = '{tbl}' AND active"
-                )
-                parts_count = client.command(
-                    f"SELECT count() FROM system.parts "
-                    f"WHERE database = '{db}' AND table = '{tbl}' AND active"
-                )
-                engine = client.command(
-                    f"SELECT engine FROM system.tables WHERE database = '{db}' AND name = '{tbl}'"
-                )
+                observed = _observe_via_client(client, _self.database, _self.table)
             except Exception as e:
                 return SensorResult(skip_reason=f"ClickHouse query error: {e}")
 
-            data_version = f"{int(row_count or 0)}-{last_modified or ''}"
+            data_version = str(observed.pop("data_version", ""))
             observation = _event_cls(
                 asset_key=asset_key,
-                metadata={
-                    "row_count": dg.MetadataValue.int(int(row_count or 0)),
-                    "size_bytes": dg.MetadataValue.int(int(size_bytes or 0)),
-                    "active_parts": dg.MetadataValue.int(int(parts_count or 0)),
-                    "engine": dg.MetadataValue.text(str(engine or "")),
-                    "last_modified": dg.MetadataValue.text(str(last_modified or "")),
-                    "database": dg.MetadataValue.text(db),
-                    "table": dg.MetadataValue.text(tbl),
-                },
+                metadata=observed,
                 tags={DATA_VERSION_TAG: data_version},
             )
             return SensorResult(asset_events=[observation])

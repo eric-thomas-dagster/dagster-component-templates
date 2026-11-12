@@ -424,6 +424,18 @@
       "label": "Knowledge Asset Key",
       "description": "Infers embed_model from this asset's own last materialization metadata (the `embedding_model` key context_engineering_pipeline/vector_store_writer already promote to top-level metadata), so an ad-hoc retrieval test doesn't need to repeat a model name that asset already recorded -- only applied when embed_model is itself unset. Best-effort: silently skipped if the asset has no materialization yet or no such key. Does NOT infer provider/connection_string/collection_name -- those aren't stamped as asset metadata today and must still be set explicitly.",
       "required": false
+    },
+    "chroma_resource_key": {
+      "type": "string",
+      "label": "Chroma Resource Key",
+      "description": "Optional key of a registered ChromaResourceComponent (resources/chroma_resource). Only used when provider='chromadb'. When set, the client comes from that resource's get_client() instead of building a fresh chromadb.PersistentClient from connection_string -- lets one Chroma connection serve this query asset and other components without configuring it twice. Leave unset to use connection_string (existing behavior, unchanged).",
+      "required": false
+    },
+    "qdrant_resource_key": {
+      "type": "string",
+      "label": "Qdrant Resource Key",
+      "description": "Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only used when provider='qdrant'. When set, the client comes from that resource's get_client() instead of building a fresh QdrantClient from connection_string/api_key. Leave unset to use connection_string/api_key (existing behavior, unchanged).",
+      "required": false
     }
   },
   "tags": [

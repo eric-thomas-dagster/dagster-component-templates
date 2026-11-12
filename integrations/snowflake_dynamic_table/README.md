@@ -45,6 +45,7 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 | `private_key_file` | `str` | — | PEM private key file path (for SNOWFLAKE_JWT). |
 | `private_key_file_pwd` | `str` | — | Passphrase for encrypted private_key_file. |
 | `token` | `str` | — | OAuth/PAT token (for PROGRAMMATIC_ACCESS_TOKEN or oauth). |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password/authenticator/p… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -120,6 +121,8 @@ Every connection field (account / user / warehouse / database / schema_name / ro
 | SSO | `authenticator: externalbrowser` (no other auth field) |
 | Keypair (recommended for headless) | `authenticator: SNOWFLAKE_JWT` + `private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"` (+ `private_key_file_pwd` if encrypted) |
 | PAT | `authenticator: PROGRAMMATIC_ACCESS_TOKEN` + `token: "{{ env('SNOWFLAKE_PAT') }}"` |
+
+Alternatively, set `resource_key` to the key of a registered `snowflake_resource` (`SnowflakeResourceComponent`) and skip the inline auth fields above entirely -- the component then opens its connection via that resource's `get_connection()` at materialization time, so one set of credentials can be shared across this and other Snowflake components. `resource_key` wins when set; leaving it unset keeps the inline fields working exactly as before.
 
 See [`schema.json`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_dynamic_table/schema.json) for the full attribute list.
 

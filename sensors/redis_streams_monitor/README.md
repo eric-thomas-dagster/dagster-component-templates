@@ -27,7 +27,7 @@ Redis Streams are ideal for lightweight event-driven pipelines on teams already 
 | `host` | `str` | `"localhost"` | Redis host |
 | `port` | `int` | `6379` | Redis port |
 | `password_env_var` | `str` | — | Name of the environment variable containing the Redis password |
-| `resource_key` | `str` | — | Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface. |
+| `resource_key` | `str` | — | Optional key of a registered RedisResourceComponent (resources/redis_resource). When set, connection credentials are read from that resource at run time instead of the inline host/port/password_env_var/db/use_tls fields… _(full docs in schema.json + component README)_ |
 
 ### Sensor configuration
 
@@ -120,6 +120,21 @@ def process_stream_entry(context: AssetExecutionContext, config: RedisStreamEntr
 import redis
 r = redis.Redis()
 r.xadd("orders:events", {"order_id": "123", "status": "placed", "amount": "99.99"})
+```
+
+## Sharing a connection across components
+
+Instead of the inline `host`/`port`/`password_env_var`/`db`/`use_tls` fields, set
+`resource_key` to the key of a registered `RedisResourceComponent` (`resources/redis_resource`)
+so this sensor shares one set of credentials with other Redis components in the same project:
+
+```yaml
+type: dagster_community_components.RedisStreamsMonitorSensorComponent
+attributes:
+  sensor_name: order_events_sensor
+  stream_name: orders:events
+  job_name: process_order_event
+  resource_key: redis_resource
 ```
 
 ## Cursor Design

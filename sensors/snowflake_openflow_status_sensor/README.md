@@ -4,6 +4,8 @@ Polls `SNOWFLAKE.TELEMETRY.EVENTS` for `openflow_metric` rows on a named flow an
 
 OpenFlow owns the schedule and the runtime; Dagster surfaces flow activity in the catalog by polling Snowflake's telemetry. Pair with `external_snowflake_openflow_flow` so the catalog node + materialization history come from the same `asset_key`.
 
+By default the sensor opens its own `snowflake.connector` connection from the inline `account_env_var`/`user_env_var`/`password_env_var`/etc. fields (and that path stays overridable via `_connect()` for demos/tests). Set `resource_key` instead to read credentials from a registered `SnowflakeResourceComponent` (`resources/snowflake_resource`) at run time, so one credential can serve this sensor and other Snowflake components without configuring it twice.
+
 ## Three operating modes
 
 | `asset_key` | `job_name` | Behavior |
@@ -32,6 +34,7 @@ OpenFlow owns the schedule and the runtime; Dagster surfaces flow activity in th
 | `password_env_var` | `str` | — | Env var with Snowflake password. |
 | `warehouse_env_var` | `str` | — | Env var with Snowflake warehouse. |
 | `role_env_var` | `str` | — | Env var with Snowflake role. |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account_env_var/user_env_var/password… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

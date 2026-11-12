@@ -290,6 +290,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered SapHanaResourceComponent (resources/sap_hana_resource). When set, connection credentials are read from that resource's get_engine() at run time instead of the inline connection_url_env_var/host/port/user/password_env_var fields -- lets one credential serve this component and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
+      "required": false
     }
   },
   "tags": [

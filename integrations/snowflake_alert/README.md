@@ -36,6 +36,8 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 
 ### Connection
 
+By default this component opens its own Snowflake connection from the inline `account`/`user`/`password` (or `authenticator`/`private_key_file`/`token`) fields above. If you've already registered a shared `resources/snowflake_resource` (`SnowflakeResourceComponent`) elsewhere in your project, set `resource_key` instead and this component pulls its connection from that resource at run time — one set of credentials, reused across every Snowflake component in the project, instead of pasting account/user/password into each one.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `warehouse` | `str` | — | — |
@@ -45,6 +47,7 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 | `private_key_file` | `str` | — | PEM private key file path (for SNOWFLAKE_JWT). |
 | `private_key_file_pwd` | `str` | — | Passphrase for encrypted private_key_file. |
 | `token` | `str` | — | OAuth/PAT token (for PROGRAMMATIC_ACCESS_TOKEN or oauth). |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account/user/password/authenticator/p… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -123,6 +126,8 @@ Every connection field (account / user / warehouse / database / schema_name / ro
 | SSO | `authenticator: externalbrowser` (no other auth field) |
 | Keypair (recommended for headless) | `authenticator: SNOWFLAKE_JWT` + `private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"` (+ `private_key_file_pwd` if encrypted) |
 | PAT | `authenticator: PROGRAMMATIC_ACCESS_TOKEN` + `token: "{{ env('SNOWFLAKE_PAT') }}"` |
+
+See the "Connection" section above for the `resource_key` alternative to all of the above.
 
 See [`schema.json`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_alert/schema.json) for the full attribute list.
 

@@ -24,6 +24,7 @@ Plain HTTP+JSON API -- no native Druid Python client required.
 |---|---|---|---|
 | `username` | `str` | — | Basic auth username, if the broker requires it. |
 | `password_env_var` | `str` | — | Env var holding the basic auth password. |
+| `resource_key` | `str` | — | Optional key of a registered `DruidResourceComponent` (resources/druid_resource). When set, the broker URL/auth/headers are read from that resource at run time instead of the inline fields -- lets one connection serve this asset and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged). |
 
 ### Catalog metadata
 
@@ -99,6 +100,17 @@ attributes:
 ## Authentication
 
 Set `username` + `password_env_var` for HTTP basic auth, or `request_headers` for a bearer token / custom header if the broker sits behind an authenticating proxy.
+
+## Sharing a connection via `druid_resource`
+
+Set `resource_key` to the key of a registered [`druid_resource`](../../../resources/druid_resource/README.md) instead of redeclaring `broker_url`/`username`/`password_env_var` here:
+
+```yaml
+attributes:
+  asset_name: daily_pageviews
+  query: "SELECT FLOOR(__time TO DAY) AS day, COUNT(*) AS pageviews FROM pageviews_datasource GROUP BY 1"
+  resource_key: druid_resource
+```
 
 ## Requirements
 

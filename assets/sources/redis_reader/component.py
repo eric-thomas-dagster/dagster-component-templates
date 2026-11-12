@@ -242,6 +242,17 @@ class RedisReaderComponent(Component, Model, Resolvable):
         default=None,
         description="Maximum number of keys to read",
     )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered RedisResourceComponent (resources/redis_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "host/port/password/db/ssl fields -- lets one credential serve this source and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged). Distinct from the per-entry `resource_key` inside `sinks`, which "
+            "names the resource each downstream warehouse sink writes through."
+        ),
+    )
     deps: Optional[List[str]] = Field(
         default=None,
         description="Upstream asset keys for lineage",
@@ -427,6 +438,7 @@ class RedisReaderComponent(Component, Model, Resolvable):
         key_pattern = self.key_pattern
         data_type = self.data_type
         limit = self.limit
+        resource_key = self.resource_key
         deps = self.deps
         group_name = self.group_name
 
@@ -487,6 +499,8 @@ class RedisReaderComponent(Component, Model, Resolvable):
             _rk = _sink.get("resource_key")
             if _rk:
                 required_resource_keys.add(_rk)
+        if resource_key:
+            required_resource_keys.add(resource_key)
 
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
@@ -533,18 +547,23 @@ group_name=group_name,
             if context.has_partition_key:
                 context.log.info(f"Running for partition: {context.partition_key}")
             """Read Redis keys matching pattern and return as DataFrame."""
-            try:
-                import redis as redis_lib
-            except ImportError:
-                raise ImportError("redis required: pip install redis")
+            if resource_key:
+                # Credentials/host/port come from the registered RedisResource;
+                # its get_client() returns a ready-to-use redis.Redis client.
+                r = getattr(context.resources, resource_key).get_client()
+            else:
+                try:
+                    import redis as redis_lib
+                except ImportError:
+                    raise ImportError("redis required: pip install redis")
 
-            r = redis_lib.Redis(
-                host=_require_env(host_env_var),
-                port=port,
-                password=os.environ.get(password_env_var) if password_env_var else None,
-                db=db,
-                ssl=ssl,
-            )
+                r = redis_lib.Redis(
+                    host=_require_env(host_env_var),
+                    port=port,
+                    password=os.environ.get(password_env_var) if password_env_var else None,
+                    db=db,
+                    ssl=ssl,
+                )
 
             context.log.info(f"Fetching Redis keys matching pattern: {key_pattern}")
             keys = r.keys(key_pattern)

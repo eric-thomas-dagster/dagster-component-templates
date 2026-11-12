@@ -43,6 +43,7 @@ There are two ways to pull SAP data into Dagster. Pick based on what your custom
 | `database` | `str` | — | Tenant DB name (multi-tenant only). HANA Cloud: leave empty. |
 | `user` | `str` | — | HANA user. Required if connection_url_env_var unset. |
 | `password_env_var` | `str` | — | Env var holding the user's password. Required if connection_url_env_var unset. |
+| `resource_key` | `str` | — | Optional key of a registered SapHanaResourceComponent (resources/sap_hana_resource). When set, connection credentials are read from that resource's get_engine() at run time instead of the inline connection_url_env_var/ho… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -70,6 +71,8 @@ There are two ways to pull SAP data into Dagster. Pick based on what your custom
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| None |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | ISO start date for time-based partitions |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitions |
 
@@ -143,6 +146,10 @@ attributes:
 ## Driver
 
 This component uses `sqlalchemy-hana` (the open-source SAP-supplied SQLAlchemy dialect) on top of the official `hdbcli` Python driver. Both are PyPI packages — no SAP repository access needed.
+
+## Sharing a connection via `resource_key`
+
+Instead of `connection_url_env_var` or the individual `host`/`port`/`user`/`password_env_var` fields, set `resource_key` to the `resource_key` of a registered [`sap_hana_resource`](../../../resources/sap_hana_resource/) component. The engine then comes from that resource's `get_engine()` at run time, so the same credential can back this component and other HANA components without configuring it twice. Leave `resource_key` unset to keep using the inline connection fields — nothing changes for existing YAML.
 
 ## See also
 

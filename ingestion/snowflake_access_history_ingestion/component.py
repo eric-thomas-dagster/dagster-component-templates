@@ -103,6 +103,17 @@ class SnowflakeAccessHistoryIngestionComponent(dg.Component, dg.Model, dg.Resolv
         description="Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
     )
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account/user/password_env/warehouse/role fields -- lets one credential serve this component and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -154,6 +165,8 @@ class SnowflakeAccessHistoryIngestionComponent(dg.Component, dg.Model, dg.Resolv
         if self.freshness_max_lag_minutes:
             freshness = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
 
+        resource_key = self.resource_key
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull Snowflake access history (every query, every column accessed) from the ACCOUNT_USAGE views.",
@@ -165,16 +178,25 @@ class SnowflakeAccessHistoryIngestionComponent(dg.Component, dg.Model, dg.Resolv
             freshness_policy=freshness,
             retry_policy=retry,
             partitions_def=partitions_def,
+            required_resource_keys=({resource_key} if resource_key else None),
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             df: pd.DataFrame
-            import snowflake.connector
             import datetime as dt
-            conn = snowflake.connector.connect(
-                account=_self.account, user=_self.user,
-                password=_require_env(_self.password_env),
-                warehouse=_self.warehouse, role=_self.role,
-            )
+            import contextlib
+
+            _snow_stack = contextlib.ExitStack()
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                import snowflake.connector
+                conn = snowflake.connector.connect(
+                    account=_self.account, user=_self.user,
+                    password=_require_env(_self.password_env),
+                    warehouse=_self.warehouse, role=_self.role,
+                )
             try:
                 end = dt.datetime.utcnow()
                 start = end - dt.timedelta(hours=_self.lookback_hours)
@@ -194,8 +216,9 @@ class SnowflakeAccessHistoryIngestionComponent(dg.Component, dg.Model, dg.Resolv
                     f"WHERE {time_col} >= TO_TIMESTAMP_LTZ('{start.isoformat()}Z')"
                 )
                 df = pd.read_sql(sql, conn)
-            finally:
+            finally:  # always release the connection, even if the query fails
                 conn.close()
+                _snow_stack.close()
             metadata = {
                 "dagster/row_count": dg.MetadataValue.int(len(df)),
             }

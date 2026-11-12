@@ -44,6 +44,7 @@ Configure via the `asset_key` and `job_name` fields:
 | `password_env_var` | `str` | — | Env var with Snowflake password. |
 | `warehouse_env_var` | `str` | — | Env var with Snowflake warehouse. |
 | `role_env_var` | `str` | — | Env var with Snowflake role. |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account_env_var/user_env_var/password… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -94,6 +95,13 @@ The sensor uses the **most-recent `query_id`** as its cursor. It stops processin
 ## Auth options
 
 Same as `snowflake_task_execute_asset` — password / PAT / keypair via `*_env_var` fields.
+
+Alternatively, set `resource_key` to the key of a registered `SnowflakeResourceComponent`
+(`resources/snowflake_resource`) and skip the inline `account_env_var` / `user_env_var` /
+`password_env_var` / `pat_env_var` / `private_key_path_env_var` / `warehouse_env_var` /
+`role_env_var` fields entirely — the sensor then opens its connection via that resource's
+`get_connection()` at poll time, so one credential can serve this sensor and other Snowflake
+components. Leave `resource_key` unset to keep using the inline fields exactly as before.
 
 ## Requirements
 

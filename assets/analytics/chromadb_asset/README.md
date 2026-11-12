@@ -56,6 +56,8 @@ In a RAG or semantic-search pipeline:
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -78,6 +80,7 @@ In a RAG or semantic-search pipeline:
 | `chroma_host` | `str` | `"localhost"` | Hostname of the ChromaDB server. Set to the Chroma Cloud endpoint when using Chroma Cloud. |
 | `chroma_port` | `int` | `8000` | Port of the ChromaDB HTTP server. |
 | `chroma_api_key_env_var` | `str` | — | Env var containing the Chroma Cloud API key. When set, an authenticated ``chromadb.HttpClient`` is used; otherwise the client connects unauthenticated. |
+| `chroma_resource_key` | `str` | — | Optional key of a registered ChromaResourceComponent (resources/chroma_resource). When set, the client comes from that resource's get_client() instead of building a fresh chromadb.HttpClient from chroma_host/chroma_port/… _(full docs in schema.json + component README)_ |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Asset key of the upstream asset providing a pandas DataFrame with document text and optional metadata columns. |
 | `metadata_columns` | `list[str]` | — | Additional columns to store as ChromaDB document metadata. Useful for metadata-filtered similarity searches. |
@@ -130,6 +133,10 @@ chroma_host: api.trychroma.com
 chroma_port: 443
 chroma_api_key_env_var: CHROMA_API_KEY
 ```
+
+## Shared connection (`chroma_resource_key`)
+
+Set `chroma_resource_key` to the `resource_key` of a registered [`ChromaResourceComponent`](../../../resources/chroma_resource) to use that shared connection instead of `chroma_host`/`chroma_port`/`chroma_api_key_env_var` -- the same resource `vector_store_writer`/`vector_store_query` (or any other component) can also point at, so one Chroma connection serves them all. Precedence, not an exclusivity rule: set it and it wins; leave it unset and `chroma_host`/`chroma_port`/`chroma_api_key_env_var` keep working exactly as before.
 
 ## Metadata Filtering
 

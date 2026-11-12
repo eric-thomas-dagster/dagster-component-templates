@@ -333,6 +333,12 @@
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
       "required": false,
       "default": null
+    },
+    "chroma_resource_key": {
+      "type": "string",
+      "label": "Chroma Resource Key",
+      "description": "Optional key of a registered ChromaResourceComponent (resources/chroma_resource). When set, the client comes from that resource's get_client() instead of building a fresh chromadb.HttpClient from chroma_host/chroma_port/chroma_api_key_env_var -- lets one Chroma connection serve this asset and other components without configuring it twice. Leave unset to use the inline chroma_host/chroma_port/chroma_api_key_env_var fields (existing behavior, unchanged).",
+      "required": false
     }
   },
   "tags": [

@@ -666,6 +666,12 @@
       "label": "Max Rows Per Resource",
       "description": "Caps how many rows each resource loads. Unset (default): no cap. This still loads real rows into the real destination -- it is not a dry run or a preview -- meant for a first run to check a connection and the shape of the data cheaply, not for routine use. Never applied unless you set it.",
       "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered MongoDBResourceComponent (resources/mongodb_resource). When set, connection credentials are read from that resource at run time instead of the inline connection_url field -- lets one credential serve this ingestion component and other components without configuring it twice. Leave unset to use connection_url (existing behavior, unchanged).",
+      "required": false
     }
   },
   "tags": [

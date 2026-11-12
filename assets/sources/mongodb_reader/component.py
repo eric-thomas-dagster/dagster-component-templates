@@ -217,6 +217,16 @@ class MongodbReaderComponent(Component, Model, Resolvable):
         default="MONGODB_URI",
         description="Env var with the MongoDB connection string. Set this OR connection_string.",
     )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered MongoDBResourceComponent (resources/mongodb_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "connection_string/connection_string_env_var -- lets one credential serve this source and other "
+            "components without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     database: str = Field(description="MongoDB database name")
     collection: str = Field(description="MongoDB collection name")
     query: Optional[dict] = Field(
@@ -401,6 +411,7 @@ class MongodbReaderComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         connection_string_literal = self.connection_string
         connection_string_env_var = self.connection_string_env_var
+        resource_key = self.resource_key
         database = self.database
         collection = self.collection
         query = self.query
@@ -489,7 +500,7 @@ class MongodbReaderComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        @asset(retry_policy=_retry_policy, required_resource_keys=({resource_key} if resource_key else None),
             key=AssetKey.from_user_string(asset_name),
             description=self.description or (f"MongoDB reader for {database}.{collection}"),
             partitions_def=partitions_def,
@@ -504,18 +515,21 @@ group_name=group_name,
             if context.has_partition_key:
                 context.log.info(f"Running for partition: {context.partition_key}")
             """Read documents from MongoDB collection and return as DataFrame."""
-            try:
-                from pymongo import MongoClient
-            except ImportError:
-                raise ImportError("pymongo required: pip install pymongo")
-
-            if connection_string_literal:
-                conn = connection_string_literal
-            elif connection_string_env_var and connection_string_env_var in os.environ:
-                conn = _require_env(connection_string_env_var)
+            if resource_key:
+                client = getattr(context.resources, resource_key).get_client()
             else:
-                raise EnvironmentError(f"Set either 'connection_string' or env var '{connection_string_env_var}'")
-            client = MongoClient(conn)
+                try:
+                    from pymongo import MongoClient
+                except ImportError:
+                    raise ImportError("pymongo required: pip install pymongo")
+
+                if connection_string_literal:
+                    conn = connection_string_literal
+                elif connection_string_env_var and connection_string_env_var in os.environ:
+                    conn = _require_env(connection_string_env_var)
+                else:
+                    raise EnvironmentError(f"Set either 'connection_string' or env var '{connection_string_env_var}'")
+                client = MongoClient(conn)
             db = client[database]
             coll = db[collection]
 

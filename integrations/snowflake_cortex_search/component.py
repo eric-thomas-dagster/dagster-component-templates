@@ -77,6 +77,17 @@ class SnowflakeCortexSearchComponent(Component, Model, Resolvable):
     private_key_file_pwd: Optional[str] = Field(default=None)
     token: Optional[str] = Field(default=None)
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account/user/password/authenticator fields -- lets one credential serve this component and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
+
     # ── Cortex Search ──
     service_name: str = Field(
         description="Name of the Cortex Search Service to query. Unqualified — gets resolved to `database.schema_name.service_name`.",
@@ -169,8 +180,11 @@ class SnowflakeCortexSearchComponent(Component, Model, Resolvable):
         for k in kinds:
             tags[f"dagster/kind/{k}"] = ""
 
+        resource_key = self.resource_key
+
         @asset(
             retry_policy=_retry_policy,
+            required_resource_keys=({resource_key} if resource_key else None),
             key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
@@ -183,7 +197,14 @@ class SnowflakeCortexSearchComponent(Component, Model, Resolvable):
             import json
             sql = self._build_search_sql()
             context.log.info(f"Executing Cortex Search:\n{sql}")
-            conn = self._connect()
+            import contextlib
+            _snow_stack = contextlib.ExitStack()
+            if resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                conn = self._connect()
             results: List[Dict[str, Any]] = []
             try:
                 cur = conn.cursor()
@@ -199,6 +220,7 @@ class SnowflakeCortexSearchComponent(Component, Model, Resolvable):
                 cur.close()
             finally:
                 conn.close()
+                _snow_stack.close()
             preview = "\n".join(
                 f"- {json.dumps(r, default=str)[:200]}" for r in results[:5]
             ) or "(no results)"

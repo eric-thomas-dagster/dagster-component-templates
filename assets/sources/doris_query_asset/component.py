@@ -111,6 +111,17 @@ class DorisQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered DorisResourceComponent (resources/doris_resource). When set, the "
+            "query runs against that resource's SQLAlchemy engine at run time instead of the inline "
+            "host_env_var/query_port/database/username_env_var/password_env_var/connection_string_env_var "
+            "fields -- lets one credential serve this asset and other components without configuring it "
+            "twice. Leave unset to use the inline fields (existing behavior, unchanged)."
+        ),
+    )
+
     chunksize: Optional[int] = Field(
         default=None,
         ge=1,
@@ -227,6 +238,7 @@ class DorisQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(partitions_def=partitions_def,
+            required_resource_keys=({_self.resource_key} if _self.resource_key else None),
             key=dg.AssetKey.from_user_string(_self.asset_name),
             group_name=_self.group_name,
             kinds=kinds,
@@ -237,29 +249,33 @@ class DorisQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             backfill_policy=backfill_policy,
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            try:
-                from sqlalchemy import create_engine
-            except ImportError:
-                raise ImportError("doris_query_asset requires `sqlalchemy>=2.0`: pip install sqlalchemy pymysql")
-
-            if _self.connection_string_env_var and os.environ.get(_self.connection_string_env_var):
-                conn_str = _require_env(_self.connection_string_env_var)
+            if _self.resource_key:
+                # Shared DorisResource already exposes a ready-made SQLAlchemy engine.
+                engine = getattr(context.resources, _self.resource_key).get_engine()
             else:
-                host = os.environ.get(_self.host_env_var or "", "")
-                user = os.environ.get(_self.username_env_var or "", "")
-                pw = os.environ.get(_self.password_env_var or "", "")
-                if not host or not user:
-                    raise RuntimeError(
-                        f"Doris connection missing: set {_self.connection_string_env_var or _self.host_env_var} "
-                        f"+ {_self.username_env_var} (+ password)."
-                    )
-                import urllib.parse
-                pw_q = urllib.parse.quote_plus(pw)
-                conn_str = f"mysql+pymysql://{user}:{pw_q}@{host}:{_self.query_port}/{_self.database or ''}"
-                if _self.ssl:
-                    conn_str += "?ssl=true"
+                try:
+                    from sqlalchemy import create_engine
+                except ImportError:
+                    raise ImportError("doris_query_asset requires `sqlalchemy>=2.0`: pip install sqlalchemy pymysql")
 
-            engine = create_engine(conn_str)
+                if _self.connection_string_env_var and os.environ.get(_self.connection_string_env_var):
+                    conn_str = _require_env(_self.connection_string_env_var)
+                else:
+                    host = os.environ.get(_self.host_env_var or "", "")
+                    user = os.environ.get(_self.username_env_var or "", "")
+                    pw = os.environ.get(_self.password_env_var or "", "")
+                    if not host or not user:
+                        raise RuntimeError(
+                            f"Doris connection missing: set {_self.connection_string_env_var or _self.host_env_var} "
+                            f"+ {_self.username_env_var} (+ password)."
+                        )
+                    import urllib.parse
+                    pw_q = urllib.parse.quote_plus(pw)
+                    conn_str = f"mysql+pymysql://{user}:{pw_q}@{host}:{_self.query_port}/{_self.database or ''}"
+                    if _self.ssl:
+                        conn_str += "?ssl=true"
+
+                engine = create_engine(conn_str)
             context.log.info(f"Executing Doris query against {engine.url.host}:{engine.url.port}")
             df = pd.read_sql(_substitute_partition(_self.query, _partition_vars(context)), engine, chunksize=_self.chunksize)
             if _self.chunksize:

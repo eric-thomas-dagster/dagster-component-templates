@@ -68,6 +68,7 @@ class RedisStreamObservationSensorComponent(dg.Component, dg.Model, dg.Resolvabl
                     metadata=_rk_observed,
                     tags={DATA_VERSION_TAG: _rk_dv} if _rk_dv else None,
                 )])
+            # resource_key handled above with an early return; this is the inline-config path.
             try:
                 import redis as redis_lib
             except ImportError:
@@ -77,11 +78,8 @@ class RedisStreamObservationSensorComponent(dg.Component, dg.Model, dg.Resolvabl
             password = os.environ.get(_self.password_env_var) if _self.password_env_var else None
 
             try:
-                if resource_key:
-                    r = getattr(context.resources, resource_key)
-                else:
-                    r = redis_lib.Redis(host=_self.host, port=_self.port, db=_self.db,
-                                        password=password, decode_responses=True)
+                r = redis_lib.Redis(host=_self.host, port=_self.port, db=_self.db,
+                                    password=password, decode_responses=True)
             except Exception as e:
                 return SensorResult(skip_reason=f"Connect failed: {e}")
 

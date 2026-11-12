@@ -22294,6 +22294,52 @@
       }
     },
     {
+      "id": "druid_resource",
+      "name": "Druid Resource",
+      "category": "resource",
+      "description": "Register an Apache Druid broker SQL HTTP API resource for use by other components",
+      "path": "resources/druid_resource",
+      "tags": [
+        "resource",
+        "druid",
+        "sql",
+        "olap",
+        "real-time"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/druid_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/druid_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/druid_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/druid_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/druid_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "component_type": "dagster_community_components.DruidResourceComponent",
+      "icon": "si:apachedruid",
+      "x-dagster-provides": [
+        "druid_resource"
+      ],
+      "vendor": "Apache Druid",
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register an Apache Druid broker SQL HTTP API resource (query_url + execute_query(sql)) for use by other components",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "connection",
+        "connect"
+      ]
+    },
+    {
       "id": "druid_sql_query",
       "name": "Druid SQL Query",
       "category": "source",
@@ -49627,6 +49673,54 @@
       ]
     },
     {
+      "id": "pinot_resource",
+      "name": "Pinot Resource",
+      "category": "resource",
+      "description": "Register an Apache Pinot broker SQL HTTP API resource for use by other components",
+      "path": "resources/pinot_resource",
+      "tags": [
+        "resource",
+        "pinot",
+        "sql",
+        "olap",
+        "real-time"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pinot_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pinot_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pinot_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pinot_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pinot_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
+      },
+      "component_type": "dagster_community_components.PinotResourceComponent",
+      "icon": "si:apachepinot",
+      "x-dagster-provides": [
+        "pinot_resource"
+      ],
+      "vendor": "Apache Pinot",
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register an Apache Pinot broker SQL HTTP API resource (query_url + execute_query(sql) -> DataFrame) for use by other components",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "keywords": [
+        "connection",
+        "connect"
+      ]
+    },
+    {
       "id": "pinot_sql_query",
       "name": "Pinot SQL Query",
       "category": "source",
@@ -53177,6 +53271,54 @@
           "tabulate>=0.9.0"
         ]
       }
+    },
+    {
+      "id": "questdb_resource",
+      "name": "QuestDB Resource",
+      "category": "resource",
+      "description": "Register a QuestDB HTTP REST API resource for use by other components",
+      "path": "resources/questdb_resource",
+      "tags": [
+        "resource",
+        "questdb",
+        "sql",
+        "time-series",
+        "real-time"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/questdb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/questdb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/questdb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/questdb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/questdb_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
+      },
+      "component_type": "dagster_community_components.QuestdbResourceComponent",
+      "icon": "si:questdb",
+      "x-dagster-provides": [
+        "questdb_resource"
+      ],
+      "vendor": "QuestDB",
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register a QuestDB HTTP REST API resource (query_url + execute_query(sql) -> DataFrame) for use by other components",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "keywords": [
+        "connection",
+        "connect"
+      ]
     },
     {
       "id": "questdb_sql_query",
@@ -72471,5 +72613,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1392
+  "total": 1395
 }

@@ -1,6 +1,8 @@
 """build_defs: always registers the KnowledgeSearchResource + an inspection asset tagged
 dagster-community/knowledge-search; mcp_server_resource_key additionally registers a
 stdio MCP-server-shaped resource built from this component's own settings."""
+import sys
+
 import dagster as dg
 import pytest
 
@@ -66,7 +68,7 @@ def test_mcp_server_resource_key_registers_stdio_mcp_shaped_resource(mod):
     cfg = defs.resources["ks_mcp"].model_dump()
     assert cfg["name"] == "ks_mcp"
     assert cfg["type"] == "stdio"
-    assert cfg["command"][:2] == ["python", "-m"]
+    assert cfg["command"][:2] == [sys.executable, "-m"]
     assert cfg["command"][2] == mod.__spec__.name
     assert cfg["env"]["KNOWLEDGE_SEARCH_PROVIDER"] == "chromadb"
     assert cfg["env"]["KNOWLEDGE_SEARCH_COLLECTION_NAME"] == "kb"

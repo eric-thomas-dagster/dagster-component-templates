@@ -305,12 +305,19 @@ class _McpServerShapeResource(dg.ConfigurableResource):
     already expects, since none of them import MCPServerResource either, they just call
     `.model_dump()`).
 
-    `env`'s DAGSTER_HOME is deliberately NOT baked in at construction time (`build_defs`
-    runs once, at code-location load) -- it's read fresh from the environment every time
-    `model_dump()` is actually called instead, which happens at run time (when a
-    consuming component resolves this resource to make the actual MCP connection). This
-    matters because DAGSTER_HOME can differ between when a code location loads and when
-    a run later executes."""
+    `env`'s DAGSTER_HOME (and any `live_env_passthrough` names) is deliberately NOT baked
+    in at construction time (`build_defs` runs once, at code-location load) -- it's read
+    fresh from the environment every time `model_dump()` is actually called instead,
+    which happens at run time (when a consuming component resolves this resource to make
+    the actual MCP connection). This matters because DAGSTER_HOME (and anything else
+    listed) can differ between when a code location loads and when a run later executes.
+
+    MCP's stdio client does NOT inherit the rest of the spawning process's environment
+    (only a small, Dagster-unaware safe-list) -- so DAGSTER_HOME alone isn't always
+    enough: a Dagster+ agent's own instance config commonly also needs
+    DAGSTER_CLOUD_AGENT_LABEL (or other DAGSTER_CLOUD_* vars) to resolve its instance
+    class, and the spawned server crashes at startup without them. `live_env_passthrough`
+    (set from the component's own `mcp_extra_env_vars` field) is how a user adds those."""
 
     name: str
     type: Literal["http", "sse", "stdio"] = "stdio"
@@ -319,14 +326,17 @@ class _McpServerShapeResource(dg.ConfigurableResource):
     env: Optional[Dict[str, str]] = None
     headers: Optional[Dict[str, str]] = None
     headers_env: Optional[Dict[str, str]] = None
+    live_env_passthrough: Optional[List[str]] = None
 
     def model_dump(self, *args, **kwargs):
         dumped = super().model_dump(*args, **kwargs)
-        if dumped.get("type") == "stdio":
+        passthrough = dumped.pop("live_env_passthrough", None)
+        if dumped.get("type") == "stdio" and passthrough:
             env = dict(dumped.get("env") or {})
-            dagster_home = os.environ.get("DAGSTER_HOME")
-            if dagster_home:
-                env["DAGSTER_HOME"] = dagster_home
+            for var_name in passthrough:
+                value = os.environ.get(var_name)
+                if value:
+                    env[var_name] = value
             dumped["env"] = env
         return dumped
 
@@ -366,19 +376,34 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/"
             "env shape as MCPServerResource) under this key, built from this component's own "
             "settings -- python -m this module, with the DAGSTER_WORKFLOW_TOOLS_* env vars set "
-            "from definitions_module/allow/allow_assets/allow_jobs/default_tags. DAGSTER_HOME is "
-            "read fresh from the environment at run time (when a consumer actually resolves this "
-            "resource), not baked in at component load. Any mcp_servers-aware component "
-            "(mcp_tool_call, mcp_tool_picker, the agent components, agentic_pipeline) can then "
-            "reference it via server_resource_key instead of hand-writing an inline command+env "
-            "entry. Leave unset to skip this -- existing resource_key-only behavior is unchanged."
+            "from definitions_module/allow/allow_assets/allow_jobs/default_tags. DAGSTER_HOME (and "
+            "anything listed in mcp_extra_env_vars) is read fresh from the environment at run time "
+            "(when a consumer actually resolves this resource), not baked in at component load. "
+            "Any mcp_servers-aware component (mcp_tool_call, mcp_tool_picker, the agent components, "
+            "agentic_pipeline) can then reference it via server_resource_key instead of "
+            "hand-writing an inline command+env entry. Leave unset to skip this -- existing "
+            "resource_key-only behavior is unchanged."
+        ),
+    )
+    mcp_extra_env_vars: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "mcp_server_resource_key only. Extra env var NAMES to copy (their current value, read "
+            "fresh every time a consumer resolves the resource -- same run-time timing as "
+            "DAGSTER_HOME) from this process into the spawned MCP server's env. MCP's stdio client "
+            "does not inherit the rest of the environment, so anything your Dagster instance's own "
+            "config needs beyond DAGSTER_HOME -- e.g. a Dagster+ agent's DAGSTER_CLOUD_AGENT_LABEL "
+            "-- must be listed here, or the spawned server crashes at startup trying to resolve its "
+            "instance. Note: a Dagster+ agent's own DAGSTER_HOME is its own agent process's home, "
+            "not necessarily where you want triggered runs to land -- decide which instance this "
+            "server should actually launch runs through before pointing it at an agent's env."
         ),
     )
 
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=("allow", "allow_assets", "allow_jobs"), csv=(), tags=("default_tags",))
+        return coerce_field_shapes(data, lists=("allow", "allow_assets", "allow_jobs", "mcp_extra_env_vars"), csv=(), tags=("default_tags",))
 
     @classmethod
     def get_form_config(cls):
@@ -405,10 +430,10 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         resources: Dict[str, Any] = {self.resource_key: res}
 
         if self.mcp_server_resource_key:
-            # DAGSTER_HOME is deliberately NOT read here (component-load time) -- see
-            # _McpServerShapeResource.model_dump(), which reads it fresh at run time
-            # instead. Everything else here IS this component's own config, legitimately
-            # fixed at build time.
+            # DAGSTER_HOME (and mcp_extra_env_vars) are deliberately NOT read here
+            # (component-load time) -- see _McpServerShapeResource.model_dump(), which
+            # reads them fresh at run time instead. Everything else here IS this
+            # component's own config, legitimately fixed at build time.
             mcp_env = {
                 "DAGSTER_WORKFLOW_TOOLS_DEFINITIONS_MODULE": definitions_module,
             }
@@ -420,11 +445,16 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["DAGSTER_WORKFLOW_TOOLS_ALLOW_JOBS"] = ",".join(allow_jobs)
             if default_tags:
                 mcp_env["DAGSTER_WORKFLOW_TOOLS_DEFAULT_TAGS"] = json.dumps(default_tags)
+            # sys.executable, not a bare "python" -- a bare "python" resolves via PATH at
+            # spawn time, which can land on a different interpreter/virtualenv than the
+            # one this code location is actually running under (confirmed by a real
+            # deployment: "python" resolved to a venv without this package installed).
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key,
                 type="stdio",
-                command=["python", "-m", _this_module_name()],
+                command=[sys.executable, "-m", _this_module_name()],
                 env=mcp_env,
+                live_env_passthrough=["DAGSTER_HOME", *(self.mcp_extra_env_vars or [])],
             )
 
         return dg.Definitions(resources=resources)

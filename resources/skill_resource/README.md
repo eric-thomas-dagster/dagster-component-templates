@@ -72,7 +72,7 @@ Point `git_path` (under `git_url`) or `local_path` at a directory that **contain
 multiple skill subfolders** -- e.g. a clone of
 [`anthropics/skills`](https://github.com/anthropics/skills), which has ~19 skills as
 top-level folders -- and every immediate subfolder with a `SKILL.md` is registered as its
-own resource, keyed by its folder name:
+own resource, keyed by its **sanitized** folder name:
 
 ```yaml
 type: dagster_community_components.SkillResourceComponent
@@ -85,7 +85,19 @@ attributes:
 This registers one resource per skill (`pdf`, `docx`, `xlsx`, `pptx`, ...), so
 `skill_keys: [pdf]` works directly in any skill-aware agent component -- without a
 separate `SkillResourceComponent` instance (and a separate line in the Resources UI) per
-skill. `include`/`exclude` filter by folder name (`exclude` applied after `include`); a
+skill.
+
+**Agents list and reference skills by the sanitized key, not the raw folder name.** Any
+run of characters outside `[A-Za-z0-9_]` becomes a single `_` (a folder named
+`web-artifacts-builder` is keyed `web_artifacts_builder`), and a leading digit gets a `_`
+prefix (`3d-models` -> `_3d_models`) -- Dagster resource keys must already be shaped like
+valid identifiers, which a skill's own folder name isn't guaranteed to be. Two folders
+that sanitize to the same key raise a clear error naming both (rename one, or drop it via
+`include`/`exclude`); a folder name with nothing sanitizable in it at all (no
+`[A-Za-z0-9_]` characters) logs a warning and is skipped rather than taking down the
+whole collection.
+
+`include`/`exclude` filter by the *raw* folder name (`exclude` applied after `include`); a
 subfolder with no `SKILL.md` at all is silently skipped as "not a skill folder" either
 way. `name`/`description`/`url` aren't per-folder, so they're rejected with
 `mode="collection"` (each folder's own front matter is the only source for those).  A

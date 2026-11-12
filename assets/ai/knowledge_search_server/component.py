@@ -321,7 +321,7 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key,
                 type="stdio",
-                command=["python", "-m", _this_module_name()],
+                command=[sys.executable, "-m", _this_module_name()],
                 env=mcp_env,
             )
 

@@ -2,6 +2,7 @@
 from this component's own settings, so any mcp_servers-aware component can reference this
 toolset via server_resource_key instead of hand-writing an inline stdio command+env entry."""
 import json
+import sys
 
 import pytest
 
@@ -52,7 +53,7 @@ def test_mcp_server_resource_key_registers_stdio_mcp_shaped_resource(mod, instan
     cfg = mcp_resource.model_dump()
     assert cfg["name"] == "wf_mcp"
     assert cfg["type"] == "stdio"
-    assert cfg["command"][:2] == ["python", "-m"]
+    assert cfg["command"][:2] == [sys.executable, "-m"]
     assert cfg["command"][2] == mod.__spec__.name  # the real importable module path in this process
     assert cfg["env"]["DAGSTER_HOME"] == instance.root_directory
     assert cfg["env"]["DAGSTER_WORKFLOW_TOOLS_DEFINITIONS_MODULE"] == defs_module_spec
@@ -95,3 +96,42 @@ def test_main_reads_default_tags_from_env(mod, instance, defs_module_spec, monke
     monkeypatch.setattr(mod, "build_mcp_server", fake_build_mcp_server)
     mod.main()
     assert captured["tools"].default_tags == {"triggered_by": "support-agent"}
+
+
+def test_mcp_extra_env_vars_copied_fresh_at_model_dump_time(mod, instance, defs_module_spec, monkeypatch):
+    """A Dagster+ agent's instance config commonly needs more than DAGSTER_HOME (e.g.
+    DAGSTER_CLOUD_AGENT_LABEL) -- mcp_extra_env_vars names extra vars to forward, read
+    fresh every time model_dump() is called, same as DAGSTER_HOME itself."""
+    monkeypatch.setenv("DAGSTER_HOME", instance.root_directory)
+    monkeypatch.delenv("DAGSTER_CLOUD_AGENT_LABEL", raising=False)
+    component = mod.DagsterWorkflowToolsComponent(
+        resource_key="wf_tools", definitions_module=defs_module_spec, mcp_server_resource_key="wf_mcp",
+        mcp_extra_env_vars=["DAGSTER_CLOUD_AGENT_LABEL"],
+    )
+    resource = component.build_defs(None).resources["wf_mcp"]
+    assert "DAGSTER_CLOUD_AGENT_LABEL" not in resource.model_dump()["env"]
+
+    monkeypatch.setenv("DAGSTER_CLOUD_AGENT_LABEL", "my-agent")
+    cfg = resource.model_dump()
+    assert cfg["env"]["DAGSTER_CLOUD_AGENT_LABEL"] == "my-agent"
+    assert cfg["env"]["DAGSTER_HOME"] == instance.root_directory
+
+
+def test_mcp_extra_env_vars_csv_string_coerced_to_list(mod, instance, defs_module_spec, monkeypatch):
+    monkeypatch.setenv("DAGSTER_HOME", instance.root_directory)
+    monkeypatch.setenv("FOO", "bar")
+    component = mod.DagsterWorkflowToolsComponent(
+        resource_key="wf_tools", definitions_module=defs_module_spec, mcp_server_resource_key="wf_mcp",
+        mcp_extra_env_vars="FOO",
+    )
+    cfg = component.build_defs(None).resources["wf_mcp"].model_dump()
+    assert cfg["env"]["FOO"] == "bar"
+
+
+def test_live_env_passthrough_field_not_leaked_into_model_dump_output(mod, instance, defs_module_spec, monkeypatch):
+    monkeypatch.setenv("DAGSTER_HOME", instance.root_directory)
+    component = mod.DagsterWorkflowToolsComponent(
+        resource_key="wf_tools", definitions_module=defs_module_spec, mcp_server_resource_key="wf_mcp",
+    )
+    cfg = component.build_defs(None).resources["wf_mcp"].model_dump()
+    assert "live_env_passthrough" not in cfg

@@ -4,6 +4,8 @@ mcp_servers-aware component can reference this OpenAPI spec via server_resource_
 instead of hand-writing an inline command+env entry. Constructing OpenApiMcpServerResource
 itself never imports fastmcp (only build_server() does, lazily), so these tests don't
 need fastmcp installed."""
+import sys
+
 import pytest
 
 from .conftest import SAMPLE_SPEC, load_component_module
@@ -45,7 +47,7 @@ def test_mcp_server_resource_key_registers_stdio_mcp_shaped_resource(mod):
     cfg = defs.resources["petstore_mcp_key"].model_dump()
     assert cfg["name"] == "petstore_mcp_key"
     assert cfg["type"] == "stdio"
-    assert cfg["command"][:2] == ["python", "-m"]
+    assert cfg["command"][:2] == [sys.executable, "-m"]
     assert cfg["command"][2] == mod.__spec__.name
     assert cfg["env"]["OPENAPI_TOOL_SERVER_SPEC_URL"] == "http://fake-spec"
     assert cfg["env"]["OPENAPI_TOOL_SERVER_SERVER_NAME"] == "Petstore"

@@ -23,6 +23,7 @@ anthropics/skills' ~19 skills) instead of needing one component instance per ski
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -228,6 +229,19 @@ def _read_skill_md_or_none(folder: Path) -> Optional[str]:
     return skill_md.read_text() if skill_md.is_file() else None
 
 
+def _sanitize_skill_key(folder_name: str) -> str:
+    """mode='collection' registers each skill under its folder name as a Dagster
+    resource_key -- but a folder name (e.g. 'web-artifacts-builder', with hyphens, or one
+    starting with a digit) isn't guaranteed to already be a valid resource_key shape.
+    Replaces any run of characters outside [A-Za-z0-9_] with a single '_', and prefixes
+    '_' if the result would start with a digit (so agents list this skill by the
+    sanitized key, e.g. 'web_artifacts_builder', not the raw folder name)."""
+    key = re.sub(r"[^A-Za-z0-9_]+", "_", folder_name)
+    if key and key[0].isdigit():
+        key = f"_{key}"
+    return key
+
+
 class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a skill (or, with `mode="collection"`, every skill in a repo/directory at
     once) for use by the MCP-aware agent components (litellm_agent/openai_agent/
@@ -268,12 +282,19 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     `local_path`) at a directory that CONTAINS multiple skill subfolders (e.g. a clone of
     `anthropics/skills`, which has ~19 skills as top-level folders) and every immediate
     subfolder containing a `SKILL.md` is registered as its own resource, keyed by its
-    folder name -- so `skill_keys: [pdf]` works directly, without a separate
-    `SkillResourceComponent` instance per skill. `name`/`description`/`url` aren't
-    per-folder, so they aren't usable with `mode="collection"`; `include`/`exclude` filter
-    by folder name (a subfolder with no `SKILL.md` at all is silently skipped as "not a
-    skill folder" either way; one that HAS a `SKILL.md` but no description is a real
-    config problem and still fails loudly, naming that folder).
+    *sanitized* folder name -- any run of characters outside `[A-Za-z0-9_]` becomes a
+    single `_` (e.g. a folder named `web-artifacts-builder` is keyed
+    `web_artifacts_builder`; a leading digit gets a `_` prefix) -- so `skill_keys:
+    [web_artifacts_builder]` works directly, without a separate `SkillResourceComponent`
+    instance per skill. Agents list and reference skills by this *sanitized* key, not the
+    raw folder name. Two folders that sanitize to the same key raise a clear error naming
+    both; a folder name with no `[A-Za-z0-9_]` characters at all (nothing to sanitize)
+    logs a warning and is skipped rather than taking down the whole collection.
+    `name`/`description`/`url` aren't per-folder, so they aren't usable with
+    `mode="collection"`; `include`/`exclude` filter by the raw folder name (a subfolder
+    with no `SKILL.md` at all is silently skipped as "not a skill folder" either way; one
+    that HAS a `SKILL.md` but no description is a real config problem and still fails
+    loudly, naming that folder).
 
     Example (single skill):
         ```yaml
@@ -406,6 +427,7 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         exclude = set(self.exclude or [])
 
         resources: Dict[str, Any] = {}
+        key_sources: Dict[str, str] = {}  # sanitized key -> the folder_name that claimed it
         for entry in sorted(collection_root.iterdir()):
             if not entry.is_dir():
                 continue
@@ -417,6 +439,28 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             raw = _read_skill_md_or_none(entry)
             if raw is None:
                 continue  # not a skill folder -- no SKILL.md here, silently skip
+
+            if not any(c.isalnum() or c == "_" for c in folder_name):
+                # Every character in the folder name is outside [A-Za-z0-9_] (e.g. "!!!")
+                # -- sanitizing would collapse it to a single, meaningless "_" rather than
+                # anything derived from the real name. One unusable folder name shouldn't
+                # take down the whole collection; skip it with a warning instead.
+                import logging
+                logging.getLogger("skill_resource").warning(
+                    f"SkillResourceComponent collection ({checked_path_desc}): skill folder "
+                    f"{folder_name!r} has no usable characters for a resource_key "
+                    "([A-Za-z0-9_]) -- skipped."
+                )
+                continue
+            key = _sanitize_skill_key(folder_name)
+            if key in key_sources:
+                raise ValueError(
+                    f"SkillResourceComponent collection ({checked_path_desc}): skill folders "
+                    f"{key_sources[key]!r} and {folder_name!r} both sanitize to the same "
+                    f"resource_key {key!r} -- rename one of them, or use include/exclude to "
+                    "drop one."
+                )
+            key_sources[key] = folder_name
 
             frontmatter, _ = _split_frontmatter(raw)
             resolved_name = frontmatter.get("name") or folder_name
@@ -431,16 +475,16 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             if self.git_url:
                 member_git_path = f"{self.git_path}/{folder_name}" if self.git_path else folder_name
                 resource: Any = SkillResource(
-                    key=folder_name, name=resolved_name, description=resolved_description,
+                    key=key, name=resolved_name, description=resolved_description,
                     git_url=self.git_url, git_path=member_git_path, git_ref=self.git_ref,
                     git_token_env_var=self.git_token_env_var,
                 )
             else:
                 resource = SkillResource(
-                    key=folder_name, name=resolved_name, description=resolved_description,
+                    key=key, name=resolved_name, description=resolved_description,
                     local_path=str(entry),
                 )
-            resources[folder_name] = resource
+            resources[key] = resource
 
         if not resources:
             raise ValueError(

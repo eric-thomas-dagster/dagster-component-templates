@@ -65,13 +65,27 @@ forwarded explicitly; if it's unset when the resource is actually resolved, the 
 process's own `main()` raises a clear `SystemExit` the moment it starts (the same way it always
 has for a bare `python -m` invocation) rather than the component failing to build.
 
+MCP's stdio client doesn't inherit anything *else* from the current environment either, though --
+if your Dagster instance's own config needs more than `DAGSTER_HOME` to resolve (e.g. a **Dagster+
+agent**, which commonly also needs `DAGSTER_CLOUD_AGENT_LABEL` and other `DAGSTER_CLOUD_*` vars),
+list those names in `mcp_extra_env_vars` too -- otherwise the spawned server crashes at startup
+trying to resolve its instance. Their *current values* are copied in fresh at the same run time as
+`DAGSTER_HOME`, same mechanism.
+
 ```yaml
 type: dagster_community_components.DagsterWorkflowToolsComponent
 attributes:
   definitions_module: my_project.definitions
   allow_assets: [orders, orders_summary]
   mcp_server_resource_key: dagster_workflow_mcp
+  mcp_extra_env_vars: [DAGSTER_CLOUD_AGENT_LABEL]
 ```
+
+**Worth deciding up front for a Dagster+ code location:** which instance this server should
+actually launch runs through. A Dagster+ agent's own `DAGSTER_HOME` is its own agent process's
+home directory -- not necessarily a sensible target for runs an agent tool triggers. (Confirmed
+working end-to-end against a plain, non-Dagster+ `DAGSTER_HOME`: the server started and correctly
+listed `materialize_assets`/`run_job`.)
 
 Then, in any `mcp_servers`-aware component (`mcp_tool_call`, `mcp_tool_picker`, the agent
 components, `agentic_pipeline`'s `tool_use_loop`/`mcp_call`):
@@ -159,5 +173,6 @@ real Dagster+ GraphQL `launchRun` call against a running deployment) -- not impl
 | `allow_jobs` | `List[str]` | — | Hard allow-list of job names run_job may target (default: any job in definitions_module). |
 | `default_tags` | `Dict[str, str]` | — | Tags merged onto every triggered run, alongside dagster-community/workflow-tool=true (e.g. {'triggered_by': 'support-agent'}) -- for run-tag attribution/audit. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the DAGSTER_WORKFL… _(full docs in schema.json + component README)_ |
+| `mcp_extra_env_vars` | `List[str]` | — | mcp_server_resource_key only. Extra env var NAMES to copy (their current value, read fresh every time a consumer resolves the resource -- same run-time timing as DAGSTER_HOME) from this process into the spawned MCP serve… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

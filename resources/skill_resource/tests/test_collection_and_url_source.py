@@ -28,6 +28,37 @@ def test_collection_registers_one_resource_per_skill_subfolder(mod, tmp_path):
     assert defs.resources["docx"].describe()["name"] == "docx-report"
 
 
+def test_collection_sanitizes_folder_names_with_hyphens_into_resource_keys(mod, tmp_path):
+    _write_skill_folder(tmp_path, "web-artifacts-builder", "web-artifacts-builder", "Build web artifacts.")
+    component = mod.SkillResourceComponent(mode="collection", local_path=str(tmp_path))
+    defs = component.build_defs(None)
+    assert set(defs.resources) == {"web_artifacts_builder"}
+    assert defs.resources["web_artifacts_builder"].key == "web_artifacts_builder"
+
+
+def test_collection_sanitizes_leading_digit_with_underscore_prefix(mod, tmp_path):
+    _write_skill_folder(tmp_path, "3d-models", "3d-models", "Work with 3D models.")
+    component = mod.SkillResourceComponent(mode="collection", local_path=str(tmp_path))
+    defs = component.build_defs(None)
+    assert set(defs.resources) == {"_3d_models"}
+
+
+def test_collection_rejects_two_folders_colliding_on_the_same_sanitized_key(mod, tmp_path):
+    _write_skill_folder(tmp_path, "web-artifacts-builder", "a", "Build web artifacts.")
+    _write_skill_folder(tmp_path, "web_artifacts_builder", "b", "Also builds web artifacts.")
+    component = mod.SkillResourceComponent(mode="collection", local_path=str(tmp_path))
+    with pytest.raises(ValueError, match="both sanitize to the same resource_key"):
+        component.build_defs(None)
+
+
+def test_collection_skips_folder_with_no_usable_key_characters_instead_of_crashing(mod, tmp_path, caplog):
+    _write_skill_folder(tmp_path, "pdf", "pdf-report", "Generate a PDF report.")
+    _write_skill_folder(tmp_path, "!!!", "weird", "A folder with no usable key characters.")
+    component = mod.SkillResourceComponent(mode="collection", local_path=str(tmp_path))
+    defs = component.build_defs(None)
+    assert set(defs.resources) == {"pdf"}  # "!!!" skipped, "pdf" still registered -- one bad folder doesn't take down the rest
+
+
 def test_collection_silently_skips_non_skill_subfolders(mod, tmp_path):
     _write_skill_folder(tmp_path, "pdf", "pdf-report", "Generate a PDF report.")
     (tmp_path / ".github").mkdir()

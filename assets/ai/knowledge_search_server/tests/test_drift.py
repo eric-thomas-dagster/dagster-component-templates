@@ -44,6 +44,12 @@ def test_mcp_server_shape_resource_same_field_shape_as_dagster_workflow_tools(mo
     theirs_mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(theirs_mod)
 
+    # Base MCPServerResource shape every mcp_servers-aware consumer expects from
+    # .model_dump(). dagster_workflow_tools' own copy also carries a
+    # `live_env_passthrough` field (its DAGSTER_HOME-needs-extra-vars mechanism) this
+    # component doesn't need -- that's an intentional, documented divergence, not drift.
+    base_shape = {"name", "type", "command", "url", "env", "headers", "headers_env"}
     mine_fields = set(mod._McpServerShapeResource.model_fields)
     theirs_fields = set(theirs_mod._McpServerShapeResource.model_fields)
-    assert mine_fields == theirs_fields == {"name", "type", "command", "url", "env", "headers", "headers_env"}
+    assert mine_fields == base_shape
+    assert theirs_fields >= base_shape

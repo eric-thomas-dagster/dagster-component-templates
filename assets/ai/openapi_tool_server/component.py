@@ -70,6 +70,7 @@ package directly (not guessed):
     than guessing at a compat shim for versions never seen.
 """
 import re
+import sys
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import dagster as dg
@@ -749,7 +750,7 @@ class OpenApiToolServerComponent(Component, Model, Resolvable):
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key,
                 type="stdio",
-                command=["python", "-m", _this_module_name()],
+                command=[sys.executable, "-m", _this_module_name()],
                 env=mcp_env,
                 live_env_passthrough=live_env_passthrough,
             )

@@ -395,8 +395,11 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             "config needs beyond DAGSTER_HOME -- e.g. a Dagster+ agent's DAGSTER_CLOUD_AGENT_LABEL "
             "-- must be listed here, or the spawned server crashes at startup trying to resolve its "
             "instance. Note: a Dagster+ agent's own DAGSTER_HOME is its own agent process's home, "
-            "not necessarily where you want triggered runs to land -- decide which instance this "
-            "server should actually launch runs through before pointing it at an agent's env."
+            "not necessarily where you want triggered runs to land -- DAGSTER_CLOUD_DEPLOYMENT_NAME "
+            "is passed through automatically (no need to list it here) and scopes the agent's "
+            "multi-deployment instance down to the one deployment this server launches runs "
+            "against; without it, a run submitted from inside a Dagster+ agent fails with "
+            "'Organization has multiple deployments, but no deployment specified'."
         ),
     )
 
@@ -454,7 +457,10 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 type="stdio",
                 command=[sys.executable, "-m", _this_module_name()],
                 env=mcp_env,
-                live_env_passthrough=["DAGSTER_HOME", *(self.mcp_extra_env_vars or [])],
+                # DAGSTER_CLOUD_DEPLOYMENT_NAME: so main() can scope a Dagster+ agent's own
+                # (multi-deployment) instance down to the one deployment this server should
+                # launch runs through -- see main()'s ref_for_deployment call below.
+                live_env_passthrough=["DAGSTER_HOME", "DAGSTER_CLOUD_DEPLOYMENT_NAME", *(self.mcp_extra_env_vars or [])],
             )
 
         return dg.Definitions(resources=resources)
@@ -498,7 +504,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     DAGSTER_WORKFLOW_TOOLS_ALLOW (csv), DAGSTER_WORKFLOW_TOOLS_ALLOW_ASSETS (csv),
     DAGSTER_WORKFLOW_TOOLS_ALLOW_JOBS (csv), DAGSTER_WORKFLOW_TOOLS_DEFAULT_TAGS (JSON object) --
     this last one is what DagsterWorkflowToolsComponent's mcp_server_resource_key path sets so the
-    MCP-server entrypoint has the same default_tags the in-process resource_key path gets."""
+    MCP-server entrypoint has the same default_tags the in-process resource_key path gets.
+    DAGSTER_CLOUD_DEPLOYMENT_NAME (optional) -- set this on a Dagster+ agent so runs launch
+    against the right deployment; see below."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     if not os.environ.get("DAGSTER_HOME"):
         raise SystemExit("DAGSTER_HOME must point at the Dagster instance directory (the one with dagster.yaml)")
@@ -513,8 +521,19 @@ def main(argv: Optional[List[str]] = None) -> None:
     allow_jobs = [t.strip() for t in allow_jobs_env.split(",") if t.strip()] if allow_jobs_env else None
     default_tags_env = os.environ.get("DAGSTER_WORKFLOW_TOOLS_DEFAULT_TAGS")
     default_tags = json.loads(default_tags_env) if default_tags_env else None
+
+    instance = dg.DagsterInstance.get()
+    deployment_name = os.environ.get("DAGSTER_CLOUD_DEPLOYMENT_NAME")
+    if deployment_name and hasattr(instance, "ref_for_deployment"):
+        # dg.DagsterInstance.get() inside a Dagster+ agent's own process builds the AGENT's
+        # instance -- which serves every deployment the agent manages, not any one of them --
+        # so execute_job's run submission fails with "Organization has multiple deployments,
+        # but no deployment specified". ref_for_deployment(name) scopes it to the one
+        # deployment this server should actually launch runs through.
+        instance = dg.DagsterInstance.from_ref(instance.ref_for_deployment(deployment_name))
+
     tools = DagsterWorkflowTools(
-        dg.DagsterInstance.get(),
+        instance,
         definitions_module=definitions_module,
         allow=allow, allow_assets=allow_assets, allow_jobs=allow_jobs, default_tags=default_tags,
     )

@@ -164,6 +164,22 @@ def _query_vector_store(
 # END knowledge-search core
 
 
+_EMBED_DEFAULT_API_KEY_ENV_VAR = {"openai": "OPENAI_API_KEY", "cohere": "COHERE_API_KEY"}
+
+
+def _check_required_env_var(var_name: Optional[str], *, label: str) -> None:
+    """Raise a clear, specific error naming the exact missing env var -- rather than letting an
+    auth failure surface as a generic "Error executing tool" message with no actionable detail.
+    No-ops when var_name is None (sentence_transformers needs no key; qdrant may run
+    unauthenticated if api_key_env_var was left unset on purpose)."""
+    if var_name and not os.environ.get(var_name):
+        raise ValueError(
+            f"KnowledgeSearch: {label} env var {var_name!r} is not set in this process's "
+            "environment. If this is a stdio MCP server, confirm it's listed in "
+            "live_env_passthrough so its value is copied in from the spawning process at run time."
+        )
+
+
 class KnowledgeSearchResource(dg.ConfigurableResource):
     """Embeds a query with the same provider/model a knowledge base was built with, queries
     its vector store for the nearest chunks, and returns them as plain JSON-able dicts --
@@ -182,6 +198,14 @@ class KnowledgeSearchResource(dg.ConfigurableResource):
     text_metadata_key: str = Field(default="chunk_text", description="Metadata key holding chunk text for non-chromadb stores (chromadb always has it via its own documents field regardless). Must match write_vector_store's own text_column if it was customized.")
 
     def search(self, query: str, top_k: int = 5) -> dict:
+        _check_required_env_var(
+            self.embed_api_key_env_var or _EMBED_DEFAULT_API_KEY_ENV_VAR.get(self.embed_provider),
+            label="embed API key",
+        )
+        _check_required_env_var(
+            self.api_key_env_var or ("PINECONE_API_KEY" if self.provider == "pinecone" else None),
+            label="vector store API key",
+        )
         embedding = _embed_query(query, self.embed_provider, self.embed_model, self.embed_api_key_env_var)
         hits = _query_vector_store(
             embedding, provider=self.provider, connection_string=self.connection_string,
@@ -206,9 +230,12 @@ class _McpServerShapeResource(dg.ConfigurableResource):
     headers_env) -- inlined here rather than imported from resources/mcp_server_resource
     (confirmed not importable across components). Same field shape as
     dagster_workflow_tools' own copy of this class (structurally checked in
-    tests/test_drift.py) -- deliberately NOT byte-identical, since that copy overrides
-    model_dump() to inject DAGSTER_HOME at run time, a quirk this component doesn't need
-    (all of its settings are fully known at build time)."""
+    tests/test_drift.py), including `live_env_passthrough` -- NOT everything here is
+    "known at build time" (an earlier version of this docstring claimed it was): the vector
+    store / embed API key env var NAMES are build-time config, but their VALUES are not --
+    MCP's stdio client does not inherit the rest of the spawning process's environment, so a
+    search that needs a real API key fails at run time unless that value is explicitly
+    copied in, the same DAGSTER_HOME problem `dagster_workflow_tools` already had."""
 
     name: str
     type: Literal["http", "sse", "stdio"] = "stdio"
@@ -217,6 +244,19 @@ class _McpServerShapeResource(dg.ConfigurableResource):
     env: Optional[Dict[str, str]] = None
     headers: Optional[Dict[str, str]] = None
     headers_env: Optional[Dict[str, str]] = None
+    live_env_passthrough: Optional[List[str]] = None
+
+    def model_dump(self, *args, **kwargs):
+        dumped = super().model_dump(*args, **kwargs)
+        passthrough = dumped.pop("live_env_passthrough", None)
+        if dumped.get("type") == "stdio" and passthrough:
+            env = dict(dumped.get("env") or {})
+            for var_name in passthrough:
+                value = os.environ.get(var_name)
+                if value:
+                    env[var_name] = value
+            dumped["env"] = env
+        return dumped
 
 
 def _this_module_name() -> str:
@@ -323,6 +363,12 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
                 type="stdio",
                 command=[sys.executable, "-m", _this_module_name()],
                 env=mcp_env,
+                # API key VALUES are never baked into mcp_env above (only non-secret settings
+                # are) -- live_env_passthrough copies them in fresh from this process's own
+                # environment at run time, same mechanism dagster_workflow_tools uses for
+                # DAGSTER_HOME. Without this, a provider that needs a real key fails at
+                # search time no matter how the component itself is configured.
+                live_env_passthrough=[v for v in (self.api_key_env_var, self.embed_api_key_env_var) if v],
             )
 
         tags = dict(self.asset_tags or {})
@@ -370,10 +416,22 @@ def build_mcp_server(resource: KnowledgeSearchResource, server_name: str = "know
     @mcp.tool()
     def search_knowledge(query: str, top_k: int = 5) -> dict:
         """Search the knowledge base for chunks relevant to `query`. Returns
-        {"chunks": [{"chunk_id", "text", "score", "source", "doc_id"}, ...]}."""
-        return resource.search(query, top_k=top_k)
+        {"chunks": [{"chunk_id", "text", "score", "source", "doc_id"}, ...]} on success, or
+        {"error": "..."} naming exactly what's misconfigured (e.g. a missing API key env
+        var) rather than a generic tool-call failure."""
+        return _safe_search(resource, query, top_k)
 
     return mcp
+
+
+def _safe_search(resource: "KnowledgeSearchResource", query: str, top_k: int) -> dict:
+    """Catches any exception from resource.search() and returns {"error": "..."} instead of
+    letting it propagate as FastMCP's own generic "Error executing tool" message -- a
+    separate, directly-testable function rather than inline in the tool closure above."""
+    try:
+        return resource.search(query, top_k=top_k)
+    except Exception as e:  # noqa: BLE001 -- surface as data, the agent loop must not crash
+        return {"error": f"{type(e).__name__}: {e}"}
 
 
 def main(argv: Optional[List[str]] = None) -> None:

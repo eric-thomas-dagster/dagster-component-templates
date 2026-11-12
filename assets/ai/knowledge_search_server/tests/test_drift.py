@@ -5,12 +5,12 @@ resources/context_receipt_store's own KnowledgeSearch helper. That copy must sta
 byte-identical to its source, same convention as agentic_pipeline's own drift test
 against rag_pipeline.
 
-_McpServerShapeResource is also inlined from dagster_workflow_tools, but is NOT
-byte-identical by design: dagster_workflow_tools' copy overrides model_dump() to inject
-DAGSTER_HOME at run time (a quirk specific to its own stdio server needing that one env
-var refreshed live); this component's settings are all fully known at build time, so it
-has no such override. Checked structurally instead -- same field shape, so any
-mcp_servers-aware consumer's .model_dump() still sees the exact dict shape it expects."""
+_McpServerShapeResource is also inlined from dagster_workflow_tools -- byte-identical,
+including the live_env_passthrough field and its model_dump() override. An earlier version
+of this component claimed all of its settings were "fully known at build time" and skipped
+that field entirely; a live bug (API key env var values never reaching the spawned stdio
+server) showed that claim was wrong -- env var NAMES are build-time config, but VALUES are
+not, the exact same problem dagster_workflow_tools already had for DAGSTER_HOME."""
 import ast
 import pathlib
 
@@ -37,19 +37,23 @@ def test_embed_and_query_helpers_identical_to_context_receipt_store():
         assert mine[n] == theirs[n], f"{n} drifted from resources/context_receipt_store/component.py"
 
 
-def test_mcp_server_shape_resource_same_field_shape_as_dagster_workflow_tools(mod):
+def test_mcp_server_shape_resource_passthrough_behaves_identically_to_dagster_workflow_tools(mod, monkeypatch):
+    """Behavioral drift check, not textual: same fields, and model_dump() does the exact
+    same live-env-passthrough merge given the same inputs -- this is what actually matters
+    for a consumer, and would have caught the missing-passthrough bug directly."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("dagster_workflow_tools_for_drift_check", DAGSTER_WORKFLOW_TOOLS_PY)
     theirs_mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(theirs_mod)
 
-    # Base MCPServerResource shape every mcp_servers-aware consumer expects from
-    # .model_dump(). dagster_workflow_tools' own copy also carries a
-    # `live_env_passthrough` field (its DAGSTER_HOME-needs-extra-vars mechanism) this
-    # component doesn't need -- that's an intentional, documented divergence, not drift.
-    base_shape = {"name", "type", "command", "url", "env", "headers", "headers_env"}
-    mine_fields = set(mod._McpServerShapeResource.model_fields)
-    theirs_fields = set(theirs_mod._McpServerShapeResource.model_fields)
-    assert mine_fields == base_shape
-    assert theirs_fields >= base_shape
+    assert set(mod._McpServerShapeResource.model_fields) == set(theirs_mod._McpServerShapeResource.model_fields)
+
+    monkeypatch.setenv("DRIFT_CHECK_VAR", "secret-value")
+    kwargs = dict(name="x", type="stdio", command=["python"], env={"A": "1"}, live_env_passthrough=["DRIFT_CHECK_VAR", "UNSET_VAR"])
+    mine = mod._McpServerShapeResource(**kwargs)
+    theirs = theirs_mod._McpServerShapeResource(**kwargs)
+    assert mine.model_dump() == theirs.model_dump() == {
+        "name": "x", "type": "stdio", "command": ["python"], "url": None,
+        "env": {"A": "1", "DRIFT_CHECK_VAR": "secret-value"}, "headers": None, "headers_env": None,
+    }

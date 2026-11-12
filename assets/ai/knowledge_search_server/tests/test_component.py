@@ -87,6 +87,85 @@ def test_mcp_server_resource_key_env_includes_optional_settings_when_set(mod):
     assert env["KNOWLEDGE_SEARCH_EMBED_API_KEY_ENV_VAR"] == "OPENAI_KEY"
 
 
+def test_api_key_env_var_names_wired_into_live_env_passthrough(mod, monkeypatch):
+    """The real bug: a search that needs a real API key failed every time, because the
+    value was never forwarded to the spawned stdio server -- only the NAME was baked into
+    env (KNOWLEDGE_SEARCH_*_ENV_VAR above). live_env_passthrough is what actually copies
+    the VALUE in, fresh, at run time."""
+    monkeypatch.delenv("PINECONE_KEY", raising=False)
+    component = _component(
+        mod, resource_key="ks", mcp_server_resource_key="ks_mcp",
+        api_key_env_var="PINECONE_KEY", embed_api_key_env_var="OPENAI_KEY",
+    )
+    resource = component.build_defs(None).resources["ks_mcp"]
+    assert "PINECONE_KEY" not in resource.model_dump()["env"]
+
+    monkeypatch.setenv("PINECONE_KEY", "secret-pc")
+    monkeypatch.setenv("OPENAI_KEY", "secret-oai")
+    env = resource.model_dump()["env"]
+    assert env["PINECONE_KEY"] == "secret-pc"
+    assert env["OPENAI_KEY"] == "secret-oai"
+
+
+def test_live_env_passthrough_reaches_a_spawned_process_with_no_inherited_env(mod, monkeypatch):
+    """Models the real failure mode directly: MCP's stdio client spawns the server with
+    ONLY the resource's own env dict -- no inheritance from the parent process. Spawn a
+    child process that way (env=spec['env'], completely replacing the environment) while
+    the named var is set in THIS test process, and confirm the child can see it."""
+    import subprocess
+
+    monkeypatch.setenv("TEST_PASSTHROUGH_VAR", "reached-child")
+    component = _component(
+        mod, resource_key="ks", mcp_server_resource_key="ks_mcp", embed_api_key_env_var="TEST_PASSTHROUGH_VAR",
+    )
+    spec = component.build_defs(None).resources["ks_mcp"].model_dump()
+    result = subprocess.run(
+        [sys.executable, "-c", "import os, sys; sys.stdout.write(os.environ.get('TEST_PASSTHROUGH_VAR', ''))"],
+        env=spec["env"], capture_output=True, text=True, timeout=10,
+    )
+    assert result.stdout == "reached-child"
+
+
+def test_search_raises_naming_the_exact_missing_embed_api_key_env_var(mod, monkeypatch):
+    monkeypatch.delenv("MISSING_OPENAI_KEY", raising=False)
+    resource = mod.KnowledgeSearchResource(
+        provider="chromadb", collection_name="kb", embed_provider="openai", embed_api_key_env_var="MISSING_OPENAI_KEY",
+    )
+    with pytest.raises(ValueError, match="MISSING_OPENAI_KEY"):
+        resource.search("q", top_k=1)
+
+
+def test_search_raises_naming_the_exact_missing_vector_store_api_key_env_var(mod, monkeypatch):
+    """pinecone always needs a key -- falls back to the conventional PINECONE_API_KEY name
+    when api_key_env_var isn't explicitly set, same convention _query_vector_store itself
+    already uses."""
+    monkeypatch.delenv("PINECONE_API_KEY", raising=False)
+    monkeypatch.setenv("SENTENCE_TRANSFORMERS_NEEDS_NO_KEY", "irrelevant")
+    resource = mod.KnowledgeSearchResource(provider="pinecone", collection_name="kb")
+    with pytest.raises(ValueError, match="PINECONE_API_KEY"):
+        resource.search("q", top_k=1)
+
+
+def test_safe_search_returns_clear_error_instead_of_crashing(mod, monkeypatch):
+    """What the MCP tool itself actually calls -- a missing key must come back as
+    {"error": "..."} naming the variable, not propagate as an exception."""
+    monkeypatch.delenv("MISSING_OPENAI_KEY", raising=False)
+    resource = mod.KnowledgeSearchResource(
+        provider="chromadb", collection_name="kb", embed_provider="openai", embed_api_key_env_var="MISSING_OPENAI_KEY",
+    )
+    result = mod._safe_search(resource, "q", 1)
+    assert "error" in result
+    assert "MISSING_OPENAI_KEY" in result["error"]
+
+
+def test_safe_search_passes_through_on_success(mod, monkeypatch):
+    monkeypatch.setattr(mod, "_embed_query", lambda *a, **k: [0.1])
+    monkeypatch.setattr(mod, "_query_vector_store", lambda *a, **k: [])
+    resource = mod.KnowledgeSearchResource(provider="chromadb", collection_name="kb")
+    result = mod._safe_search(resource, "q", 1)
+    assert result == {"chunks": []}
+
+
 def test_main_builds_matching_resource_from_env(mod, monkeypatch):
     """Full settings parity: the MCP-entrypoint path (main()) must build the exact same
     resource configuration the mcp_server_resource_key env vars encode."""

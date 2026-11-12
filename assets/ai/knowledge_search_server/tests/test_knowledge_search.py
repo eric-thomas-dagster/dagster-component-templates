@@ -75,7 +75,8 @@ def test_real_chromadb_search_returns_text_score_source_doc_id_chunk_id(mod, tmp
 
 
 @requires_pinecone
-def test_pinecone_provider_mocked_sdk(mod):
+def test_pinecone_provider_mocked_sdk(mod, monkeypatch):
+    monkeypatch.setenv("PINECONE_API_KEY", "fake-key")
     fake_match = {"id": "c1", "score": 0.9, "metadata": {"chunk_id": "c1", "source_id": "doc-1", "source_asset_key": "docs_kb", "chunk_text": "hello"}}
     fake_index = MagicMock()
     fake_index.query.return_value = {"matches": [fake_match]}
@@ -106,10 +107,11 @@ def test_qdrant_provider_mocked_sdk(mod):
     assert result["chunks"][0]["score"] == 0.8
 
 
-def test_text_falls_back_to_metadata_key_when_no_document_field(mod):
+def test_text_falls_back_to_metadata_key_when_no_document_field(mod, monkeypatch):
     """pinecone/qdrant have no separate 'documents' field -- text comes from metadata under
     text_metadata_key (default 'chunk_text', matching write_vector_store's own default
     text_column) instead."""
+    monkeypatch.setenv("PINECONE_API_KEY", "fake-key")
     with patch.object(mod, "_embed_query", return_value=[0.1]), \
          patch.object(mod, "_query_vector_store", return_value=[
              {"id": "c1", "metadata": {"chunk_id": "c1", "chunk_text": "stored in metadata"}, "document": None, "score": 0.5},
@@ -119,7 +121,8 @@ def test_text_falls_back_to_metadata_key_when_no_document_field(mod):
     assert result["chunks"][0]["text"] == "stored in metadata"
 
 
-def test_custom_text_metadata_key_respected(mod):
+def test_custom_text_metadata_key_respected(mod, monkeypatch):
+    monkeypatch.setenv("PINECONE_API_KEY", "fake-key")
     with patch.object(mod, "_embed_query", return_value=[0.1]), \
          patch.object(mod, "_query_vector_store", return_value=[
              {"id": "c1", "metadata": {"chunk_id": "c1", "body": "custom column"}, "document": None, "score": 0.5},

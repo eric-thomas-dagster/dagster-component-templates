@@ -82,6 +82,23 @@ def test_live_env_passthrough_reads_api_base_url_and_api_key_fresh_at_model_dump
     assert cfg["env"]["PETSTORE_API_KEY"] == "secret-token"
 
 
+def test_live_env_passthrough_reaches_a_spawned_process_with_no_inherited_env(mod, monkeypatch):
+    """Models the real failure mode directly: MCP's stdio client spawns the server with
+    ONLY the resource's own env dict -- no inheritance from the parent process. Spawn a
+    child process that way (env=spec['env'], completely replacing the environment) while
+    the named var is set in THIS test process, and confirm the child can see it."""
+    import subprocess
+
+    monkeypatch.setenv("TEST_PASSTHROUGH_VAR", "reached-child")
+    component = _component(mod, mcp_server_resource_key="x", api_key_env_var="TEST_PASSTHROUGH_VAR")
+    spec = component.build_defs(None).resources["x"].model_dump()
+    result = subprocess.run(
+        [sys.executable, "-c", "import os, sys; sys.stdout.write(os.environ.get('TEST_PASSTHROUGH_VAR', ''))"],
+        env=spec["env"], capture_output=True, text=True, timeout=10,
+    )
+    assert result.stdout == "reached-child"
+
+
 def test_live_env_passthrough_field_not_leaked_into_model_dump_output(mod):
     component = _component(mod, mcp_server_resource_key="x")
     cfg = component.build_defs(None).resources["x"].model_dump()

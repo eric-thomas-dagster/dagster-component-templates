@@ -31,13 +31,16 @@ example does exactly this from an OSS instance into Dagster+. This script does t
 but entirely within Dagster+ — asset-to-asset, no OSS instance involved — and supports a
 genuine key *rename* (the upstream example assumes the read key and write key are the same).
 
-It reads the source asset's materialization history (every metadata entry Dagster+ recorded)
-via GraphQL, and reports new events carrying that metadata under the destination key via
-Dagster+'s real `report_asset_materialization/` REST endpoint (the same one the upstream
-example uses). **Read the caveats in the script's own docstring before running this for real** —
-in short: the new events get TODAY's timestamp, not the original historical dates (there's no
-API to backdate them); this is not reversible (no "delete a materialization" API); and the
-write endpoint needs an **agent token**, not a regular user/service token.
+It reads the source asset's materialization history (every metadata entry, `data_version`, and
+`description` Dagster+ recorded) via GraphQL, and reports new events carrying all of that under
+the destination key via Dagster+'s real `report_asset_materialization/` REST endpoint (the same
+one the upstream example uses). **Read the caveats in the script's own docstring before running
+this for real** — in short: the new events get TODAY's timestamp, not the original historical
+dates — confirmed directly against [the endpoint's own
+docs](https://docs.dagster.io/api/python-api/external-assets-rest-api), which document exactly 5
+accepted fields (`asset_key`, `metadata`, `data_version`, `description`, `partition`) and no
+timestamp field at all, anywhere; this is not reversible (no "delete a materialization" API);
+and the write endpoint needs an **agent token**, not a regular user/service token.
 
 ```bash
 export DAGSTER_CLOUD_API_TOKEN=agent:xxxxxxxx   # must be an agent token

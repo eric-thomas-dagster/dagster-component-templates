@@ -42,6 +42,19 @@ def test_parse_asset_key_ignores_leading_trailing_slashes(mod):
     assert mod.parse_asset_key("/a/b/") == ["a", "b"]
 
 
+# ─── extract_data_version ───────────────────────────────────────────────────
+
+def test_extract_data_version_reads_the_real_dagster_tag(mod):
+    event = {"tags": [{"key": "dagster/code_version", "value": "abc"},
+                       {"key": "dagster/data_version", "value": "deadbeef"}]}
+    assert mod.extract_data_version(event) == "deadbeef"
+
+
+def test_extract_data_version_none_when_tag_absent(mod):
+    assert mod.extract_data_version({"tags": [{"key": "dagster/code_version", "value": "abc"}]}) is None
+    assert mod.extract_data_version({}) is None
+
+
 # ─── _is_scalar_field / build_metadata_entry_fragment ──────────────────────
 
 def test_is_scalar_field_true_for_plain_scalar(mod):
@@ -168,6 +181,33 @@ def test_migrate_dry_run_end_to_end_with_mocked_network(mod, monkeypatch, capsys
     out = capsys.readouterr().err
     assert "p1" in out and "p2" in out
     assert "Would report 2 event(s)" in out  # latest-per-partition: p1's newest (200.0) + p2's only event
+
+
+def test_migrate_write_forwards_data_version_and_description(mod, monkeypatch):
+    """--yes actually calls report_asset_materialization_rest -- confirms data_version (read off
+    the real dagster/data_version tag) and description are forwarded, not just metadata."""
+    monkeypatch.setenv("DAGSTER_CLOUD_API_TOKEN", "agent:fake")
+    monkeypatch.setattr(mod, "introspect_metadata_entry_scalar_fields", lambda *a, **k: {"TextMetadataEntry": ["text"]})
+    events = [{
+        "partition": None, "timestamp": 100.0, "runId": "r1", "description": "a real description",
+        "tags": [{"key": "dagster/data_version", "value": "deadbeef"}],
+        "metadataEntries": [{"__typename": "TextMetadataEntry", "label": "rows", "text": "42"}],
+    }]
+    monkeypatch.setattr(mod, "fetch_all_materializations", lambda *a, **k: events)
+    report_calls = []
+    monkeypatch.setattr(mod, "report_asset_materialization_rest", lambda *a, **k: report_calls.append((a, k)))
+
+    args = mod.argparse.Namespace(
+        token_env="DAGSTER_CLOUD_API_TOKEN", dry_run=False, yes=True,
+        deployment_url="https://acme.dagster.cloud/prod",
+        manifest=None, source_asset_key="old/key", dest_asset_key="new/key",
+        all_events=False, limit=None,
+    )
+    mod.cmd_migrate(args)
+    assert len(report_calls) == 1
+    call_args, call_kwargs = report_calls[0]
+    assert call_kwargs["data_version"] == "deadbeef"
+    assert call_kwargs["description"] == "a real description"
 
 
 def test_migrate_refuses_identical_source_and_dest_keys(mod, monkeypatch):

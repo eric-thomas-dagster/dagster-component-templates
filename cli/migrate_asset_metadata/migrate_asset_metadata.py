@@ -15,9 +15,14 @@ What this script actually does (and does NOT do):
     (`assetNodeOrError(assetKey).assetMaterializations`), including every metadata entry
     Dagster+ recorded for each event.
   - It REPORTS NEW materialization events under the DESTINATION asset key, carrying that
-    metadata forward, via Dagster+'s real `report_asset_materialization/` REST endpoint (the
-    same endpoint Dagster's own `examples/oss-metadata-to-plus` example uses:
-    https://github.com/dagster-io/dagster/tree/master/examples/oss-metadata-to-plus).
+    metadata (plus `data_version`, read off the real `dagster/data_version` event tag, and
+    `description`) forward, via Dagster+'s real `report_asset_materialization/` REST endpoint
+    (the same endpoint Dagster's own `examples/oss-metadata-to-plus` example uses:
+    https://github.com/dagster-io/dagster/tree/master/examples/oss-metadata-to-plus). Confirmed
+    directly against that endpoint's own docs
+    (https://docs.dagster.io/api/python-api/external-assets-rest-api): it accepts exactly 5
+    fields -- asset_key (required), metadata, data_version, description, partition -- all of
+    which this script forwards. There is no 6th field for anything else, including a timestamp.
   - By default, one event per PARTITION (or one single event for an unpartitioned asset),
     carrying that partition's MOST RECENT metadata — enough to populate the new asset's
     catalog page and partition status grid the way the old one looked. Pass --all-events to
@@ -125,14 +130,24 @@ def graphql(deployment_url: str, token: str, query: str, variables: Dict[str, An
 def report_asset_materialization_rest(
     deployment_url: str, token: str, asset_key_path: List[str],
     metadata: Dict[str, Any], partition: Optional[str],
+    data_version: Optional[str] = None, description: Optional[str] = None,
 ) -> Dict[str, Any]:
     """POST to Dagster+'s `report_asset_materialization/` REST endpoint -- the same one used by
     Dagster's own `examples/oss-metadata-to-plus`. Per that example's README, this requires an
-    AGENT token, not a regular user/service token."""
+    AGENT token, not a regular user/service token. Confirmed directly against Dagster's own docs
+    (https://docs.dagster.io/api/python-api/external-assets-rest-api) AND the upstream example's
+    real source: exactly 5 fields are accepted -- asset_key (required), metadata, data_version,
+    description, partition (all optional). There is NO timestamp field anywhere in this API --
+    every reported event is stamped with whatever Dagster+ considers "now" when it processes the
+    request; this cannot be backdated to the original event's real historical timestamp."""
     endpoint = deployment_url.rstrip("/") + "/report_asset_materialization/"
     body: Dict[str, Any] = {"asset_key": asset_key_path, "metadata": metadata}
     if partition is not None:
         body["partition"] = partition
+    if data_version is not None:
+        body["data_version"] = data_version
+    if description is not None:
+        body["description"] = description
     req = urllib.request.Request(
         endpoint,
         data=json.dumps(body).encode("utf-8"),
@@ -241,6 +256,8 @@ def _asset_materializations_query(entry_fragment: str) -> str:
               timestamp
               partition
               runId
+              description
+              tags { key value }
               metadataEntries {
                 %s
               }
@@ -254,6 +271,18 @@ def _asset_materializations_query(entry_fragment: str) -> str:
 
 def parse_asset_key(s: str) -> List[str]:
     return [seg for seg in s.strip().split("/") if seg]
+
+
+# The real tag key Dagster itself stamps on every materialization event with its computed data
+# version (confirmed directly: `dagster._core.definitions.data_version.DATA_VERSION_TAG`).
+DATA_VERSION_TAG = "dagster/data_version"
+
+
+def extract_data_version(event: Dict[str, Any]) -> Optional[str]:
+    for tag in event.get("tags") or []:
+        if tag.get("key") == DATA_VERSION_TAG:
+            return tag.get("value")
+    return None
 
 
 def fetch_all_materializations(
@@ -338,12 +367,19 @@ def _migrate_one(args: argparse.Namespace, deployment_url: str, token: str, entr
                 continue
             metadata[entry["label"]] = value
         partition = event.get("partition")
+        data_version = extract_data_version(event)
+        description = event.get("description")
         label = f"partition={partition!r}" if partition else "(unpartitioned)"
         if args.dry_run:
-            print(f"  [DRY RUN] would report {label}: {len(metadata)} metadata field(s)", file=sys.stderr)
+            print(f"  [DRY RUN] would report {label}: {len(metadata)} metadata field(s)"
+                  f"{', data_version=' + data_version if data_version else ''}", file=sys.stderr)
         else:
-            report_asset_materialization_rest(deployment_url, token, dest_path, metadata, partition)
-            print(f"  reported {label}: {len(metadata)} metadata field(s)", file=sys.stderr)
+            report_asset_materialization_rest(
+                deployment_url, token, dest_path, metadata, partition,
+                data_version=data_version, description=description,
+            )
+            print(f"  reported {label}: {len(metadata)} metadata field(s)"
+                  f"{', data_version=' + data_version if data_version else ''}", file=sys.stderr)
         reported += 1
     return reported, skipped_entries
 
@@ -412,6 +448,7 @@ def cmd_list_materializations(args: argparse.Namespace) -> int:
         fields = {entry["label"]: extract_metadata_value(entry) for entry in (e.get("metadataEntries") or [])}
         print(json.dumps({
             "timestamp": e["timestamp"], "partition": e.get("partition"), "run_id": e.get("runId"),
+            "data_version": extract_data_version(e), "description": e.get("description"),
             "metadata": fields,
         }))
     print(f"\n{len(events)} materialization(s) total", file=sys.stderr)

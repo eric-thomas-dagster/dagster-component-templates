@@ -108,6 +108,7 @@ def test_lancedb_reuse_from_real(mod, tmp_path):
     assert out.attrs["stats"]["embeddings_computed"] == 0
 
 
+@requires_lancedb
 def test_all_reused_still_reports_the_provider_default_model_name(mod, tmp_path):
     """Same all-reused scenario, but `model` is left unset -- embedding_model must report the
     resolved provider default ('all-MiniLM-L6-v2' for sentence_transformers), not None."""

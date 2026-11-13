@@ -206,6 +206,27 @@ def test_extract_llm_entity_filter_must_be_basic_or_none(mod):
         mod._do_extract(_chunk_df(), {"method": "llm", "model": "x", "entity_filter": "bogus"}, "doc_id", _Logger())
 
 
+def test_resolve_min_mentions_never_sees_entities_the_extract_filter_already_dropped(mod, monkeypatch):
+    """resolve's min_mentions is applied to extract's OUTPUT (a separate, later pipeline step
+    reading the prior step's result), so a pronoun entity_filter='basic' drops at extract time
+    never reaches resolve's mention-counting at all -- not even as a 1-mention entity that
+    min_mentions=1 (the lowest possible threshold, which would keep everything with at least one
+    mention) would otherwise have no reason to drop."""
+    def fake_completion(model, messages, api_key, temperature):
+        payload = [
+            {"subject": "you", "relation": "use", "object": "Acme Corp", "confidence": 0.9, "evidence": "e"},
+            {"subject": "Alice", "relation": "works_at", "object": "Acme Corp", "confidence": 0.9, "evidence": "e"},
+        ]
+        return _FakeResponse(json.dumps(payload))
+
+    import litellm
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    extracted = mod._do_extract(_chunk_df(), {"method": "llm", "model": "gpt-4o-mini"}, "doc_id", _Logger())
+    resolved = mod._do_resolve(extracted, {"min_mentions": 1}, _Logger())
+    assert "you" not in resolved.attrs["entities"]
+    assert set(resolved["subject"]) == {"Alice"}
+
+
 class _FakeToken:
     """Fakes just enough of a spaCy Token for _extract_spacy_sentence: .text, .pos_, .dep_,
     .i (index in the sentence, used by _entity_span_at), .lemma_, .is_stop, and .children

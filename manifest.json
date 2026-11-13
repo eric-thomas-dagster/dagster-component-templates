@@ -1089,6 +1089,52 @@
       ]
     },
     {
+      "id": "agent_result_to_dataframe",
+      "name": "Agent Result To DataFrame",
+      "category": "transformation",
+      "description": "Turn an agent/agentic_pipeline-step dict result into a DataFrame.",
+      "path": "assets/transforms/agent_result_to_dataframe",
+      "tags": [
+        "agent-result-to-dataframe",
+        "transforms",
+        "agents"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/agent_result_to_dataframe/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/agent_result_to_dataframe/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/agent_result_to_dataframe/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/agent_result_to_dataframe/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/agent_result_to_dataframe/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "icon": "TableView",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-12"
+      },
+      "agent_hints": {
+        "inputs": "Agent (or agentic_pipeline step) asset's materialized dict result -- or a dict-of-partition-key-to-dict bridge when this asset is left unpartitioned downstream of a partitioned upstream.",
+        "outputs": "DataFrame: one row per run (mode=one_row), one row per tool_call_details entry (mode=explode), or one row per parsed JSON item (mode=extract).",
+        "side_effects": "None -- pure in-memory transform. add_run_columns=True (default) stamps run_id/partition_key/materialized_at/asset_key so appended history stays distinguishable across runs.",
+        "anti_uses": "Not a sink itself -- pair with a dataframe_to_* component downstream to actually persist the table. mode='extract' requires the agent to have been prompted to return JSON; a free-text final_answer raises unless on_parse_error='keep_raw'.",
+        "input_type": "dict",
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "agent",
+        "llm",
+        "dataframe",
+        "sink"
+      ]
+    },
+    {
       "id": "agent_review_queue",
       "name": "agent_review_queue",
       "category": "ai",
@@ -72755,5 +72801,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1397
+  "total": 1398
 }

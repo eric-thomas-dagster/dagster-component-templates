@@ -1,0 +1,226 @@
+{
+  "component_type": "dagster_community_components.AgentResultToDataFrameComponent",
+  "description": "Turn an agent/agentic_pipeline-step dict result into a DataFrame.",
+  "category": "transformation",
+  "icon": "TableView",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "object",
+      "required": true,
+      "description": "Upstream agent (or any dict-valued) asset's materialized result"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per run (or per exploded/extracted item), ready for a dataframe_to_* sink"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key -- an agent asset, an agentic_pipeline step asset, or any dict-valued asset.",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "default": "one_row",
+      "label": "Mode",
+      "description": "'one_row': one row per run, built from the result dict's own scalar fields (final_answer, iterations, tool_calls_made, ... whatever the upstream actually has). 'explode': one row per entry of a list-valued field (see explode_field). 'extract': parse `final_answer` as JSON (or a fenced ```json block) into columns/rows -- for agents prompted to return structured output.",
+      "enum": ["one_row", "explode", "extract"],
+      "ui:widget": "select"
+    },
+    "explode_field": {
+      "type": "string",
+      "default": "tool_call_details",
+      "label": "Explode Field",
+      "description": "mode='explode' only: the list-valued field to explode, one output row per entry."
+    },
+    "on_parse_error": {
+      "type": "string",
+      "default": "raise",
+      "label": "On Parse Error",
+      "description": "mode='extract' only. 'raise' (default): fail the run with a clear error on invalid JSON. 'keep_raw': instead emit one row with the raw text under final_answer_raw and the error message under parse_error, so a single bad response doesn't break the asset.",
+      "enum": ["raise", "keep_raw"],
+      "ui:widget": "select"
+    },
+    "include_columns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Include Columns",
+      "description": "Only keep these columns from each row (run/extra columns are always added). Default: every scalar field present.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "exclude_columns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Exclude Columns",
+      "description": "Drop these columns from the default/explicit column set.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "add_run_columns": {
+      "type": "boolean",
+      "default": true,
+      "label": "Add Run Columns",
+      "description": "Add run_id, partition_key, materialized_at, and asset_key columns to every row. Needed so history accumulates correctly in a table a dataframe_to_* sink appends to."
+    },
+    "extra_columns": {
+      "type": "object",
+      "label": "Extra Columns",
+      "description": "Extra literal columns stamped onto every row, e.g. {pipeline: 'daily_digest', run_date: '{partition_key}'}. The literal substring '{partition_key}' is replaced with the current partition key (empty string when unpartitioned).",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners -- team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog (e.g. python, pandas). Defaults to python/pandas if empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Useful for transient errors like network glitches or rate limits.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "default": "exponential",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": ["linear", "exponential"],
+      "ui:widget": "select"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'cron', 'static', 'multi', 'dynamic', or None for unpartitioned. Match the upstream agent asset's own partitioning.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "cron", "static", "multi", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "default": "%Y-%m-%d",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule."
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "default": 0,
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (default) excludes the current, still-in-progress window; 1 includes it."
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC).",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the partition-bridge handling produces one row group per partition in the range). 'multi_run' launches one run per partition. Leave empty for Dagster's default. Ignored when Partition Type is not set.",
+      "required": false,
+      "default": null,
+      "enum": ["single_run", "multi_run"],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Policy Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields.",
+      "required": false,
+      "default": null
+    }
+  }
+}

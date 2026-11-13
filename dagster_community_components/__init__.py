@@ -24,7 +24,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.145"
+__version__ = "0.10.146"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 
@@ -67,6 +67,7 @@ _CLASS_PATHS: dict[str, str] = {
     "AgentCardComponent": "assets/ai/agent_card/component.py",
     "AgentCardWorkspaceComponent": "assets/ai/agent_card_workspace/component.py",
     "AgentMemoryStoreComponent": "assets/ai/agent_memory_store/component.py",
+    "AgentResultToDataFrameComponent": "assets/transforms/agent_result_to_dataframe/component.py",
     "AgentReviewQueueComponent": "assets/ai/agent_review_queue/component.py",
     "AgenticPipelineAuthoringToolsComponent": "assets/ai/agentic_pipeline_authoring_tools/component.py",
     "AgenticPipelineComponent": "assets/ai/agentic_pipeline/component.py",

@@ -1,0 +1,11 @@
+type: dagster_community_components.AgentResultToDataFrameComponent
+attributes:
+  asset_name: agent_runs_table
+  upstream_asset_key: support_ticket_agent   # an agent asset's dict output
+  mode: one_row                              # one_row | explode | extract
+  add_run_columns: true                      # run_id, partition_key, materialized_at, asset_key
+  extra_columns:
+    pipeline: support_ticket_agent
+  group_name: ai
+  partition_type: daily                      # match the upstream agent asset's own partitioning
+  partition_start: "2024-01-01"

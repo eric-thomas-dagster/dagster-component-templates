@@ -37559,6 +37559,60 @@
       }
     },
     {
+      "id": "knowledge_base_eval",
+      "name": "Knowledge Base Eval",
+      "category": "ai",
+      "description": "Golden-set retrieval quality eval against a LIVE knowledge-search resource (KnowledgeSearchResource or HybridKnowledgeSearchResource), not a vector-index snapshot. Asset check fails below min_score or on regression vs the prior real eval.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/knowledge_base_eval",
+      "tags": [
+        "rag",
+        "eval",
+        "knowledge-graph",
+        "ai"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.10.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_base_eval/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_base_eval/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_base_eval/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_base_eval/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_base_eval/requirements.txt",
+      "icon": "Check",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-13"
+      },
+      "agent_hints": {
+        "inputs": "A registered KnowledgeSearchResource or HybridKnowledgeSearchResource (search_resource_key) + a golden_set of {question, expected_terms?, expected_sources?} dicts.",
+        "outputs": "No return value -- eval_summary/eval_results (or ad_hoc_question/ad_hoc_result for a {question} run-config override) reported entirely as run metadata, never passage text.",
+        "side_effects": "None on data -- attaches an asset_check (<asset_name>_quality_check) that fails below min_score or on regression vs the prior real eval.",
+        "anti_uses": "Not for a point-in-time vector-index snapshot (see rag_eval for that, partitioned by snapshot_id) -- this evaluates whatever search_resource_key returns live, right now.",
+        "requires_resources": [
+          "search_resource_key (a KnowledgeSearchResource or HybridKnowledgeSearchResource, registered elsewhere)"
+        ],
+        "output_type": "none"
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "option_requirements": {},
+      "keywords": [
+        "retrieval augmented",
+        "rag pipeline",
+        "eval",
+        "golden set",
+        "regression check",
+        "llm",
+        "genai"
+      ]
+    },
+    {
       "id": "knowledge_graph_builder",
       "name": "Knowledge Graph Builder",
       "category": "ai",
@@ -73194,5 +73248,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1403
+  "total": 1404
 }

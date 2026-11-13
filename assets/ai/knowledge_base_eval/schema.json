@@ -1,0 +1,130 @@
+{
+  "component_type": "dagster_community_components.KnowledgeBaseEvalComponent",
+  "description": "Golden-set retrieval quality eval against a LIVE knowledge-search resource (KnowledgeSearchResource or HybridKnowledgeSearchResource), not a vector-index snapshot. Asset check fails below min_score or on regression vs the prior real eval.",
+  "category": "ai",
+  "icon": "Check",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "none",
+      "description": "No return value -- reports eval_summary/eval_results (or ad_hoc_question/ad_hoc_result) entirely as run metadata."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset name"
+    },
+    "knowledge_base": {
+      "type": "string",
+      "label": "Knowledge Base",
+      "required": false,
+      "description": "Optional UI-linking label only -- the knowledge base this evaluates. Not read or validated.",
+      "default": null
+    },
+    "search_resource_key": {
+      "type": "string",
+      "label": "Search Resource Key",
+      "required": true,
+      "description": "Dagster resource key of an already-registered KnowledgeSearchResource (knowledge_search_server) or HybridKnowledgeSearchResource (hybrid_knowledge_search_server) to query. A plain resource key, resolved the normal way -- not a special naming convention."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "The knowledge base's own base asset key, declared as a lineage dep (no data passed at runtime) so this eval re-evaluates whenever the base asset is rebuilt/updated."
+    },
+    "golden_set": {
+      "type": "array",
+      "label": "Golden Set",
+      "required": true,
+      "description": "List of {question: str, expected_terms?: [str], expected_sources?: [str]} dicts. expected_terms are matched case-insensitively as substrings of the top-k results' text; expected_sources are matched against each result's source, doc_id, OR chunk_id (any one matching counts). Either (or both) may be omitted per question.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "k": {
+      "type": "integer",
+      "label": "K",
+      "required": false,
+      "description": "Top-k results requested per question.",
+      "default": 5
+    },
+    "min_score": {
+      "type": "number",
+      "label": "Min Score",
+      "required": false,
+      "description": "Absolute minimum mean score across golden_set. Asset check fails below this.",
+      "default": 0.6
+    },
+    "regression_pct": {
+      "type": "number",
+      "label": "Regression Pct",
+      "required": false,
+      "description": "Max allowed drop, in percentage POINTS of the 0-1 score (e.g. 10 = may not fall more than 0.10 below the prior real eval), vs the most recent PRIOR materialization that itself has eval_summary metadata -- an ad hoc {question} run's materialization is transparently skipped when walking back for this.",
+      "default": 10.0
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Dagster asset group name.",
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "description": "Asset description.",
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners.",
+      "default": null,
+      "items": {"type": "string"}
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "description": "Additional key-value tags.",
+      "default": null,
+      "additionalProperties": {"type": "string"}
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "description": "Asset kinds (defaults to ['rag', 'eval']).",
+      "default": null,
+      "items": {"type": "string"}
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "description": "Max retries on asset failure (opt-in).",
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "description": "Seconds between retries (default 1).",
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "default": "exponential",
+      "enum": ["linear", "exponential"],
+      "ui:widget": "select"
+    }
+  }
+}

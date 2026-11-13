@@ -1,0 +1,5 @@
+dagster>=1.10.0
+
+# No extra pip deps of its own -- it only calls the already-registered search_resource_key
+# resource's own .search() method (a KnowledgeSearchResource or HybridKnowledgeSearchResource,
+# whose own pip deps are theirs to declare).

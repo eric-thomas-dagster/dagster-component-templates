@@ -1,0 +1,8 @@
+type: dagster_community_components.HybridKnowledgeSearchQueryComponent
+attributes:
+  asset_name: support_kb_ask
+  hybrid_resource_key: hybrid_search
+  query_text: "How do I reset a customer's password?"
+  top_k: 5
+  hops: 1
+  mode: hybrid

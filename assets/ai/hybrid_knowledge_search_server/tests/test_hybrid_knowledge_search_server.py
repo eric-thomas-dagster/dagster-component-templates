@@ -185,6 +185,8 @@ def test_build_defs_registers_resource_and_inspection_asset(mod, tmp_path):
     assert result.success
     md = result.asset_materializations_for_node("hybrid_knowledge_search_tools")[0].metadata
     assert md["overlap_with_knowledge_base"].value == 1.0
+    assert md["chunk_count_vector"].value == 2
+    assert md["chunk_count_graph"].value == 2
     assert "search" in md["tool_names"].value
 
 

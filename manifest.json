@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-11-12",
+  "last_updated": "2026-11-13",
   "components": [
     {
       "id": "ab_controls",
@@ -33798,6 +33798,57 @@
       ]
     },
     {
+      "id": "hybrid_knowledge_search_query",
+      "name": "Hybrid Knowledge Search Query",
+      "category": "ai",
+      "description": "Ask-a-question run against a hybrid (vector + graph) knowledge base, via an already-registered HybridKnowledgeSearchResource.",
+      "path": "assets/ai/hybrid_knowledge_search_query",
+      "tags": [
+        "knowledge-graph",
+        "vector-search",
+        "ai",
+        "retrieval-test"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_query/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pydantic"
+        ]
+      },
+      "icon": "Search",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-13"
+      },
+      "agent_hints": {
+        "inputs": "Reads from an already-registered HybridKnowledgeSearchResource via required_resource_keys -- not a Dagster asset input.",
+        "outputs": "One asset reporting hits (passages + triples), entities_matched, and counts as run metadata; no data asset output.",
+        "side_effects": "None -- a read-only query per materialization. query_text/top_k/hops/mode are all overridable per run via HybridKnowledgeSearchQueryRunConfig.",
+        "anti_uses": "Does not build the hybrid resource -- pair with hybrid_knowledge_search_server (hybrid_resource_key must match its resource_key) in the same code location.",
+        "input_type": "none",
+        "output_type": "none"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "graph",
+        "vector",
+        "hybrid",
+        "search",
+        "retrieval-test",
+        "rag",
+        "graphrag"
+      ]
+    },
+    {
       "id": "hybrid_knowledge_search_server",
       "name": "Hybrid Knowledge Search Server",
       "category": "ai",
@@ -37490,6 +37541,55 @@
         "entities",
         "relationships",
         "extraction",
+        "neo4j",
+        "networkx",
+        "falkordb"
+      ]
+    },
+    {
+      "id": "knowledge_graph_search_query",
+      "name": "Knowledge Graph Search Query",
+      "category": "ai",
+      "description": "Ask-a-question run against a knowledge graph, via an already-registered KnowledgeGraphSearchResource -- no vector-store settings required.",
+      "path": "assets/ai/knowledge_graph_search_query",
+      "tags": [
+        "knowledge-graph",
+        "ai",
+        "retrieval-test"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_query/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pydantic"
+        ]
+      },
+      "icon": "Search",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-13"
+      },
+      "agent_hints": {
+        "inputs": "Reads from an already-registered KnowledgeGraphSearchResource via required_resource_keys -- not a Dagster asset input.",
+        "outputs": "One asset reporting entities_matched and neighbors as run metadata; no data asset output.",
+        "side_effects": "None -- a read-only query per materialization. entity/entity_type/hops/relation are all overridable per run via KnowledgeGraphSearchQueryRunConfig.",
+        "anti_uses": "Does not build the graph resource -- pair with knowledge_graph_search_server (graph_resource_key must match its resource_key) in the same code location. No vector-store settings needed -- use hybrid_knowledge_search_query for hybrid/vector queries.",
+        "input_type": "none",
+        "output_type": "none"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "graph",
+        "search",
+        "retrieval-test",
         "neo4j",
         "networkx",
         "falkordb"
@@ -72961,5 +73061,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1401
+  "total": 1403
 }

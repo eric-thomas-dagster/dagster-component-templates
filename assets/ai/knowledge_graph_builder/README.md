@@ -91,7 +91,8 @@ attributes:
   `falkordb`. `sync_mode`: `upsert` (default), `replace_sources` (also
   removes triples whose source rows are in this run but that this run no
   longer produces), or `replace_all` (the graph becomes exactly this run's
-  triples; refused when partitioned).
+  triples; refused when partitioned). `preview_max_nodes` (default 60) bounds
+  the `graph_preview` run-metadata field below.
 
 Every edge carries real provenance: `source_ids`, `chunk_ids` +
 `content_hashes` (parallel arrays, one entry per supporting chunk), and a
@@ -251,6 +252,14 @@ The final asset's materialization metadata reports: `node_count`,
 `sample_triples` (first 10), `extraction_settings` (method/model/
 entity_types/relation_types), and `graph_location` (the file path or
 `provider:graph_name`).
+
+Since Dagster+ can't read the graph store directly, the asset also reports a
+bounded `graph_preview` (JSON `{nodes: [{id, name, type, mentions}], edges:
+[{source, target, relation, weight}]}`) so the graph's shape is viewable from
+the run itself: the top `preview_max_nodes` nodes by degree (default 60, set
+via `preview_max_nodes` on the `write_graph` step) and only the edges among
+those nodes. `preview_truncated` is `true` whenever the real graph has more
+nodes than fit in the preview.
 
 ## Inputs and Outputs
 

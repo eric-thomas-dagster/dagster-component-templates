@@ -1,0 +1,89 @@
+{
+  "component_type": "dagster_community_components.KnowledgeGraphSearchQueryComponent",
+  "description": "Ask-a-question run against a knowledge graph, via an already-registered KnowledgeGraphSearchResource -- no vector-store settings required.",
+  "category": "ai",
+  "icon": "Search",
+  "x-dagster-io": {
+    "inputs": { "type": "none" },
+    "outputs": { "type": "none", "description": "Reports entities_matched and neighbors as run metadata." }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name.",
+      "required": true
+    },
+    "graph_resource_key": {
+      "type": "string",
+      "label": "Graph Resource Key",
+      "description": "Resource key of an already-registered KnowledgeGraphSearchResource (from a KnowledgeGraphSearchServerComponent in the same code location).",
+      "required": true
+    },
+    "entity": {
+      "type": "string",
+      "label": "Entity",
+      "description": "Static default entity name/search term. Can be left unset if every run supplies KnowledgeGraphSearchQueryRunConfig.entity instead.",
+      "required": false,
+      "default": null
+    },
+    "entity_type": {
+      "type": "string",
+      "label": "Entity Type",
+      "description": "Restrict search_entities to this entity type.",
+      "required": false,
+      "default": null
+    },
+    "hops": {
+      "type": "integer",
+      "label": "Hops",
+      "description": "get_neighbors hop count (capped at 3 by the resource).",
+      "required": false,
+      "default": 1
+    },
+    "relation": {
+      "type": "string",
+      "label": "Relation",
+      "description": "Restrict get_neighbors to edges with this relation name.",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the asset.",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "required": false,
+      "default": null
+    }
+  }
+}

@@ -1,0 +1,6 @@
+type: dagster_community_components.KnowledgeGraphSearchQueryComponent
+attributes:
+  asset_name: support_kg_ask
+  graph_resource_key: support_kg_search
+  entity: "Acme Corp"
+  hops: 2

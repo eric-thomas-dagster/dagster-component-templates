@@ -24,7 +24,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.148"
+__version__ = "0.10.149"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 
@@ -695,6 +695,7 @@ _CLASS_PATHS: dict[str, str] = {
     "HumanApprovalGateComponent": "assets/ai/human_approval_gate/component.py",
     "HvrHubResource": "integrations/hvr_hub_workspace/component.py",
     "HvrHubWorkspaceComponent": "integrations/hvr_hub_workspace/component.py",
+    "HybridKnowledgeSearchQueryComponent": "assets/ai/hybrid_knowledge_search_query/component.py",
     "HybridKnowledgeSearchServerComponent": "assets/ai/hybrid_knowledge_search_server/component.py",
     "IWSIntegrationComponent": "integrations/iws_integration/component.py",
     "IcebergCatalogResourceComponent": "resources/iceberg_catalog_resource/component.py",
@@ -776,6 +777,7 @@ _CLASS_PATHS: dict[str, str] = {
     "KlaviyoResource": "resources/klaviyo_resource/component.py",
     "KlaviyoResourceComponent": "resources/klaviyo_resource/component.py",
     "KnowledgeGraphBuilderComponent": "assets/ai/knowledge_graph_builder/component.py",
+    "KnowledgeGraphSearchQueryComponent": "assets/ai/knowledge_graph_search_query/component.py",
     "KnowledgeGraphSearchServerComponent": "assets/ai/knowledge_graph_search_server/component.py",
     "KnowledgeSearchServerComponent": "assets/ai/knowledge_search_server/component.py",
     "KustomerConversationsIngestionComponent": "assets/ingestion/kustomer_conversations_ingestion/component.py",

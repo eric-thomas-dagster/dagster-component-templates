@@ -760,6 +760,8 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
                 "graph_name": MetadataValue.text(graph_cfg.get("graph_name", "knowledge_graph")),
                 "overlap_with_knowledge_base": (MetadataValue.float(overlap["overlap_fraction"]) if overlap["overlap_fraction"] is not None else MetadataValue.null()),
                 "overlap_note": MetadataValue.text(overlap["overlap_note"]),
+                "chunk_count_vector": (MetadataValue.int(overlap["vector_chunk_count"]) if overlap["vector_chunk_count"] is not None else MetadataValue.null()),
+                "chunk_count_graph": (MetadataValue.int(overlap["graph_chunk_count"]) if overlap["graph_chunk_count"] is not None else MetadataValue.null()),
                 "tool_names": MetadataValue.json([
                     "search", "search_entities", "get_entity", "get_neighbors", "find_path",
                     "get_chunks_for_entity", "get_graph_context",

@@ -242,6 +242,49 @@ def test_write_graph_sync_mode_must_be_valid(mod, tmp_path):
         mod._do_write_graph(df, {"provider": "networkx", "path": str(tmp_path / "kg.json"), "sync_mode": "bogus"}, "doc_id", _Logger(), partitioned=False)
 
 
+# ─── graph_preview (run-metadata preview) ──────────────────────────────────
+
+def test_graph_preview_defaults_to_top_60_nodes_untruncated_for_small_graph(mod, tmp_path):
+    path = str(tmp_path / "kg.json")
+    df = pd.DataFrame([
+        {"doc_id": "d1", "chunk_id": "c1", "subject": "Alice", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Acme", "object_type": "ORG"},
+    ])
+    out = mod._do_write_graph(df, {"provider": "networkx", "path": path}, "doc_id", _Logger(), partitioned=False)
+    preview = out.attrs["stats"]["graph_preview"]
+    assert {n["name"] for n in preview["nodes"]} == {"Alice", "Acme"}
+    assert preview["edges"] == [{"source": "Alice", "target": "Acme", "relation": "works_at", "weight": 1}]
+    assert out.attrs["stats"]["preview_truncated"] is False
+
+
+def test_graph_preview_truncates_and_only_includes_edges_among_shown_nodes(mod, tmp_path):
+    path = str(tmp_path / "kg.json")
+    # A has degree 2 (A-B, A-C); D-E is a separate, lower-degree edge. With preview_max_nodes=2,
+    # only {A, B} make the cut -- the A-C and D-E edges must be dropped since C/D/E aren't shown.
+    df = pd.DataFrame([
+        {"doc_id": "d1", "subject": "A", "subject_type": "X", "relation": "r1", "object": "B", "object_type": "X"},
+        {"doc_id": "d1", "subject": "A", "subject_type": "X", "relation": "r2", "object": "C", "object_type": "X"},
+        {"doc_id": "d1", "subject": "D", "subject_type": "X", "relation": "r3", "object": "E", "object_type": "X"},
+    ])
+    out = mod._do_write_graph(df, {"provider": "networkx", "path": path, "preview_max_nodes": 2}, "doc_id", _Logger(), partitioned=False)
+    stats = out.attrs["stats"]
+    assert stats["node_count"] == 5
+    preview = stats["graph_preview"]
+    shown = {n["name"] for n in preview["nodes"]}
+    assert shown == {"A", "B"}
+    assert preview["edges"] == [{"source": "A", "target": "B", "relation": "r1", "weight": 1}]
+    assert stats["preview_truncated"] is True
+
+
+def test_graph_preview_respects_preview_max_nodes_override(mod, tmp_path):
+    path = str(tmp_path / "kg.json")
+    df = pd.DataFrame([{"doc_id": "d1", "subject": "A", "relation": "r", "object": "B"}])
+    out = mod._do_write_graph(df, {"provider": "networkx", "path": path, "preview_max_nodes": 1}, "doc_id", _Logger(), partitioned=False)
+    stats = out.attrs["stats"]
+    assert len(stats["graph_preview"]["nodes"]) == 1
+    assert stats["preview_truncated"] is True
+
+
 # ─── extract reuse_from (incremental) ──────────────────────────────────────
 
 def test_extract_reuse_from_networkx_skips_unchanged_chunks(mod, tmp_path, monkeypatch):
@@ -310,6 +353,10 @@ def test_full_pipeline_end_to_end(mod, tmp_path, monkeypatch):
     assert md["chunk_count"].value == 2
     assert md["entities_linked_to_chunks"].value == 2
     assert os.path.exists(path)
+    preview = md["graph_preview"].value
+    assert {n["name"] for n in preview["nodes"]} == {"Alice", "Acme Corp"}
+    assert preview["edges"] == [{"source": "Alice", "target": "Acme Corp", "relation": "works_at", "weight": 2}]
+    assert md["preview_truncated"].value is False
 
 
 # ─── shared chunk-id contract: starting from a pre-chunked upstream ───────

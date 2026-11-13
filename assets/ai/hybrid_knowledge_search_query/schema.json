@@ -1,0 +1,91 @@
+{
+  "component_type": "dagster_community_components.HybridKnowledgeSearchQueryComponent",
+  "description": "Ask-a-question run against a hybrid (vector + graph) knowledge base, via an already-registered HybridKnowledgeSearchResource.",
+  "category": "ai",
+  "icon": "Search",
+  "x-dagster-io": {
+    "inputs": { "type": "none" },
+    "outputs": { "type": "none", "description": "Reports search hits (passages + triples) and entities_matched as run metadata." }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name.",
+      "required": true
+    },
+    "hybrid_resource_key": {
+      "type": "string",
+      "label": "Hybrid Resource Key",
+      "description": "Resource key of an already-registered HybridKnowledgeSearchResource (from a HybridKnowledgeSearchServerComponent in the same code location).",
+      "required": true
+    },
+    "query_text": {
+      "type": "string",
+      "label": "Query Text",
+      "description": "Static default query. Can be left unset if every run supplies HybridKnowledgeSearchQueryRunConfig.query_text instead.",
+      "required": false,
+      "default": null
+    },
+    "top_k": {
+      "type": "integer",
+      "label": "Top K",
+      "description": "Max passages to return.",
+      "required": false,
+      "default": 5
+    },
+    "hops": {
+      "type": "integer",
+      "label": "Hops",
+      "description": "Graph-expansion hop count for mode='hybrid'/'graph'.",
+      "required": false,
+      "default": 1
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "Search mode: 'hybrid' (vector + graph expansion), 'vector' (vector store only), or 'graph' (graph expansion only, seeded by entity-name matches in the query).",
+      "required": false,
+      "default": "hybrid",
+      "enum": ["hybrid", "vector", "graph"],
+      "ui:widget": "select"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the asset.",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "required": false,
+      "default": null
+    }
+  }
+}

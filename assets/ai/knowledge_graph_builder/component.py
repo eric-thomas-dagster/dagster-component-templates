@@ -812,6 +812,49 @@ def _run_graph_query(provider: str, cfg: dict, query: str, params: dict) -> List
     raise ValueError(f"unsupported provider {provider!r}")
 
 
+def _compute_graph_preview(provider: str, step: dict, graph_name: str, max_nodes: int, node_count: int, g=None) -> Dict[str, Any]:
+    """Bounded {nodes, edges} preview for run-metadata display: the top `max_nodes` nodes by
+    degree and the edges among them only -- a full graph dump would blow past Dagster+'s
+    metadata-size limits for any real-sized graph. `truncated` is true whenever the graph has
+    more nodes than fit in the preview."""
+    max_nodes = max(0, int(max_nodes))
+    if provider == "networkx":
+        degrees = dict(g.degree())
+        top = sorted(degrees.items(), key=lambda kv: -kv[1])[:max_nodes]
+        top_names = {name for name, _ in top}
+        nodes = [
+            {"id": name, "name": name, "type": g.nodes[name].get("type"), "mentions": g.nodes[name].get("mention_count")}
+            for name, _ in top
+        ]
+        edges = [
+            {"source": u, "target": v, "relation": data.get("relation"), "weight": data.get("mention_count", 1)}
+            for u, v, data in g.edges(data=True) if u in top_names and v in top_names
+        ]
+        return {"nodes": nodes, "edges": edges, "truncated": node_count > len(nodes)}
+    if provider in ("neo4j", "falkordb"):
+        node_rows = _run_graph_query(
+            provider, step,
+            "MATCH (n {graph: $graph_name}) OPTIONAL MATCH (n)-[r {graph: $graph_name}]-() "
+            f"WITH n, count(r) AS degree RETURN n.name AS name, n.type AS type, "
+            f"n.mention_count AS mentions, degree ORDER BY degree DESC LIMIT {max_nodes}",
+            {"graph_name": graph_name},
+        )
+        top_names = [r["name"] for r in node_rows]
+        nodes = [{"id": r["name"], "name": r["name"], "type": r.get("type"), "mentions": r.get("mentions")} for r in node_rows]
+        edge_rows = []
+        if top_names:
+            edge_rows = _run_graph_query(
+                provider, step,
+                "MATCH (a {graph: $graph_name})-[r {graph: $graph_name}]->(b {graph: $graph_name}) "
+                "WHERE a.name IN $names AND b.name IN $names "
+                "RETURN a.name AS source, b.name AS target, r.relation AS relation, r.mention_count AS weight",
+                {"graph_name": graph_name, "names": top_names},
+            )
+        edges = [{"source": r["source"], "target": r["target"], "relation": r.get("relation"), "weight": r.get("weight")} for r in edge_rows]
+        return {"nodes": nodes, "edges": edges, "truncated": node_count > len(nodes)}
+    raise ValueError(f"unsupported provider {provider!r}")
+
+
 def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, partitioned: bool) -> pd.DataFrame:
     """Knobs: provider (networkx|neo4j|falkordb), sync_mode (upsert default | replace_sources |
     replace_all -- refused when partitioned), graph_name, plus provider connection fields (see
@@ -887,6 +930,7 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
         degrees = dict(g.degree())
         top_entities = sorted(degrees.items(), key=lambda kv: -kv[1])[:20]
         store_location = path
+        preview_g = g
 
     elif provider in ("neo4j", "falkordb"):
         if sync_mode == "replace_all":
@@ -937,8 +981,12 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
         top_entities = sorted(nodes.items(), key=lambda kv: -kv[1]["mention_count"])[:20]
         top_entities = [(name, n["mention_count"]) for name, n in top_entities]
         store_location = f"{provider}:{graph_name}"
+        preview_g = None
     else:
         raise ValueError(f"write_graph op: unsupported provider {provider!r}. Valid: networkx, neo4j, falkordb.")
+
+    preview_max_nodes = int(step.get("preview_max_nodes", 60))
+    graph_preview = _compute_graph_preview(provider, step, graph_name, preview_max_nodes, node_count, g=preview_g)
 
     entities_this_run = set(nodes)
     chunk_ids_this_run = {cid for e in edges.values() for cid in e["chunk_ids"]}
@@ -948,6 +996,8 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
         "node_count": node_count, "edge_count": edge_count, "top_entities": top_entities,
         "store_location": store_location, "sync_mode": sync_mode, "provider": provider,
         "chunk_count": len(chunk_ids_this_run), "entities_linked_to_chunks": len(entities_this_run),
+        "graph_preview": {"nodes": graph_preview["nodes"], "edges": graph_preview["edges"]},
+        "preview_truncated": graph_preview["truncated"],
     }
     return out
 
@@ -1292,6 +1342,8 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
                 metadata["top_entities"] = MetadataValue.json(final_stats.get("top_entities"))
                 metadata["graph_location"] = MetadataValue.text(str(final_stats.get("store_location")))
                 metadata["sync_mode"] = MetadataValue.text(str(final_stats.get("sync_mode")))
+                metadata["graph_preview"] = MetadataValue.json(final_stats.get("graph_preview"))
+                metadata["preview_truncated"] = MetadataValue.bool(bool(final_stats.get("preview_truncated")))
             sample_cols = [c for c in ("subject", "relation", "object", "confidence") if c in final_df.columns]
             if sample_cols:
                 metadata["sample_triples"] = MetadataValue.json(final_df[sample_cols].head(10).to_dict("records"))

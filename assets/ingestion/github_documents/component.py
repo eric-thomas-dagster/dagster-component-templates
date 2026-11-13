@@ -90,7 +90,7 @@ Set `destination` to persist directly to any dlt-supported destination
 import datetime as dt
 import hashlib
 import os
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 import requests
@@ -382,6 +382,21 @@ def _apply_max_rows_per_resource(resources, max_rows_per_resource):
     for resource in resources:
         resource.add_limit(max_items=max_rows_per_resource, count_rows=True)
 # END dlt-advanced-options helper
+
+
+def _dedupe_by_doc_id(df: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
+    """Collapse duplicate 'doc_id' rows in a table readback to one row per doc_id, keeping
+    the row with the latest 'updated_at' when that column is present. A safety net against
+    row duplication independent of write_disposition -- e.g. an 'append'-mode table, or
+    stale rows accumulated before 'replace'/'merge' was adopted. No-op if 'doc_id' is
+    missing or the frame is empty. Returns (deduped_df, rows_removed)."""
+    if df is None or len(df) == 0 or "doc_id" not in df.columns:
+        return df, 0
+    before = len(df)
+    if "updated_at" in df.columns:
+        df = df.sort_values("updated_at", kind="stable")
+    deduped = df.drop_duplicates(subset="doc_id", keep="last").reset_index(drop=True)
+    return deduped, before - len(deduped)
 
 
 def _build_partitions_def(
@@ -726,6 +741,22 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
             "shape of the data cheaply, not for routine use. Never applied unless you set it."
         ),
     )
+    write_disposition: Literal["replace", "append", "merge"] = Field(
+        default="replace",
+        description=(
+            "How each run writes into every destination table. 'replace' (default): each "
+            "run fully replaces every table's rows with this run's fetch -- fixes a real "
+            "duplication bug, since dlt's own default ('append') has no notion of a "
+            "previous run's rows becoming stale, so every rerun against a persistent "
+            "destination (including this component's own default duckdb-file destination, "
+            "which is a real on-disk file, not in-memory) silently doubled/tripled/etc. "
+            "every table's row_count forever. 'merge': upserts keyed on 'doc_id' (this "
+            "component's row identity for both file rows and issue/PR rows), per table -- "
+            "a rerun updates existing rows and adds new ones without dropping anything "
+            "removed upstream. 'append': the old behavior, an explicit opt-in for a "
+            "deliberate historical log of every fetch."
+        ),
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -991,6 +1022,7 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        write_disposition = self.write_disposition
 
         owner = self.owner
         repo = self.repo
@@ -1143,6 +1175,18 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
                     return _r()
 
                 dlt_resources.append(_factory())
+
+            # Every table's row identity is 'doc_id' (both the file-row and issue/pr-row
+            # shapes set it). 'replace' (default) fully replaces each table every run --
+            # fixes the duplication bug, since dlt's own default ('append', which applies
+            # when write_disposition is never set) has no notion of a previous run's rows
+            # becoming stale. 'merge' upserts on 'doc_id'. 'append' is the old behavior,
+            # an explicit opt-in.
+            for _r in dlt_resources:
+                if write_disposition == "merge":
+                    _r.apply_hints(write_disposition=write_disposition, primary_key="doc_id")
+                else:
+                    _r.apply_hints(write_disposition=write_disposition)
             return dlt_resources
 
         if self.asset_shape == "single":
@@ -1184,6 +1228,7 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
                 context.log.info(f"Loading {total_rows} document row(s) into destination...")
                 load_info = pipeline.run(dlt_resources)
                 context.log.info(f"GitHub documents loaded: {load_info}")
+                load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
                 base_metadata = {
                     "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
@@ -1191,6 +1236,8 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
                     "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                     "resources_requested": MetadataValue.json(resources_list),
                     "destination_table_names": MetadataValue.json(dest_table_names),
+                    "write_disposition": MetadataValue.text(write_disposition),
+                    "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
                 }
 
                 non_sql_destinations = {"filesystem", "delta", "iceberg"}
@@ -1205,11 +1252,20 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
 
                 all_data = []
                 resource_metadata = {}
+                duplicate_rows_removed = {}
                 with pipeline.sql_client() as client:
                     for r in resources_list:
                         try:
                             with client.execute_query(f"SELECT * FROM {dataset_name}.{dest_table_names[r]}") as cur:
                                 df = cur.df()
+                            df, removed = _dedupe_by_doc_id(df)
+                            if removed > 0:
+                                context.log.warning(
+                                    f"{r}: removed {removed} duplicate row(s) by 'doc_id' (keeping the latest "
+                                    "'updated_at' per id) when reading back table "
+                                    f"{dest_table_names[r]!r}."
+                                )
+                            duplicate_rows_removed[r] = removed
                             if len(df) > 0:
                                 df["_resource"] = r
                                 all_data.append(df)
@@ -1229,6 +1285,8 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
                     "row_count": MetadataValue.int(len(combined_df)),
                     "column_count": MetadataValue.int(len(combined_df.columns)),
                     "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                    "duplicate_rows_removed": MetadataValue.json(duplicate_rows_removed),
+                    "duplicate_rows_removed_total": MetadataValue.int(sum(duplicate_rows_removed.values())),
                 }
                 for resource, rows in resource_metadata.items():
                     metadata[f"rows_{resource}"] = MetadataValue.int(rows)
@@ -1304,6 +1362,7 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
 
             load_info = pipeline.run(dlt_resources)
             context.log.info(f"GitHub documents loaded: {load_info}")
+            load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
@@ -1323,6 +1382,8 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
                             "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                             "resource": MetadataValue.text(r),
                             "destination_table_name": MetadataValue.text(dest_table_names[r]),
+                            "write_disposition": MetadataValue.text(write_disposition),
+                            "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
                         },
                     )
                 return
@@ -1336,6 +1397,13 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
                         context.log.warning(f"Could not load {r} (destination table {dest_table_names[r]!r}): {e}")
                         df = pd.DataFrame()
 
+                    df, duplicate_rows_removed = _dedupe_by_doc_id(df)
+                    if duplicate_rows_removed > 0:
+                        context.log.warning(
+                            f"{r}: removed {duplicate_rows_removed} duplicate row(s) by 'doc_id' (keeping the "
+                            f"latest 'updated_at' per id) when reading back table {dest_table_names[r]!r}."
+                        )
+
                     df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
                     metadata = {
@@ -1345,6 +1413,9 @@ class GithubDocumentsComponent(Component, Model, Resolvable):
                         "resource": MetadataValue.text(r),
                         "destination_table_name": MetadataValue.text(dest_table_names[r]),
                         "row_count": MetadataValue.int(len(df)),
+                        "write_disposition": MetadataValue.text(write_disposition),
+                        "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
+                        "duplicate_rows_removed": MetadataValue.int(duplicate_rows_removed),
                     }
                     if include_preview and len(df) > 0:
                         try:

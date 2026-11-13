@@ -283,3 +283,68 @@ def test_onedrive_download_failure_skips_not_crashes(mod, monkeypatch):
     assert rows == []
     materialization = result.get_asset_materialization_events()[-1].materialization
     assert materialization.metadata["skipped_files"].value == 1
+
+
+# --- write_disposition: resource hints (fake-dlt, real .apply_hints()) -----------------
+
+def test_default_write_disposition_is_replace(mod, monkeypatch, tmp_path):
+    _write(tmp_path / "a.md", "hello world")
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = mod.CloudDocumentsComponent(
+        asset_name="docs", provider="s3", source_path=f"file://{tmp_path}",
+        include_preview_metadata=False,
+    )
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "replace"
+    materialization = result.get_asset_materialization_events()[-1].materialization
+    assert materialization.metadata["write_disposition"].value == "replace"
+
+
+def test_merge_write_disposition_sets_primary_key(mod, monkeypatch, tmp_path):
+    _write(tmp_path / "a.md", "hello world")
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = mod.CloudDocumentsComponent(
+        asset_name="docs", provider="s3", source_path=f"file://{tmp_path}",
+        include_preview_metadata=False, write_disposition="merge",
+    )
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "merge"
+    assert resource.compute_table_schema()["columns"]["doc_id"]["primary_key"] is True
+
+
+def test_append_write_disposition_is_explicit_opt_in(mod, monkeypatch, tmp_path):
+    _write(tmp_path / "a.md", "hello world")
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = mod.CloudDocumentsComponent(
+        asset_name="docs", provider="s3", source_path=f"file://{tmp_path}",
+        include_preview_metadata=False, write_disposition="append",
+    )
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "append"
+
+
+# --- _dedupe_by_doc_id: pure-function safety net ---------------------------------------
+
+def test_dedupe_by_doc_id_keeps_latest_updated_at(mod):
+    df = pd.DataFrame([
+        {"doc_id": "doc-a", "updated_at": "2024-01-01", "content": "old"},
+        {"doc_id": "doc-a", "updated_at": "2024-02-01", "content": "new"},
+        {"doc_id": "doc-b", "updated_at": "2024-01-01", "content": "b"},
+    ])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 2
+    assert deduped.set_index("doc_id").loc["doc-a", "content"] == "new"
+
+
+def test_dedupe_by_doc_id_no_doc_id_column_is_a_no_op(mod):
+    df = pd.DataFrame([{"a": 1}, {"a": 2}])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 2

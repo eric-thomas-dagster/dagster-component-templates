@@ -15,7 +15,7 @@ Set `destination` to persist directly to any dlt-supported destination
 """
 
 import os
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 import dlt
@@ -146,6 +146,20 @@ def _require_env(name: str) -> str:
             "Dagster code location (or point the *_env_var field at one that is)."
         )
     return value
+
+
+def _dedupe_by_doc_id(df: "pd.DataFrame") -> Tuple["pd.DataFrame", int]:
+    """Safety net against duplicate doc_id/url rows in the returned DataFrame, regardless of
+    write_disposition -- keeps the row with the latest `updated_at` per doc_id. Returns
+    (deduped_df, rows_removed)."""
+    if "doc_id" not in df.columns or df.empty:
+        return df, 0
+    before = len(df)
+    if "updated_at" in df.columns:
+        df = df.sort_values("updated_at", kind="stable").drop_duplicates(subset="doc_id", keep="last")
+    else:
+        df = df.drop_duplicates(subset="doc_id", keep="last")
+    return df.reset_index(drop=True), before - len(df)
 
 
 def _build_partitions_def(
@@ -512,6 +526,22 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
             "routine use. Never applied unless you set it."
         ),
     )
+    write_disposition: Literal["replace", "append", "merge"] = Field(
+        default="replace",
+        description=(
+            "dlt write disposition for the destination table. 'replace' (default): each run's "
+            "search fully replaces the table. dlt's own default is 'append', which has no "
+            "notion of a previous run's rows becoming stale -- every re-run keeps adding "
+            "another full copy of every result on top of the last (a real, previously-shipped "
+            "bug: row_count doubled on every rerun of the same queries, with no way to tell "
+            "the loads apart downstream). 'merge': upserts keyed on `doc_id` (the Tavily "
+            "result id, falling back to the URL or a content hash) -- keeps results from a "
+            "prior run this run didn't re-return, unlike 'replace' which drops them. "
+            "'append': the old behavior, kept as an explicit opt-in for anyone who "
+            "deliberately wants a historical log of every search rather than current-state "
+            "results."
+        ),
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -789,6 +819,7 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        write_disposition = self.write_disposition
         api_key_env_var = self.api_key_env_var
         static_queries = [q.strip() for q in (self.queries or "").split(",") if q.strip()]
         upstream_asset_key = self.upstream_asset_key
@@ -970,6 +1001,10 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
             )
 
             tavily_resource = _make_tavily_resource(context, queries, api_key)
+            hint_kwargs: Dict[str, Any] = {"write_disposition": write_disposition}
+            if write_disposition == "merge":
+                hint_kwargs["primary_key"] = "doc_id"
+            tavily_resource.apply_hints(**hint_kwargs)
             if on_schema_change != "allow_all":
                 tavily_resource.apply_hints(schema_contract=_resolve_schema_contract(on_schema_change))
             if exclude_columns:
@@ -982,6 +1017,7 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
             context.log.info("Running Tavily searches and loading results...")
             load_info = pipeline.run(tavily_resource)
             context.log.info(f"Tavily data loaded: {load_info}")
+            load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
             base_metadata = {
                 "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
@@ -989,6 +1025,8 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
                 "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                 "queries_run": MetadataValue.json(queries),
                 "destination_table_name": MetadataValue.text(table_name),
+                "write_disposition": MetadataValue.text(write_disposition),
+                "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
             }
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
@@ -1009,10 +1047,19 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
                 context.log.warning(f"Could not read back {table_name}: {e}")
                 df = pd.DataFrame()
 
+            df, duplicate_rows_removed = _dedupe_by_doc_id(df)
+            if duplicate_rows_removed:
+                context.log.warning(
+                    f"Dropped {duplicate_rows_removed} duplicate doc_id row(s) from the returned "
+                    f"DataFrame (kept the latest updated_at per doc_id)."
+                )
+
             from dagster import TableColumn, TableSchema
             metadata = {
                 **base_metadata,
                 "row_count": MetadataValue.int(len(df)),
+                "rows_returned": MetadataValue.int(len(df)),
+                "duplicate_rows_removed": MetadataValue.int(duplicate_rows_removed),
                 "column_count": MetadataValue.int(len(df.columns)),
                 "dagster/column_schema": MetadataValue.table_schema(
                     TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])

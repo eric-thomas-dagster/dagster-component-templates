@@ -372,6 +372,17 @@
       "label": "State Path",
       "description": "Where skip_unchanged persists its per-URL fingerprint state (a JSON file). Defaults to './{asset_name}_crawler_state.json'. Ignored when skip_unchanged=False.",
       "required": false
+    },
+    "write_disposition": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "append",
+        "merge"
+      ],
+      "label": "Write Disposition",
+      "description": "dlt write disposition for the destination table. 'replace' (default): each run's crawl fully replaces the table. dlt's own default is 'append', which has no notion of a previous crawl's pages becoming stale -- every re-run keeps adding another full copy of every page on top of the last (a real, previously-shipped bug: row_count doubled on every rerun of an unchanged site, with no way to tell the loads apart downstream). 'merge': upserts keyed on `doc_id` (the page URL) -- keeps pages from a prior run that this run's crawl didn't revisit (e.g. max_pages capped this run short), unlike 'replace' which drops them. 'append': the old behavior, kept as an explicit opt-in for anyone who deliberately wants a historical log of every crawl rather than current-state pages.",
+      "required": false
     }
   }
 }

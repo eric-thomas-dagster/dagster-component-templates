@@ -21,6 +21,8 @@ import sys
 import urllib.parse
 
 import dagster as dg
+import dlt
+import pandas as pd
 import pytest
 import requests
 
@@ -340,3 +342,184 @@ def test_partition_date_column_actually_filters_the_dataframe(monkeypatch):
 
     df = result.output_for_node(asset_def.op.name)
     assert list(df["doc_id"]) == ["2"]  # only the 2024-01-01 row, not the 2023-12-01 one
+
+
+# --- write_disposition: resource hints (real dlt schema introspection) -------
+#
+# This component's own tests run a REAL dlt pipeline against a real (tmp_path-isolated,
+# file-backed) DuckDB destination, not a faked dlt.pipeline() -- so `.apply_hints()` is
+# verified here by re-attaching a fresh `dlt.pipeline()` handle (same pipeline_name/
+# dataset_name) after materialization and reading the resulting table schema straight out
+# of dlt's own local pipeline state, rather than inspecting a captured DltResource object.
+
+
+def _reattached_table_schema(asset_name, dataset_name, table_name):
+    pipeline = dlt.pipeline(pipeline_name=f"{asset_name}_pipeline", destination="duckdb", dataset_name=dataset_name)
+    return pipeline.default_schema.tables[table_name]
+
+
+def test_default_write_disposition_is_replace_on_every_resource_table(monkeypatch):
+    backend = _FakeGithubBackend(
+        tree_entries=[{"path": "README.md", "type": "blob"}],
+        file_contents={"README.md": "hello"},
+        issue_pages=[[{"id": 1, "title": "i", "body": "b", "html_url": "u", "updated_at": "2024-01-01T00:00:00Z"}]],
+    )
+    component = _build_component(resources="files,issues", asset_name="wd_replace")
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    for table_name in ("files", "issues"):
+        table = _reattached_table_schema("wd_replace", "wd_replace", table_name)
+        assert table.get("write_disposition") == "replace"
+        assert table["columns"]["doc_id"].get("primary_key") is not True
+
+    md = result.asset_materializations_for_node("wd_replace")[0].metadata
+    assert md["write_disposition"].value == "replace"
+    assert md["load_id"].value  # a real dlt load id string, not null
+
+
+def test_merge_write_disposition_sets_primary_key_on_doc_id_on_every_resource_table(monkeypatch):
+    backend = _FakeGithubBackend(
+        tree_entries=[{"path": "README.md", "type": "blob"}],
+        file_contents={"README.md": "hello"},
+        issue_pages=[[{"id": 1, "title": "i", "body": "b", "html_url": "u", "updated_at": "2024-01-01T00:00:00Z"}]],
+    )
+    component = _build_component(resources="files,issues", asset_name="wd_merge", write_disposition="merge")
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    for table_name in ("files", "issues"):
+        table = _reattached_table_schema("wd_merge", "wd_merge", table_name)
+        assert table.get("write_disposition") == "merge"
+        assert table["columns"]["doc_id"]["primary_key"] is True
+
+    assert result.asset_materializations_for_node("wd_merge")[0].metadata["write_disposition"].value == "merge"
+
+
+def test_append_write_disposition_is_explicit_opt_in(monkeypatch):
+    backend = _FakeGithubBackend(
+        tree_entries=[{"path": "README.md", "type": "blob"}],
+        file_contents={"README.md": "hello"},
+    )
+    component = _build_component(resources="files", asset_name="wd_append", write_disposition="append")
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    table = _reattached_table_schema("wd_append", "wd_append", "files")
+    assert table.get("write_disposition") == "append"
+    assert table["columns"]["doc_id"].get("primary_key") is not True
+    assert result.asset_materializations_for_node("wd_append")[0].metadata["write_disposition"].value == "append"
+
+
+# --- _dedupe_by_doc_id: pure-function safety net -----------------------------
+
+
+def test_dedupe_by_doc_id_keeps_latest_updated_at():
+    df = pd.DataFrame([
+        {"doc_id": "a", "updated_at": "2024-01-01T00:00:00Z", "content": "old"},
+        {"doc_id": "a", "updated_at": "2024-02-01T00:00:00Z", "content": "new"},
+        {"doc_id": "b", "updated_at": "2024-01-01T00:00:00Z", "content": "b"},
+    ])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 2
+    assert deduped.set_index("doc_id").loc["a", "content"] == "new"
+
+
+def test_dedupe_by_doc_id_no_doc_id_column_is_a_no_op():
+    df = pd.DataFrame([{"a": 1}, {"a": 2}])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 2
+
+
+def test_dedupe_by_doc_id_empty_df_is_a_no_op():
+    df = pd.DataFrame(columns=["doc_id", "content"])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 0
+
+
+def test_dedupe_by_doc_id_without_updated_at_column_still_dedupes():
+    df = pd.DataFrame([{"doc_id": "x", "v": 1}, {"doc_id": "x", "v": 2}])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 1
+
+
+# --- real dlt + real (file-backed) duckdb: the actual regression this was fixing -----
+# Every test in this file already runs a real dlt.pipeline() against a real DuckDB file
+# (the component's own default destination), isolated per-test by the autouse
+# `_isolate_duckdb_pipeline_dir` fixture (chdir + DLT_DATA_DIR), which also relocates
+# dlt's own global pipeline-sync state (normally ~/.dlt/pipelines/<name>/) under
+# tmp_path -- confirmed directly: dlt.pipeline(...).pipelines_dir resolves under
+# DLT_DATA_DIR, so no extra ~/.dlt teardown is needed here (unlike a component whose
+# tests fake dlt.pipeline() entirely and only drop into real dlt for one or two
+# dedicated rerun tests).
+
+
+def test_rerun_with_default_write_disposition_does_not_duplicate_rows(monkeypatch):
+    backend = _FakeGithubBackend(issue_pages=[[
+        {"id": 1, "title": "one", "body": "b1", "html_url": "u1", "updated_at": "2024-01-01T00:00:00Z"},
+        {"id": 2, "title": "two", "body": "b2", "html_url": "u2", "updated_at": "2024-01-02T00:00:00Z"},
+    ]])
+    component = _build_component(resources="issues", asset_name="rerun_replace")
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        _, result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node("rerun_replace")[0].metadata
+    assert md1["row_count"].value == 2
+    assert md1["duplicate_rows_removed_total"].value == 0
+
+    # A second, independent materialization against the SAME destination (same
+    # pipeline_name/dataset_name, same on-disk duckdb file) -- this is the exact bug:
+    # dlt's own default write_disposition ('append') would make this 4, not 2.
+    backend._issues_page_idx = 0
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        _, result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("rerun_replace")[0].metadata
+    assert md2["row_count"].value == 2  # NOT 4
+    assert md2["duplicate_rows_removed_total"].value == 0
+
+
+def test_rerun_with_append_write_disposition_accumulates_but_dedupe_safety_net_still_catches_it(monkeypatch):
+    """'append' is a real, working opt-in: the destination table really does accumulate
+    every run's rows (unlike 'replace'/'merge'). The per-row dedupe safety net -- applied
+    regardless of write_disposition -- still catches it before the DataFrame/metadata is
+    returned, so row_count stays correct; duplicate_rows_removed is what actually reveals
+    that 'append' let the destination table accumulate underneath."""
+    backend = _FakeGithubBackend(issue_pages=[[
+        {"id": 1, "title": "one", "body": "b1", "html_url": "u1", "updated_at": "2024-01-01T00:00:00Z"},
+        {"id": 2, "title": "two", "body": "b2", "html_url": "u2", "updated_at": "2024-01-02T00:00:00Z"},
+    ]])
+    component = _build_component(resources="issues", asset_name="rerun_append", write_disposition="append")
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        _, result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node("rerun_append")[0].metadata
+    assert md1["row_count"].value == 2
+    assert md1["duplicate_rows_removed_total"].value == 0
+
+    backend._issues_page_idx = 0
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        _, result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("rerun_append")[0].metadata
+    assert md2["row_count"].value == 2  # the dedupe safety net still returns 2, not 4...
+    assert md2["duplicate_rows_removed_total"].value == 2  # ...but reveals the destination had accumulated to 4

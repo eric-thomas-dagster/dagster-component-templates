@@ -408,6 +408,17 @@
       "required": false,
       "type": "string",
       "ui:widget": "select"
+    },
+    "write_disposition": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "append",
+        "merge"
+      ],
+      "label": "Write Disposition",
+      "description": "dlt write disposition for every destination table this component loads. 'replace' (default): each run fully replaces every table. dlt's own default is 'append', which has no notion of a previous run's rows becoming stale -- every re-run keeps adding another full copy of every file/issue/pull on top of the last (a real, previously-shipped bug: row_count doubled on every rerun of an unchanged repo, for every table, with no way to tell the loads apart downstream). 'merge': upserts keyed on `doc_id`, per table -- keeps rows from a prior run that this run didn't re-fetch (e.g. max_records capped this run short), unlike 'replace' which drops them. 'append': the old behavior, kept as an explicit opt-in for anyone who deliberately wants a historical log rather than current-state rows.",
+      "required": false
     }
   },
   "tags": [

@@ -21,7 +21,7 @@ See `assets/ingestion/DESTINATIONS.md` for the full configuration reference.
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import requests
@@ -139,6 +139,24 @@ def _apply_max_rows_per_resource(resources, max_rows_per_resource):
     for resource in resources:
         resource.add_limit(max_items=max_rows_per_resource, count_rows=True)
 # END dlt-advanced-options helper
+
+
+def _dedupe_by_key(df: "pd.DataFrame", key_col: str, order_col: Optional[str] = None) -> Tuple["pd.DataFrame", int]:
+    """Safety net against duplicate `key_col` rows in the returned DataFrame, regardless of
+    write_disposition -- keeps the row with the latest `order_col` per key_col (when
+    `order_col` is set and present; otherwise keeps the last row as materialized). Returns
+    (deduped_df, rows_removed). A no-op (0 removed) when `key_col` is absent or `df` is
+    empty -- this component's identity column isn't literally `doc_id` (Dropbox's own
+    `id` field), unlike most other ingestion components in this repo, hence the more
+    general `key_col`/`order_col` parameters rather than a hardcoded `_dedupe_by_doc_id`."""
+    if key_col not in df.columns or df.empty:
+        return df, 0
+    before = len(df)
+    if order_col and order_col in df.columns:
+        df = df.sort_values(order_col, kind="stable").drop_duplicates(subset=key_col, keep="last")
+    else:
+        df = df.drop_duplicates(subset=key_col, keep="last")
+    return df.reset_index(drop=True), before - len(df)
 
 
 
@@ -403,6 +421,22 @@ class DropboxIngestionComponent(Component, Model, Resolvable):
             "loads real rows into the real destination -- it is not a dry run or a preview "
             "-- meant for a first run to check a connection and the shape of the data "
             "cheaply, not for routine use. Never applied unless you set it."
+        ),
+    )
+    write_disposition: Literal["replace", "append", "merge"] = Field(
+        default="replace",
+        description=(
+            "dlt write disposition for the destination table. 'replace' (default): each run's "
+            "folder listing fully replaces the table. dlt's own default ('append') has no "
+            "notion of a previous run's rows becoming stale -- every re-run keeps adding "
+            "another full copy of every file/folder entry on top of the last (a real bug: "
+            "row_count doubled on every rerun against the same folder, even against this "
+            "component's own default on-disk DuckDB destination, which is a real file, not "
+            "in-memory). 'merge': upserts keyed on Dropbox's own stable `id` field for each "
+            "file/folder entry -- keeps entries from a prior run this run didn't re-list, "
+            "unlike 'replace' which drops them. 'append': the old behavior, kept as an "
+            "explicit opt-in for anyone who deliberately wants a historical log of every "
+            "listing rather than current-state entries."
         ),
     )
 
@@ -678,6 +712,7 @@ class DropboxIngestionComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        write_disposition = self.write_disposition
         resources = self.resources
         client_id = self.client_id
         client_secret = self.client_secret
@@ -814,6 +849,12 @@ class DropboxIngestionComponent(Component, Model, Resolvable):
 
                     _r.apply_hints(schema_contract=_resolve_schema_contract(on_schema_change))
 
+            for _r in dlt_resources:
+                if write_disposition == "merge":
+                    _r.apply_hints(write_disposition=write_disposition, primary_key="id")
+                else:
+                    _r.apply_hints(write_disposition=write_disposition)
+
             if exclude_columns:
 
                 _apply_exclude_columns(dlt_resources, exclude_columns)
@@ -828,6 +869,7 @@ class DropboxIngestionComponent(Component, Model, Resolvable):
             context.log.info("Extracting Dropbox data...")
             load_info = pipeline.run(dlt_resources)
             context.log.info(f"Dropbox data loaded: {load_info}")
+            load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
             resource_names = resources_list
             base_metadata = {
@@ -835,6 +877,8 @@ class DropboxIngestionComponent(Component, Model, Resolvable):
                 "dataset_name": MetadataValue.text(dataset_name),
                 "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                 "resources_requested": MetadataValue.json(resource_names),
+                "write_disposition": MetadataValue.text(write_disposition),
+                "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
             }
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
@@ -855,7 +899,12 @@ class DropboxIngestionComponent(Component, Model, Resolvable):
                         f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
                     ) as cur:
                         tables_df = cur.df()
-                    table_names = tables_df["table_name"].tolist()
+                    # dlt creates its own bookkeeping tables (_dlt_loads, _dlt_version,
+                    # _dlt_pipeline_state, ...) in this same dataset/schema -- exclude them,
+                    # or they get concatenated into the returned DataFrame alongside real
+                    # Dropbox rows (a real, previously-unverified bug: no test ever
+                    # materialized this component against a real dlt pipeline before).
+                    table_names = [t for t in tables_df["table_name"].tolist() if not t.startswith("_dlt")]
                 except Exception:
                     table_names = resource_names
 
@@ -876,9 +925,17 @@ class DropboxIngestionComponent(Component, Model, Resolvable):
 
             combined_df = pd.concat(all_data, ignore_index=True)
             combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
+            combined_df, duplicate_rows_removed = _dedupe_by_key(combined_df, "id", "server_modified")
+            if duplicate_rows_removed:
+                context.log.warning(
+                    f"Dropped {duplicate_rows_removed} duplicate id row(s) from the returned "
+                    f"DataFrame (kept the latest server_modified per id)."
+                )
             metadata = {
                 **base_metadata,
                 "row_count": MetadataValue.int(len(combined_df)),
+                "rows_returned": MetadataValue.int(len(combined_df)),
+                "duplicate_rows_removed": MetadataValue.int(duplicate_rows_removed),
                 "column_count": MetadataValue.int(len(combined_df.columns)),
                 "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
             }

@@ -43,7 +43,7 @@ chunking.
 
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 import dlt
@@ -174,6 +174,20 @@ def _require_env(name: str) -> str:
             "Dagster code location (or point the *_env_var field at one that is)."
         )
     return value
+
+
+def _dedupe_by_doc_id(df: "pd.DataFrame") -> Tuple["pd.DataFrame", int]:
+    """Safety net against duplicate doc_id/url rows in the returned DataFrame, regardless of
+    write_disposition -- keeps the row with the latest `updated_at` per doc_id. Returns
+    (deduped_df, rows_removed)."""
+    if "doc_id" not in df.columns or df.empty:
+        return df, 0
+    before = len(df)
+    if "updated_at" in df.columns:
+        df = df.sort_values("updated_at", kind="stable").drop_duplicates(subset="doc_id", keep="last")
+    else:
+        df = df.drop_duplicates(subset="doc_id", keep="last")
+    return df.reset_index(drop=True), before - len(df)
 
 
 def _fetch_jina_page(url, api_key, target_selector, wait_for_selector, timeout_seconds, with_generated_alt):
@@ -513,6 +527,21 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
             "cheaply, not for routine use. Never applied unless you set it."
         ),
     )
+    write_disposition: Literal["replace", "append", "merge"] = Field(
+        default="replace",
+        description=(
+            "dlt write disposition for the destination table. 'replace' (default): each run's "
+            "fetch fully replaces the table. dlt's own default ('append', this component's own "
+            "previous hard-coded value) has no notion of a previous run's pages becoming stale "
+            "-- every re-run keeps adding another full copy of every page on top of the last "
+            "(a real, previously-shipped bug: row_count doubled on every rerun of the same "
+            "URLs, with no way to tell the loads apart downstream). 'merge': upserts keyed on "
+            "`doc_id` (the page URL) -- keeps pages from a prior run this run didn't "
+            "re-fetch, unlike 'replace' which drops them. 'append': the old behavior, kept as "
+            "an explicit opt-in for anyone who deliberately wants a historical log of every "
+            "fetch rather than current-state pages."
+        ),
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -784,6 +813,7 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        write_disposition = self.write_disposition
         urls_list = [u.strip() for u in self.urls.split(",") if u.strip()]
         if not urls_list:
             raise ValueError("JinaReaderIngestionComponent: 'urls' must contain at least one URL.")
@@ -875,7 +905,7 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
 
             @dlt.resource(
                 name=table_name,
-                write_disposition="append",
+                write_disposition=write_disposition,
                 # `title`/`text`/`error` can each be entirely null within a single load
                 # (every URL fails -> title/text all None; every URL succeeds -> error
                 # all None) -- without a hint, dlt can't infer a type from an all-null
@@ -921,6 +951,9 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                         }
 
             dlt_resources = [_pages_resource()]
+            if write_disposition == "merge":
+                for _r in dlt_resources:
+                    _r.apply_hints(primary_key="doc_id")
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -942,12 +975,15 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
 
             load_info = pipeline.run(dlt_resources)
             context.log.info(f"Jina Reader data loaded: {load_info}")
+            load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
             base_metadata = {
                 "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
                 "dataset_name": MetadataValue.text(dataset_name),
                 "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                 "urls_requested": MetadataValue.int(len(urls_list)),
+                "write_disposition": MetadataValue.text(write_disposition),
+                "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
             }
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
@@ -972,11 +1008,20 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                 context.log.warning("No data extracted from Jina Reader.")
                 return Output(value=df, metadata=base_metadata)
 
+            df, duplicate_rows_removed = _dedupe_by_doc_id(df)
+            if duplicate_rows_removed:
+                context.log.warning(
+                    f"Dropped {duplicate_rows_removed} duplicate doc_id row(s) from the returned "
+                    f"DataFrame (kept the latest updated_at per doc_id)."
+                )
+
             from dagster import TableColumn, TableSchema
             failed = int(df["error"].notna().sum()) if "error" in df.columns else 0
             metadata = {
                 **base_metadata,
                 "row_count": MetadataValue.int(len(df)),
+                "rows_returned": MetadataValue.int(len(df)),
+                "duplicate_rows_removed": MetadataValue.int(duplicate_rows_removed),
                 "column_count": MetadataValue.int(len(df.columns)),
                 "urls_failed": MetadataValue.int(failed),
                 "urls_succeeded": MetadataValue.int(len(df) - failed),

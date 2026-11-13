@@ -85,7 +85,7 @@ Set `destination` to persist directly to any dlt-supported destination
 import datetime as dt
 import hashlib
 import os
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from urllib.parse import quote
 
 import pandas as pd
@@ -224,6 +224,21 @@ def _row_from_gitlab_item(item, source_type):
         "iid": item.get("iid"),
         "state": item.get("state"),
     }
+
+
+def _dedupe_by_doc_id(df: "pd.DataFrame") -> Tuple["pd.DataFrame", int]:
+    """Safety net against duplicate doc_id rows in a table's returned DataFrame, regardless of
+    write_disposition -- keeps the row with the latest `updated_at` per doc_id (ties broken by
+    original row order, pandas' stable sort). A no-op when `doc_id` is absent or the frame is
+    empty. Returns (deduped_df, rows_removed)."""
+    if "doc_id" not in df.columns or df.empty:
+        return df, 0
+    before = len(df)
+    if "updated_at" in df.columns:
+        df = df.sort_values("updated_at", kind="stable").drop_duplicates(subset="doc_id", keep="last")
+    else:
+        df = df.drop_duplicates(subset="doc_id", keep="last")
+    return df.reset_index(drop=True), before - len(df)
 
 
 # BEGIN partition row-filter helper (inlined per component; keep copies identical, see tests/test_partition_port_ingestion.py)
@@ -700,6 +715,21 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
             "shape of the data cheaply, not for routine use. Never applied unless you set it."
         ),
     )
+    write_disposition: Literal["replace", "append", "merge"] = Field(
+        default="replace",
+        description=(
+            "dlt write disposition for every destination table this component loads (one per "
+            "resource in `resources`). 'replace' (default): each run fully replaces every "
+            "table. dlt's own default is 'append', which has no notion of a previous run's "
+            "rows becoming stale -- every rerun against a persistent destination (including "
+            "this component's own default duckdb-file destination, a real on-disk file) keeps "
+            "adding another full copy of every row on top of the last. 'merge': upserts keyed "
+            "on `doc_id`, per table -- keeps rows from a prior run this run didn't re-fetch "
+            "(e.g. max_records capped this run short), unlike 'replace' which drops them. "
+            "'append': the old behavior, kept as an explicit opt-in for anyone who deliberately "
+            "wants a historical log rather than current-state rows."
+        ),
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -965,6 +995,7 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        write_disposition = self.write_disposition
 
         base_url = self.base_url.rstrip("/")
         project_id = self.project_id
@@ -1116,7 +1147,12 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
                         yield from rows
                     return _r()
 
-                dlt_resources.append(_factory())
+                resource = _factory()
+                hint_kwargs: Dict[str, Any] = {"write_disposition": write_disposition}
+                if write_disposition == "merge":
+                    hint_kwargs["primary_key"] = "doc_id"
+                resource.apply_hints(**hint_kwargs)
+                dlt_resources.append(resource)
             return dlt_resources
 
         if self.asset_shape == "single":
@@ -1158,6 +1194,7 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
                 context.log.info(f"Loading {total_rows} document row(s) into destination...")
                 load_info = pipeline.run(dlt_resources)
                 context.log.info(f"GitLab documents loaded: {load_info}")
+                load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
                 base_metadata = {
                     "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
@@ -1165,6 +1202,8 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
                     "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                     "resources_requested": MetadataValue.json(resources_list),
                     "destination_table_names": MetadataValue.json(dest_table_names),
+                    "write_disposition": MetadataValue.text(write_disposition),
+                    "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
                 }
 
                 non_sql_destinations = {"filesystem", "delta", "iceberg"}
@@ -1179,11 +1218,19 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
 
                 all_data = []
                 resource_metadata = {}
+                duplicate_metadata: Dict[str, int] = {}
                 with pipeline.sql_client() as client:
                     for r in resources_list:
                         try:
                             with client.execute_query(f"SELECT * FROM {dataset_name}.{dest_table_names[r]}") as cur:
                                 df = cur.df()
+                            df, dup_removed = _dedupe_by_doc_id(df)
+                            if dup_removed:
+                                context.log.warning(
+                                    f"Dropped {dup_removed} duplicate doc_id row(s) from {r!r} "
+                                    "(kept the latest updated_at)."
+                                )
+                            duplicate_metadata[r] = dup_removed
                             if len(df) > 0:
                                 df["_resource"] = r
                                 all_data.append(df)
@@ -1203,6 +1250,8 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
                     "row_count": MetadataValue.int(len(combined_df)),
                     "column_count": MetadataValue.int(len(combined_df.columns)),
                     "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                    "duplicate_rows_removed": MetadataValue.int(sum(duplicate_metadata.values())),
+                    "duplicate_rows_removed_by_resource": MetadataValue.json(duplicate_metadata),
                 }
                 for resource, rows in resource_metadata.items():
                     metadata[f"rows_{resource}"] = MetadataValue.int(rows)
@@ -1278,6 +1327,7 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
 
             load_info = pipeline.run(dlt_resources)
             context.log.info(f"GitLab documents loaded: {load_info}")
+            load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
@@ -1297,6 +1347,8 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
                             "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                             "resource": MetadataValue.text(r),
                             "destination_table_name": MetadataValue.text(dest_table_names[r]),
+                            "write_disposition": MetadataValue.text(write_disposition),
+                            "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
                         },
                     )
                 return
@@ -1310,6 +1362,12 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
                         context.log.warning(f"Could not load {r} (destination table {dest_table_names[r]!r}): {e}")
                         df = pd.DataFrame()
 
+                    df, dup_removed = _dedupe_by_doc_id(df)
+                    if dup_removed:
+                        context.log.warning(
+                            f"Dropped {dup_removed} duplicate doc_id row(s) from {r!r} "
+                            "(kept the latest updated_at)."
+                        )
                     df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
                     metadata = {
@@ -1319,6 +1377,9 @@ class GitlabDocumentsComponent(Component, Model, Resolvable):
                         "resource": MetadataValue.text(r),
                         "destination_table_name": MetadataValue.text(dest_table_names[r]),
                         "row_count": MetadataValue.int(len(df)),
+                        "duplicate_rows_removed": MetadataValue.int(dup_removed),
+                        "write_disposition": MetadataValue.text(write_disposition),
+                        "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
                     }
                     if include_preview and len(df) > 0:
                         try:

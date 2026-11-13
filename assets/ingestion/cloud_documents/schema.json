@@ -445,6 +445,17 @@
       "label": "Storage Options Env Vars",
       "description": "Only used for provider='s3'/'gcs'/'azure_blob'. Maps an fsspec storage_option key to the env var name holding its value, e.g. {'endpoint_url': 'S3_ENDPOINT_URL'} for an S3-compatible endpoint (Cloudflare R2, MinIO, Rustfs, ...), or {'key': 'AWS_ACCESS_KEY_ID', 'secret': 'AWS_SECRET_ACCESS_KEY'} to override s3fs's own ambient credential chain explicitly. Resolved via dg.EnvVar at materialization time only -- never baked into the code location at load time. Omit to keep using fsspec's ambient auth (the cloud SDK's own default credential chain), which already works for real S3/GCS/Azure without this field.",
       "required": false
+    },
+    "write_disposition": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "append",
+        "merge"
+      ],
+      "label": "Write Disposition",
+      "description": "dlt write disposition for the destination table. 'replace' (default): each run fully replaces the table. dlt's own default is 'append', which has no notion of a previous run's rows becoming stale -- every re-run keeps adding another full copy of every document on top of the last (a real, previously-shipped bug: row_count doubled on every rerun of the same source, with no way to tell the loads apart downstream). 'merge': upserts keyed on `doc_id` -- keeps documents from a prior run that this run didn't re-list, unlike 'replace' which drops them. 'append': the old behavior, kept as an explicit opt-in for anyone who deliberately wants a historical log of every run rather than current-state documents.",
+      "required": false
     }
   }
 }

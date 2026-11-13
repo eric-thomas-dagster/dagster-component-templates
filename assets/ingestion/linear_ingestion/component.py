@@ -17,7 +17,7 @@ See `assets/ingestion/DESTINATIONS.md` for the full configuration reference.
 """
 
 import os
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 import requests
@@ -138,6 +138,22 @@ def _apply_max_rows_per_resource(resources, max_rows_per_resource):
 # END dlt-advanced-options helper
 
 
+def _dedupe_by_key(df: "pd.DataFrame", key_col: str, order_cols: Tuple[str, ...] = ()) -> Tuple["pd.DataFrame", int]:
+    """Safety net against duplicate rows in a returned DataFrame, regardless of
+    write_disposition -- keeps one row per `key_col`, preferring the row with the highest
+    value in the first of `order_cols` that's actually present as a column (not every
+    Linear resource has the same timestamp fields -- issues/projects have `updatedAt`,
+    teams/cycles don't, so `createdAt` is tried next; with none present, the last row
+    seen for that key is kept, which is stable but arbitrary). Returns (deduped_df, rows_removed)."""
+    if key_col not in df.columns or df.empty:
+        return df, 0
+    before = len(df)
+    sort_col = next((c for c in order_cols if c in df.columns), None)
+    if sort_col:
+        df = df.sort_values(sort_col, kind="stable").drop_duplicates(subset=key_col, keep="last")
+    else:
+        df = df.drop_duplicates(subset=key_col, keep="last")
+    return df.reset_index(drop=True), before - len(df)
 
 
 def _build_partitions_def(
@@ -381,6 +397,21 @@ class LinearIngestionComponent(Component, Model, Resolvable):
             "loads real rows into the real destination -- it is not a dry run or a preview "
             "-- meant for a first run to check a connection and the shape of the data "
             "cheaply, not for routine use. Never applied unless you set it."
+        ),
+    )
+    write_disposition: Literal["replace", "append", "merge"] = Field(
+        default="replace",
+        description=(
+            "dlt write disposition for every resource's destination table. 'replace' "
+            "(default): each run fully replaces every table. dlt's own default is "
+            "'append', which has no notion of a previous run's rows becoming stale -- every "
+            "re-run keeps adding another full copy of every issue/project/team/cycle on top "
+            "of the last (a real, previously-shipped bug: row_count doubled on every rerun, "
+            "with no way to tell the loads apart downstream). 'merge': upserts keyed on "
+            "Linear's own `id` field (stable across runs for every resource type) -- keeps "
+            "rows from a prior run this run's `resources` selection or partition filter "
+            "didn't touch. 'append': the old behavior, kept as an explicit opt-in for anyone "
+            "who deliberately wants a historical log rather than current-state rows."
         ),
     )
 
@@ -655,6 +686,7 @@ class LinearIngestionComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        write_disposition = self.write_disposition
         api_key = self.api_key
 
         _kind_map = {
@@ -799,6 +831,11 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                     if r in _query_map:
                         query_template, node_path, supports_filter = _query_map[r]
                         dlt_resources.append(_make_resource(r, query_template, node_path, supports_filter, _filter_gql)())
+                hint_kwargs: Dict[str, Any] = {"write_disposition": write_disposition}
+                if write_disposition == "merge":
+                    hint_kwargs["primary_key"] = "id"
+                for _r in dlt_resources:
+                    _r.apply_hints(**hint_kwargs)
 
                 pipeline = dlt.pipeline(
                     pipeline_name=f"{asset_name}_pipeline",
@@ -819,6 +856,7 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                     _apply_max_rows_per_resource(dlt_resources, max_rows_per_resource)
                 load_info = pipeline.run(dlt_resources)
                 context.log.info(f"Linear data loaded: {load_info}")
+                load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
                 resource_names = resources_list
                 base_metadata = {
@@ -826,6 +864,8 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                     "dataset_name": MetadataValue.text(dataset_name),
                     "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                     "resources_requested": MetadataValue.json(resource_names),
+                    "write_disposition": MetadataValue.text(write_disposition),
+                    "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
                 }
 
                 non_sql_destinations = {"filesystem", "delta", "iceberg"}
@@ -840,6 +880,7 @@ class LinearIngestionComponent(Component, Model, Resolvable):
 
                 all_data = []
                 resource_metadata = {}
+                duplicate_rows_removed_total = 0
                 with pipeline.sql_client() as client:
                     try:
                         with client.execute_query(
@@ -854,6 +895,10 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                         try:
                             with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
                                 df = cur.df()
+                            df, removed = _dedupe_by_key(df, "id", ("updatedAt", "createdAt"))
+                            if removed:
+                                duplicate_rows_removed_total += removed
+                                context.log.warning(f"Dropped {removed} duplicate id row(s) from {table_name!r}.")
                             if len(df) > 0:
                                 df["_resource_type"] = table_name
                                 all_data.append(df)
@@ -869,6 +914,8 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                 metadata = {
                     **base_metadata,
                     "row_count": MetadataValue.int(len(combined_df)),
+                    "rows_returned": MetadataValue.int(len(combined_df)),
+                    "duplicate_rows_removed": MetadataValue.int(duplicate_rows_removed_total),
                     "column_count": MetadataValue.int(len(combined_df.columns)),
                     "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
                 }
@@ -937,6 +984,11 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                 if r in _query_map:
                     query_template, node_path, supports_filter = _query_map[r]
                     dlt_resources.append(_make_resource(r, query_template, node_path, supports_filter, _filter_gql)())
+            hint_kwargs: Dict[str, Any] = {"write_disposition": write_disposition}
+            if write_disposition == "merge":
+                hint_kwargs["primary_key"] = "id"
+            for _r in dlt_resources:
+                _r.apply_hints(**hint_kwargs)
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -957,6 +1009,7 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                 _apply_max_rows_per_resource(dlt_resources, max_rows_per_resource)
             load_info = pipeline.run(dlt_resources)
             context.log.info(f"Linear data loaded: {load_info}")
+            load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
@@ -975,6 +1028,8 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                             "dataset_name": MetadataValue.text(dataset_name),
                             "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                             "resource": MetadataValue.text(r),
+                            "write_disposition": MetadataValue.text(write_disposition),
+                            "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
                         },
                     )
                 return
@@ -988,12 +1043,20 @@ class LinearIngestionComponent(Component, Model, Resolvable):
                         context.log.warning(f"Could not load {r}: {e}")
                         df = pd.DataFrame()
 
+                    df, duplicate_rows_removed = _dedupe_by_key(df, "id", ("updatedAt", "createdAt"))
+                    if duplicate_rows_removed:
+                        context.log.warning(f"Dropped {duplicate_rows_removed} duplicate id row(s) from {r!r}.")
+
                     metadata = {
                         "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
                         "dataset_name": MetadataValue.text(dataset_name),
                         "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                         "resource": MetadataValue.text(r),
+                        "write_disposition": MetadataValue.text(write_disposition),
+                        "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
                         "row_count": MetadataValue.int(len(df)),
+                        "rows_returned": MetadataValue.int(len(df)),
+                        "duplicate_rows_removed": MetadataValue.int(duplicate_rows_removed),
                     }
                     if include_preview and len(df) > 0:
                         try:

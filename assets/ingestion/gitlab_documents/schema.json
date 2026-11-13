@@ -397,6 +397,17 @@
       "required": false,
       "type": "string",
       "ui:widget": "select"
+    },
+    "write_disposition": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "append",
+        "merge"
+      ],
+      "label": "Write Disposition",
+      "description": "dlt write disposition for every destination table this component loads (one per resource in `resources`). 'replace' (default): each run fully replaces every table. dlt's own default is 'append', which has no notion of a previous run's rows becoming stale -- every rerun against a persistent destination (including this component's own default duckdb-file destination, a real on-disk file) keeps adding another full copy of every row on top of the last. 'merge': upserts keyed on `doc_id`, per table -- keeps rows from a prior run this run didn't re-fetch (e.g. max_records capped this run short), unlike 'replace' which drops them. 'append': the old behavior, kept as an explicit opt-in for anyone who deliberately wants a historical log rather than current-state rows.",
+      "required": false
     }
   },
   "tags": [

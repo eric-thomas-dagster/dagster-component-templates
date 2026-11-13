@@ -408,6 +408,17 @@
       "required": false,
       "type": "string",
       "ui:widget": "select"
+    },
+    "write_disposition": {
+      "type": "string",
+      "enum": [
+        "replace",
+        "append",
+        "merge"
+      ],
+      "label": "Write Disposition",
+      "description": "How each run writes into every destination table. 'replace' (default): each run fully replaces every table's rows with this run's fetch -- fixes a real duplication bug, since dlt's own default ('append') has no notion of a previous run's rows becoming stale, so every rerun against a persistent destination (including this component's own default duckdb-file destination, which is a real on-disk file, not in-memory) silently doubled/tripled/etc. every table's row_count forever. 'merge': upserts keyed on 'doc_id' (this component's row identity for both file rows and issue/PR rows), per table -- a rerun updates existing rows and adds new ones without dropping anything removed upstream. 'append': the old behavior, an explicit opt-in for a deliberate historical log of every fetch.",
+      "required": false
     }
   },
   "tags": [

@@ -72,7 +72,7 @@ Set `destination` to persist directly to any dlt-supported destination
 
 import os
 import time
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 import requests
@@ -273,6 +273,20 @@ def _row_from_notion_page(page_obj: Dict[str, Any], content: str) -> Dict[str, A
         "updated_at": page_obj.get("last_edited_time"),
         "content_hash": hashlib.sha256(content.encode("utf-8")).hexdigest(),
     }
+
+
+def _dedupe_by_doc_id(df: "pd.DataFrame") -> Tuple["pd.DataFrame", int]:
+    """Safety net against duplicate doc_id rows in the returned DataFrame, regardless of
+    write_disposition -- keeps the row with the latest `updated_at` per doc_id (ties broken by
+    original row order, pandas' stable sort). Returns (deduped_df, rows_removed)."""
+    if "doc_id" not in df.columns or df.empty:
+        return df, 0
+    before = len(df)
+    if "updated_at" in df.columns:
+        df = df.sort_values("updated_at", kind="stable").drop_duplicates(subset="doc_id", keep="last")
+    else:
+        df = df.drop_duplicates(subset="doc_id", keep="last")
+    return df.reset_index(drop=True), before - len(df)
 
 
 # BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
@@ -650,6 +664,20 @@ class NotionDocumentsComponent(Component, Model, Resolvable):
             "shape of the data cheaply, not for routine use. Never applied unless you set it."
         ),
     )
+    write_disposition: Literal["replace", "append", "merge"] = Field(
+        default="replace",
+        description=(
+            "dlt write disposition for the destination table. 'replace' (default): each run "
+            "fully replaces the table. dlt's own default is 'append', which has no notion of "
+            "a previous run's pages becoming stale -- every re-run keeps adding another full "
+            "copy of every page on top of the last (a real, previously-shipped bug: row_count "
+            "doubled on every rerun against an unchanged database/page tree, with no way to "
+            "tell the loads apart downstream). 'merge': upserts keyed on `doc_id` (the Notion "
+            "page id). 'append': the old behavior, kept as an explicit opt-in for anyone who "
+            "deliberately wants a historical log of every extraction rather than current-state "
+            "pages."
+        ),
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -928,6 +956,7 @@ class NotionDocumentsComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        write_disposition = self.write_disposition
         api_key_env_var = self.api_key_env_var
         database_id = self.database_id
         root_page_ids = self.root_page_ids
@@ -1047,6 +1076,11 @@ class NotionDocumentsComponent(Component, Model, Resolvable):
                 yield from rows
 
             dlt_resources = [_pages_resource()]
+            hint_kwargs: Dict[str, Any] = {"write_disposition": write_disposition}
+            if write_disposition == "merge":
+                hint_kwargs["primary_key"] = "doc_id"
+            for _r in dlt_resources:
+                _r.apply_hints(**hint_kwargs)
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -1068,12 +1102,15 @@ class NotionDocumentsComponent(Component, Model, Resolvable):
             context.log.info(f"Loading {len(rows)} Notion page(s) into destination...")
             load_info = pipeline.run(dlt_resources)
             context.log.info(f"Notion data loaded: {load_info}")
+            load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
             base_metadata = {
                 "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
                 "dataset_name": MetadataValue.text(dataset_name),
                 "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                 "pages_extracted": MetadataValue.int(len(rows)),
+                "write_disposition": MetadataValue.text(write_disposition),
+                "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
             }
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
@@ -1094,10 +1131,19 @@ class NotionDocumentsComponent(Component, Model, Resolvable):
                     context.log.warning(f"Could not read back pages table: {e}")
                     df = pd.DataFrame(rows)
 
+            df, duplicate_rows_removed = _dedupe_by_doc_id(df)
+            if duplicate_rows_removed:
+                context.log.warning(
+                    f"Dropped {duplicate_rows_removed} duplicate doc_id row(s) from the returned "
+                    f"DataFrame (kept the latest updated_at per doc_id)."
+                )
+
             from dagster import TableColumn, TableSchema
             metadata = {
                 **base_metadata,
                 "row_count": MetadataValue.int(len(df)),
+                "rows_returned": MetadataValue.int(len(df)),
+                "duplicate_rows_removed": MetadataValue.int(duplicate_rows_removed),
                 "column_count": MetadataValue.int(len(df.columns)),
                 "dagster/column_schema": MetadataValue.table_schema(
                     TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])

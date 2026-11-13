@@ -40,7 +40,7 @@ Set `destination` to persist directly to any dlt-supported destination
 import datetime as dt
 import os
 import time
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 import requests
@@ -72,6 +72,20 @@ def _require_env(name: str) -> str:
             "Dagster code location (or point the *_env_var field at one that is)."
         )
     return value
+
+
+def _dedupe_by_doc_id(df: "pd.DataFrame") -> Tuple["pd.DataFrame", int]:
+    """Safety net against duplicate doc_id/url rows in the returned DataFrame, regardless of
+    write_disposition -- keeps the row with the latest `updated_at` per doc_id. Returns
+    (deduped_df, rows_removed)."""
+    if "doc_id" not in df.columns or df.empty:
+        return df, 0
+    before = len(df)
+    if "updated_at" in df.columns:
+        df = df.sort_values("updated_at", kind="stable").drop_duplicates(subset="doc_id", keep="last")
+    else:
+        df = df.drop_duplicates(subset="doc_id", keep="last")
+    return df.reset_index(drop=True), before - len(df)
 
 
 # BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
@@ -467,6 +481,21 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
             "shape of the data cheaply, not for routine use. Never applied unless you set it."
         ),
     )
+    write_disposition: Literal["replace", "append", "merge"] = Field(
+        default="replace",
+        description=(
+            "dlt write disposition for the destination table. 'replace' (default): each run's "
+            "scrape fully replaces the table. dlt's own default is 'append', which has no "
+            "notion of a previous scrape's pages becoming stale -- every re-run keeps adding "
+            "another full copy of every page on top of the last (a real, previously-shipped "
+            "bug: row_count doubled on every rerun of the same URLs, with no way to tell the "
+            "loads apart downstream). 'merge': upserts keyed on `doc_id` (the page URL) -- "
+            "keeps pages from a prior run that this run didn't re-scrape, unlike 'replace' "
+            "which drops them. 'append': the old behavior, kept as an explicit opt-in for "
+            "anyone who deliberately wants a historical log of every scrape rather than "
+            "current-state pages."
+        ),
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -744,6 +773,7 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
         on_schema_change = self.on_schema_change
         exclude_columns = self.exclude_columns
         max_rows_per_resource = self.max_rows_per_resource
+        write_disposition = self.write_disposition
         api_key_env_var = self.api_key_env_var
         urls = self.urls
         crawl_url = self.crawl_url
@@ -934,6 +964,11 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
                 yield from rows
 
             dlt_resources = [_pages_resource()]
+            hint_kwargs: Dict[str, Any] = {"write_disposition": write_disposition}
+            if write_disposition == "merge":
+                hint_kwargs["primary_key"] = "doc_id"
+            for _r in dlt_resources:
+                _r.apply_hints(**hint_kwargs)
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -955,12 +990,15 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
             context.log.info("Loading scraped pages into destination...")
             load_info = pipeline.run(dlt_resources)
             context.log.info(f"Firecrawl data loaded: {load_info}")
+            load_id = load_info.loads_ids[0] if getattr(load_info, "loads_ids", None) else None
 
             base_metadata = {
                 "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
                 "dataset_name": MetadataValue.text(dataset_name),
                 "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
                 "pages_scraped": MetadataValue.int(len(rows)),
+                "write_disposition": MetadataValue.text(write_disposition),
+                "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
             }
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
@@ -981,10 +1019,19 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
                     context.log.warning(f"Could not read back pages table: {e}")
                     df = pd.DataFrame(rows)
 
+            df, duplicate_rows_removed = _dedupe_by_doc_id(df)
+            if duplicate_rows_removed:
+                context.log.warning(
+                    f"Dropped {duplicate_rows_removed} duplicate doc_id row(s) from the returned "
+                    f"DataFrame (kept the latest updated_at per doc_id)."
+                )
+
             from dagster import TableColumn, TableSchema
             metadata = {
                 **base_metadata,
                 "row_count": MetadataValue.int(len(df)),
+                "rows_returned": MetadataValue.int(len(df)),
+                "duplicate_rows_removed": MetadataValue.int(duplicate_rows_removed),
                 "column_count": MetadataValue.int(len(df.columns)),
                 "dagster/column_schema": MetadataValue.table_schema(
                     TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])

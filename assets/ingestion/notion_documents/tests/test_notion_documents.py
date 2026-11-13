@@ -432,6 +432,91 @@ def test_block_to_markdown_returns_none_for_non_rich_text_types(mod):
     assert mod._block_to_markdown(child_db_block) is None
 
 
+# --- write_disposition: resource hints (fake-dlt, real .apply_hints()) -----------------
+
+def test_default_write_disposition_is_replace(mod, monkeypatch):
+    page = notion_page_obj("page-1")
+    _route_requests(monkeypatch, mod, db_pages={"db-1": [page]}, blocks_children={"page-1": []})
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, rate_limit_delay=0)
+    result = _materialize(component)
+    assert result.success
+
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "replace"
+    metadata = result.asset_materializations_for_node("test_asset")[0].metadata
+    assert "write_disposition" in metadata
+    assert metadata["write_disposition"].value == "replace"
+
+
+def test_merge_write_disposition_sets_primary_key(mod, monkeypatch):
+    page = notion_page_obj("page-1")
+    _route_requests(monkeypatch, mod, db_pages={"db-1": [page]}, blocks_children={"page-1": []})
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, rate_limit_delay=0, write_disposition="merge")
+    result = _materialize(component)
+    assert result.success
+
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "merge"
+    assert resource.compute_table_schema()["columns"]["doc_id"]["primary_key"] is True
+
+
+def test_append_write_disposition_is_explicit_opt_in(mod, monkeypatch):
+    page = notion_page_obj("page-1")
+    _route_requests(monkeypatch, mod, db_pages={"db-1": [page]}, blocks_children={"page-1": []})
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, rate_limit_delay=0, write_disposition="append")
+    result = _materialize(component)
+    assert result.success
+
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "append"
+
+
+# --- _dedupe_by_doc_id: pure-function safety net ---------------------------------------
+
+def test_dedupe_by_doc_id_keeps_latest_updated_at(mod):
+    import pandas as pd
+
+    df = pd.DataFrame([
+        {"doc_id": "page-a", "updated_at": "2024-01-01T00:00:00.000Z", "content": "old"},
+        {"doc_id": "page-a", "updated_at": "2024-02-01T00:00:00.000Z", "content": "new"},
+        {"doc_id": "page-b", "updated_at": "2024-01-01T00:00:00.000Z", "content": "b"},
+    ])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 2
+    assert deduped.set_index("doc_id").loc["page-a", "content"] == "new"
+
+
+def test_dedupe_by_doc_id_no_doc_id_column_is_a_no_op(mod):
+    import pandas as pd
+
+    df = pd.DataFrame([{"a": 1}, {"a": 2}])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 2
+
+
+def test_dedupe_by_doc_id_empty_dataframe_is_a_no_op(mod):
+    import pandas as pd
+
+    df = pd.DataFrame(columns=["doc_id", "updated_at"])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 0
+
+
+def test_dedupe_by_doc_id_without_updated_at_column_still_dedupes(mod):
+    import pandas as pd
+
+    df = pd.DataFrame([{"doc_id": "x", "v": 1}, {"doc_id": "x", "v": 2}])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 1
+
+
 def test_extract_title_finds_the_title_typed_property(mod):
     props = {
         "Status": {"type": "select", "select": {"name": "Done"}},

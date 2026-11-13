@@ -7,13 +7,20 @@ mocked via `install_fake_requests`.
 """
 import base64
 import hashlib
+import pathlib
 
 import dagster as dg
 import pandas as pd
 import pydantic
 import pytest
 
-from .conftest import FakeResponse, install_fake_dlt, install_fake_requests, load_component_module
+from .conftest import (
+    FakeResponse,
+    install_fake_dlt,
+    install_fake_requests,
+    load_component_module,
+    requires_duckdb,
+)
 
 
 @pytest.fixture()
@@ -370,3 +377,167 @@ def test_no_destination_reads_back_from_sql_client_into_a_dataframe(mod, monkeyp
     df = result.output_for_node("test_asset")
     assert {"doc_id", "title", "url", "source_type", "updated_at", "content", "content_hash"}.issubset(set(df.columns))
     assert len(df) == 1
+
+
+# --- write_disposition: resource hints (fake-dlt, real .apply_hints()) -----------------
+
+def test_default_write_disposition_is_replace(mod, monkeypatch):
+    def fake_get(url, params=None, headers=None, timeout=None):
+        return FakeResponse(json_body={"results": [_page("111", "T", "<p>x</p>", "/wiki/x")]})
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod)
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "replace"
+    mats = result.asset_materializations_for_node("test_asset")
+    assert mats[0].metadata["write_disposition"].value == "replace"
+
+
+def test_merge_write_disposition_sets_primary_key(mod, monkeypatch):
+    def fake_get(url, params=None, headers=None, timeout=None):
+        return FakeResponse(json_body={"results": [_page("111", "T", "<p>x</p>", "/wiki/x")]})
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, write_disposition="merge")
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "merge"
+    assert resource.compute_table_schema()["columns"]["doc_id"]["primary_key"] is True
+
+
+def test_append_write_disposition_is_explicit_opt_in(mod, monkeypatch):
+    def fake_get(url, params=None, headers=None, timeout=None):
+        return FakeResponse(json_body={"results": [_page("111", "T", "<p>x</p>", "/wiki/x")]})
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, write_disposition="append")
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "append"
+
+
+def test_write_disposition_rejects_invalid_value(mod):
+    with pytest.raises(Exception):
+        _build_component(mod, write_disposition="bogus")
+
+
+# --- _dedupe_by_doc_id: pure-function safety net ---------------------------------------
+
+def test_dedupe_by_doc_id_keeps_latest_updated_at(mod):
+    df = pd.DataFrame([
+        {"doc_id": "111", "updated_at": "2024-01-01T00:00:00.000Z", "content": "old"},
+        {"doc_id": "111", "updated_at": "2024-02-01T00:00:00.000Z", "content": "new"},
+        {"doc_id": "222", "updated_at": "2024-01-01T00:00:00.000Z", "content": "b"},
+    ])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 2
+    assert deduped.set_index("doc_id").loc["111", "content"] == "new"
+
+
+def test_dedupe_by_doc_id_no_doc_id_column_is_a_no_op(mod):
+    df = pd.DataFrame([{"a": 1}, {"a": 2}])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 2
+
+
+def test_dedupe_by_doc_id_empty_dataframe_is_a_no_op(mod):
+    df = pd.DataFrame(columns=["doc_id", "updated_at"])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 0
+
+
+def test_dedupe_by_doc_id_without_updated_at_column_still_dedupes(mod):
+    df = pd.DataFrame([{"doc_id": "x", "v": 1}, {"doc_id": "x", "v": 2}])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 1
+
+
+# --- real dlt + real (file-backed) duckdb: the actual regression this was fixing ------
+# Faking dlt.pipeline() (as every test above does) can't prove accumulation is actually
+# prevented at the destination -- it never persists anything between two separate
+# FakePipeline instances. These tests use the REAL dlt.pipeline()/duckdb destination (the
+# component's own default when `destination` is unset) so a real regression of the exact
+# bug this fixes -- row_count silently doubling on every rerun -- would be caught.
+#
+# dlt also keeps its OWN local pipeline-sync state in ~/.dlt/pipelines/<pipeline_name>/ --
+# a GLOBAL directory, independent of cwd/tmp_path. Each test below uses a pipeline_name
+# unique to it and tears down that global directory before running, so no run of this
+# file -- in any order, on any host that has run it before -- can see stale state from
+# another run.
+
+def _reset_dlt_pipeline_dir(pipeline_name: str) -> None:
+    import shutil
+    shutil.rmtree(pathlib.Path.home() / ".dlt" / "pipelines" / pipeline_name, ignore_errors=True)
+
+
+@requires_duckdb
+def test_rerun_with_default_write_disposition_does_not_duplicate_rows(mod, monkeypatch, tmp_path):
+    _reset_dlt_pipeline_dir("rerun_test_asset_pipeline")
+    monkeypatch.chdir(tmp_path)
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        return FakeResponse(json_body={
+            "results": [
+                _page("111", "Page 1", "<p>one</p>", "/wiki/1"),
+                _page("222", "Page 2", "<p>two</p>", "/wiki/2"),
+            ],
+        })
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    component = _build_component(mod, asset_name="rerun_test_asset")
+
+    result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node("rerun_test_asset")[0].metadata
+    assert md1["row_count"].value == 2
+
+    result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("rerun_test_asset")[0].metadata
+    assert md2["row_count"].value == 2  # NOT 4 -- this is the exact bug being fixed
+    assert md2["duplicate_rows_removed"].value == 0
+
+
+@requires_duckdb
+def test_rerun_with_append_write_disposition_accumulates_at_the_destination_but_the_dedupe_safety_net_still_catches_it(mod, monkeypatch, tmp_path):
+    """'append' is a real, working opt-in: the destination TABLE really does accumulate every
+    run's rows (unlike 'replace'/'merge'). But the per-row dedupe safety net (applied
+    independently of write_disposition) still catches it before the DataFrame is returned, so
+    row_count stays correct either way -- duplicate_rows_removed is what actually reveals that
+    'append' is accumulating underneath."""
+    _reset_dlt_pipeline_dir("rerun_append_asset_pipeline")
+    monkeypatch.chdir(tmp_path)
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        return FakeResponse(json_body={
+            "results": [
+                _page("111", "Page 1", "<p>one</p>", "/wiki/1"),
+                _page("222", "Page 2", "<p>two</p>", "/wiki/2"),
+            ],
+        })
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    component = _build_component(mod, asset_name="rerun_append_asset", write_disposition="append")
+
+    result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node("rerun_append_asset")[0].metadata
+    assert md1["row_count"].value == 2
+    assert md1["duplicate_rows_removed"].value == 0
+
+    result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("rerun_append_asset")[0].metadata
+    assert md2["row_count"].value == 2  # the safety net still returns the current 2 pages...
+    assert md2["duplicate_rows_removed"].value == 2  # ...but reports the destination had accumulated to 4

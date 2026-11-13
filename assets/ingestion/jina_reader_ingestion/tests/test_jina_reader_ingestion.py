@@ -384,3 +384,81 @@ def test_filesystem_destination_without_persist_only_warns_and_still_succeeds(mo
     assert result.success
     mats = result.asset_materializations_for_node("test_asset")
     assert mats[0].metadata["destination"].value == "filesystem"
+
+
+# --- write_disposition: fixing "re-run doubles row_count" -------------------------------
+
+def test_default_write_disposition_is_replace_and_rerun_does_not_duplicate_rows(mod, monkeypatch, tmp_path):
+    """This component's OWN previous hard-coded `write_disposition="append"` is the exact
+    bug this fixes: re-running against the same URLs used to double row_count every time."""
+    install_fake_requests_get(
+        monkeypatch, mod,
+        {
+            "https://example.com/a": FakeResponse(json_body={"data": {"url": "https://example.com/a", "title": "A", "content": "hello"}}),
+            "https://example.com/b": FakeResponse(json_body={"data": {"url": "https://example.com/b", "title": "B", "content": "world"}}),
+        },
+    )
+    component = _build_component(mod, tmp_path, urls="https://example.com/a,https://example.com/b")
+
+    result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node("test_asset")[0].metadata
+    assert md1["row_count"].value == 2
+    assert md1["write_disposition"].value == "replace"
+    assert md1["duplicate_rows_removed"].value == 0
+
+    result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("test_asset")[0].metadata
+    assert md2["row_count"].value == 2  # NOT 4 -- this is the exact bug being fixed
+
+
+def test_merge_write_disposition_sets_primary_key_and_keeps_prior_rows_not_refetched(mod, monkeypatch, tmp_path):
+    install_fake_requests_get(
+        monkeypatch, mod,
+        {"https://example.com/a": FakeResponse(json_body={"data": {"url": "https://example.com/a", "title": "A", "content": "hello"}})},
+    )
+    component = _build_component(mod, tmp_path, urls="https://example.com/a", write_disposition="merge")
+    result1 = _materialize(component)
+    assert result1.success
+    assert result1.asset_materializations_for_node("test_asset")[0].metadata["row_count"].value == 1
+
+    install_fake_requests_get(
+        monkeypatch, mod,
+        {"https://example.com/b": FakeResponse(json_body={"data": {"url": "https://example.com/b", "title": "B", "content": "world"}})},
+    )
+    component2 = _build_component(mod, tmp_path, urls="https://example.com/b", write_disposition="merge")
+    result2 = _materialize(component2)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("test_asset")[0].metadata
+    assert md2["write_disposition"].value == "merge"
+    assert md2["row_count"].value == 2  # merge keeps "a" from the first run alongside new "b"
+
+
+def test_append_write_disposition_accumulates_at_destination_but_dedupe_safety_net_catches_it(mod, monkeypatch, tmp_path):
+    install_fake_requests_get(
+        monkeypatch, mod,
+        {"https://example.com/a": FakeResponse(json_body={"data": {"url": "https://example.com/a", "title": "A", "content": "hello"}})},
+    )
+    component = _build_component(mod, tmp_path, urls="https://example.com/a", write_disposition="append")
+    result1 = _materialize(component)
+    md1 = result1.asset_materializations_for_node("test_asset")[0].metadata
+    assert md1["row_count"].value == 1
+    assert md1["duplicate_rows_removed"].value == 0
+
+    result2 = _materialize(component)
+    md2 = result2.asset_materializations_for_node("test_asset")[0].metadata
+    assert md2["row_count"].value == 1  # safety net still returns the current 1 page...
+    assert md2["duplicate_rows_removed"].value == 1  # ...but reveals the destination accumulated to 2
+
+
+def test_dedupe_by_doc_id_keeps_latest_updated_at(mod):
+    df = pd.DataFrame([
+        {"doc_id": "https://a", "updated_at": "2024-01-01", "content": "old"},
+        {"doc_id": "https://a", "updated_at": "2024-02-01", "content": "new"},
+        {"doc_id": "https://b", "updated_at": "2024-01-01", "content": "b"},
+    ])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 2
+    assert deduped.set_index("doc_id").loc["https://a", "content"] == "new"

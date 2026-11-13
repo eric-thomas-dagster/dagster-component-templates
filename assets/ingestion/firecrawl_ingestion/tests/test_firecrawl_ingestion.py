@@ -15,7 +15,9 @@ import pandas as pd
 import pydantic
 import pytest
 
-from .conftest import FakeResponse, install_fake_dlt, install_fake_requests, load_component_module
+import pathlib
+
+from .conftest import FakeResponse, install_fake_dlt, install_fake_requests, load_component_module, requires_duckdb
 
 
 @pytest.fixture()
@@ -425,3 +427,122 @@ def test_no_destination_reads_back_from_sql_client_into_a_dataframe(mod, monkeyp
     df = result.output_for_node("test_asset")
     assert {"url", "title", "scraped_at", "markdown"}.issubset(set(df.columns))
     assert len(df) == 1
+
+
+# --- write_disposition: resource hints (fake-dlt, real .apply_hints()) -----------------
+
+def test_default_write_disposition_is_replace(mod, monkeypatch):
+    def fake_post(url, json=None, headers=None, timeout=None):
+        return FakeResponse(json_body={
+            "success": True,
+            "data": {"markdown": "hello", "metadata": {"title": "T", "sourceURL": "https://example.com/a"}},
+        })
+
+    install_fake_requests(monkeypatch, mod, post=fake_post)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, urls="https://example.com/a")
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "replace"
+    md = result.asset_materializations_for_node("test_asset")[0].metadata
+    assert md["write_disposition"].value == "replace"
+
+
+def test_merge_write_disposition_sets_primary_key(mod, monkeypatch):
+    def fake_post(url, json=None, headers=None, timeout=None):
+        return FakeResponse(json_body={
+            "success": True,
+            "data": {"markdown": "hello", "metadata": {"title": "T", "sourceURL": "https://example.com/a"}},
+        })
+
+    install_fake_requests(monkeypatch, mod, post=fake_post)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, urls="https://example.com/a", write_disposition="merge")
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "merge"
+    assert resource.compute_table_schema()["columns"]["doc_id"]["primary_key"] is True
+
+
+def test_append_write_disposition_is_explicit_opt_in(mod, monkeypatch):
+    def fake_post(url, json=None, headers=None, timeout=None):
+        return FakeResponse(json_body={
+            "success": True,
+            "data": {"markdown": "hello", "metadata": {"title": "T", "sourceURL": "https://example.com/a"}},
+        })
+
+    install_fake_requests(monkeypatch, mod, post=fake_post)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, urls="https://example.com/a", write_disposition="append")
+    result = _materialize(component)
+    assert result.success
+    resource = fake_pipeline.run_calls[-1][0]
+    assert resource.write_disposition == "append"
+
+
+# --- _dedupe_by_doc_id: pure-function safety net ---------------------------------------
+
+def test_dedupe_by_doc_id_keeps_latest_updated_at(mod):
+    df = pd.DataFrame([
+        {"doc_id": "https://a", "updated_at": "2024-01-01", "content": "old"},
+        {"doc_id": "https://a", "updated_at": "2024-02-01", "content": "new"},
+        {"doc_id": "https://b", "updated_at": "2024-01-01", "content": "b"},
+    ])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 2
+    assert deduped.set_index("doc_id").loc["https://a", "content"] == "new"
+
+
+def test_dedupe_by_doc_id_no_doc_id_column_is_a_no_op(mod):
+    df = pd.DataFrame([{"a": 1}, {"a": 2}])
+    deduped, removed = mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 2
+
+
+# --- real dlt + real (file-backed) duckdb: the actual regression this was fixing ------
+# Faking dlt.pipeline() (as every test above does) can't prove accumulation is actually
+# prevented at the destination -- it never persists anything between two separate
+# FakePipeline instances. This test uses the REAL dlt.pipeline()/duckdb destination (the
+# component's own default when `destination` is unset) so a real regression of the exact
+# bug this fixes -- row_count silently doubling on every rerun -- would be caught.
+#
+# dlt also keeps its OWN local pipeline-sync state in ~/.dlt/pipelines/<pipeline_name>/ --
+# a GLOBAL directory, independent of cwd/tmp_path -- so this uses a pipeline_name unique
+# to this test and tears down that global directory before running, so no prior run of
+# this file (in any order, on any host that has run it before) can see stale state.
+
+def _reset_dlt_pipeline_dir(pipeline_name: str) -> None:
+    import shutil
+    shutil.rmtree(pathlib.Path.home() / ".dlt" / "pipelines" / pipeline_name, ignore_errors=True)
+
+
+@requires_duckdb
+def test_rerun_with_default_write_disposition_does_not_duplicate_rows(mod, monkeypatch, tmp_path):
+    _reset_dlt_pipeline_dir("firecrawl_rerun_test_asset_pipeline")
+    monkeypatch.chdir(tmp_path)
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        requested = json["url"]
+        return FakeResponse(json_body={
+            "success": True,
+            "data": {"markdown": f"content for {requested}", "metadata": {"title": requested, "sourceURL": requested}},
+        })
+
+    install_fake_requests(monkeypatch, mod, post=fake_post)
+    component = _build_component(
+        mod, asset_name="firecrawl_rerun_test_asset", urls="https://example.com/a,https://example.com/b",
+    )
+    result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node("firecrawl_rerun_test_asset")[0].metadata
+    assert md1["row_count"].value == 2
+
+    result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("firecrawl_rerun_test_asset")[0].metadata
+    assert md2["row_count"].value == 2  # NOT 4 -- this is the exact bug being fixed
+    assert md2["duplicate_rows_removed"].value == 0

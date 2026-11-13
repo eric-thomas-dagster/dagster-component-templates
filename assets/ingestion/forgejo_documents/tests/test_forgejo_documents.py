@@ -396,3 +396,219 @@ def test_partition_date_column_actually_filters_the_dataframe(monkeypatch):
 
     df = result.output_for_node(asset_def.op.name)
     assert list(df["doc_id"]) == ["2"]  # only the 2024-01-01 row, not the 2023-12-01 one
+
+
+# --- write_disposition: fixes row_count silently doubling/tripling/... on every rerun ----
+# (the component's own default destination is a REAL on-disk duckdb file via the cwd chdir
+# in _isolate_duckdb_pipeline_dir above, not literally in-memory, so this bug is real against
+# the default config, not just an opt-in destination.)
+
+
+def _install_capturing_run(monkeypatch, mod):
+    """Wraps `dlt.pipeline()` so every `pipeline.run(resources)` call records its real
+    DltResource objects in `run_calls` BEFORE delegating to the real `.run()` -- this still
+    performs a REAL dlt pipeline run against the real (tmp_path-isolated) duckdb destination
+    (per this file's own testing convention: only requests.Session.send is faked), it just
+    also lets a test assert on the real resources' write_disposition/primary_key hints."""
+    real_pipeline_fn = mod.dlt.pipeline
+    run_calls = []
+
+    def _capturing_pipeline(*args, **kwargs):
+        pipeline = real_pipeline_fn(*args, **kwargs)
+        real_run = pipeline.run
+
+        def _run(resources, *a, **kw):
+            run_calls.append(list(resources))
+            return real_run(resources, *a, **kw)
+
+        pipeline.run = _run
+        return pipeline
+
+    monkeypatch.setattr(mod.dlt, "pipeline", _capturing_pipeline)
+    return run_calls
+
+
+def test_default_write_disposition_is_replace_on_every_resource(monkeypatch):
+    backend = _FakeForgejoBackend(
+        tree_entries=[{"path": "README.md", "type": "blob"}],
+        file_contents={"README.md": "hello"},
+        issue_pages=[[{"id": 1, "number": 1, "title": "i", "body": "b", "html_url": "u", "updated_at": "2024-01-01T00:00:00Z"}]],
+    )
+    component = _build_component(resources="files,issues", file_extensions=".md")
+    run_calls = _install_capturing_run(monkeypatch, _mod)
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    resources = run_calls[-1]
+    assert len(resources) == 2  # files + issues
+    for resource in resources:
+        assert resource.write_disposition == "replace"
+
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert md["write_disposition"].value == "replace"
+
+
+def test_merge_write_disposition_sets_primary_key_doc_id_on_every_resource(monkeypatch):
+    backend = _FakeForgejoBackend(
+        tree_entries=[{"path": "README.md", "type": "blob"}],
+        file_contents={"README.md": "hello"},
+        issue_pages=[[{"id": 1, "number": 1, "title": "i", "body": "b", "html_url": "u", "updated_at": "2024-01-01T00:00:00Z"}]],
+    )
+    component = _build_component(resources="files,issues", file_extensions=".md", write_disposition="merge")
+    run_calls = _install_capturing_run(monkeypatch, _mod)
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    resources = run_calls[-1]
+    assert len(resources) == 2
+    for resource in resources:
+        assert resource.write_disposition == "merge"
+        assert resource.compute_table_schema()["columns"]["doc_id"]["primary_key"] is True
+
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert md["write_disposition"].value == "merge"
+
+
+def test_append_write_disposition_is_an_explicit_opt_in(monkeypatch):
+    backend = _FakeForgejoBackend(
+        tree_entries=[{"path": "README.md", "type": "blob"}],
+        file_contents={"README.md": "hello"},
+    )
+    component = _build_component(resources="files", file_extensions=".md", write_disposition="append")
+    run_calls = _install_capturing_run(monkeypatch, _mod)
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    resources = run_calls[-1]
+    assert len(resources) == 1
+    assert resources[0].write_disposition == "append"
+
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert md["write_disposition"].value == "append"
+
+
+# --- _dedupe_by_doc_id: pure-function safety net (independent of write_disposition) -----
+
+
+def test_dedupe_by_doc_id_keeps_the_latest_updated_at():
+    import pandas as pd
+
+    df = pd.DataFrame([
+        {"doc_id": "a", "updated_at": "2024-01-01", "content": "old"},
+        {"doc_id": "a", "updated_at": "2024-02-01", "content": "new"},
+        {"doc_id": "b", "updated_at": "2024-01-01", "content": "b"},
+    ])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 2
+    assert deduped.set_index("doc_id").loc["a", "content"] == "new"
+
+
+def test_dedupe_by_doc_id_is_a_no_op_without_a_doc_id_column():
+    import pandas as pd
+
+    df = pd.DataFrame([{"a": 1}, {"a": 2}])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 2
+
+
+def test_dedupe_by_doc_id_is_a_no_op_on_an_empty_dataframe():
+    import pandas as pd
+
+    df = pd.DataFrame(columns=["doc_id", "updated_at"])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 0
+
+
+def test_dedupe_by_doc_id_still_dedupes_without_an_updated_at_column():
+    import pandas as pd
+
+    df = pd.DataFrame([{"doc_id": "x", "v": 1}, {"doc_id": "x", "v": 2}])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 1
+
+
+# --- real dlt + real (file-backed) duckdb: the actual regression this was fixing --------
+# The component's own default destination (no `destination` set) is a real on-disk DuckDB
+# file in the chdir'd tmp_path (see _isolate_duckdb_pipeline_dir above), not literally
+# in-memory -- materializing the SAME component twice against identical mocked Forgejo API
+# responses reuses that same file (same pipeline_name, same cwd for the whole test), so a
+# real regression of the exact bug this fixes -- row_count silently doubling on every
+# rerun, for every table -- would be caught here.
+
+
+def test_rerun_with_default_write_disposition_does_not_duplicate_rows_across_tables(monkeypatch):
+    def _fresh_backend():
+        return _FakeForgejoBackend(
+            tree_entries=[{"path": "README.md", "type": "blob"}],
+            file_contents={"README.md": "hello"},
+            issue_pages=[[{"id": 1, "number": 1, "title": "i", "body": "b", "html_url": "u", "updated_at": "2024-01-01T00:00:00Z"}]],
+        )
+
+    component = _build_component(resources="files,issues", file_extensions=".md", asset_name="rerun_asset")
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", _fresh_backend().send)
+        asset_def1, result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node(asset_def1.op.name)[0].metadata
+    assert md1["rows_files"].value == 1
+    assert md1["rows_issues"].value == 1
+    assert md1["row_count"].value == 2
+    assert md1["duplicate_rows_removed"].value == 0
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", _fresh_backend().send)
+        asset_def2, result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node(asset_def2.op.name)[0].metadata
+    # NOT 2/2/4 -- this is the exact bug being fixed: dlt's own default write_disposition
+    # ("append") has no notion of a previous run's rows becoming stale, so an unguarded
+    # rerun against this same on-disk duckdb file would double every table's row_count.
+    assert md2["rows_files"].value == 1
+    assert md2["rows_issues"].value == 1
+    assert md2["row_count"].value == 2
+    assert md2["duplicate_rows_removed"].value == 0
+
+
+def test_rerun_with_append_write_disposition_accumulates_but_the_dedupe_safety_net_still_reports_it(monkeypatch):
+    """'append' is a real, working opt-in: the destination TABLE really does accumulate every
+    run's rows (unlike 'replace'/'merge'). The per-row dedupe safety net (independent of
+    write_disposition) catches it before the DataFrame is returned, so row_count stays
+    correct either way -- duplicate_rows_removed is what actually reveals 'append' is
+    accumulating underneath."""
+    def _fresh_backend():
+        return _FakeForgejoBackend(
+            tree_entries=[{"path": "README.md", "type": "blob"}],
+            file_contents={"README.md": "hello"},
+        )
+
+    component = _build_component(
+        resources="files", file_extensions=".md", asset_name="rerun_append_asset", write_disposition="append",
+    )
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", _fresh_backend().send)
+        asset_def1, result1 = _materialize(component)
+    md1 = result1.asset_materializations_for_node(asset_def1.op.name)[0].metadata
+    assert md1["rows_files"].value == 1
+    assert md1["duplicate_rows_removed"].value == 0
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", _fresh_backend().send)
+        asset_def2, result2 = _materialize(component)
+    md2 = result2.asset_materializations_for_node(asset_def2.op.name)[0].metadata
+    assert md2["rows_files"].value == 1  # the safety net still returns the current 1 file...
+    assert md2["duplicate_rows_removed"].value == 1  # ...but reports the destination accumulated to 2

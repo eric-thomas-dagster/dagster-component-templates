@@ -16,6 +16,18 @@ from types import ModuleType
 from typing import Any, List, Optional
 
 import pandas as pd
+import pytest
+
+
+def _duckdb_available() -> bool:
+    try:
+        import duckdb  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+requires_duckdb = pytest.mark.skipif(not _duckdb_available(), reason="requires duckdb (pip install duckdb)")
 
 
 def load_component_module() -> ModuleType:

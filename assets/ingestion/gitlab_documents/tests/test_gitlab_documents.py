@@ -23,6 +23,7 @@ import sys
 import urllib.parse
 
 import dagster as dg
+import dlt
 import pytest
 import requests
 
@@ -132,6 +133,16 @@ def _materialize(component, selection=None, partition_key=None):
         kwargs["partition_key"] = partition_key
     result = dg.materialize([asset_def], **kwargs)
     return asset_def, result
+
+
+def _attached_table_schema(asset_name, table_name):
+    """Re-attaches the REAL dlt pipeline the component just ran (same pipeline_name, same
+    working dir -- the autouse fixture's chdir()/DLT_DATA_DIR already scope this to the
+    current test), and returns that table's schema dict -- this is how write_disposition/
+    primary_key hints wired onto a dlt resource are verified against a real dlt run (there
+    is no FakePipeline here to record .run_calls against; dlt.pipeline() itself is real)."""
+    pipeline = dlt.pipeline(pipeline_name=f"{asset_name}_pipeline", destination="duckdb")
+    return pipeline.default_schema.get_table(table_name)
 
 
 # --- build_defs / validation -------------------------------------------------
@@ -357,3 +368,211 @@ def test_partition_date_column_actually_filters_the_dataframe(monkeypatch):
 
     df = result.output_for_node(asset_def.op.name)
     assert list(df["doc_id"]) == ["2"]  # only the 2024-01-01 row, not the 2023-12-01 one
+
+
+# --- write_disposition: wired onto every table via the real dlt pipeline -----
+
+
+def _three_resource_backend():
+    return _FakeGitlabBackend(
+        tree_entries=[{"path": "README.md", "type": "blob"}],
+        file_contents={"README.md": "hello"},
+        issue_pages=[[{"id": 1, "iid": 1, "title": "i", "description": "b", "web_url": "u", "updated_at": "2024-01-01T00:00:00Z"}]],
+        mr_pages=[[{"id": 2, "iid": 2, "title": "m", "description": "c", "web_url": "u2", "updated_at": "2024-01-02T00:00:00Z"}]],
+    )
+
+
+def test_default_write_disposition_is_replace_on_every_table(monkeypatch):
+    backend = _three_resource_backend()
+    component = _build_component(resources="files,issues,merge_requests", file_extensions=".md", asset_name="wd_replace_asset")
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    metadata = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert metadata["write_disposition"].value == "replace"
+    assert metadata["load_id"].value  # a real load id, not null
+
+    for table_name in ("files", "issues", "merge_requests"):
+        schema = _attached_table_schema("wd_replace_asset", table_name)
+        assert schema["write_disposition"] == "replace"
+        assert not schema["columns"]["doc_id"].get("primary_key")
+
+
+def test_merge_write_disposition_sets_primary_key_on_every_table(monkeypatch):
+    backend = _three_resource_backend()
+    component = _build_component(
+        resources="files,issues,merge_requests", file_extensions=".md",
+        asset_name="wd_merge_asset", write_disposition="merge",
+    )
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    metadata = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert metadata["write_disposition"].value == "merge"
+
+    for table_name in ("files", "issues", "merge_requests"):
+        schema = _attached_table_schema("wd_merge_asset", table_name)
+        assert schema["write_disposition"] == "merge"
+        assert schema["columns"]["doc_id"]["primary_key"] is True
+
+
+def test_append_write_disposition_is_explicit_opt_in(monkeypatch):
+    backend = _three_resource_backend()
+    component = _build_component(
+        resources="files,issues,merge_requests", file_extensions=".md",
+        asset_name="wd_append_asset", write_disposition="append",
+    )
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        asset_def, result = _materialize(component)
+    assert result.success
+
+    metadata = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert metadata["write_disposition"].value == "append"
+
+    for table_name in ("files", "issues", "merge_requests"):
+        schema = _attached_table_schema("wd_append_asset", table_name)
+        assert schema["write_disposition"] == "append"
+        assert not schema["columns"]["doc_id"].get("primary_key")
+
+
+def test_multi_asset_shape_also_wires_write_disposition_per_table(monkeypatch):
+    """The two call sites (single vs multi_asset asset_shape) share the one
+    _make_dlt_resources() helper -- this is a thin check that the multi_asset path gets
+    the same hints, not a re-test of every mode."""
+    backend = _three_resource_backend()
+    component = _build_component(
+        resources="files,issues", file_extensions=".md",
+        asset_name="wd_multi_asset", asset_shape="multi_asset", write_disposition="merge",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+
+    for table_name in ("files", "issues"):
+        schema = _attached_table_schema("wd_multi_asset", table_name)
+        assert schema["write_disposition"] == "merge"
+        assert schema["columns"]["doc_id"]["primary_key"] is True
+
+
+# --- _dedupe_by_doc_id: pure-function safety net ------------------------------
+
+
+def test_dedupe_by_doc_id_keeps_latest_updated_at():
+    import pandas as pd
+
+    df = pd.DataFrame([
+        {"doc_id": "1", "updated_at": "2024-01-01T00:00:00Z", "content": "old"},
+        {"doc_id": "1", "updated_at": "2024-02-01T00:00:00Z", "content": "new"},
+        {"doc_id": "2", "updated_at": "2024-01-01T00:00:00Z", "content": "other"},
+    ])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 2
+    assert deduped.set_index("doc_id").loc["1", "content"] == "new"
+
+
+def test_dedupe_by_doc_id_no_doc_id_column_is_a_no_op():
+    import pandas as pd
+
+    df = pd.DataFrame([{"a": 1}, {"a": 2}])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 2
+
+
+def test_dedupe_by_doc_id_empty_dataframe_is_a_no_op():
+    import pandas as pd
+
+    df = pd.DataFrame(columns=["doc_id", "content"])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 0
+    assert len(deduped) == 0
+
+
+def test_dedupe_by_doc_id_without_updated_at_column_still_dedupes():
+    import pandas as pd
+
+    df = pd.DataFrame([{"doc_id": "x", "v": 1}, {"doc_id": "x", "v": 2}])
+    deduped, removed = _mod._dedupe_by_doc_id(df)
+    assert removed == 1
+    assert len(deduped) == 1
+
+
+# --- real dlt + real (file-backed) duckdb: the actual regression this was fixing ------
+# Re-materializing the SAME component instance twice in one test re-runs the real dlt
+# pipeline against the same on-disk duckdb file (the autouse fixture's chdir()/
+# DLT_DATA_DIR scope this to the test's own tmp_path, so nothing leaks across tests or
+# into ~/.dlt) -- this is what actually proves row_count doesn't silently double on a
+# rerun, which a test that fakes dlt.pipeline() entirely cannot show (a fake never
+# persists anything between two separate runs).
+
+
+def test_rerun_with_default_write_disposition_does_not_duplicate_rows(monkeypatch):
+    backend = _FakeGitlabBackend(issue_pages=[[
+        {"id": 1, "iid": 1, "title": "one", "description": "b1", "web_url": "u1", "updated_at": "2024-01-01T00:00:00Z"},
+        {"id": 2, "iid": 2, "title": "two", "description": "b2", "web_url": "u2", "updated_at": "2024-01-02T00:00:00Z"},
+    ]])
+    component = _build_component(resources="issues", asset_name="rerun_replace_asset")
+
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend.send)
+        _, result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node("rerun_replace_asset")[0].metadata
+    assert md1["rows_issues"].value == 2
+    assert md1["duplicate_rows_removed"].value == 0
+
+    backend2 = _FakeGitlabBackend(issue_pages=[[
+        {"id": 1, "iid": 1, "title": "one", "description": "b1", "web_url": "u1", "updated_at": "2024-01-01T00:00:00Z"},
+        {"id": 2, "iid": 2, "title": "two", "description": "b2", "web_url": "u2", "updated_at": "2024-01-02T00:00:00Z"},
+    ]])
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend2.send)
+        _, result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("rerun_replace_asset")[0].metadata
+    assert md2["rows_issues"].value == 2  # NOT 4 -- this is the exact bug being fixed
+    assert md2["row_count"].value == 2
+    assert md2["duplicate_rows_removed"].value == 0
+
+
+def test_rerun_with_append_write_disposition_accumulates_but_the_dataframe_output_stays_correct(monkeypatch):
+    """'append' is a real, working opt-in: the destination table really does accumulate
+    every run's rows (unlike 'replace'/'merge'). But the per-row dedupe safety net (applied
+    regardless of write_disposition) still catches it before the DataFrame is returned, so
+    row_count stays correct either way -- duplicate_rows_removed is what reveals that
+    'append' is accumulating underneath."""
+    rows = [
+        {"id": 1, "iid": 1, "title": "one", "description": "b1", "web_url": "u1", "updated_at": "2024-01-01T00:00:00Z"},
+        {"id": 2, "iid": 2, "title": "two", "description": "b2", "web_url": "u2", "updated_at": "2024-01-02T00:00:00Z"},
+    ]
+    component = _build_component(resources="issues", asset_name="rerun_append_asset", write_disposition="append")
+
+    backend1 = _FakeGitlabBackend(issue_pages=[rows])
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend1.send)
+        _, result1 = _materialize(component)
+    assert result1.success
+    md1 = result1.asset_materializations_for_node("rerun_append_asset")[0].metadata
+    assert md1["row_count"].value == 2
+    assert md1["duplicate_rows_removed"].value == 0
+
+    backend2 = _FakeGitlabBackend(issue_pages=[rows])
+    with monkeypatch.context() as m:
+        m.setattr(requests.Session, "send", backend2.send)
+        _, result2 = _materialize(component)
+    assert result2.success
+    md2 = result2.asset_materializations_for_node("rerun_append_asset")[0].metadata
+    assert md2["row_count"].value == 2  # the safety net still returns the current 2 rows...
+    assert md2["duplicate_rows_removed"].value == 2  # ...but reports the destination accumulated to 4

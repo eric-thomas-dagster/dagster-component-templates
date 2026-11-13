@@ -24,7 +24,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.147"
+__version__ = "0.10.148"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 
@@ -695,6 +695,7 @@ _CLASS_PATHS: dict[str, str] = {
     "HumanApprovalGateComponent": "assets/ai/human_approval_gate/component.py",
     "HvrHubResource": "integrations/hvr_hub_workspace/component.py",
     "HvrHubWorkspaceComponent": "integrations/hvr_hub_workspace/component.py",
+    "HybridKnowledgeSearchServerComponent": "assets/ai/hybrid_knowledge_search_server/component.py",
     "IWSIntegrationComponent": "integrations/iws_integration/component.py",
     "IcebergCatalogResourceComponent": "resources/iceberg_catalog_resource/component.py",
     "IcebergIOManagerComponent": "io_managers/iceberg_io_manager/component.py",

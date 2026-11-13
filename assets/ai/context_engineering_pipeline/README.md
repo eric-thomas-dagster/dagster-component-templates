@@ -9,6 +9,13 @@ It does not *write* receipts itself: a receipt records what was actually retriev
 (`rag_pipeline` with its `receipts:` block, an MCP gateway, or your own retrieval code) via `ContextReceiptStore.record_retrieval(...)`. It does **read them back**:
 with `receipts:` set, every rebuild learns from what was retrieved and how it turned out. See [Learning from receipts](#learning-from-receipts).
 
+**Shared chunk-id contract.** [`knowledge_graph_builder`](../knowledge_graph_builder/README.md)'s `chunk` op copies this component's own chunking algorithm, default id scheme
+(`{chunk_id_prefix}{id}_{chunk_index}`), and `content_hash` formula (sha256 of the chunk text) verbatim, so the same source text with the same
+`chunk_size`/`chunk_overlap`/`preserve_sentences`/`chunk_id_prefix` produces byte-identical `chunk_id`/`content_hash` values in both pipelines -- a vector
+knowledge base built here and a knowledge graph built there can be joined by `chunk_id` (see [`hybrid_knowledge_search_server`](../hybrid_knowledge_search_server/README.md)).
+To chunk the corpus only once for both: set `per_step_ops: true` here so the chunk step is its own asset (`<asset_name>_<chunk step id>`), then point
+`knowledge_graph_builder`'s `upstream_asset_key` at that asset and start its `steps:` with `op: extract` instead of `op: chunk`.
+
 This is the "build the knowledge base" half of context engineering: chunk/embed/classify raw text, govern it, and make it citeable — the same discipline-first treatment Dagster already applies to tables and metrics, applied to unstructured text instead. Same "pipeline component" shape as `ml_pipeline`, `rag_pipeline`, `warehouse_pipeline`, `polars_pipeline`: one YAML, a `steps:` list in reading order, each step's output readable by the next via `source:` (or, if omitted, the immediately-prior step).
 
 ```yaml

@@ -16,6 +16,19 @@ YAML, a `steps:` list, each step's output is a DataFrame the next step reads
         - {id: resolved, op: resolve, min_mentions: 2}
         - {id: graph, op: write_graph, provider: networkx, path: /tmp/support_kg.json}
 
+Shared chunk-id contract: `chunk`'s algorithm, default id scheme
+(`{prefix}{source_id}_{index}`), and content_hash formula (sha256 of the
+chunk text) are copied verbatim from context_engineering_pipeline's own
+chunk op. Given the SAME source text and the SAME chunk_size/chunk_overlap/
+preserve_sentences/chunk_id_prefix, both pipelines produce byte-identical
+chunk_id and content_hash values for the same chunk -- a vector knowledge
+base (context_engineering_pipeline) and this knowledge graph can be joined
+by chunk_id (see hybrid_knowledge_search_server). To chunk the corpus only
+ONCE and feed both: run context_engineering_pipeline with per_step_ops:
+true, then point THIS component's `upstream_asset_key` at that pipeline's
+own `<asset_name>_<chunk step id>` per-step asset and start `steps:` with
+op='extract' instead of op='chunk' (the first step may be either).
+
 Op coverage:
 
 - chunk:        fixed-size chunking with sentence-boundary snapping and
@@ -24,7 +37,8 @@ Op coverage:
                 chunk_index, total_chunks, chunk_text, content_hash, plus
                 id_column/metadata_columns carried through), reimplemented
                 here rather than imported (this repo's standalone-component
-                convention).
+                convention). May be omitted -- start `steps:` with
+                op='extract' instead when upstream is already chunk-shaped.
 - extract:      method='llm' (litellm; any entity_types/relation_types act as
                 a closed vocabulary hint) or method='spacy' (free, local,
                 dependency-parse-based subject-verb-object extraction over
@@ -926,10 +940,14 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
     else:
         raise ValueError(f"write_graph op: unsupported provider {provider!r}. Valid: networkx, neo4j, falkordb.")
 
+    entities_this_run = set(nodes)
+    chunk_ids_this_run = {cid for e in edges.values() for cid in e["chunk_ids"]}
+
     out = df.copy()
     out.attrs["stats"] = {
         "node_count": node_count, "edge_count": edge_count, "top_entities": top_entities,
         "store_location": store_location, "sync_mode": sync_mode, "provider": provider,
+        "chunk_count": len(chunk_ids_this_run), "entities_linked_to_chunks": len(entities_this_run),
     }
     return out
 
@@ -1144,8 +1162,13 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
         steps_cfg = list(self.steps or [])
         if not steps_cfg:
             raise ValueError("knowledge_graph_builder requires at least one step in `steps:`.")
-        if steps_cfg[0].get("op") != "chunk":
-            raise ValueError("knowledge_graph_builder: the first step must be op='chunk'.")
+        first_op = steps_cfg[0].get("op")
+        if first_op not in ("chunk", "extract"):
+            raise ValueError(
+                "knowledge_graph_builder: the first step must be op='chunk', or op='extract' when "
+                "`upstream_asset_key` already points at a pre-chunked asset (e.g. context_engineering_pipeline's "
+                "own chunk step with per_step_ops=True) -- see the module docstring's shared chunk-id contract."
+            )
         valid_ops = {"chunk", "extract", "resolve", "write_graph"}
         for s in steps_cfg:
             if "id" not in s or "op" not in s:
@@ -1182,6 +1205,7 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
         source_cfg = self.source
         upstream_asset_key = self.upstream_asset_key
         partitioned = partitions_def is not None
+        pre_chunked = first_op == "extract"
 
         tags = dict(self.asset_tags or {})
         for k in (self.kinds or ["ai", "knowledge-graph"]):
@@ -1214,7 +1238,15 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
                     upstream_df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             if id_column not in upstream_df.columns:
                 raise ValueError(f"id_column={id_column!r} not in upstream: {list(upstream_df.columns)}")
-            if text_column not in upstream_df.columns:
+            if pre_chunked:
+                if "chunk_id" not in upstream_df.columns:
+                    raise ValueError(
+                        "knowledge_graph_builder: the first step is op='extract' (pre-chunked upstream), but "
+                        f"upstream has no 'chunk_id' column (columns: {list(upstream_df.columns)}). Point "
+                        "upstream_asset_key at a chunk-shaped asset (e.g. a chunk op's own output, or "
+                        "context_engineering_pipeline's <asset_name>_<chunk step id> per-step asset)."
+                    )
+            elif text_column not in upstream_df.columns:
                 raise ValueError(f"text_column={text_column!r} not in upstream: {list(upstream_df.columns)}")
             source_rows_available = len(upstream_df)
             if max_source_rows is not None and source_rows_available > max_source_rows:
@@ -1255,6 +1287,8 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
             if "node_count" in final_stats:
                 metadata["node_count"] = MetadataValue.int(final_stats["node_count"])
                 metadata["edge_count"] = MetadataValue.int(final_stats["edge_count"])
+                metadata["chunk_count"] = MetadataValue.int(final_stats.get("chunk_count", 0))
+                metadata["entities_linked_to_chunks"] = MetadataValue.int(final_stats.get("entities_linked_to_chunks", 0))
                 metadata["top_entities"] = MetadataValue.json(final_stats.get("top_entities"))
                 metadata["graph_location"] = MetadataValue.text(str(final_stats.get("store_location")))
                 metadata["sync_mode"] = MetadataValue.text(str(final_stats.get("sync_mode")))

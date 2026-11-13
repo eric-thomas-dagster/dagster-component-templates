@@ -307,4 +307,66 @@ def test_full_pipeline_end_to_end(mod, tmp_path, monkeypatch):
     md = mats[0].metadata
     assert md["node_count"].value == 2
     assert md["edge_count"].value == 1
+    assert md["chunk_count"].value == 2
+    assert md["entities_linked_to_chunks"].value == 2
     assert os.path.exists(path)
+
+
+# ─── shared chunk-id contract: starting from a pre-chunked upstream ───────
+
+def test_first_step_can_be_extract_when_upstream_is_already_chunked(mod, tmp_path, monkeypatch):
+    """Simulates pointing upstream_asset_key at context_engineering_pipeline's own chunk-step
+    output: already has chunk_id/content_hash/chunk_text, no raw `body` column at all."""
+    path = str(tmp_path / "kg.json")
+
+    def fake_completion(model, messages, api_key, temperature):
+        return _FakeResponse(json.dumps([{"subject": "Alice", "relation": "works_at", "object": "Acme"}]))
+
+    import litellm
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+
+    @dg.asset(name="pre_chunked")
+    def pre_chunked():
+        return pd.DataFrame([
+            {"doc_id": "d1", "chunk_id": "d1_0", "chunk_index": 0, "total_chunks": 1,
+             "chunk_text": "Alice works at Acme.", "content_hash": "h1"},
+        ])
+
+    cls = getattr(mod, CLS)
+    comp = cls(
+        asset_name="kg_out2", upstream_asset_key="pre_chunked", id_column="doc_id", text_column="body",
+        steps=[
+            {"id": "triples", "op": "extract", "method": "llm", "model": "gpt-4o-mini"},
+            {"id": "resolved", "op": "resolve"},
+            {"id": "graph", "op": "write_graph", "provider": "networkx", "path": path},
+        ],
+    )
+    comp_assets = comp.build_defs(None).assets
+    result = dg.materialize([pre_chunked] + list(comp_assets), resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+
+
+def test_pre_chunked_upstream_without_chunk_id_raises_clear_error(mod, tmp_path):
+    @dg.asset(name="not_chunked")
+    def not_chunked():
+        return pd.DataFrame({"doc_id": ["d1"], "body": ["text"]})
+
+    cls = getattr(mod, CLS)
+    comp = cls(
+        asset_name="kg_out3", upstream_asset_key="not_chunked", id_column="doc_id", text_column="body",
+        steps=[
+            {"id": "triples", "op": "extract", "method": "llm", "model": "gpt-4o-mini"},
+            {"id": "graph", "op": "write_graph", "provider": "networkx", "path": str(tmp_path / "kg.json")},
+        ],
+    )
+    comp_assets = comp.build_defs(None).assets
+    with pytest.raises(Exception, match="no 'chunk_id' column"):
+        dg.materialize([not_chunked] + list(comp_assets), resources={"io_manager": dg.InMemoryIOManager()})
+
+
+def test_first_step_must_be_chunk_or_extract(mod):
+    cls = getattr(mod, CLS)
+    comp = cls(asset_name="x", upstream_asset_key="y", id_column="id", text_column="t",
+               steps=[{"id": "r", "op": "resolve"}])
+    with pytest.raises(ValueError, match="the first step must be"):
+        comp.build_defs(None)

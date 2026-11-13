@@ -1,0 +1,16 @@
+type: dagster_community_components.HybridKnowledgeSearchServerComponent
+attributes:
+  resource_key: support_hybrid_search
+  mcp_server_resource_key: support_hybrid_search_mcp
+  knowledge_base: support_kb
+  vector_store:
+    provider: chromadb
+    connection_string: ./chroma_db
+    collection_name: support_kb
+    embed_provider: sentence_transformers
+    embed_model: all-MiniLM-L6-v2
+  graph:
+    provider: networkx
+    path: /tmp/support_kg.json
+    graph_name: support_kg
+  max_results: 50

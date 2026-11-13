@@ -33798,6 +33798,63 @@
       ]
     },
     {
+      "id": "hybrid_knowledge_search_server",
+      "name": "Hybrid Knowledge Search Server",
+      "category": "ai",
+      "description": "Combined vector + graph retrieval over one corpus joined by chunk_id -- search_entities/get_entity/get_neighbors/find_path/get_chunks_for_entity/get_graph_context plus a combined search tool.",
+      "path": "assets/ai/hybrid_knowledge_search_server",
+      "tags": [
+        "knowledge-graph",
+        "vector-search",
+        "ai",
+        "mcp-server"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_server/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_server/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_server/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_server/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_server/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pydantic",
+          "sentence-transformers",
+          "chromadb",
+          "networkx",
+          "mcp>=1.30,<3"
+        ]
+      },
+      "icon": "Workflow",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-13"
+      },
+      "agent_hints": {
+        "inputs": "Reads the vector store and graph store directly (chromadb/pinecone/qdrant/faiss/s3vectors + networkx/neo4j/falkordb) -- not a Dagster asset input.",
+        "outputs": "Registers a HybridKnowledgeSearchResource (and, optionally, an MCP-server-shaped resource) plus a small inspection asset reporting the corpus-overlap check; no data asset output.",
+        "side_effects": "None -- pure reads. provider='networkx' loads the graph file once at server start, like knowledge_graph_search_server.",
+        "anti_uses": "Does not build either store -- pair with context_engineering_pipeline (vector) and knowledge_graph_builder (graph) for that, using the SAME chunk_size/chunk_overlap/chunk_id_prefix so chunk_id matches across both (see knowledge_graph_builder's README 'Shared chunk-id contract'). overlap_with_knowledge_base is only computed for the chromadb+networkx combination.",
+        "input_type": "none",
+        "output_type": "none"
+      },
+      "produces": [
+        "asset",
+        "resource"
+      ],
+      "keywords": [
+        "graph",
+        "vector",
+        "hybrid",
+        "search",
+        "mcp",
+        "agent-tools",
+        "rag",
+        "graphrag"
+      ]
+    },
+    {
       "id": "iceberg_catalog_resource",
       "name": "Iceberg Catalog Resource",
       "category": "resource",
@@ -72904,5 +72961,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1400
+  "total": 1401
 }

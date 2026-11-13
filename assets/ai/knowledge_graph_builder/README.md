@@ -15,6 +15,58 @@ output is a DataFrame the next step reads.
   `find_path`, `top_entities`).
 - Incrementally rebuild as new documents arrive without re-paying an LLM
   call for chunks that haven't changed (`extract`'s `reuse_from`).
+- Pair with `context_engineering_pipeline` and `hybrid_knowledge_search_server`
+  for combined vector + graph retrieval over the same corpus, joined by
+  `chunk_id` (see "Shared chunk-id contract" below).
+
+## Shared chunk-id contract
+
+`chunk`'s algorithm, default id scheme (`{chunk_id_prefix}{source_id}_{index}`),
+and `content_hash` formula (sha256 of the chunk text) are copied verbatim
+from `context_engineering_pipeline`'s own `chunk` op. Given the **same**
+source text and the **same** `chunk_size`/`chunk_overlap`/
+`preserve_sentences`/`chunk_id_prefix`, both pipelines produce
+byte-identical `chunk_id` and `content_hash` values for the same chunk --
+a vector knowledge base (`context_engineering_pipeline`) and this
+knowledge graph can be joined by `chunk_id`, which is exactly what
+`hybrid_knowledge_search_server` does.
+
+To chunk the corpus only **once** and feed both pipelines from it:
+
+1. Run `context_engineering_pipeline` with `per_step_ops: true` so its
+   chunk step is its own queryable asset (`<asset_name>_<chunk step id>`).
+2. Point this component's `upstream_asset_key` at that per-step chunk
+   asset, and start `steps:` with `op: extract` instead of `op: chunk` --
+   the first step may be either. When it's `extract`, upstream must
+   already have a `chunk_id` column (a clear error names what's missing
+   otherwise); `id_column` must still be present for source provenance.
+
+```yaml
+# context_engineering_pipeline: chunk once, also embed + index
+type: dagster_community_components.ContextEngineeringPipelineComponent
+attributes:
+  asset_name: support_kb
+  upstream_asset_key: raw_support_tickets
+  id_column: ticket_id
+  text_column: body
+  per_step_ops: true
+  steps:
+    - {id: chunks, op: chunk, chunk_size: 500, chunk_overlap: 50}
+    - {id: embedded, op: embed, provider: sentence_transformers}
+    - {id: indexed, op: write_vector_store, provider: chromadb, collection_name: support_kb}
+---
+# knowledge_graph_builder: reuses the SAME chunks (support_kb_chunks), no re-chunking
+type: dagster_community_components.KnowledgeGraphBuilderComponent
+attributes:
+  asset_name: support_kg
+  upstream_asset_key: support_kb_chunks
+  id_column: ticket_id
+  text_column: body   # unused when the first step is extract; id_column is still required
+  steps:
+    - {id: triples, op: extract, method: llm, model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY}
+    - {id: resolved, op: resolve, min_mentions: 2}
+    - {id: graph, op: write_graph, provider: networkx, path: /tmp/support_kg.json}
+```
 
 ## Op coverage
 
@@ -191,9 +243,18 @@ unbounded O(n²) comparison.
   available here); reviewed directly against the `neo4j` Python driver and
   `falkordb-py`'s documented `select_graph`/`query` API.
 
+## Run metadata
+
+The final asset's materialization metadata reports: `node_count`,
+`edge_count`, `chunk_count` (distinct chunk_ids written this run),
+`entities_linked_to_chunks`, `top_entities` (top 20 by degree/mention_count),
+`sample_triples` (first 10), `extraction_settings` (method/model/
+entity_types/relation_types), and `graph_location` (the file path or
+`provider:graph_name`).
+
 ## Inputs and Outputs
 
 | | Type | Description |
 |-|------|-------------|
-| Input | `pd.DataFrame` (or SQL `source`) | Raw text rows: `id_column`, `text_column`, optional `metadata_columns` |
+| Input | `pd.DataFrame` (or SQL `source`) | Raw text rows: `id_column`, `text_column`, optional `metadata_columns` -- or a pre-chunked DataFrame (`chunk_id` + `id_column`) when the first step is `extract` |
 | Output | `pd.DataFrame` | The final step's triples, for lineage/debugging -- the real graph lives in the configured store |

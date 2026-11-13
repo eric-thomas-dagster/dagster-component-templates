@@ -1,0 +1,85 @@
+{
+  "component_type": "dagster_community_components.HybridKnowledgeSearchServerComponent",
+  "description": "Combined vector + graph retrieval over one corpus joined by chunk_id -- search_entities/get_entity/get_neighbors/find_path/get_chunks_for_entity/get_graph_context plus a combined search tool.",
+  "category": "ai",
+  "icon": "Workflow",
+  "x-dagster-io": {
+    "inputs": { "type": "none" },
+    "outputs": { "type": "none", "description": "Registers a resource + (optionally) an MCP server resource, plus a small inspection asset." }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "default": "hybrid_knowledge_search",
+      "label": "Resource Key",
+      "description": "Dagster resource key the in-process HybridKnowledgeSearchResource is registered under."
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource under this key.",
+      "required": false,
+      "default": null
+    },
+    "vector_store": {
+      "type": "object",
+      "label": "Vector Store",
+      "description": "Same fields as knowledge_search_server's KnowledgeSearchResource (provider, connection_string, collection_name [required], api_key_env_var, embed_provider, embed_model, embed_api_key_env_var, text_metadata_key, vector_bucket_name, aws_region, demo_mode).",
+      "required": true,
+      "ui:widget": "key-value"
+    },
+    "graph": {
+      "type": "object",
+      "label": "Graph",
+      "description": "Same fields as knowledge_graph_search_server's KnowledgeGraphSearchResource (provider, path, uri, username_env_var, password_env_var, database, host, port, graph_name).",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "knowledge_base": {
+      "type": "string",
+      "label": "Knowledge Base",
+      "description": "Optional UI-linking label.",
+      "required": false,
+      "default": null
+    },
+    "max_results": {
+      "type": "integer",
+      "default": 50,
+      "label": "Max Results",
+      "description": "Cap on rows returned by any list-returning method."
+    },
+    "inspection_asset_name": {
+      "type": "string",
+      "default": "hybrid_knowledge_search_tools",
+      "label": "Inspection Asset Name",
+      "description": "Asset key for the inspection asset reporting this server's configured settings and the corpus-overlap check."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Extra asset tags, applied to the inspection asset.",
+      "required": false,
+      "ui:widget": "key-value"
+    }
+  }
+}

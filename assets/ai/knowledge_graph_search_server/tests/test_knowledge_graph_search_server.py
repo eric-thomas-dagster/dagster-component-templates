@@ -169,3 +169,234 @@ def test_safe_wrapper_returns_error_dict_instead_of_raising(mod, tmp_path):
     r = _resource(mod, path)  # file doesn't exist -> empty graph, not an exception
     res = mod._safe(r.get_entity, "Anyone")
     assert res == {"error": "entity 'Anyone' not found"}
+
+
+# ─── provider='sql_tables': recursive-CTE graph traversal over knowledge_graph_builder's
+# execution_mode='sql' output tables ──────────────────────────────────────────────────────
+# Snowflake/Databricks/BigQuery SQL is checked for real syntactic validity with
+# sqlglot.parse(sql, read=dialect). Databricks' real `) MAX RECURSION LEVEL n` safety clause is
+# deliberately omitted (not load-bearing -- the `depth < hops` predicate already bounds recursion
+# tighter than that) since sqlglot 28.0.0 has no parser support for it (confirmed directly). The
+# recursive traversal LOGIC itself (direction-agnostic join, cycle prevention via a path array,
+# depth-bounded BFS, shortest-path tie-breaking) is executed for real against DuckDB, using
+# DuckDB's own list_concat/list_contains in place of the real dialects' ARRAY_CONCAT/ARRAY_AGG
+# equivalents -- same stand-in technique knowledge_graph_builder's own tests use.
+
+from .conftest import requires_duckdb, requires_sqlglot  # noqa: E402
+
+
+@requires_sqlglot
+@pytest.mark.parametrize("dialect,read", [
+    ("snowflake_cortex", "snowflake"), ("bigquery", "bigquery"), ("databricks", "databricks"),
+])
+def test_sql_tables_queries_are_valid_sql_for_dialect(mod, dialect, read):
+    import sqlglot
+    nodes_tbl, edges_tbl = mod._sql_tables_names("kg", dialect)
+    for sql in (
+        mod._build_sql_search_entities_query(nodes_tbl, "acme", "ORG", 50),
+        mod._build_sql_top_entities_query(nodes_tbl, None, 50),
+        mod._build_sql_neighbors_query(dialect, edges_tbl, "Alice", 2, None),
+        mod._build_sql_neighbors_query(dialect, edges_tbl, "Alice", 2, "works_at"),
+        mod._build_sql_path_query(dialect, edges_tbl, "Alice", "Bob", 4),
+        *mod._build_sql_entity_relations_queries(edges_tbl, "Alice"),
+    ):
+        sqlglot.parse(sql, read=read)
+
+
+@requires_duckdb
+def test_recursive_neighbors_logic_direction_agnostic_cycle_safe_depth_bounded(mod):
+    import duckdb
+    con = duckdb.connect()
+    con.execute("CREATE TABLE edges (source STRING, target STRING, relation STRING)")
+    con.execute("INSERT INTO edges VALUES ('A','B','r1'), ('B','C','r2'), ('C','D','r3'), ('A','A','self')")
+    sql = """
+    WITH RECURSIVE neighbors (name, depth, path) AS (
+      SELECT 'A', 0, ['A']
+      UNION ALL
+      SELECT (CASE WHEN e.source = n.name THEN e.target ELSE e.source END), n.depth + 1,
+             list_concat(n.path, [(CASE WHEN e.source = n.name THEN e.target ELSE e.source END)])
+      FROM edges AS e JOIN neighbors AS n ON (e.source = n.name OR e.target = n.name)
+      WHERE n.depth < 2 AND TRUE AND NOT list_contains(n.path, (CASE WHEN e.source = n.name THEN e.target ELSE e.source END))
+    )
+    SELECT name, MIN(depth) AS depth FROM neighbors WHERE name != 'A' GROUP BY name ORDER BY depth
+    """
+    rows = con.execute(sql).fetchall()
+    assert rows == [("B", 1), ("C", 2)]  # D is 3 hops away (beyond the bound); the self-loop never appears
+
+
+@requires_duckdb
+def test_recursive_path_logic_finds_shortest_not_first(mod):
+    import duckdb
+    con = duckdb.connect()
+    con.execute("CREATE TABLE edges (source STRING, target STRING, relation STRING)")
+    con.execute("INSERT INTO edges VALUES ('A','B','r1'), ('B','C','r2'), ('C','D','r3'), ('A','D','shortcut')")
+    sql = """
+    WITH RECURSIVE paths (name, depth, path, rels) AS (
+      SELECT 'A', 0, ['A'], CAST([] AS STRING[])
+      UNION ALL
+      SELECT (CASE WHEN e.source = p.name THEN e.target ELSE e.source END), p.depth + 1,
+             list_concat(p.path, [(CASE WHEN e.source = p.name THEN e.target ELSE e.source END)]),
+             list_concat(p.rels, [e.relation])
+      FROM edges AS e JOIN paths AS p ON (e.source = p.name OR e.target = p.name)
+      WHERE p.depth < 4 AND NOT list_contains(p.path, (CASE WHEN e.source = p.name THEN e.target ELSE e.source END))
+    )
+    SELECT path, rels FROM paths WHERE name = 'D' ORDER BY depth LIMIT 1
+    """
+    rows = con.execute(sql).fetchall()
+    assert rows == [(["A", "D"], ["shortcut"])]
+
+
+class _FakeSqlRows:
+    """Stand-in for _run_sql_tables_query, so resource-method dispatch/shaping is tested without
+    a real warehouse connection (connection-building itself is covered by
+    test_sql_connection_builders_* below)."""
+
+    def __init__(self, by_sql_substring):
+        self.by_sql_substring = by_sql_substring
+        self.calls = []
+
+    def __call__(self, cfg, sql):
+        self.calls.append(sql)
+        for substr, rows in self.by_sql_substring.items():
+            if substr in sql:
+                return rows
+        raise AssertionError(f"no fake rows registered for SQL: {sql}")
+
+
+def _sql_resource(mod, **kwargs):
+    cls = getattr(mod, RESOURCE_CLS)
+    return cls(provider="sql_tables", sql_dialect="snowflake_cortex", output_table="kg", **kwargs)
+
+
+def test_sql_tables_requires_output_table_and_dialect(mod):
+    cls = getattr(mod, RESOURCE_CLS)
+    r = cls(provider="sql_tables")
+    with pytest.raises(ValueError, match="output_table"):
+        r.search_entities("x")
+    r2 = cls(provider="sql_tables", output_table="kg", sql_dialect="postgres")
+    with pytest.raises(ValueError, match="sql_dialect"):
+        r2.search_entities("x")
+
+
+def test_sql_tables_search_entities_shapes_rows(mod, monkeypatch):
+    fake = _FakeSqlRows({"kg_nodes": [{"id": "Acme", "name": "Acme", "type": "ORG", "mentions": 3}]})
+    monkeypatch.setattr(mod, "_run_sql_tables_query", fake)
+    r = _sql_resource(mod)
+    assert r.search_entities("acme") == {"entities": [{"name": "Acme", "type": "ORG", "mention_count": 3, "aliases": None}]}
+
+
+def test_sql_tables_top_entities_shapes_rows(mod, monkeypatch):
+    fake = _FakeSqlRows({"kg_nodes": [{"name": "Acme", "type": "ORG", "mentions": 3}]})
+    monkeypatch.setattr(mod, "_run_sql_tables_query", fake)
+    r = _sql_resource(mod)
+    assert r.top_entities() == {"entities": [{"name": "Acme", "type": "ORG", "mention_count": 3}]}
+
+
+def test_sql_tables_get_entity_not_found(mod, monkeypatch):
+    fake = _FakeSqlRows({"kg_nodes": []})
+    monkeypatch.setattr(mod, "_run_sql_tables_query", fake)
+    r = _sql_resource(mod)
+    assert r.get_entity("Nobody") == {"error": "entity 'Nobody' not found"}
+
+
+def test_sql_tables_get_entity_found_with_relations(mod, monkeypatch):
+    def _rows(cfg, sql):
+        if "SELECT type, mentions" in sql:
+            return [{"type": "PERSON", "mentions": 2}]
+        if "source = " in sql:
+            return [{"other": "Acme", "relation": "works_at", "confidence": 0.9, "mention_count": 2, "evidence": "ev1"}]
+        if "target = " in sql:
+            return []
+        raise AssertionError(sql)
+    monkeypatch.setattr(mod, "_run_sql_tables_query", _rows)
+    r = _sql_resource(mod)
+    result = r.get_entity("Alice")
+    assert result["type"] == "PERSON"
+    assert result["mention_count"] == 2
+    assert result["relations"] == [{"direction": "out", "relation": "works_at", "other": "Acme", "confidence": 0.9, "mention_count": 2, "evidence": "ev1"}]
+
+
+def test_sql_tables_get_neighbors_joins_types(mod, monkeypatch):
+    def _rows(cfg, sql):
+        if "neighbors" in sql:
+            return [{"name": "Acme", "depth": 1}]
+        if "WHERE id IN" in sql:
+            return [{"id": "Acme", "type": "ORG"}]
+        raise AssertionError(sql)
+    monkeypatch.setattr(mod, "_run_sql_tables_query", _rows)
+    r = _sql_resource(mod)
+    assert r.get_neighbors("Alice", hops=1) == {"neighbors": [{"name": "Acme", "type": "ORG", "distance": 1}]}
+
+
+def test_sql_tables_find_path_none_when_no_rows(mod, monkeypatch):
+    fake = _FakeSqlRows({"paths": []})
+    monkeypatch.setattr(mod, "_run_sql_tables_query", fake)
+    r = _sql_resource(mod)
+    assert r.find_path("Alice", "Bob") == {"path": None}
+
+
+def test_sql_tables_find_path_parses_json_array_strings(mod, monkeypatch):
+    # Snowflake's connector returns ARRAY columns as JSON-encoded strings, not native lists
+    # (confirmed against snowflake-connector-python's own documented/long-standing behavior) --
+    # _maybe_json_list must handle that, not just a native list.
+    fake = _FakeSqlRows({"paths": [{"path": '["Alice", "Acme"]', "rels": '["works_at"]'}]})
+    monkeypatch.setattr(mod, "_run_sql_tables_query", fake)
+    r = _sql_resource(mod)
+    assert r.find_path("Alice", "Acme") == {"path": ["Alice", "Acme"], "relations": ["works_at"]}
+
+
+def test_sql_tables_find_path_handles_native_list(mod, monkeypatch):
+    fake = _FakeSqlRows({"paths": [{"path": ["Alice", "Acme"], "rels": ["works_at"]}]})
+    monkeypatch.setattr(mod, "_run_sql_tables_query", fake)
+    r = _sql_resource(mod)
+    assert r.find_path("Alice", "Acme") == {"path": ["Alice", "Acme"], "relations": ["works_at"]}
+
+
+def test_maybe_json_list_handles_none_and_malformed(mod):
+    assert mod._maybe_json_list(None) == []
+    assert mod._maybe_json_list("not json") == []
+    assert mod._maybe_json_list(["a", "b"]) == ["a", "b"]
+
+
+# ─── direct vendor-connection builders (kwargs construction, no real network call) ────────
+
+def test_snowflake_connection_requires_account_and_user(mod, monkeypatch):
+    monkeypatch.delenv("SNOWFLAKE_ACCOUNT", raising=False)
+    monkeypatch.delenv("SNOWFLAKE_USER", raising=False)
+    with pytest.raises(ValueError, match="snowflake_account_env_var"):
+        mod._build_snowflake_connection({"snowflake_account_env_var": "SNOWFLAKE_ACCOUNT", "snowflake_user_env_var": "SNOWFLAKE_USER"})
+
+
+def test_snowflake_connection_builds_expected_kwargs(mod, monkeypatch):
+    monkeypatch.setenv("SNOWFLAKE_ACCOUNT", "acct1")
+    monkeypatch.setenv("SNOWFLAKE_USER", "user1")
+    monkeypatch.setenv("SNOWFLAKE_PASSWORD", "pw1")
+    captured = {}
+
+    class _FakeSnowflakeConnector:
+        @staticmethod
+        def connect(**kwargs):
+            captured.update(kwargs)
+            return "connection"
+
+    import sys
+    import types
+    fake_module = types.ModuleType("snowflake")
+    fake_module.connector = _FakeSnowflakeConnector
+    monkeypatch.setitem(sys.modules, "snowflake", fake_module)
+    monkeypatch.setitem(sys.modules, "snowflake.connector", _FakeSnowflakeConnector)
+
+    conn = mod._build_snowflake_connection({
+        "snowflake_account_env_var": "SNOWFLAKE_ACCOUNT", "snowflake_user_env_var": "SNOWFLAKE_USER",
+        "snowflake_password_env_var": "SNOWFLAKE_PASSWORD", "snowflake_database": "DB", "snowflake_schema": "SCH",
+        "snowflake_warehouse": "WH",
+    })
+    assert conn == "connection"
+    assert captured == {"account": "acct1", "user": "user1", "password": "pw1", "database": "DB", "schema": "SCH", "warehouse": "WH"}
+
+
+def test_databricks_connection_requires_host_token_and_http_path(mod, monkeypatch):
+    monkeypatch.setenv("DATABRICKS_HOST", "host1")
+    monkeypatch.delenv("DATABRICKS_TOKEN", raising=False)
+    with pytest.raises(ValueError, match="databricks_http_path"):
+        mod._build_databricks_connection({"databricks_host_env_var": "DATABRICKS_HOST", "databricks_token_env_var": "DATABRICKS_TOKEN"})

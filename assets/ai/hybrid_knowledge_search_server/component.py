@@ -40,7 +40,7 @@ full-id-listing API for that combination) rather than silently guessing.
 import logging
 import os
 import sys
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import dagster as dg
 from dagster import AssetExecutionContext, AssetKey, Definitions, MetadataValue, asset
@@ -250,6 +250,170 @@ def _run_graph_query(provider: str, cfg: dict, query: str, params: dict) -> List
 # END knowledge-graph-store core
 
 
+# BEGIN sql_tables read path -- duplicated from knowledge_graph_search_server's own copy (this
+# repo's standalone-component convention). Same 3 dialects as knowledge_graph_builder's
+# execution_mode='sql'. get_chunks_for_entity/get_graph_context are hybrid-specific additions:
+# the sql_tables edges schema keeps only ONE aggregate `evidence` string per (subject, relation,
+# object) triple (not a per-chunk array like networkx/neo4j/falkordb's `evidences`), so
+# get_graph_context's evidence for a given chunk_id is that triple's one aggregate value, not
+# necessarily the exact snippet from that specific chunk -- a real, documented scope cut (same
+# spirit as execution_mode='sql' having no resolve/alias-merging step).
+def _sql_str(value: Any) -> str:
+    s = str(value).replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
+    return f"'{s}'"
+
+
+def _sql_qualify(name: str, dialect: str) -> str:
+    return f"`{name}`" if dialect == "bigquery" else name
+
+
+def _sql_tables_names(output_table: str, dialect: str) -> Tuple[str, str]:
+    return _sql_qualify(f"{output_table}_nodes", dialect), _sql_qualify(f"{output_table}_edges", dialect)
+
+
+def _build_snowflake_connection(cfg: dict):
+    account = os.environ.get(cfg.get("snowflake_account_env_var") or "SNOWFLAKE_ACCOUNT")
+    user = os.environ.get(cfg.get("snowflake_user_env_var") or "SNOWFLAKE_USER")
+    password = os.environ.get(cfg.get("snowflake_password_env_var") or "SNOWFLAKE_PASSWORD")
+    if not account or not user:
+        raise ValueError("HybridKnowledgeSearch: graph.provider='sql_tables' sql_dialect='snowflake_cortex' requires snowflake_account_env_var and snowflake_user_env_var to be set in the environment.")
+    import snowflake.connector
+    kwargs: Dict[str, Any] = {"account": account, "user": user}
+    if password:
+        kwargs["password"] = password
+    if cfg.get("snowflake_database"):
+        kwargs["database"] = cfg["snowflake_database"]
+    if cfg.get("snowflake_schema"):
+        kwargs["schema"] = cfg["snowflake_schema"]
+    if cfg.get("snowflake_warehouse"):
+        kwargs["warehouse"] = cfg["snowflake_warehouse"]
+    return snowflake.connector.connect(**kwargs)
+
+
+def _build_bigquery_client(cfg: dict):
+    from google.cloud import bigquery
+    return bigquery.Client(project=cfg.get("bigquery_project_id"))
+
+
+def _build_databricks_connection(cfg: dict):
+    host = os.environ.get(cfg.get("databricks_host_env_var") or "DATABRICKS_HOST")
+    token = os.environ.get(cfg.get("databricks_token_env_var") or "DATABRICKS_TOKEN")
+    http_path = cfg.get("databricks_http_path")
+    if not host or not token or not http_path:
+        raise ValueError("HybridKnowledgeSearch: graph.provider='sql_tables' sql_dialect='databricks' requires databricks_host_env_var/databricks_token_env_var (set in the environment) and databricks_http_path.")
+    from databricks import sql as databricks_sql
+    return databricks_sql.connect(server_hostname=host, http_path=http_path, access_token=token)
+
+
+def _maybe_json_list(value: Any) -> List[Any]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        import json
+        try:
+            return json.loads(value)
+        except (TypeError, ValueError):
+            return []
+    return list(value)
+
+
+def _run_sql_tables_query(cfg: dict, sql: str) -> List[Dict[str, Any]]:
+    dialect = cfg.get("sql_dialect")
+    if dialect == "snowflake_cortex":
+        conn = _build_snowflake_connection(cfg)
+        try:
+            cur = conn.cursor()
+            cur.execute(sql)
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+        finally:
+            conn.close()
+    if dialect == "bigquery":
+        client = _build_bigquery_client(cfg)
+        result = client.query(sql).result()
+        return [dict(row.items()) for row in result]
+    if dialect == "databricks":
+        conn = _build_databricks_connection(cfg)
+        try:
+            cur = conn.cursor()
+            cur.execute(sql)
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+        finally:
+            conn.close()
+    raise ValueError(f"HybridKnowledgeSearch: graph.provider='sql_tables' requires sql_dialect to be one of 'snowflake_cortex', 'bigquery', 'databricks'; got {dialect!r}.")
+
+
+def _sql_array_fns(dialect: str) -> Dict[str, Any]:
+    if dialect == "bigquery":
+        return {"ctor": lambda x: f"[{x}]", "empty": "CAST([] AS ARRAY<STRING>)", "append": lambda arr, x: f"ARRAY_CONCAT({arr}, [{x}])", "contains": lambda arr, x: f"{x} IN UNNEST({arr})"}
+    if dialect == "databricks":
+        return {"ctor": lambda x: f"array({x})", "empty": "CAST(array() AS ARRAY<STRING>)", "append": lambda arr, x: f"concat({arr}, array({x}))", "contains": lambda arr, x: f"array_contains({arr}, {x})"}
+    return {"ctor": lambda x: f"ARRAY_CONSTRUCT({x})", "empty": "ARRAY_CONSTRUCT()", "append": lambda arr, x: f"ARRAY_APPEND({arr}, {x})",
+            "contains": lambda arr, x: f"ARRAY_CONTAINS(({x})::VARIANT, {arr})"}
+
+
+def _build_sql_neighbors_query(dialect: str, edges_tbl: str, name: str, hops: int, relation: Optional[str]) -> str:
+    # Databricks' real `) MAX RECURSION LEVEL n` safety clause is omitted -- not load-bearing (the
+    # `depth < hops` predicate already bounds recursion tighter) and sqlglot 28.0.0 has no parser
+    # support for it (confirmed directly), unlike everything else validated here.
+    fns = _sql_array_fns(dialect)
+    qname = _sql_str(name)
+    other = "(CASE WHEN e.source = n.name THEN e.target ELSE e.source END)"
+    relation_filter = f"e.relation = {_sql_str(relation)}" if relation else "TRUE"
+    return (
+        f"WITH RECURSIVE neighbors (name, depth, path) AS (\n"
+        f"  SELECT {qname}, 0, {fns['ctor'](qname)}\n"
+        f"  UNION ALL\n"
+        f"  SELECT {other}, n.depth + 1, {fns['append']('n.path', other)}\n"
+        f"  FROM {edges_tbl} AS e JOIN neighbors AS n ON (e.source = n.name OR e.target = n.name)\n"
+        f"  WHERE n.depth < {int(hops)} AND {relation_filter} AND NOT {fns['contains']('n.path', other)}\n"
+        f")\n"
+        f"SELECT name, MIN(depth) AS depth FROM neighbors WHERE name != {qname} GROUP BY name ORDER BY depth"
+    )
+
+
+def _build_sql_path_query(dialect: str, edges_tbl: str, source: str, target: str, max_hops: int) -> str:
+    fns = _sql_array_fns(dialect)
+    qsource, qtarget = _sql_str(source), _sql_str(target)
+    other = "(CASE WHEN e.source = p.name THEN e.target ELSE e.source END)"
+    return (
+        f"WITH RECURSIVE paths (name, depth, path, rels) AS (\n"
+        f"  SELECT {qsource}, 0, {fns['ctor'](qsource)}, {fns['empty']}\n"
+        f"  UNION ALL\n"
+        f"  SELECT {other}, p.depth + 1, {fns['append']('p.path', other)}, {fns['append']('p.rels', 'e.relation')}\n"
+        f"  FROM {edges_tbl} AS e JOIN paths AS p ON (e.source = p.name OR e.target = p.name)\n"
+        f"  WHERE p.depth < {int(max_hops)} AND NOT {fns['contains']('p.path', other)}\n"
+        f")\n"
+        f"SELECT path, rels FROM paths WHERE name = {qtarget} ORDER BY depth LIMIT 1"
+    )
+
+
+def _build_sql_search_entities_query(nodes_tbl: str, query: str, type: Optional[str], limit: int) -> str:
+    q = _sql_str(f"%{query.lower()}%")
+    type_filter = f"AND type = {_sql_str(type)}" if type is not None else ""
+    return f"SELECT id, name, type, mentions FROM {nodes_tbl} WHERE LOWER(name) LIKE {q} {type_filter} ORDER BY mentions DESC LIMIT {int(limit)}"
+
+
+def _build_sql_entity_relations_queries(edges_tbl: str, name: str) -> Tuple[str, str]:
+    qname = _sql_str(name)
+    out_q = f"SELECT target AS other, relation, confidence, mention_count, evidence FROM {edges_tbl} WHERE source = {qname}"
+    in_q = f"SELECT source AS other, relation, confidence, mention_count, evidence FROM {edges_tbl} WHERE target = {qname}"
+    return out_q, in_q
+
+
+def _build_sql_chunks_for_entity_query(edges_tbl: str, name: str) -> str:
+    qname = _sql_str(name)
+    return f"SELECT chunk_ids FROM {edges_tbl} WHERE source = {qname} OR target = {qname}"
+
+
+def _build_sql_graph_context_query(dialect: str, edges_tbl: str, chunk_id: str) -> str:
+    fns = _sql_array_fns(dialect)
+    return (f"SELECT source AS subject, target AS object, relation, confidence, evidence FROM {edges_tbl} "
+            f"WHERE {fns['contains']('chunk_ids', _sql_str(chunk_id))}")
+# END sql_tables read path
+
+
 _NETWORKX_GRAPH_CACHE: Dict[int, Any] = {}
 
 
@@ -307,7 +471,26 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
             "host": self.graph.get("host", "localhost"),
             "port": self.graph.get("port", 6379),
             "graph_name": self.graph.get("graph_name", "knowledge_graph"),
+            "sql_dialect": self.graph.get("sql_dialect"),
+            "output_table": self.graph.get("output_table"),
+            "snowflake_account_env_var": self.graph.get("snowflake_account_env_var", "SNOWFLAKE_ACCOUNT"),
+            "snowflake_user_env_var": self.graph.get("snowflake_user_env_var", "SNOWFLAKE_USER"),
+            "snowflake_password_env_var": self.graph.get("snowflake_password_env_var", "SNOWFLAKE_PASSWORD"),
+            "snowflake_database": self.graph.get("snowflake_database"),
+            "snowflake_schema": self.graph.get("snowflake_schema", "PUBLIC"),
+            "snowflake_warehouse": self.graph.get("snowflake_warehouse"),
+            "databricks_host_env_var": self.graph.get("databricks_host_env_var", "DATABRICKS_HOST"),
+            "databricks_token_env_var": self.graph.get("databricks_token_env_var", "DATABRICKS_TOKEN"),
+            "databricks_http_path": self.graph.get("databricks_http_path"),
+            "bigquery_project_id": self.graph.get("bigquery_project_id"),
         }
+
+    def _sql_tables(self, gcfg: dict) -> Tuple[str, str]:
+        if not gcfg.get("output_table"):
+            raise ValueError("HybridKnowledgeSearch: graph.provider='sql_tables' requires graph.output_table.")
+        if gcfg.get("sql_dialect") not in ("snowflake_cortex", "bigquery", "databricks"):
+            raise ValueError(f"HybridKnowledgeSearch: graph.provider='sql_tables' requires graph.sql_dialect to be one of 'snowflake_cortex', 'bigquery', 'databricks'; got {gcfg.get('sql_dialect')!r}.")
+        return _sql_tables_names(gcfg["output_table"], gcfg["sql_dialect"])
 
     def _nx_graph(self):
         cfg = self._graph_cfg()
@@ -363,6 +546,10 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
     def search_entities(self, query: str, type: Optional[str] = None) -> dict:
         gcfg = self._graph_cfg()
         q = query.lower()
+        if gcfg["provider"] == "sql_tables":
+            nodes_tbl, _ = self._sql_tables(gcfg)
+            rows = _run_sql_tables_query(gcfg, _build_sql_search_entities_query(nodes_tbl, query, type, self.max_results))
+            return {"entities": [{"name": r["name"], "type": r["type"], "mention_count": r["mentions"], "aliases": None} for r in rows]}
         if gcfg["provider"] == "networkx":
             g = self._nx_graph()
             hits = []
@@ -384,6 +571,18 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
 
     def get_entity(self, name: str) -> dict:
         gcfg = self._graph_cfg()
+        if gcfg["provider"] == "sql_tables":
+            nodes_tbl, edges_tbl = self._sql_tables(gcfg)
+            node_rows = _run_sql_tables_query(gcfg, f"SELECT type, mentions FROM {nodes_tbl} WHERE id = {_sql_str(name)}")
+            if not node_rows:
+                return {"error": f"entity {name!r} not found"}
+            out_q, in_q = _build_sql_entity_relations_queries(edges_tbl, name)
+            out_rows, in_rows = _run_sql_tables_query(gcfg, out_q), _run_sql_tables_query(gcfg, in_q)
+            relations = (
+                [{"direction": "out", "relation": r["relation"], "other": r["other"], "confidence": r["confidence"], "mention_count": r["mention_count"], "evidence": r["evidence"]} for r in out_rows]
+                + [{"direction": "in", "relation": r["relation"], "other": r["other"], "confidence": r["confidence"], "mention_count": r["mention_count"], "evidence": r["evidence"]} for r in in_rows]
+            )
+            return {"name": name, "type": node_rows[0]["type"], "aliases": None, "mention_count": node_rows[0]["mentions"], "relations": relations}
         if gcfg["provider"] == "networkx":
             g = self._nx_graph()
             if not g.has_node(name):
@@ -422,6 +621,16 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
     def get_neighbors(self, name: str, hops: int = 1, relation: Optional[str] = None) -> dict:
         gcfg = self._graph_cfg()
         hops = max(1, min(int(hops), 3))
+        if gcfg["provider"] == "sql_tables":
+            nodes_tbl, edges_tbl = self._sql_tables(gcfg)
+            rows = _run_sql_tables_query(gcfg, _build_sql_neighbors_query(gcfg["sql_dialect"], edges_tbl, name, hops, relation))
+            names = [r["name"] for r in rows]
+            types: Dict[str, Any] = {}
+            if names:
+                names_sql = ", ".join(_sql_str(n) for n in names)
+                types = {r["id"]: r["type"] for r in _run_sql_tables_query(gcfg, f"SELECT id, type FROM {nodes_tbl} WHERE id IN ({names_sql})")}
+            results = [{"name": r["name"], "type": types.get(r["name"]), "distance": int(r["depth"])} for r in rows]
+            return {"neighbors": results[: self.max_results]}
         if gcfg["provider"] == "networkx":
             g = self._nx_graph()
             if not g.has_node(name):
@@ -455,6 +664,12 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
     def find_path(self, source: str, target: str, max_hops: int = 4) -> dict:
         gcfg = self._graph_cfg()
         max_hops = max(1, min(int(max_hops), 6))
+        if gcfg["provider"] == "sql_tables":
+            _, edges_tbl = self._sql_tables(gcfg)
+            rows = _run_sql_tables_query(gcfg, _build_sql_path_query(gcfg["sql_dialect"], edges_tbl, source, target, max_hops))
+            if not rows:
+                return {"path": None}
+            return {"path": _maybe_json_list(rows[0]["path"]), "relations": _maybe_json_list(rows[0]["rels"])}
         if gcfg["provider"] == "networkx":
             import networkx as nx
             g = self._nx_graph()
@@ -485,6 +700,15 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
 
     def get_chunks_for_entity(self, name: str) -> dict:
         gcfg = self._graph_cfg()
+        if gcfg["provider"] == "sql_tables":
+            nodes_tbl, edges_tbl = self._sql_tables(gcfg)
+            if not _run_sql_tables_query(gcfg, f"SELECT id FROM {nodes_tbl} WHERE id = {_sql_str(name)}"):
+                return {"error": f"entity {name!r} not found"}
+            rows = _run_sql_tables_query(gcfg, _build_sql_chunks_for_entity_query(edges_tbl, name))
+            chunk_ids: set = set()
+            for r in rows:
+                chunk_ids.update(_maybe_json_list(r["chunk_ids"]))
+            return {"entity": name, "chunk_ids": sorted(chunk_ids)[: self.max_results]}
         if gcfg["provider"] == "networkx":
             g = self._nx_graph()
             if not g.has_node(name):
@@ -505,6 +729,11 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
 
     def get_graph_context(self, chunk_id: str) -> dict:
         gcfg = self._graph_cfg()
+        if gcfg["provider"] == "sql_tables":
+            _, edges_tbl = self._sql_tables(gcfg)
+            rows = _run_sql_tables_query(gcfg, _build_sql_graph_context_query(gcfg["sql_dialect"], edges_tbl, chunk_id))
+            entities = sorted({r["subject"] for r in rows} | {r["object"] for r in rows})
+            return {"chunk_id": chunk_id, "entities": entities, "triples": rows}
         if gcfg["provider"] == "networkx":
             g = self._nx_graph()
             triples = []
@@ -597,16 +826,17 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
 
     def check_overlap(self) -> dict:
         """Jaccard overlap between the vector store's chunk ids and the graph's chunk ids --
-        only computed when both sides expose a cheap full-id listing (chromadb + networkx);
-        otherwise returns overlap_fraction: None with a note explaining why."""
+        only computed when both sides expose a cheap full-id listing (chromadb for the vector
+        side; networkx or sql_tables for the graph side); otherwise returns overlap_fraction:
+        None with a note explaining why."""
         vcfg, gcfg = self._vector_cfg(), self._graph_cfg()
-        if vcfg["provider"] != "chromadb" or gcfg["provider"] != "networkx":
+        if vcfg["provider"] != "chromadb" or gcfg["provider"] not in ("networkx", "sql_tables"):
             return {
                 "overlap_fraction": None, "vector_chunk_count": None, "graph_chunk_count": None,
                 "overlap_note": (
                     f"overlap check needs a cheap full-id listing on both sides; "
                     f"vector_store.provider={vcfg['provider']!r} + graph.provider={gcfg['provider']!r} "
-                    "is not the supported chromadb+networkx combination."
+                    "is not a supported combination (chromadb + networkx|sql_tables)."
                 ),
             }
         try:
@@ -616,10 +846,15 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
             vector_ids = set(collection.get(include=[])["ids"])
         except Exception as e:  # noqa: BLE001
             return {"overlap_fraction": None, "vector_chunk_count": None, "graph_chunk_count": None, "overlap_note": f"could not read vector store: {type(e).__name__}: {e}"}
-        g = self._nx_graph()
         graph_ids: set = set()
-        for _, _, data in g.edges(data=True):
-            graph_ids.update(data.get("chunk_ids") or [])
+        if gcfg["provider"] == "sql_tables":
+            _, edges_tbl = self._sql_tables(gcfg)
+            for r in _run_sql_tables_query(gcfg, f"SELECT chunk_ids FROM {edges_tbl}"):
+                graph_ids.update(_maybe_json_list(r["chunk_ids"]))
+        else:
+            g = self._nx_graph()
+            for _, _, data in g.edges(data=True):
+                graph_ids.update(data.get("chunk_ids") or [])
         union = vector_ids | graph_ids
         overlap = len(vector_ids & graph_ids) / len(union) if union else None
         return {
@@ -679,6 +914,16 @@ _GRAPH_ENV_KEYS = {
     "username_env_var": "HYBRID_KG_SEARCH_GRAPH_USERNAME_ENV_VAR", "password_env_var": "HYBRID_KG_SEARCH_GRAPH_PASSWORD_ENV_VAR",
     "database": "HYBRID_KG_SEARCH_GRAPH_DATABASE", "host": "HYBRID_KG_SEARCH_GRAPH_HOST", "port": "HYBRID_KG_SEARCH_GRAPH_PORT",
     "graph_name": "HYBRID_KG_SEARCH_GRAPH_NAME",
+    "sql_dialect": "HYBRID_KG_SEARCH_GRAPH_SQL_DIALECT", "output_table": "HYBRID_KG_SEARCH_GRAPH_OUTPUT_TABLE",
+    "snowflake_account_env_var": "HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_ACCOUNT_ENV_VAR",
+    "snowflake_user_env_var": "HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_USER_ENV_VAR",
+    "snowflake_password_env_var": "HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_PASSWORD_ENV_VAR",
+    "snowflake_database": "HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_DATABASE", "snowflake_schema": "HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_SCHEMA",
+    "snowflake_warehouse": "HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_WAREHOUSE",
+    "databricks_host_env_var": "HYBRID_KG_SEARCH_GRAPH_DATABRICKS_HOST_ENV_VAR",
+    "databricks_token_env_var": "HYBRID_KG_SEARCH_GRAPH_DATABRICKS_TOKEN_ENV_VAR",
+    "databricks_http_path": "HYBRID_KG_SEARCH_GRAPH_DATABRICKS_HTTP_PATH",
+    "bigquery_project_id": "HYBRID_KG_SEARCH_GRAPH_BIGQUERY_PROJECT_ID",
 }
 
 
@@ -716,6 +961,11 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
             raise ValueError("HybridKnowledgeSearchServerComponent: vector_store.collection_name is required.")
         if self.graph.get("provider", "networkx") == "neo4j" and not self.graph.get("uri"):
             raise ValueError("HybridKnowledgeSearchServerComponent: graph.provider='neo4j' requires graph.uri.")
+        if self.graph.get("provider") == "sql_tables":
+            if not self.graph.get("output_table"):
+                raise ValueError("HybridKnowledgeSearchServerComponent: graph.provider='sql_tables' requires graph.output_table.")
+            if self.graph.get("sql_dialect") not in ("snowflake_cortex", "bigquery", "databricks"):
+                raise ValueError("HybridKnowledgeSearchServerComponent: graph.provider='sql_tables' requires graph.sql_dialect to be one of 'snowflake_cortex', 'bigquery', 'databricks'.")
         resource = HybridKnowledgeSearchResource(
             vector_store=_drop_none(self.vector_store), graph=_drop_none(self.graph),
             knowledge_base=self.knowledge_base, max_results=self.max_results,
@@ -733,7 +983,10 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
                 if v is not None:
                     mcp_env[env_key] = str(v)
             passthrough = [v for v in (self.vector_store.get("api_key_env_var"), self.vector_store.get("embed_api_key_env_var"),
-                                       self.graph.get("username_env_var"), self.graph.get("password_env_var")) if v]
+                                       self.graph.get("username_env_var"), self.graph.get("password_env_var"),
+                                       self.graph.get("snowflake_account_env_var"), self.graph.get("snowflake_user_env_var"),
+                                       self.graph.get("snowflake_password_env_var"), self.graph.get("databricks_host_env_var"),
+                                       self.graph.get("databricks_token_env_var")) if v]
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key, type="stdio",
                 command=[sys.executable, "-m", _this_module_name()], env=mcp_env, live_env_passthrough=passthrough,
@@ -845,7 +1098,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     _TEXT_METADATA_KEY (default chunk_text), _VECTOR_BUCKET_NAME, _AWS_REGION, _DEMO_MODE.
     Env (graph.*): HYBRID_KG_SEARCH_GRAPH_PROVIDER (default networkx), _GRAPH_PATH, _GRAPH_URI,
     _GRAPH_USERNAME_ENV_VAR, _GRAPH_PASSWORD_ENV_VAR, _GRAPH_DATABASE, _GRAPH_HOST, _GRAPH_PORT,
-    _GRAPH_NAME. HYBRID_KG_SEARCH_MAX_RESULTS (default 50)."""
+    _GRAPH_NAME. provider='sql_tables': _GRAPH_SQL_DIALECT, _GRAPH_OUTPUT_TABLE,
+    _GRAPH_SNOWFLAKE_ACCOUNT_ENV_VAR/_USER_ENV_VAR/_PASSWORD_ENV_VAR/_DATABASE/_SCHEMA/_WAREHOUSE,
+    _GRAPH_DATABRICKS_HOST_ENV_VAR/_TOKEN_ENV_VAR/_HTTP_PATH, _GRAPH_BIGQUERY_PROJECT_ID.
+    HYBRID_KG_SEARCH_MAX_RESULTS (default 50)."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
     collection_name = os.environ.get("HYBRID_KG_SEARCH_VECTOR_COLLECTION_NAME")
     if not collection_name:
@@ -873,6 +1129,18 @@ def main(argv: Optional[List[str]] = None) -> None:
         "host": os.environ.get("HYBRID_KG_SEARCH_GRAPH_HOST", "localhost"),
         "port": int(os.environ.get("HYBRID_KG_SEARCH_GRAPH_PORT", "6379")),
         "graph_name": os.environ.get("HYBRID_KG_SEARCH_GRAPH_NAME", "knowledge_graph"),
+        "sql_dialect": os.environ.get("HYBRID_KG_SEARCH_GRAPH_SQL_DIALECT"),
+        "output_table": os.environ.get("HYBRID_KG_SEARCH_GRAPH_OUTPUT_TABLE"),
+        "snowflake_account_env_var": os.environ.get("HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_ACCOUNT_ENV_VAR", "SNOWFLAKE_ACCOUNT"),
+        "snowflake_user_env_var": os.environ.get("HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_USER_ENV_VAR", "SNOWFLAKE_USER"),
+        "snowflake_password_env_var": os.environ.get("HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_PASSWORD_ENV_VAR", "SNOWFLAKE_PASSWORD"),
+        "snowflake_database": os.environ.get("HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_DATABASE"),
+        "snowflake_schema": os.environ.get("HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_SCHEMA", "PUBLIC"),
+        "snowflake_warehouse": os.environ.get("HYBRID_KG_SEARCH_GRAPH_SNOWFLAKE_WAREHOUSE"),
+        "databricks_host_env_var": os.environ.get("HYBRID_KG_SEARCH_GRAPH_DATABRICKS_HOST_ENV_VAR", "DATABRICKS_HOST"),
+        "databricks_token_env_var": os.environ.get("HYBRID_KG_SEARCH_GRAPH_DATABRICKS_TOKEN_ENV_VAR", "DATABRICKS_TOKEN"),
+        "databricks_http_path": os.environ.get("HYBRID_KG_SEARCH_GRAPH_DATABRICKS_HTTP_PATH"),
+        "bigquery_project_id": os.environ.get("HYBRID_KG_SEARCH_GRAPH_BIGQUERY_PROJECT_ID"),
     }
     resource = HybridKnowledgeSearchResource(
         vector_store=_drop_none(vector_store), graph=_drop_none(graph),

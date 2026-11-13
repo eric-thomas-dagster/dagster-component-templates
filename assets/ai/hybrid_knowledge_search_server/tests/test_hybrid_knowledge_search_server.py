@@ -164,7 +164,7 @@ def test_check_overlap_unsupported_combo_returns_none(mod):
     r = cls(vector_store={"provider": "pinecone", "collection_name": "x"}, graph={"provider": "networkx"})
     res = r.check_overlap()
     assert res["overlap_fraction"] is None
-    assert "not the supported" in res["overlap_note"]
+    assert "not a supported combination" in res["overlap_note"]
 
 
 # ─── component build_defs ──────────────────────────────────────────────
@@ -223,3 +223,131 @@ def test_build_defs_registers_mcp_server_resource(mod, tmp_path):
 def test_safe_wrapper_returns_error_dict(mod, resource):
     res = mod._safe(resource.get_entity, "Nobody")
     assert res == {"error": "entity 'Nobody' not found"}
+
+
+# ─── graph.provider='sql_tables': recursive-CTE graph traversal over knowledge_graph_builder's
+# execution_mode='sql' output tables -- duplicated read path from knowledge_graph_search_server
+# (sqlglot-parse-validated there for the shared query builders); here: the two hybrid-specific
+# additions (get_chunks_for_entity/get_graph_context queries) plus resource-method dispatch. ──
+
+from .conftest import requires_sqlglot  # noqa: E402
+
+
+def _sql_resource(mod, **graph_overrides):
+    cls = getattr(mod, RESOURCE_CLS)
+    graph = {"provider": "sql_tables", "sql_dialect": "snowflake_cortex", "output_table": "kg", **graph_overrides}
+    return cls(vector_store={"provider": "chromadb", "collection_name": "kb"}, graph=graph)
+
+
+class _FakeSqlRows:
+    def __init__(self, by_sql_substring):
+        self.by_sql_substring = by_sql_substring
+        self.calls = []
+
+    def __call__(self, cfg, sql):
+        self.calls.append(sql)
+        for substr, rows in self.by_sql_substring.items():
+            if substr in sql:
+                return rows
+        raise AssertionError(f"no fake rows registered for SQL: {sql}")
+
+
+@requires_sqlglot
+def test_sql_tables_hybrid_specific_queries_are_valid_sql(mod):
+    import sqlglot
+    sql1 = mod._build_sql_chunks_for_entity_query("kg_edges", "Alice")
+    sql2 = mod._build_sql_graph_context_query("snowflake_cortex", "kg_edges", "c1")
+    sqlglot.parse(sql1, read="snowflake")
+    sqlglot.parse(sql2, read="snowflake")
+    sql2_bq = mod._build_sql_graph_context_query("bigquery", "kg_edges", "c1")
+    sqlglot.parse(sql2_bq, read="bigquery")
+    sql2_db = mod._build_sql_graph_context_query("databricks", "kg_edges", "c1")
+    sqlglot.parse(sql2_db, read="databricks")
+
+
+def test_sql_tables_requires_output_table_and_dialect(mod):
+    cls = getattr(mod, RESOURCE_CLS)
+    r = cls(vector_store={"provider": "chromadb", "collection_name": "kb"}, graph={"provider": "sql_tables"})
+    with pytest.raises(ValueError, match="output_table"):
+        r.search_entities("x")
+
+
+def test_sql_tables_search_entities_shapes_rows(mod, monkeypatch):
+    fake = _FakeSqlRows({"kg_nodes": [{"id": "Acme", "name": "Acme", "type": "ORG", "mentions": 3}]})
+    monkeypatch.setattr(mod, "_run_sql_tables_query", fake)
+    r = _sql_resource(mod)
+    assert r.search_entities("acme") == {"entities": [{"name": "Acme", "type": "ORG", "mention_count": 3, "aliases": None}]}
+
+
+def test_sql_tables_get_chunks_for_entity(mod, monkeypatch):
+    def _rows(cfg, sql):
+        if "SELECT id FROM" in sql:
+            return [{"id": "Alice"}]
+        if "chunk_ids FROM" in sql:
+            return [{"chunk_ids": '["c1", "c2"]'}, {"chunk_ids": ["c2", "c3"]}]
+        raise AssertionError(sql)
+    monkeypatch.setattr(mod, "_run_sql_tables_query", _rows)
+    r = _sql_resource(mod)
+    assert r.get_chunks_for_entity("Alice") == {"entity": "Alice", "chunk_ids": ["c1", "c2", "c3"]}
+
+
+def test_sql_tables_get_chunks_for_entity_not_found(mod, monkeypatch):
+    monkeypatch.setattr(mod, "_run_sql_tables_query", lambda cfg, sql: [])
+    r = _sql_resource(mod)
+    assert r.get_chunks_for_entity("Nobody") == {"error": "entity 'Nobody' not found"}
+
+
+def test_sql_tables_get_graph_context(mod, monkeypatch):
+    fake = _FakeSqlRows({
+        "kg_edges": [{"subject": "Alice", "object": "Acme", "relation": "works_at", "confidence": 0.9, "evidence": "ev1"}],
+    })
+    monkeypatch.setattr(mod, "_run_sql_tables_query", fake)
+    r = _sql_resource(mod)
+    result = r.get_graph_context("c1")
+    assert result["entities"] == ["Acme", "Alice"]
+    assert result["triples"][0]["relation"] == "works_at"
+
+
+def test_sql_tables_check_overlap(mod, tmp_path, monkeypatch):
+    chroma_path = str(tmp_path / "chroma")
+    _build_chroma(chroma_path, "kb_sql", ids=("c1", "c2"), texts=(CHUNK_C1, CHUNK_C2), source_ids=("d1", "d2"))
+
+    def _rows(cfg, sql):
+        if "chunk_ids FROM" in sql:
+            return [{"chunk_ids": ["c1", "c2"]}]
+        raise AssertionError(sql)
+    monkeypatch.setattr(mod, "_run_sql_tables_query", _rows)
+    cls = getattr(mod, RESOURCE_CLS)
+    r = cls(vector_store={"provider": "chromadb", "connection_string": chroma_path, "collection_name": "kb_sql"},
+            graph={"provider": "sql_tables", "sql_dialect": "snowflake_cortex", "output_table": "kg"})
+    result = r.check_overlap()
+    assert result["overlap_fraction"] == 1.0
+    assert result["graph_chunk_count"] == 2
+
+
+def test_sql_tables_composed_search_uses_primitives(mod, tmp_path, monkeypatch):
+    """search() is built entirely from the primitive methods above -- a fake backing
+    _run_sql_tables_query exercises the same composition already proven against networkx."""
+    chroma_path = str(tmp_path / "chroma")
+    _build_chroma(chroma_path, "kb_sql", ids=("c1",), texts=(CHUNK_C1,), source_ids=("d1",))
+
+    def _rows(cfg, sql):
+        if "kg_nodes" in sql and "LIKE" in sql:
+            return []
+        if "SELECT id FROM" in sql:
+            return [{"id": "Alice"}]
+        if "chunk_ids FROM" in sql and "kg_edges" in sql:
+            return [{"chunk_ids": ["c1"]}]
+        if "kg_edges" in sql and "AS subject" in sql:
+            return [{"subject": "Alice", "object": "Acme Corp", "relation": "works_at", "confidence": 0.9, "evidence": "ev"}]
+        if "neighbors" in sql:
+            return []
+        if "WHERE id IN" in sql:
+            return []
+        raise AssertionError(sql)
+    monkeypatch.setattr(mod, "_run_sql_tables_query", _rows)
+    cls = getattr(mod, RESOURCE_CLS)
+    r = cls(vector_store={"provider": "chromadb", "connection_string": chroma_path, "collection_name": "kb_sql"},
+            graph={"provider": "sql_tables", "sql_dialect": "snowflake_cortex", "output_table": "kg"})
+    result = r.search("Who works at Acme?", mode="hybrid")
+    assert any(p["chunk_id"] == "c1" for p in result["passages"])

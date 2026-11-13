@@ -27,6 +27,25 @@ command+env entry.
   against a live server in this repo's own test suite (no account/service
   available here) -- reviewed directly against the `neo4j` driver and
   `falkordb-py`'s documented `select_graph`/`query` API.
+- **`provider: sql_tables`**: reads `knowledge_graph_builder`'s own
+  `execution_mode='sql'` output tables (`<output_table>_nodes`/`_edges`)
+  directly -- same 3 dialects (`sql_dialect`: `snowflake_cortex`,
+  `bigquery`, `databricks`). Issues a live, direct vendor-client connection
+  per tool call (`snowflake.connector`, `google.cloud.bigquery`,
+  `databricks.sql`) using `snowflake_*`/`databricks_*`/`bigquery_project_id`
+  fields -- not a registered Dagster resource reference, since this
+  resource's methods must also work from the standalone stdio MCP server,
+  which has no Dagster execution context. `get_neighbors`/`find_path` use a
+  `WITH RECURSIVE` CTE (BigQuery requires the `RECURSIVE` keyword;
+  Databricks' recursive CTEs need Runtime 17.1+, GA August 2025 -- an older
+  runtime rejects the keyword outright). No alias matching and no
+  per-chunk evidence for `get_neighbors`'s distance join (the `sql_tables`
+  node/edge schema has neither an `aliases` column nor per-chunk evidence
+  arrays -- those are python-mode-only). Every generated statement is
+  checked for real syntactic validity with `sqlglot.parse(sql,
+  read=<dialect>)`; the recursive-traversal logic itself (direction-
+  agnostic join, cycle prevention, depth-bounded BFS, shortest-path
+  tie-breaking) is executed for real against DuckDB as a stand-in.
 
 ## Tools
 
@@ -64,16 +83,33 @@ Every list-returning tool is capped by `max_results` (default 50).
 | `owners` | `List[str]` | — | Asset owners. |
 | `asset_tags` | `Dict[str, Any]` | — | Extra asset tags, applied to the inspection asset. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `output_table` | `str` | — | sql_tables only: the base table name knowledge_graph_builder's write_graph step wrote under (reads <output_table>_nodes/<output_table>_edges). |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key, built from this component's own settings (python -m this module, with KNOWLEDGE_GRAPH_SEARCH_* env vars). Any mcp_servers-aware component can then… _(full docs in schema.json + component README)_ |
-| `provider` | `Literal['networkx', 'neo4j', 'falkordb']` | `"networkx"` | Graph store the knowledge graph lives in. |
+| `provider` | `Literal['networkx', 'neo4j', 'falkordb', 'sql_tables']` | `"networkx"` | Graph store the knowledge graph lives in. |
 | `path` | `str` | — | networkx only: local JSON file path (written by KnowledgeGraphBuilderComponent's write_graph step). |
 | `uri` | `str` | — | neo4j only: bolt/neo4j connection URI. |
 | `graph_name` | `str` | `"knowledge_graph"` | neo4j/falkordb: the `graph` tag / FalkorDB graph key the builder wrote under. networkx: only used to name the default file path when `path` is unset. |
 | `max_results` | `int` | `50` | Cap on rows returned by search_entities/get_neighbors/top_entities. |
+| `sql_dialect` | `str` | — | sql_tables only: 'snowflake_cortex', 'bigquery', or 'databricks' -- same 3 dialects as knowledge_graph_builder's own execution_mode='sql'. |
+| `snowflake_account_env_var` | `str` | `"SNOWFLAKE_ACCOUNT"` | sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake account identifier. |
+| `snowflake_user_env_var` | `str` | `"SNOWFLAKE_USER"` | sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake username. |
+| `snowflake_password_env_var` | `str` | `"SNOWFLAKE_PASSWORD"` | sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake password. |
+| `snowflake_database` | `str` | — | sql_tables + sql_dialect='snowflake_cortex': database name. |
+| `snowflake_schema` | `str` | `"PUBLIC"` | sql_tables + sql_dialect='snowflake_cortex': schema name. |
+| `snowflake_warehouse` | `str` | — | sql_tables + sql_dialect='snowflake_cortex': virtual warehouse. Uses the user default if unset. |
+| `databricks_host_env_var` | `str` | `"DATABRICKS_HOST"` | sql_tables + sql_dialect='databricks': env var holding the workspace URL. |
+| `databricks_token_env_var` | `str` | `"DATABRICKS_TOKEN"` | sql_tables + sql_dialect='databricks': env var holding a personal access token. |
+| `databricks_http_path` | `str` | — | sql_tables + sql_dialect='databricks': SQL warehouse HTTP path, e.g. /sql/1.0/warehouses/<id>. |
+| `bigquery_project_id` | `str` | — | sql_tables + sql_dialect='bigquery': GCP project for the BQ job. Defaults to the ambient credentials' project. |
 | `inspection_asset_name` | `str` | `"knowledge_graph_search_tools"` | Asset key for the inspection asset reporting this server's configured settings. |
 
 [//]: # (FIELDS:END)
@@ -113,6 +149,24 @@ attributes:
   username_env_var: NEO4J_USERNAME
   password_env_var: NEO4J_PASSWORD
   graph_name: support_kg
+```
+
+### sql_tables
+
+Pair with a `knowledge_graph_builder` whose `execution_mode='sql'` wrote to the
+same `output_table`:
+
+```yaml
+type: dagster_community_components.KnowledgeGraphSearchServerComponent
+attributes:
+  provider: sql_tables
+  sql_dialect: snowflake_cortex
+  output_table: support_kg
+  snowflake_account_env_var: SNOWFLAKE_ACCOUNT
+  snowflake_user_env_var: SNOWFLAKE_USER
+  snowflake_password_env_var: SNOWFLAKE_PASSWORD
+  snowflake_database: ANALYTICS
+  snowflake_warehouse: COMPUTE_WH
 ```
 
 ## Running the server directly

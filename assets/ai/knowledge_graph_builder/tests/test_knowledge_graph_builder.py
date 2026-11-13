@@ -9,7 +9,7 @@ import dagster as dg
 import pandas as pd
 import pytest
 
-from .conftest import load_component_module
+from .conftest import load_component_module, requires_duckdb, requires_sqlglot
 
 CLS = "KnowledgeGraphBuilderComponent"
 
@@ -417,3 +417,306 @@ def test_first_step_must_be_chunk_or_extract(mod):
                steps=[{"id": "r", "op": "resolve"}])
     with pytest.raises(ValueError, match="the first step must be"):
         comp.build_defs(None)
+
+
+# ─── execution_mode='sql': in-warehouse extraction + write_graph(provider='sql_tables') ────────
+# Snowflake/Databricks extract SQL is checked for real syntactic validity with
+# sqlglot.parse(sql, read=dialect); BigQuery's ML.GENERATE_TEXT table-function call has no sqlglot
+# support as of sqlglot 28.0.0 (confirmed directly, same as context_engineering_pipeline's own
+# ai_stubs.py note) so that one fragment is checked structurally instead, and the rest of the
+# BigQuery query (JSON flattening, filtering, ROW_NUMBER) IS sqlglot-parsed. write_graph's
+# MERGE/aggregation logic is executed for real against DuckDB (not one of the 3 supported
+# warehouses, but DuckDB's own MERGE INTO + ARRAY_AGG are close enough to exercise the real control
+# flow -- same stand-in technique assets/analytics/anomaly_detection's own tests use).
+
+SOURCE_SQL = "SELECT doc_id, chunk_id, content_hash, chunk_text FROM support_kb_chunks"
+
+
+@requires_sqlglot
+@pytest.mark.parametrize("dialect,read,model", [
+    ("snowflake_cortex", "snowflake", "llama3.1-70b"),
+    ("databricks", "databricks", "databricks-meta-llama-3-1-70b-instruct"),
+])
+def test_sql_extract_query_is_valid_sql_for_dialect(mod, dialect, read, model):
+    import sqlglot
+    sql = mod._build_sql_extract_query(dialect, SOURCE_SQL, "doc_id", "chunk_text", model,
+                                       ["PERSON", "ORG"], ["works_at"], 0.5, 5)
+    parsed = sqlglot.parse(sql, read=read)
+    assert len(parsed) == 1
+
+
+@requires_sqlglot
+def test_sql_extract_query_bigquery_structure_and_json_flattening_parses(mod):
+    import sqlglot
+    sql = mod._build_sql_extract_query("bigquery", SOURCE_SQL, "doc_id", "chunk_text",
+                                       "my-project.my_dataset.my_model", None, None, 0.0, None)
+    # ML.GENERATE_TEXT's MODEL/STRUCT table-function syntax has no sqlglot support as of 28.0.0 --
+    # checked structurally against the real documented shape instead.
+    assert "ML.GENERATE_TEXT(MODEL `my-project.my_dataset.my_model`," in sql
+    assert "STRUCT(TRUE AS flatten_json_output)" in sql
+    assert "ml_generate_text_llm_result AS raw_json" in sql
+    # The rest (JSON_EXTRACT_SCALAR/SAFE.JSON_EXTRACT_ARRAY flattening, filtering) IS real BigQuery SQL.
+    flatten_only = sql.split("joined AS (", 1)[1]
+    flatten_only = "WITH joined AS (" + flatten_only
+    sqlglot.parse(flatten_only, read="bigquery")
+
+
+def test_sql_extract_query_unsupported_dialect_raises(mod):
+    with pytest.raises(ValueError, match="unsupported sql_dialect"):
+        mod._build_sql_extract_query("postgres", SOURCE_SQL, "doc_id", "chunk_text", "m", None, None)
+
+
+@requires_sqlglot
+@pytest.mark.parametrize("dialect,read", [
+    ("snowflake_cortex", "snowflake"), ("databricks", "databricks"), ("bigquery", "bigquery"),
+])
+def test_sql_write_graph_ddl_and_merge_statements_are_valid_sql(mod, dialect, read):
+    import sqlglot
+    nodes_tbl, edges_tbl = mod._sql_nodes_edges_table_names("support_kg", dialect)
+    for sql in (
+        mod._build_sql_create_nodes_table(dialect, nodes_tbl),
+        mod._build_sql_create_edges_table(dialect, edges_tbl),
+        mod._build_sql_nodes_merge(nodes_tbl, mod._build_sql_nodes_agg_query("staging")),
+        mod._build_sql_edges_merge(edges_tbl, mod._build_sql_edges_agg_query(dialect, "staging")),
+    ):
+        sqlglot.parse(sql, read=read)
+
+
+class _Ctx:
+    log = _Logger.log
+
+
+@requires_duckdb
+def test_do_write_graph_sql_upsert_merges_and_computes_stats(mod, monkeypatch):
+    import duckdb
+    # DuckDB stand-in: its parser doesn't accept Snowflake's untyped ARRAY/NUMBER column types, so
+    # swap in DuckDB-native spellings for this one real-execution test only (production code still
+    # emits the real Snowflake types -- checked separately by test_sql_write_graph_ddl_and_merge_statements_are_valid_sql).
+    monkeypatch.setitem(mod._SQL_TYPES["snowflake_cortex"], "array_string", "STRING[]")
+    monkeypatch.setitem(mod._SQL_TYPES["snowflake_cortex"], "int", "BIGINT")
+
+    con = duckdb.connect()
+    con.execute(
+        "CREATE TABLE staging (doc_id STRING, chunk_id STRING, content_hash STRING, subject STRING, "
+        "subject_type STRING, relation STRING, object STRING, object_type STRING, confidence DOUBLE, evidence STRING)"
+    )
+    con.execute("""INSERT INTO staging VALUES
+        ('d1','c1','h1','Alice','PERSON','works_at','Acme','ORG',0.9,'ev1'),
+        ('d2','c2','h2','Bob','PERSON','works_at','Acme','ORG',0.7,'ev2')
+    """)
+    session = mod._SqlSession(lambda s: con.execute(s), lambda s: con.execute(s).fetchall())
+
+    stats = mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg", "upsert", False, 60, _Ctx())
+    assert stats["node_count"] == 3
+    assert stats["edge_count"] == 2
+    assert stats["chunk_count"] == 2
+    assert stats["entities_linked_to_chunks"] == 3
+    assert stats["preview_truncated"] is False
+    assert {n["name"] for n in stats["graph_preview"]["nodes"]} == {"Alice", "Bob", "Acme"}
+    nodes = dict((r[0], r[3]) for r in con.execute("SELECT * FROM kg_nodes").fetchall())
+    assert nodes == {"Alice": 1, "Bob": 1, "Acme": 2}
+
+    # Second run: only Alice-Acme triple present. Upsert REPLACES that edge's own provenance
+    # (not accumulated with history, same as python mode's own upsert) but leaves Bob-Acme alone.
+    con.execute("DELETE FROM staging")
+    con.execute("INSERT INTO staging VALUES ('d1','c1','h1','Alice','PERSON','works_at','Acme','ORG',0.95,'ev1-updated')")
+    mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg", "upsert", False, 60, _Ctx())
+    edges = {(r[0], r[1]): (r[3], r[4]) for r in con.execute("SELECT * FROM kg_edges").fetchall()}
+    assert edges[("Alice", "Acme")] == (["c1"], "ev1-updated")
+    assert ("Bob", "Acme") in edges  # untouched by upsert
+
+
+@requires_duckdb
+def test_do_write_graph_sql_replace_all_clears_other_rows(mod, monkeypatch):
+    import duckdb
+    monkeypatch.setitem(mod._SQL_TYPES["snowflake_cortex"], "array_string", "STRING[]")
+    monkeypatch.setitem(mod._SQL_TYPES["snowflake_cortex"], "int", "BIGINT")
+    con = duckdb.connect()
+    con.execute(
+        "CREATE TABLE staging (doc_id STRING, chunk_id STRING, content_hash STRING, subject STRING, "
+        "subject_type STRING, relation STRING, object STRING, object_type STRING, confidence DOUBLE, evidence STRING)"
+    )
+    con.execute("INSERT INTO staging VALUES ('d1','c1','h1','Alice','PERSON','works_at','Acme','ORG',0.9,'ev1')")
+    session = mod._SqlSession(lambda s: con.execute(s), lambda s: con.execute(s).fetchall())
+    mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg2", "upsert", False, 60, _Ctx())
+
+    con.execute("DELETE FROM staging")
+    con.execute("INSERT INTO staging VALUES ('d2','c2','h2','Zed','PERSON','works_at','Beta','ORG',0.9,'ev2')")
+    mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg2", "replace_all", False, 60, _Ctx())
+    names = {r[0] for r in con.execute("SELECT * FROM kg2_nodes").fetchall()}
+    assert names == {"Zed", "Beta"}  # Alice/Acme gone
+
+
+@requires_duckdb
+def test_do_write_graph_sql_graph_preview_truncates(mod, monkeypatch):
+    import duckdb
+    monkeypatch.setitem(mod._SQL_TYPES["snowflake_cortex"], "array_string", "STRING[]")
+    monkeypatch.setitem(mod._SQL_TYPES["snowflake_cortex"], "int", "BIGINT")
+    con = duckdb.connect()
+    con.execute(
+        "CREATE TABLE staging (doc_id STRING, chunk_id STRING, content_hash STRING, subject STRING, "
+        "subject_type STRING, relation STRING, object STRING, object_type STRING, confidence DOUBLE, evidence STRING)"
+    )
+    con.execute("""INSERT INTO staging VALUES
+        ('d1','c1','h1','A','X','r1','B','X',0.9,'e1'),
+        ('d1','c1','h1','A','X','r2','C','X',0.9,'e2'),
+        ('d2','c2','h2','D','X','r3','E','X',0.9,'e3')
+    """)
+    session = mod._SqlSession(lambda s: con.execute(s), lambda s: con.execute(s).fetchall())
+    stats = mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg3", "upsert", False, 2, _Ctx())
+    assert stats["node_count"] == 5
+    assert len(stats["graph_preview"]["nodes"]) == 2
+    assert {n["name"] for n in stats["graph_preview"]["nodes"]} == {"A", "B"}
+    assert stats["graph_preview"]["edges"] == [{"source": "A", "target": "B", "relation": "r1", "weight": 1}]
+    assert stats["preview_truncated"] is True
+
+
+@requires_duckdb
+def test_do_write_graph_sql_replace_sources_not_supported(mod):
+    session = mod._SqlSession(lambda s: None, lambda s: [])
+    with pytest.raises(ValueError, match="replace_sources"):
+        mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg", "replace_sources", False, 60, _Ctx())
+
+
+@requires_duckdb
+def test_do_write_graph_sql_replace_all_refused_when_partitioned(mod):
+    session = mod._SqlSession(lambda s: None, lambda s: [])
+    with pytest.raises(ValueError, match="replace_all"):
+        mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg", "replace_all", True, 60, _Ctx())
+
+
+def test_do_write_graph_sql_bad_sync_mode_raises(mod):
+    session = mod._SqlSession(lambda s: None, lambda s: [])
+    with pytest.raises(ValueError, match="sync_mode"):
+        mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg", "bogus", False, 60, _Ctx())
+
+
+# ─── execution_mode='sql': build_defs-level validation ─────────────────────────────────────────
+
+def test_sql_mode_requires_valid_sql_dialect(mod):
+    cls = getattr(mod, CLS)
+    comp = cls(asset_name="kg", id_column="doc_id", text_column="chunk_text", execution_mode="sql",
+               source={"kind": "warehouse_query", "resource_key": "wh", "sql": SOURCE_SQL},
+               steps=[{"id": "t", "op": "extract", "model": "m"}, {"id": "g", "op": "write_graph", "output_table": "kg"}])
+    with pytest.raises(ValueError, match="sql_dialect"):
+        comp.build_defs(None)
+
+
+def test_sql_mode_requires_exactly_extract_then_write_graph_steps(mod):
+    cls = getattr(mod, CLS)
+    comp = cls(asset_name="kg", id_column="doc_id", text_column="chunk_text", execution_mode="sql", sql_dialect="snowflake_cortex",
+               source={"kind": "warehouse_query", "resource_key": "wh", "sql": SOURCE_SQL},
+               steps=[{"id": "c", "op": "chunk"}, {"id": "t", "op": "extract", "model": "m"}, {"id": "g", "op": "write_graph", "output_table": "kg"}])
+    with pytest.raises(ValueError, match="exactly two steps"):
+        comp.build_defs(None)
+
+
+def test_sql_mode_rejects_spacy_method(mod):
+    cls = getattr(mod, CLS)
+    comp = cls(asset_name="kg", id_column="doc_id", text_column="chunk_text", execution_mode="sql", sql_dialect="snowflake_cortex",
+               source={"kind": "warehouse_query", "resource_key": "wh", "sql": SOURCE_SQL},
+               steps=[{"id": "t", "op": "extract", "method": "spacy"}, {"id": "g", "op": "write_graph", "output_table": "kg"}])
+    with pytest.raises(ValueError, match="method='llm'"):
+        comp.build_defs(None)
+
+
+def test_sql_mode_rejects_non_sql_tables_provider(mod):
+    cls = getattr(mod, CLS)
+    comp = cls(asset_name="kg", id_column="doc_id", text_column="chunk_text", execution_mode="sql", sql_dialect="snowflake_cortex",
+               source={"kind": "warehouse_query", "resource_key": "wh", "sql": SOURCE_SQL},
+               steps=[{"id": "t", "op": "extract", "model": "m"}, {"id": "g", "op": "write_graph", "provider": "networkx", "output_table": "kg"}])
+    with pytest.raises(ValueError, match="sql_tables"):
+        comp.build_defs(None)
+
+
+def test_sql_mode_rejects_upstream_asset_key(mod):
+    cls = getattr(mod, CLS)
+    comp = cls(asset_name="kg", id_column="doc_id", text_column="chunk_text", execution_mode="sql", sql_dialect="snowflake_cortex",
+               upstream_asset_key="chunks",
+               steps=[{"id": "t", "op": "extract", "model": "m"}, {"id": "g", "op": "write_graph", "output_table": "kg"}])
+    with pytest.raises(ValueError, match="upstream_asset_key"):
+        comp.build_defs(None)
+
+
+def test_sql_mode_requires_warehouse_query_source(mod):
+    cls = getattr(mod, CLS)
+    comp = cls(asset_name="kg", id_column="doc_id", text_column="chunk_text", execution_mode="sql", sql_dialect="snowflake_cortex",
+               steps=[{"id": "t", "op": "extract", "model": "m"}, {"id": "g", "op": "write_graph", "output_table": "kg"}])
+    with pytest.raises(ValueError, match="source"):
+        comp.build_defs(None)
+
+
+def test_bad_execution_mode_raises(mod):
+    cls = getattr(mod, CLS)
+    comp = cls(asset_name="kg", id_column="doc_id", text_column="chunk_text", execution_mode="rust",  # type: ignore[arg-type]
+               upstream_asset_key="x", steps=[{"id": "c", "op": "chunk"}])
+    with pytest.raises(ValueError, match="execution_mode"):
+        comp.build_defs(None)
+
+
+# ─── execution_mode='sql': full orchestration (_run_knowledge_graph_sql_mode) ──────────────────
+
+@requires_duckdb
+def test_run_knowledge_graph_sql_mode_end_to_end(mod, monkeypatch):
+    """Full orchestration against a real DuckDB-backed resource: partition-placeholder-free path,
+    staging table created then dropped, final Output/metadata shape. The extract step's own SQL
+    generation (_build_sql_extract_query) is swapped for a trivial literal-values SELECT so this
+    doesn't need a real warehouse LLM function -- that generation is covered separately by the
+    sqlglot-parse tests above; this test is about the surrounding control flow."""
+    import duckdb
+
+    monkeypatch.setitem(mod._SQL_TYPES["snowflake_cortex"], "array_string", "STRING[]")
+    monkeypatch.setitem(mod._SQL_TYPES["snowflake_cortex"], "int", "BIGINT")
+
+    def _fake_extract_query(dialect, source_sql, id_column, text_column, model, entity_types, relation_types, min_confidence=0.0, max_triples_per_chunk=None):
+        return (
+            "SELECT * FROM (VALUES ('d1','c1','h1','Alice','PERSON','works_at','Acme','ORG',0.9,'ev1')) "
+            "AS t(doc_id, chunk_id, content_hash, subject, subject_type, relation, object, object_type, confidence, evidence)"
+        )
+    monkeypatch.setattr(mod, "_build_sql_extract_query", _fake_extract_query)
+
+    con = duckdb.connect()
+
+    class _FakeResource:
+        def get_connection(self):
+            import contextlib as _cl
+            @_cl.contextmanager
+            def _cm():
+                yield con
+            return _cm()
+
+    class _FakeResources:
+        wh = _FakeResource()
+
+    class _FakeCtx:
+        log = _Logger.log
+        resources = _FakeResources()
+        has_partition_key = False
+        has_partition_key_range = False
+
+    out = mod._run_knowledge_graph_sql_mode(
+        _FakeCtx(), [{"id": "t", "op": "extract", "model": "gpt-oss"}, {"id": "g", "op": "write_graph", "output_table": "e2e_kg"}],
+        {"kind": "warehouse_query", "resource_key": "wh", "sql": SOURCE_SQL}, "snowflake_cortex", "doc_id", "chunk_text", False,
+    )
+    assert out.value is None
+    assert out.metadata["node_count"].value == 2
+    assert out.metadata["edge_count"].value == 1
+    assert out.metadata["sql_dialect"].value == "snowflake_cortex"
+    assert out.metadata["execution_mode"].value == "sql"
+    # staging table was cleaned up
+    staging_tables = [r[0] for r in con.execute("SHOW TABLES").fetchall() if "staging" in r[0]]
+    assert staging_tables == []
+
+
+@requires_duckdb
+def test_run_knowledge_graph_sql_mode_requires_extract_model(mod):
+    class _FakeCtx:
+        log = _Logger.log
+        has_partition_key = False
+        has_partition_key_range = False
+
+    with pytest.raises(ValueError, match="requires `model`"):
+        mod._run_knowledge_graph_sql_mode(
+            _FakeCtx(), [{"id": "t", "op": "extract"}, {"id": "g", "op": "write_graph", "output_table": "kg"}],
+            {"kind": "warehouse_query", "resource_key": "wh", "sql": SOURCE_SQL}, "snowflake_cortex", "doc_id", "chunk_text", False,
+        )

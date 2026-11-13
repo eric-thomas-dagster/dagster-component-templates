@@ -119,6 +119,78 @@
       "description": "Extra asset tags, applied to the inspection asset.",
       "required": false,
       "ui:widget": "key-value"
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "Sql Dialect",
+      "description": "sql_tables only: 'snowflake_cortex', 'bigquery', or 'databricks' -- same 3 dialects as knowledge_graph_builder's own execution_mode='sql'.",
+      "required": false
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "description": "sql_tables only: the base table name knowledge_graph_builder's write_graph step wrote under (reads <output_table>_nodes/<output_table>_edges).",
+      "required": false
+    },
+    "snowflake_account_env_var": {
+      "type": "string",
+      "label": "Snowflake Account Env Var",
+      "description": "sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake account identifier.",
+      "required": false
+    },
+    "snowflake_user_env_var": {
+      "type": "string",
+      "label": "Snowflake User Env Var",
+      "description": "sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake username.",
+      "required": false
+    },
+    "snowflake_password_env_var": {
+      "type": "string",
+      "label": "Snowflake Password Env Var",
+      "description": "sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake password.",
+      "required": false
+    },
+    "snowflake_database": {
+      "type": "string",
+      "label": "Snowflake Database",
+      "description": "sql_tables + sql_dialect='snowflake_cortex': database name.",
+      "required": false
+    },
+    "snowflake_schema": {
+      "type": "string",
+      "label": "Snowflake Schema",
+      "description": "sql_tables + sql_dialect='snowflake_cortex': schema name.",
+      "required": false
+    },
+    "snowflake_warehouse": {
+      "type": "string",
+      "label": "Snowflake Warehouse",
+      "description": "sql_tables + sql_dialect='snowflake_cortex': virtual warehouse. Uses the user default if unset.",
+      "required": false
+    },
+    "databricks_host_env_var": {
+      "type": "string",
+      "label": "Databricks Host Env Var",
+      "description": "sql_tables + sql_dialect='databricks': env var holding the workspace URL.",
+      "required": false
+    },
+    "databricks_token_env_var": {
+      "type": "string",
+      "label": "Databricks Token Env Var",
+      "description": "sql_tables + sql_dialect='databricks': env var holding a personal access token.",
+      "required": false
+    },
+    "databricks_http_path": {
+      "type": "string",
+      "label": "Databricks Http Path",
+      "description": "sql_tables + sql_dialect='databricks': SQL warehouse HTTP path, e.g. /sql/1.0/warehouses/<id>.",
+      "required": false
+    },
+    "bigquery_project_id": {
+      "type": "string",
+      "label": "Bigquery Project Id",
+      "description": "sql_tables + sql_dialect='bigquery': GCP project for the BQ job. Defaults to the ambient credentials' project.",
+      "required": false
     }
   }
 }

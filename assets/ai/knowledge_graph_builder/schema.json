@@ -212,6 +212,18 @@
       "description": "For backfill_policy='multi_run' only.",
       "required": false,
       "default": null
+    },
+    "execution_mode": {
+      "type": "string",
+      "label": "Execution Mode",
+      "description": "'python' (default): extract/resolve run in-process (litellm or spaCy), write_graph stores into networkx/neo4j/falkordb. 'sql': extract runs as a warehouse-native LLM completion (SNOWFLAKE.CORTEX.COMPLETE / ai_query / ML.GENERATE_TEXT) over a `source:` SQL query that must already be chunk-shaped (id_column, chunk_id, content_hash, text_column -- e.g. context_engineering_pipeline's own per_step_ops chunk table); write_graph's only supported provider is 'sql_tables' (two warehouse tables, <output_table>_nodes/_edges). No 'chunk' or 'resolve' op in SQL mode (chunking is assumed done upstream; alias-merging isn't available).",
+      "required": false
+    },
+    "sql_dialect": {
+      "type": "string",
+      "label": "Sql Dialect",
+      "description": "Required when execution_mode='sql'. Same 3 dialects as context_engineering_pipeline's own execution_mode='sql': 'snowflake_cortex', 'bigquery', 'databricks'.",
+      "required": false
     }
   }
 }

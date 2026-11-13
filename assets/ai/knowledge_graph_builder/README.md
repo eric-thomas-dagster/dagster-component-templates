@@ -160,6 +160,8 @@ new or changed chunks are (re-)extracted.
 | `source` | `Dict[str, Any]` | — | Pull raw text rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asse… _(full docs in schema.json + component README)_ |
 | `metadata_columns` | `List[str]` | — | Additional source columns carried forward onto every chunk row. |
 | `max_source_rows` | `int` | — | Safety cap on source rows processed per materialize. Pair with partitioning to bound each run to a slice of a large corpus. |
+| `execution_mode` | `str` | `"python"` | 'python' (default): extract/resolve run in-process (litellm or spaCy), write_graph stores into networkx/neo4j/falkordb. 'sql': extract runs as a warehouse-native LLM completion (SNOWFLAKE.CORTEX.COMPLETE / ai_query / ML… _(full docs in schema.json + component README)_ |
+| `sql_dialect` | `str` | — | Required when execution_mode='sql'. Same 3 dialects as context_engineering_pipeline's own execution_mode='sql': 'snowflake_cortex', 'bigquery', 'databricks'. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. |
 
@@ -243,6 +245,70 @@ unbounded O(n²) comparison.
   against a live server in this repo's own test suite (no account/service
   available here); reviewed directly against the `neo4j` Python driver and
   `falkordb-py`'s documented `select_graph`/`query` API.
+
+## In-warehouse execution (`execution_mode: sql`)
+
+Same 3 dialects as `context_engineering_pipeline`'s own `execution_mode='sql'`:
+`snowflake_cortex`, `bigquery`, `databricks`. Extraction runs as a warehouse-native
+LLM completion (`SNOWFLAKE.CORTEX.COMPLETE` / `ai_query` / `ML.GENERATE_TEXT`) over
+a `source:` SQL query that must already be chunk-shaped (`id_column`, `chunk_id`,
+`content_hash`, `text_column`) -- e.g. `context_engineering_pipeline`'s own
+`per_step_ops` chunk table (see the shared chunk-id contract above). `steps:` has
+exactly two entries: `extract` (method is always `llm`; `spacy` is a local Python
+library, not available server-side) and `write_graph` with `provider: sql_tables`,
+which writes two real warehouse tables, `<output_table>_nodes` (id, name, type,
+mentions) and `<output_table>_edges` (source, target, relation, chunk_ids,
+evidence, confidence, mention_count) -- `chunk_ids` keeps the join to the vector
+table alive. There is no `chunk` or `resolve` op in SQL mode: chunking is assumed
+already done upstream, and alias-merging (python mode's optional embedding-
+similarity/LLM-adjudication `resolve` step) isn't available -- node identity is the
+exact subject/object string, same as running `write_graph` directly without a
+prior `resolve` step. `sync_mode`: `upsert` (default, MERGE semantics -- a
+matched triple's provenance is REPLACED with this run's aggregate, not
+accumulated with history, same as python mode's own upsert) or `replace_all`
+(refused when partitioned). `replace_sources` isn't supported in SQL mode (the
+schema keeps only an aggregate `chunk_ids` array per edge, not a per-source_id
+breakdown) -- use `execution_mode='python'` for that.
+
+```yaml
+type: dagster_community_components.KnowledgeGraphBuilderComponent
+attributes:
+  asset_name: support_kg
+  id_column: doc_id
+  text_column: chunk_text
+  execution_mode: sql
+  sql_dialect: snowflake_cortex
+  source:
+    kind: warehouse_query
+    resource_key: snowflake
+    sql: "SELECT doc_id, chunk_id, content_hash, chunk_text FROM support_kb_chunks"
+  steps:
+    - id: triples
+      op: extract
+      model: llama3.1-70b
+      entity_types: [PERSON, ORG]
+    - id: graph
+      op: write_graph
+      provider: sql_tables
+      output_table: support_kg
+      sync_mode: upsert
+```
+
+Partitioning works the same way as `context_engineering_pipeline`'s own SQL
+mode: `source.sql` can use `{partition_key}`/`{partition_start}`/
+`{partition_end}` placeholders so each run only reads (and re-extracts) its own
+slice of chunks; the `_nodes`/`_edges` tables themselves are NOT partition-
+scoped -- they're a single, ever-growing graph merged across every run/
+partition (an entity can be mentioned by chunks from many different partitions).
+
+Every generated SQL statement is checked for real syntactic validity with
+`sqlglot.parse(sql, read=<dialect>)` in this component's own tests; BigQuery's
+`ML.GENERATE_TEXT` table-function call has no sqlglot support as of sqlglot
+28.0.0 (confirmed directly, same gap `context_engineering_pipeline`'s own tests
+document) so that one fragment is checked structurally against BigQuery's
+documented syntax instead. The `write_graph` MERGE/aggregation logic is
+executed for real against DuckDB as a stand-in (not one of the 3 supported
+warehouses, but close enough to exercise the real control flow).
 
 ## Run metadata
 

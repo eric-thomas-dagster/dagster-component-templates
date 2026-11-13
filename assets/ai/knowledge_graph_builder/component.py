@@ -75,10 +75,13 @@ already have provenance recorded in that graph store and reuses their
 previously-extracted triples instead of paying the LLM/spaCy call again --
 only new or changed chunks are actually (re-)extracted.
 """
+import contextlib
 import hashlib
+import inspect
 import json
 import os
 import re
+import weakref
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
@@ -189,6 +192,566 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
             raise ValueError(f"database_url_env_var {env_var!r} is unset")
         return pd.read_sql(sql, create_engine(url))
     raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
+# ─── execution_mode='sql': in-warehouse extraction + write_graph(provider='sql_tables') ────────
+# Same 3 dialects as context_engineering_pipeline (snowflake_cortex/bigquery/databricks); chunks
+# are assumed already built by that component's own per_step_ops chunk step (or any table with the
+# same id_column/chunk_id/content_hash/text_column shape) -- `source.sql` just SELECTs from it, so
+# `steps:` has no 'chunk' op in SQL mode: the first (and only non-write_graph) step is 'extract'.
+# Every generated statement is checked for syntactic validity with sqlglot.parse(sql, read=dialect)
+# in this component's own tests (the same discipline context_engineering_pipeline's SQL mode
+# documents for its own warehouse-function calls); it is not exercised against a live warehouse
+# account (none available in this repo's test environment).
+
+# --- _vendor_client_session: begin (identical in every component that takes a vendor-client resource; drift-tested) ---
+_GENERATOR_CLIENTS: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()   # generator -> the client it yielded
+
+
+@contextlib.contextmanager
+def _vendor_client_session(obj):
+    """Yield a vendor client (BigQuery-style: .query / .execute_query) from whatever Dagster hands the asset for a resource key. With
+    required_resource_keys, dagster-gcp's BigQueryResource (an IAttachDifferentObjectToOpContext) arrives as a bare GENERATOR that yields the
+    client; injected as a parameter it is the resource whose .get_client() is a @contextmanager; a plain client is used as is.
+
+    A bare generator is ONE shared object (context.resources hands every caller in the step the same one) and can only be advanced once, so the
+    client it yielded is remembered for the later calls and the generator is left to Dagster / the garbage collector: closing it after the
+    first use would make the second use in the same step raise StopIteration. Its `with` exit (credential teardown) runs when it is collected."""
+    def _is_client(o):
+        return hasattr(o, "query") or hasattr(o, "execute_query")
+
+    def _client_of(gen):
+        if gen not in _GENERATOR_CLIENTS:
+            _GENERATOR_CLIENTS[gen] = next(gen)
+        return _GENERATOR_CLIENTS[gen]
+
+    if inspect.isgenerator(obj):
+        yield _client_of(obj)
+        return
+    if hasattr(obj, "get_client"):
+        made = obj.get_client()
+        if inspect.isgenerator(made):
+            try:
+                yield next(made)
+            finally:
+                made.close()        # our own generator: runs its `with` exit / credential teardown
+        elif not _is_client(made) and hasattr(made, "__enter__"):
+            with made as client:
+                yield client
+        else:
+            yield made
+        return
+    yield obj
+# --- _vendor_client_session: end ---
+
+
+class _SqlSession:
+    """Runs statements through whichever interface the warehouse resource exposes: SQLAlchemy engine, DB-API connection, or a
+    BigQuery client (dagster-gcp BigQueryResource: `with resource.get_client() as client`). Duplicated verbatim from
+    context_engineering_pipeline's own copy (this repo's standalone-component convention)."""
+
+    def __init__(self, execute, fetch):
+        self.execute, self.fetch = execute, fetch
+
+
+@contextlib.contextmanager
+def _sql_session(resource, resource_key: str):
+    if hasattr(resource, "get_engine"):
+        engine = resource.get_engine()
+        with engine.begin() as conn:
+            yield _SqlSession(lambda s: conn.exec_driver_sql(s), lambda s: list(conn.exec_driver_sql(s).fetchall()))
+    elif hasattr(resource, "get_connection"):
+        with resource.get_connection() as conn:
+            def run(s):
+                if hasattr(conn, "execute"):
+                    return conn.execute(s)
+                cur = conn.cursor()  # e.g. snowflake-connector connections only have cursors
+                cur.execute(s)
+                return cur
+            yield _SqlSession(run, lambda s: list(run(s).fetchall()))
+    elif inspect.isgenerator(resource) or hasattr(resource, "get_client") or hasattr(resource, "query"):
+        with _vendor_client_session(resource) as client:
+            yield _SqlSession(lambda s: client.query(s).result(), lambda s: list(client.query(s).result()))
+    else:
+        raise ValueError(f"resource {resource_key!r} must expose .get_engine(), .get_connection() or .get_client() (BigQuery).")
+
+
+_SQL_DIALECTS = ("snowflake_cortex", "bigquery", "databricks")
+_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_TABLE_RE = re.compile(r"^`?[A-Za-z0-9_\-]+`?(\.`?[A-Za-z0-9_\-]+`?){0,3}$")
+_BQ_PROJECT_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
+_BQ_NAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def _sql_ident(value: Any, what: str) -> str:
+    if not isinstance(value, str) or not _IDENT_RE.match(value):
+        raise ValueError(f"execution_mode='sql': {what}={value!r} is not a plain identifier (letters, digits, underscore; not starting with a digit)")
+    return value
+
+
+def _sql_table(value: Any, what: str, dialect: Optional[str] = None) -> str:
+    if not isinstance(value, str) or not _TABLE_RE.match(value):
+        raise ValueError(f"execution_mode='sql': {what}={value!r} is not a valid table reference (up to 4 dot-separated parts of letters, digits, _ or -)")
+    if dialect == "bigquery":
+        parts = [p.strip("`") for p in value.split(".")]
+        ok = len(parts) <= 3 and all(_BQ_NAME_RE.match(p) for p in parts[-2:]) and (len(parts) < 3 or _BQ_PROJECT_RE.match(parts[0]))
+        if not ok:
+            raise ValueError(f"execution_mode='sql': {what}={value!r} is not a valid BigQuery table reference ([project.]dataset.table; only the "
+                             "project id may contain a dash, dataset and table names are letters, digits and _)")
+        return "`" + ".".join(parts) + "`"
+    return value
+
+
+def _sql_str(value: Any) -> str:
+    """A single-quoted string literal that is safe in BigQuery, Databricks (Spark) and Snowflake (all accept backslash escapes)."""
+    s = str(value).replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
+    return f"'{s}'"
+
+
+def _sql_table_columns(session, dialect: str, tbl: str) -> List[str]:
+    """Column names of `tbl` in ordinal order, [] when it does not exist (INFORMATION_SCHEMA.COLUMNS, so a missing table is not an exception)."""
+    parts = [p.strip("`") for p in tbl.split(".")]
+    name, schema = parts[-1], parts[-2] if len(parts) >= 2 else None
+    if schema is None:
+        if dialect == "bigquery":
+            raise ValueError(f"table {tbl!r} has no dataset part; BigQuery tables need dataset.table")
+        schema_pred = f"LOWER(table_schema) = LOWER({'CURRENT_SCHEMA()' if dialect == 'snowflake_cortex' else 'current_schema()'})"
+    else:
+        schema_pred = f"LOWER(table_schema) = LOWER({_sql_str(schema)})"
+    if dialect == "bigquery":
+        info = (f"`{parts[0]}`." if len(parts) >= 3 else "") + f"{schema}.INFORMATION_SCHEMA.COLUMNS"
+    else:
+        info = (f"{parts[-3]}." if len(parts) >= 3 else "") + "information_schema.columns"
+    return [str(r[0]) for r in session.fetch(
+        f"SELECT column_name FROM {info} WHERE {schema_pred} AND LOWER(table_name) = LOWER({_sql_str(name)}) ORDER BY ordinal_position")]
+
+
+# ── partition-aware source SQL (duplicated verbatim from context_engineering_pipeline's own copy) ──
+
+_PLACEHOLDER_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_\-]+)?)\}")
+
+
+def _sql_placeholders(sql: str) -> List[str]:
+    return _PLACEHOLDER_RE.findall(sql.replace("{{", "\0").replace("}}", "\0"))
+
+
+def _is_partitioned_run(context) -> bool:
+    try:
+        return bool(context.has_partition_key or context.has_partition_key_range)
+    except Exception:
+        return False
+
+
+def _partition_label_and_keys(context) -> Tuple[Optional[str], List[str]]:
+    if context.has_partition_key:
+        return str(context.partition_key), [str(context.partition_key)]
+    if context.has_partition_key_range:
+        r = context.partition_key_range
+        keys: List[str] = []
+        try:
+            keys = [str(k) for k in context.assets_def.partitions_def.get_partition_keys_in_range(r)]
+        except Exception:
+            pass
+        return (str(r.start) if r.start == r.end else f"{r.start}..{r.end}"), keys or [str(r.start), str(r.end)]
+    return None, []
+
+
+def _partition_bindings(context) -> Dict[str, str]:
+    from dagster import MultiPartitionsDefinition, TimeWindowPartitionsDefinition
+    b: Dict[str, str] = {}
+    label, _ = _partition_label_and_keys(context)
+    if label is None:
+        return b
+    b["partition_key"] = label
+    window = None
+    if context.has_partition_key:
+        key = context.partition_key
+        kbd = getattr(key, "keys_by_dimension", None)
+        if kbd:
+            for dim, val in kbd.items():
+                b[f"partition_key.{dim}"] = str(val)
+            pdef = context.assets_def.partitions_def
+            if isinstance(pdef, MultiPartitionsDefinition):
+                for d in pdef.partitions_defs:
+                    if isinstance(d.partitions_def, TimeWindowPartitionsDefinition):
+                        window = d.partitions_def.time_window_for_partition_key(kbd[d.name])
+                        break
+    if window is None:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            window = None
+    if window is not None:
+        b["partition_start"], b["partition_end"] = window.start.isoformat(), window.end.isoformat()
+    return b
+
+
+def _bind_partition_placeholders(sql: str, context, quote, what: str = "source.sql") -> str:
+    names = _sql_placeholders(sql)
+    partitioned = _is_partitioned_run(context)
+    unescape = lambda t: t.replace("{{", "{").replace("}}", "}")  # noqa: E731
+    if not names:
+        if partitioned:
+            context.log.warning(
+                f"{what} uses no partition placeholder ({{partition_key}}, {{partition_start}}, {{partition_end}}) but the asset is partitioned: "
+                "every partition run reads the FULL source. Add a placeholder to the WHERE clause to read just this partition.")
+        return unescape(sql)
+    if not partitioned:
+        raise ValueError(f"{what} uses partition placeholder(s) {sorted(set(names))} but this run has no partition key (asset is not partitioned, or this is an unpartitioned run)")
+    bindings = _partition_bindings(context)
+    for n in set(names):
+        if n not in bindings:
+            raise ValueError(f"{what}: placeholder {{{n}}} is not available for this run; available: {sorted(bindings)}")
+        if re.search(rf"[\'\"`]\{{{re.escape(n)}\}}|\{{{re.escape(n)}\}}[\'\"`]", sql):
+            raise ValueError(f"{what}: {{{n}}} is replaced by a complete quoted string literal; remove the quotes around it")
+    protected = sql.replace("{{", "\0L").replace("}}", "\0R")
+    out = _PLACEHOLDER_RE.sub(lambda m: quote(bindings[m.group(1)]), protected)
+    return out.replace("\0L", "{").replace("\0R", "}")
+
+
+def _validate_partition_placeholders(sql: str, partitions_def, what: str = "source.sql") -> None:
+    from dagster import MultiPartitionsDefinition, TimeWindowPartitionsDefinition
+    names = set(_sql_placeholders(sql))
+    if not names:
+        return
+    if partitions_def is None:
+        raise ValueError(f"{what} uses partition placeholder(s) {sorted(names)} but no partitioning is configured (partition_type / partition_dimensions)")
+    dims = [d.name for d in partitions_def.partitions_defs] if isinstance(partitions_def, MultiPartitionsDefinition) else []
+    timed = isinstance(partitions_def, TimeWindowPartitionsDefinition) or (
+        isinstance(partitions_def, MultiPartitionsDefinition) and any(isinstance(d.partitions_def, TimeWindowPartitionsDefinition) for d in partitions_def.partitions_defs))
+    for n in sorted(names):
+        if n == "partition_key":
+            continue
+        if n in ("partition_start", "partition_end"):
+            if not timed:
+                raise ValueError(f"{what}: {{{n}}} needs a time-window partition (daily/weekly/monthly/hourly)")
+        elif n.startswith("partition_key.") and n.split(".", 1)[1] in dims:
+            continue
+        else:
+            raise ValueError(f"{what}: unknown placeholder {{{n}}}; valid: partition_key, partition_start, partition_end"
+                             + "".join(f", partition_key.{d}" for d in dims))
+
+
+# ── extract (SQL): warehouse-native LLM completion, one row per chunk, flattened to one row per triple ──
+
+_SQL_EXTRACT_INSTRUCTIONS = (
+    "Extract factual relationship triples from the text below. Return ONLY a JSON array, no prose, no "
+    "markdown fence. Each element: {{\"subject\": str, \"subject_type\": str, \"relation\": str, "
+    "\"object\": str, \"object_type\": str, \"confidence\": float between 0 and 1, \"evidence\": a short "
+    "verbatim quote from the text supporting this triple}}. If nothing qualifies, return [].\n\nText:\n"
+)
+
+
+def _sql_extract_prompt_expr(entity_types: Optional[List[str]], relation_types: Optional[List[str]], text_expr: str) -> str:
+    """CONCAT of the fixed instructions (+ optional entity/relation type hints, same wording as the
+    python-mode _EXTRACT_PROMPT_TEMPLATE) with the chunk text column -- same CONCAT-a-literal-with-a-
+    column shape as context_engineering_pipeline's own _sql_enrich_prompt_expr."""
+    entity_hint = f" Use only these entity types (or 'OTHER' if none fit): {entity_types}." if entity_types else ""
+    relation_hint = f" Use only these relation types (or your own short verb-phrase if none fit): {relation_types}." if relation_types else ""
+    instructions = _SQL_EXTRACT_INSTRUCTIONS + entity_hint + relation_hint
+    return f"CONCAT({_sql_str(instructions)}, {text_expr})"
+
+
+def _sql_extract_expr(dialect: str, text_expr: str, model: str, entity_types: Optional[List[str]], relation_types: Optional[List[str]]) -> str:
+    """Scalar text-generation expression (Snowflake, Databricks). BigQuery's ML.GENERATE_TEXT is a
+    TABLE function: see _build_sql_extract_query."""
+    prompt = _sql_extract_prompt_expr(entity_types, relation_types, text_expr)
+    if dialect == "snowflake_cortex":
+        return f"SNOWFLAKE.CORTEX.COMPLETE({_sql_str(model)}, {prompt})"
+    if dialect == "databricks":
+        return f"ai_query({_sql_str(model)}, {prompt})"
+    raise ValueError(f"BigQuery generates text with the ML.GENERATE_TEXT table function, not a scalar expression (dialect={dialect!r})")
+
+
+def _build_sql_extract_query(
+    dialect: str, source_sql: str, id_column: str, text_column: str, model: str,
+    entity_types: Optional[List[str]], relation_types: Optional[List[str]],
+    min_confidence: float = 0.0, max_triples_per_chunk: Optional[int] = None,
+) -> str:
+    """The extract step's full SELECT: one row per (subject, relation, object) triple, columns
+    id_column, chunk_id, content_hash, subject, subject_type, relation, object, object_type,
+    confidence, evidence. `source_sql` must already be chunk-shaped (id_column, chunk_id,
+    content_hash, text_column) -- SQL mode has no 'chunk' op; point it at a per_step_ops chunk
+    table (see the module docstring's shared chunk-id contract).
+
+    Malformed model output (not a JSON array) is silently dropped per-chunk, same
+    fail-soft behavior as python mode's per-chunk try/except in _extract_llm_call --
+    TRY_PARSE_JSON / SAFE.JSON_EXTRACT_ARRAY / from_json's default PERMISSIVE mode all
+    turn a bad response into NULL/no-rows instead of failing the whole statement."""
+    if dialect not in _SQL_DIALECTS:
+        raise ValueError(f"unsupported sql_dialect: {dialect!r}")
+    id_col = _sql_ident(id_column, "id_column")
+    text_col = _sql_ident(text_column, "text_column")
+    evidence_fallback = f"SUBSTR({text_col}, 1, 300)"
+
+    if dialect == "bigquery":
+        if not isinstance(model, str) or not re.match(r"^[A-Za-z0-9_\-./:]+$", model):
+            raise ValueError(f"execution_mode='sql': extract model {model!r} is not a valid BigQuery model reference")
+        prompt_expr = _sql_extract_prompt_expr(entity_types, relation_types, "prompted.chunk_text")
+        ctes = [
+            ("src", source_sql),
+            ("prompted", f"SELECT {id_col}, chunk_id, content_hash, {text_col} AS chunk_text FROM src"),
+            ("raw", (f"SELECT chunk_id, ml_generate_text_llm_result AS raw_json\n"
+                     f"  FROM ML.GENERATE_TEXT(MODEL `{model}`,\n"
+                     f"    (SELECT chunk_id, {prompt_expr} AS prompt FROM prompted),\n"
+                     f"    STRUCT(TRUE AS flatten_json_output))")),
+            ("joined", (f"SELECT p.{id_col} AS {id_col}, p.chunk_id AS chunk_id, p.content_hash AS content_hash,\n"
+                        f"         p.chunk_text AS chunk_text, r.raw_json AS raw_json\n"
+                        f"  FROM prompted AS p JOIN raw AS r ON r.chunk_id = p.chunk_id")),
+            ("flat", (f"SELECT {id_col}, chunk_id, content_hash, chunk_text,\n"
+                      f"         JSON_EXTRACT_SCALAR(t, '$.subject') AS subject,\n"
+                      f"         JSON_EXTRACT_SCALAR(t, '$.subject_type') AS subject_type,\n"
+                      f"         JSON_EXTRACT_SCALAR(t, '$.relation') AS relation,\n"
+                      f"         JSON_EXTRACT_SCALAR(t, '$.object') AS object,\n"
+                      f"         JSON_EXTRACT_SCALAR(t, '$.object_type') AS object_type,\n"
+                      f"         SAFE_CAST(JSON_EXTRACT_SCALAR(t, '$.confidence') AS FLOAT64) AS confidence,\n"
+                      f"         JSON_EXTRACT_SCALAR(t, '$.evidence') AS evidence\n"
+                      f"  FROM joined, UNNEST(IFNULL(SAFE.JSON_EXTRACT_ARRAY(raw_json), [])) AS t")),
+        ]
+        evidence_col = f"COALESCE(evidence, {evidence_fallback})"
+    else:
+        extract_expr = _sql_extract_expr(dialect, "prompted.chunk_text", model, entity_types, relation_types)
+        ctes = [
+            ("src", source_sql),
+            ("prompted", f"SELECT {id_col}, chunk_id, content_hash, {text_col} AS chunk_text FROM src"),
+            ("raw", f"SELECT {id_col}, chunk_id, content_hash, chunk_text, {extract_expr} AS raw_json FROM prompted"),
+        ]
+        if dialect == "snowflake_cortex":
+            ctes.append(("parsed", f"SELECT {id_col}, chunk_id, content_hash, chunk_text, TRY_PARSE_JSON(raw_json) AS arr FROM raw"))
+            ctes.append(("flat", (
+                f"SELECT {id_col}, chunk_id, content_hash, chunk_text,\n"
+                f"         t.value:subject::STRING AS subject,\n"
+                f"         t.value:subject_type::STRING AS subject_type,\n"
+                f"         t.value:relation::STRING AS relation,\n"
+                f"         t.value:object::STRING AS object,\n"
+                f"         t.value:object_type::STRING AS object_type,\n"
+                f"         t.value:confidence::FLOAT AS confidence,\n"
+                f"         t.value:evidence::STRING AS evidence\n"
+                f"  FROM parsed, LATERAL FLATTEN(input => arr) AS t\n"
+                f"  WHERE arr IS NOT NULL AND IS_ARRAY(arr)")))
+        else:  # databricks
+            schema = "ARRAY<STRUCT<subject:STRING,subject_type:STRING,relation:STRING,object:STRING,object_type:STRING,confidence:DOUBLE,evidence:STRING>>"
+            ctes.append(("parsed", f"SELECT {id_col}, chunk_id, content_hash, chunk_text, from_json(raw_json, {_sql_str(schema)}) AS arr FROM raw"))
+            ctes.append(("flat", (
+                f"SELECT {id_col}, chunk_id, content_hash, chunk_text,\n"
+                f"         t.subject AS subject, t.subject_type AS subject_type, t.relation AS relation,\n"
+                f"         t.object AS object, t.object_type AS object_type, t.confidence AS confidence, t.evidence AS evidence\n"
+                f"  FROM parsed LATERAL VIEW explode(arr) AS t")))
+        evidence_col = f"COALESCE(evidence, {evidence_fallback})"
+
+    with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+    where = ["subject IS NOT NULL", "relation IS NOT NULL", "object IS NOT NULL"]
+    if min_confidence:
+        where.append(f"(confidence IS NULL OR confidence >= {float(min_confidence)})")
+    final = (f"SELECT {id_col}, chunk_id, content_hash, subject, subject_type, relation, object, object_type,\n"
+             f"         confidence, {evidence_col} AS evidence\n"
+             f"  FROM flat\n  WHERE {' AND '.join(where)}")
+    if max_triples_per_chunk is not None:
+        final = (f"SELECT * FROM (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY chunk_id ORDER BY confidence DESC NULLS LAST) AS rn\n"
+                 f"  FROM (\n  {final}\n  )\n) WHERE rn <= {int(max_triples_per_chunk)}")
+    return f"WITH {with_}\n{final}"
+
+
+# ── write_graph (SQL, provider='sql_tables'): MERGE this run's triples into two persistent tables ──
+# <output_table>_nodes (id, name, type, mentions) and <output_table>_edges (source, target, relation,
+# chunk_ids, evidence, confidence, mention_count). id == name (no alias-merging/normalization in SQL
+# mode -- that's the python-mode 'resolve' step; node identity here is the exact subject/object
+# string, same as running write_graph directly without a prior resolve step). Like python mode's own
+# upsert, MATCHED rows are REPLACED with this run's aggregates (not accumulated with history) --
+# only sync_mode='upsert' (default) and 'replace_all' (refused when partitioned) are supported;
+# 'replace_sources' would need per-source-row provenance tracking this schema doesn't keep (edges
+# only carry an aggregate chunk_ids array, not a separate per-source_id breakdown) -- use
+# execution_mode='python' for that.
+
+_SQL_TYPES = {
+    "snowflake_cortex": {"string": "STRING", "array_string": "ARRAY", "float": "FLOAT", "int": "NUMBER"},
+    "bigquery": {"string": "STRING", "array_string": "ARRAY<STRING>", "float": "FLOAT64", "int": "INT64"},
+    "databricks": {"string": "STRING", "array_string": "ARRAY<STRING>", "float": "DOUBLE", "int": "BIGINT"},
+}
+
+
+def _sql_nodes_edges_table_names(output_table: str, dialect: str) -> Tuple[str, str]:
+    return (_sql_table(f"{output_table}_nodes", "write_graph.output_table", dialect),
+            _sql_table(f"{output_table}_edges", "write_graph.output_table", dialect))
+
+
+def _build_sql_create_nodes_table(dialect: str, nodes_tbl: str) -> str:
+    t = _SQL_TYPES[dialect]
+    return f"CREATE TABLE IF NOT EXISTS {nodes_tbl} (id {t['string']}, name {t['string']}, type {t['string']}, mentions {t['int']})"
+
+
+def _build_sql_create_edges_table(dialect: str, edges_tbl: str) -> str:
+    t = _SQL_TYPES[dialect]
+    return (f"CREATE TABLE IF NOT EXISTS {edges_tbl} (source {t['string']}, target {t['string']}, relation {t['string']}, "
+            f"chunk_ids {t['array_string']}, evidence {t['string']}, confidence {t['float']}, mention_count {t['int']})")
+
+
+def _build_sql_nodes_agg_query(staging_tbl: str) -> str:
+    return (f"SELECT name, MAX(type) AS type, COUNT(*) AS mentions FROM (\n"
+            f"  SELECT subject AS name, subject_type AS type FROM {staging_tbl}\n"
+            f"  UNION ALL\n"
+            f"  SELECT object AS name, object_type AS type FROM {staging_tbl}\n"
+            f") AS n\n  GROUP BY name")
+
+
+def _build_sql_edges_agg_query(dialect: str, staging_tbl: str) -> str:
+    array_agg = "collect_list(chunk_id)" if dialect == "databricks" else "ARRAY_AGG(chunk_id)"
+    return (f"SELECT subject AS source, object AS target, relation,\n"
+            f"         {array_agg} AS chunk_ids, MAX(evidence) AS evidence,\n"
+            f"         MAX(confidence) AS confidence, COUNT(*) AS mention_count\n"
+            f"  FROM {staging_tbl}\n  GROUP BY subject, object, relation")
+
+
+def _build_sql_nodes_merge(nodes_tbl: str, agg_sql: str) -> str:
+    return (f"MERGE INTO {nodes_tbl} AS tgt\n"
+            f"USING (\n  {agg_sql}\n) AS src\n"
+            f"ON tgt.id = src.name\n"
+            f"WHEN MATCHED THEN UPDATE SET type = src.type, mentions = src.mentions\n"
+            f"WHEN NOT MATCHED THEN INSERT (id, name, type, mentions) VALUES (src.name, src.name, src.type, src.mentions)")
+
+
+def _build_sql_edges_merge(edges_tbl: str, agg_sql: str) -> str:
+    return (f"MERGE INTO {edges_tbl} AS tgt\n"
+            f"USING (\n  {agg_sql}\n) AS src\n"
+            f"ON tgt.source = src.source AND tgt.target = src.target AND tgt.relation = src.relation\n"
+            f"WHEN MATCHED THEN UPDATE SET chunk_ids = src.chunk_ids, evidence = src.evidence, confidence = src.confidence, mention_count = src.mention_count\n"
+            f"WHEN NOT MATCHED THEN INSERT (source, target, relation, chunk_ids, evidence, confidence, mention_count)\n"
+            f"  VALUES (src.source, src.target, src.relation, src.chunk_ids, src.evidence, src.confidence, src.mention_count)")
+
+
+def _build_sql_graph_preview_queries(nodes_tbl: str, edges_tbl: str, limit: int) -> Tuple[str, str]:
+    """(top-nodes-by-degree query, edges-among-those-nodes query) -- same two-query shape as the
+    python-mode neo4j/falkordb preview (_compute_graph_preview): degree = how many edges (in the
+    FULL persisted graph, not just this run) touch the node, since write_graph's upsert replaces
+    each edge's own row but leaves every OTHER edge (and hence every other node's degree) as is."""
+    nodes_q = (
+        f"WITH deg AS (\n"
+        f"  SELECT name, COUNT(*) AS degree FROM (\n"
+        f"    SELECT source AS name FROM {edges_tbl}\n    UNION ALL\n    SELECT target AS name FROM {edges_tbl}\n"
+        f"  ) AS t\n  GROUP BY name\n)\n"
+        f"SELECT n.id AS id, n.name AS name, n.type AS type, n.mentions AS mentions, COALESCE(d.degree, 0) AS degree\n"
+        f"FROM {nodes_tbl} AS n LEFT JOIN deg AS d ON d.name = n.id\n"
+        f"ORDER BY degree DESC LIMIT {int(limit)}"
+    )
+    return nodes_q, (
+        f"SELECT source, target, relation, mention_count AS weight\n"
+        f"FROM {edges_tbl}\n"
+        f"WHERE source IN ({{names}}) AND target IN ({{names}})"
+    )
+
+
+def _do_write_graph_sql(session, dialect: str, staging_tbl: str, output_table: str, sync_mode: str,
+                        partitioned: bool, preview_max_nodes: int, context) -> Dict[str, Any]:
+    if sync_mode == "replace_sources":
+        raise ValueError(
+            "execution_mode='sql': sync_mode='replace_sources' is not supported -- the sql_tables "
+            "schema keeps only an aggregate chunk_ids array per edge, not a per-source_id "
+            "breakdown, so there's no way to tell whether a source row's contribution should be "
+            "removed without re-deriving it. Use 'upsert' or 'replace_all', or execution_mode='python'."
+        )
+    if sync_mode not in ("upsert", "replace_all"):
+        raise ValueError(f"execution_mode='sql': sync_mode must be 'upsert' or 'replace_all', got {sync_mode!r}.")
+    if sync_mode == "replace_all" and partitioned:
+        raise ValueError("execution_mode='sql': sync_mode='replace_all' would delete other partitions' nodes/edges; use 'upsert'.")
+
+    nodes_tbl, edges_tbl = _sql_nodes_edges_table_names(output_table, dialect)
+    context.log.info(f"execution_mode='sql' write_graph ({dialect}): merging into {nodes_tbl} / {edges_tbl} (sync_mode={sync_mode})")
+    session.execute(_build_sql_create_nodes_table(dialect, nodes_tbl))
+    session.execute(_build_sql_create_edges_table(dialect, edges_tbl))
+    if sync_mode == "replace_all":
+        session.execute(f"DELETE FROM {nodes_tbl}")
+        session.execute(f"DELETE FROM {edges_tbl}")
+    session.execute(_build_sql_nodes_merge(nodes_tbl, _build_sql_nodes_agg_query(staging_tbl)))
+    session.execute(_build_sql_edges_merge(edges_tbl, _build_sql_edges_agg_query(dialect, staging_tbl)))
+
+    node_count = int(session.fetch(f"SELECT COUNT(*) FROM {nodes_tbl}")[0][0])
+    edge_count = int(session.fetch(f"SELECT COUNT(*) FROM {edges_tbl}")[0][0])
+    chunk_count = int(session.fetch(f"SELECT COUNT(DISTINCT chunk_id) FROM {staging_tbl}")[0][0])
+    entities_linked_to_chunks = int(session.fetch(
+        f"SELECT COUNT(DISTINCT name) FROM (SELECT subject AS name FROM {staging_tbl} UNION ALL SELECT object AS name FROM {staging_tbl}) AS t"
+    )[0][0])
+
+    preview_max_nodes = max(0, int(preview_max_nodes))
+    nodes_q, edges_q_template = _build_sql_graph_preview_queries(nodes_tbl, edges_tbl, max(preview_max_nodes, 20))
+    node_rows = session.fetch(nodes_q)
+    # column order from _build_sql_graph_preview_queries' SELECT: id, name, type, mentions, degree
+    all_top = [{"id": r[0], "name": r[1], "type": r[2], "mentions": r[3], "degree": r[4]} for r in node_rows]
+    top_entities = [(r["name"], r["degree"]) for r in all_top[:20]]
+    preview_nodes = all_top[:preview_max_nodes]
+    preview_edges: List[Dict[str, Any]] = []
+    if preview_nodes:
+        names = ", ".join(_sql_str(n["name"]) for n in preview_nodes)
+        edge_rows = session.fetch(edges_q_template.format(names=names))
+        preview_edges = [{"source": r[0], "target": r[1], "relation": r[2], "weight": r[3]} for r in edge_rows]
+    graph_preview = {
+        "nodes": [{"id": n["id"], "name": n["name"], "type": n["type"], "mentions": n["mentions"]} for n in preview_nodes],
+        "edges": preview_edges,
+    }
+    preview_truncated = node_count > len(preview_nodes)
+
+    return {
+        "node_count": node_count, "edge_count": edge_count, "chunk_count": chunk_count,
+        "entities_linked_to_chunks": entities_linked_to_chunks, "top_entities": top_entities,
+        "store_location": f"{nodes_tbl} / {edges_tbl}", "sync_mode": sync_mode, "provider": "sql_tables",
+        "graph_preview": graph_preview, "preview_truncated": preview_truncated,
+    }
+
+
+def _run_knowledge_graph_sql_mode(
+    context, steps_cfg: List[dict], source_cfg: dict, dialect: str, id_column: str, text_column: str, partitioned: bool,
+) -> "Output":
+    extract_step, write_step = steps_cfg[0], steps_cfg[-1]
+    model = extract_step.get("model")
+    if not model:
+        raise ValueError("execution_mode='sql': the extract step requires `model` (a warehouse-native model identifier -- e.g. 'llama3.1-70b' for snowflake_cortex, 'databricks-meta-llama-3-1-70b-instruct' for databricks, 'project.dataset.model' for bigquery).")
+    provider = write_step.get("provider", "sql_tables")
+    if provider != "sql_tables":
+        raise ValueError(f"execution_mode='sql': write_graph step's provider must be 'sql_tables', got {provider!r}.")
+    output_table = write_step.get("output_table")
+    if not output_table:
+        raise ValueError("execution_mode='sql': the write_graph step requires `output_table` (base name -- writes <output_table>_nodes and <output_table>_edges).")
+    sync_mode = write_step.get("sync_mode", "upsert")
+
+    resource_key = source_cfg.get("resource_key")
+    if not resource_key or source_cfg.get("kind") != "warehouse_query":
+        raise ValueError("execution_mode='sql' requires `source: {kind: warehouse_query, resource_key: ..., sql: ...}` pointing at a chunk-shaped table (id_column, chunk_id, content_hash, text_column).")
+    resource = getattr(context.resources, resource_key)
+    bound_sql = _bind_partition_placeholders(source_cfg["sql"], context, _sql_str)
+
+    extract_query = _build_sql_extract_query(
+        dialect, bound_sql, id_column, text_column, model,
+        extract_step.get("entity_types"), extract_step.get("relation_types"),
+        float(extract_step.get("min_confidence", 0.0)), extract_step.get("max_triples_per_chunk"),
+    )
+
+    import uuid
+    staging_tbl = _sql_table(f"{output_table}_staging_{uuid.uuid4().hex[:8]}", "write_graph.output_table", dialect)
+    with _sql_session(resource, resource_key) as session:
+        context.log.info(f"execution_mode='sql' ({dialect}): extracting triples into staging table {staging_tbl}")
+        try:
+            session.execute(f"CREATE OR REPLACE TABLE {staging_tbl} AS\n{extract_query}")
+            stats = _do_write_graph_sql(session, dialect, staging_tbl, output_table, sync_mode, partitioned,
+                                        int(write_step.get("preview_max_nodes", 60)), context)
+        finally:
+            with contextlib.suppress(Exception):
+                session.execute(f"DROP TABLE IF EXISTS {staging_tbl}")
+
+    metadata: Dict[str, Any] = {
+        "n_steps": MetadataValue.int(len(steps_cfg)),
+        "step_chain": MetadataValue.text(" → ".join(s["id"] for s in steps_cfg)),
+        "execution_mode": MetadataValue.text("sql"),
+        "sql_dialect": MetadataValue.text(dialect),
+        "node_count": MetadataValue.int(stats["node_count"]),
+        "edge_count": MetadataValue.int(stats["edge_count"]),
+        "chunk_count": MetadataValue.int(stats["chunk_count"]),
+        "entities_linked_to_chunks": MetadataValue.int(stats["entities_linked_to_chunks"]),
+        "top_entities": MetadataValue.json(stats["top_entities"]),
+        "graph_location": MetadataValue.text(stats["store_location"]),
+        "sync_mode": MetadataValue.text(stats["sync_mode"]),
+        "graph_preview": MetadataValue.json(stats["graph_preview"]),
+        "preview_truncated": MetadataValue.bool(bool(stats["preview_truncated"])),
+    }
+    return Output(value=None, metadata=metadata)
 
 
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
@@ -1166,8 +1729,26 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
             "Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` names a prior "
             "step's id to read from; defaults to the immediately preceding step. The first step must be "
             "op='chunk'. Valid ops: 'chunk', 'extract' (method: llm|spacy), 'resolve', 'write_graph' "
-            "(provider: networkx|neo4j|falkordb, sync_mode: upsert|replace_sources|replace_all)."
+            "(provider: networkx|neo4j|falkordb, sync_mode: upsert|replace_sources|replace_all). "
+            "execution_mode='sql' instead requires exactly [extract, write_graph(provider=sql_tables)] "
+            "-- see `execution_mode`."
         )
+    )
+    execution_mode: str = Field(
+        default="python",
+        description=(
+            "'python' (default): extract/resolve run in-process (litellm or spaCy), write_graph stores "
+            "into networkx/neo4j/falkordb. 'sql': extract runs as a warehouse-native LLM completion "
+            "(SNOWFLAKE.CORTEX.COMPLETE / ai_query / ML.GENERATE_TEXT) over a `source:` SQL query that "
+            "must already be chunk-shaped (id_column, chunk_id, content_hash, text_column -- e.g. "
+            "context_engineering_pipeline's own per_step_ops chunk table); write_graph's only supported "
+            "provider is 'sql_tables' (two warehouse tables, <output_table>_nodes/_edges). No 'chunk' or "
+            "'resolve' op in SQL mode (chunking is assumed done upstream; alias-merging isn't available)."
+        ),
+    )
+    sql_dialect: Optional[str] = Field(
+        default=None,
+        description="Required when execution_mode='sql'. Same 3 dialects as context_engineering_pipeline's own execution_mode='sql': 'snowflake_cortex', 'bigquery', 'databricks'.",
     )
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -1212,21 +1793,60 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
         steps_cfg = list(self.steps or [])
         if not steps_cfg:
             raise ValueError("knowledge_graph_builder requires at least one step in `steps:`.")
-        first_op = steps_cfg[0].get("op")
-        if first_op not in ("chunk", "extract"):
-            raise ValueError(
-                "knowledge_graph_builder: the first step must be op='chunk', or op='extract' when "
-                "`upstream_asset_key` already points at a pre-chunked asset (e.g. context_engineering_pipeline's "
-                "own chunk step with per_step_ops=True) -- see the module docstring's shared chunk-id contract."
-            )
-        valid_ops = {"chunk", "extract", "resolve", "write_graph"}
-        for s in steps_cfg:
-            if "id" not in s or "op" not in s:
-                raise ValueError(f"every step needs {{id, op}}; got: {s}")
-            if s["op"] not in valid_ops:
-                raise ValueError(f"step {s['id']!r} op={s['op']!r} unsupported. Valid: {sorted(valid_ops)}")
-        if bool(self.upstream_asset_key) == bool(self.source):
-            raise ValueError("knowledge_graph_builder: set exactly one of `upstream_asset_key` or `source`.")
+        execution_mode = self.execution_mode
+        if execution_mode not in ("python", "sql"):
+            raise ValueError(f"knowledge_graph_builder: execution_mode must be 'python' or 'sql', got {execution_mode!r}.")
+
+        if execution_mode == "sql":
+            if self.sql_dialect not in _SQL_DIALECTS:
+                raise ValueError(
+                    "knowledge_graph_builder: execution_mode='sql' requires sql_dialect to be one of: "
+                    "'snowflake_cortex', 'bigquery', 'databricks'."
+                )
+            if len(steps_cfg) != 2 or steps_cfg[0].get("op") != "extract" or steps_cfg[1].get("op") != "write_graph":
+                raise ValueError(
+                    "knowledge_graph_builder: execution_mode='sql' requires exactly two steps: "
+                    "[{op: extract, ...}, {op: write_graph, provider: sql_tables, ...}] -- no 'chunk' op "
+                    "(chunking is assumed already done upstream, see the module docstring's shared "
+                    "chunk-id contract) and no 'resolve' op (alias-merging isn't available in SQL mode)."
+                )
+            if "id" not in steps_cfg[0] or "id" not in steps_cfg[1]:
+                raise ValueError("every step needs {id, op}; got: " + str(steps_cfg))
+            if steps_cfg[0].get("method", "llm") != "llm":
+                raise ValueError(
+                    "knowledge_graph_builder: execution_mode='sql' only supports extract method='llm' (a "
+                    "warehouse-native model) -- spaCy is a local python library, not available server-side."
+                )
+            if steps_cfg[1].get("provider", "sql_tables") != "sql_tables":
+                raise ValueError(
+                    f"knowledge_graph_builder: execution_mode='sql' requires the write_graph step's "
+                    f"provider to be 'sql_tables', got {steps_cfg[1].get('provider')!r}."
+                )
+            if self.upstream_asset_key:
+                raise ValueError("knowledge_graph_builder: execution_mode='sql' does not read from `upstream_asset_key` -- set `source` instead (there's no DataFrame to hand to a SQL engine).")
+            if not self.source or self.source.get("kind") != "warehouse_query":
+                raise ValueError(
+                    "knowledge_graph_builder: execution_mode='sql' requires `source: {kind: warehouse_query, "
+                    "resource_key: ..., sql: ...}` pointing at a chunk-shaped table (id_column, chunk_id, "
+                    "content_hash, text_column)."
+                )
+            first_op = "extract"
+        else:
+            first_op = steps_cfg[0].get("op")
+            if first_op not in ("chunk", "extract"):
+                raise ValueError(
+                    "knowledge_graph_builder: the first step must be op='chunk', or op='extract' when "
+                    "`upstream_asset_key` already points at a pre-chunked asset (e.g. context_engineering_pipeline's "
+                    "own chunk step with per_step_ops=True) -- see the module docstring's shared chunk-id contract."
+                )
+            valid_ops = {"chunk", "extract", "resolve", "write_graph"}
+            for s in steps_cfg:
+                if "id" not in s or "op" not in s:
+                    raise ValueError(f"every step needs {{id, op}}; got: {s}")
+                if s["op"] not in valid_ops:
+                    raise ValueError(f"step {s['id']!r} op={s['op']!r} unsupported. Valid: {sorted(valid_ops)}")
+            if bool(self.upstream_asset_key) == bool(self.source):
+                raise ValueError("knowledge_graph_builder: set exactly one of `upstream_asset_key` or `source`.")
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
@@ -1234,6 +1854,8 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
             cron_schedule=self.partition_cron_schedule, cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
             end_offset=self.partition_end_offset, timezone=self.partition_timezone,
         )
+        if execution_mode == "sql" and self.source.get("sql"):
+            _validate_partition_placeholders(self.source["sql"], partitions_def)
         backfill_policy = None
         if partitions_def is not None and self.backfill_policy == "single_run":
             backfill_policy = BackfillPolicy.single_run()
@@ -1256,6 +1878,7 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         partitioned = partitions_def is not None
         pre_chunked = first_op == "extract"
+        sql_dialect = self.sql_dialect
 
         tags = dict(self.asset_tags or {})
         for k in (self.kinds or ["ai", "knowledge-graph"]):
@@ -1276,6 +1899,8 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
             required_resource_keys=({source_cfg["resource_key"]} if (source_cfg and source_cfg.get("resource_key")) else None),
         )
         def _asset(context: AssetExecutionContext, **kwargs):
+            if execution_mode == "sql":
+                return _run_knowledge_graph_sql_mode(context, steps_cfg, source_cfg, sql_dialect, id_column, text_column, partitioned)
             upstream = kwargs.get("upstream")
             if upstream is None:
                 upstream_df = _ingest_warehouse_query(source_cfg, context)

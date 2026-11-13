@@ -26,7 +26,9 @@ since they're genuinely separate store configurations being composed:
 - **`graph`**: identical fields to `knowledge_graph_search_server`'s own
   `KnowledgeGraphSearchResource` (`provider`, `path`, `uri`,
   `username_env_var`, `password_env_var`, `database`, `host`, `port`,
-  `graph_name`).
+  `graph_name`, and, for `provider: sql_tables`: `sql_dialect`,
+  `output_table`, `snowflake_*`, `databricks_*`, `bigquery_project_id` --
+  see that component's README for the full field list and caveats).
 
 ## The `search` tool
 
@@ -68,8 +70,8 @@ The inspection asset (`inspection_asset_name`) reports
 `overlap_with_knowledge_base`: the Jaccard overlap (`|intersection| /
 |union|`) between the vector collection's chunk ids and the graph's chunk
 ids -- **only** computed when `vector_store.provider == "chromadb"` and
-`graph.provider == "networkx"` (the one combination where listing every
-id in both stores is cheap). Every other provider combination reports
+`graph.provider` is `"networkx"` or `"sql_tables"` (the combinations where
+listing every id in both stores is cheap). Every other provider combination reports
 `overlap_with_knowledge_base: null` with an `overlap_note` explaining why,
 rather than silently guessing. A low overlap after both pipelines have
 run usually means they weren't pointed at the same chunk ids -- see the
@@ -163,6 +165,28 @@ attributes:
   asset_name: support_agent
   mcp_servers:
     - server_resource_key: support_hybrid_search_mcp
+```
+
+### `graph.provider: sql_tables`
+
+When `knowledge_graph_builder` ran with `execution_mode='sql'` instead, point
+`graph` at its `<output_table>_nodes`/`_edges` tables directly:
+
+```yaml
+type: dagster_community_components.HybridKnowledgeSearchServerComponent
+attributes:
+  resource_key: support_hybrid_search
+  vector_store:
+    provider: chromadb
+    connection_string: ./chroma_db
+    collection_name: support_kb
+  graph:
+    provider: sql_tables
+    sql_dialect: snowflake_cortex
+    output_table: support_kg
+    snowflake_account_env_var: SNOWFLAKE_ACCOUNT
+    snowflake_user_env_var: SNOWFLAKE_USER
+    snowflake_password_env_var: SNOWFLAKE_PASSWORD
 ```
 
 ## Inputs and Outputs

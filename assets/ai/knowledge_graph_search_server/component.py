@@ -28,7 +28,7 @@ mirroring `knowledge_search_server`'s own inspection-asset precedent.
 import logging
 import os
 import sys
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import dagster as dg
 from dagster import AssetExecutionContext, AssetKey, Definitions, MetadataValue, asset
@@ -118,6 +118,181 @@ def _run_graph_query(provider: str, cfg: dict, query: str, params: dict) -> List
 # END knowledge-graph-store core
 
 
+# BEGIN sql_tables read path -- recursive-CTE graph traversal over knowledge_graph_builder's
+# execution_mode='sql' output tables (<output_table>_nodes/<output_table>_edges). Same 3
+# dialects as the builder's own SQL mode. get_neighbors/find_path use `WITH RECURSIVE` (BigQuery
+# requires the RECURSIVE keyword; Snowflake accepts it but doesn't require it; Databricks
+# requires Runtime 17.1+ -- GA Aug 2025, confirmed via Databricks' own docs -- older runtimes
+# reject the keyword outright, with no graceful degradation available in SQL itself). Cycle
+# prevention and the returned path are both carried as an array column through the recursion
+# (ARRAY_APPEND/ARRAY_CONCAT/concat, per dialect) -- a documented, standard technique for all 3,
+# not a repo-specific trick. No alias matching (the sql_tables node schema has no aliases
+# column -- that's the python-mode 'resolve' step, not available in SQL mode).
+def _sql_str(value: Any) -> str:
+    s = str(value).replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
+    return f"'{s}'"
+
+
+def _sql_qualify(name: str, dialect: str) -> str:
+    return f"`{name}`" if dialect == "bigquery" else name
+
+
+def _sql_tables_names(output_table: str, dialect: str) -> "Tuple[str, str]":
+    return _sql_qualify(f"{output_table}_nodes", dialect), _sql_qualify(f"{output_table}_edges", dialect)
+
+
+def _build_snowflake_connection(cfg: dict):
+    import snowflake.connector
+    account = os.environ.get(cfg.get("snowflake_account_env_var") or "SNOWFLAKE_ACCOUNT")
+    user = os.environ.get(cfg.get("snowflake_user_env_var") or "SNOWFLAKE_USER")
+    password = os.environ.get(cfg.get("snowflake_password_env_var") or "SNOWFLAKE_PASSWORD")
+    if not account or not user:
+        raise ValueError("KnowledgeGraphSearch: provider='sql_tables' sql_dialect='snowflake_cortex' requires snowflake_account_env_var and snowflake_user_env_var to be set in the environment.")
+    kwargs: Dict[str, Any] = {"account": account, "user": user}
+    if password:
+        kwargs["password"] = password
+    if cfg.get("snowflake_database"):
+        kwargs["database"] = cfg["snowflake_database"]
+    if cfg.get("snowflake_schema"):
+        kwargs["schema"] = cfg["snowflake_schema"]
+    if cfg.get("snowflake_warehouse"):
+        kwargs["warehouse"] = cfg["snowflake_warehouse"]
+    return snowflake.connector.connect(**kwargs)
+
+
+def _build_bigquery_client(cfg: dict):
+    from google.cloud import bigquery
+    return bigquery.Client(project=cfg.get("bigquery_project_id"))
+
+
+def _build_databricks_connection(cfg: dict):
+    host = os.environ.get(cfg.get("databricks_host_env_var") or "DATABRICKS_HOST")
+    token = os.environ.get(cfg.get("databricks_token_env_var") or "DATABRICKS_TOKEN")
+    http_path = cfg.get("databricks_http_path")
+    if not host or not token or not http_path:
+        raise ValueError("KnowledgeGraphSearch: provider='sql_tables' sql_dialect='databricks' requires databricks_host_env_var/databricks_token_env_var (set in the environment) and databricks_http_path.")
+    from databricks import sql as databricks_sql
+    return databricks_sql.connect(server_hostname=host, http_path=http_path, access_token=token)
+
+
+def _maybe_json_list(value: Any) -> List[Any]:
+    """Array-typed columns come back as a native list from most connectors, but defensively
+    handle a JSON-encoded string too (wire-format details vary by connector/result-format
+    version) rather than assume one or the other."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        import json
+        try:
+            return json.loads(value)
+        except (TypeError, ValueError):
+            return []
+    return list(value)
+
+
+def _run_sql_tables_query(cfg: dict, sql: str) -> List[Dict[str, Any]]:
+    dialect = cfg.get("sql_dialect")
+    if dialect == "snowflake_cortex":
+        conn = _build_snowflake_connection(cfg)
+        try:
+            cur = conn.cursor()
+            cur.execute(sql)
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+        finally:
+            conn.close()
+    if dialect == "bigquery":
+        client = _build_bigquery_client(cfg)
+        result = client.query(sql).result()
+        return [dict(row.items()) for row in result]
+    if dialect == "databricks":
+        conn = _build_databricks_connection(cfg)
+        try:
+            cur = conn.cursor()
+            cur.execute(sql)
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+        finally:
+            conn.close()
+    raise ValueError(f"KnowledgeGraphSearch: provider='sql_tables' requires sql_dialect to be one of 'snowflake_cortex', 'bigquery', 'databricks'; got {dialect!r}.")
+
+
+def _sql_array_fns(dialect: str) -> Dict[str, Any]:
+    # "empty" is explicitly typed ARRAY<STRING> (not a bare `[]`/`array()`): BigQuery/Databricks
+    # infer an untyped empty array/literal's element type from context, and a recursive CTE's
+    # anchor and recursive terms must agree column-for-column -- an inferred type that doesn't
+    # match the recursive term's real STRING elements (relation names) raises a type-mismatch
+    # error (confirmed with a DuckDB stand-in; sqlglot's parse-only check can't catch this since
+    # it's a type error, not a syntax error). Snowflake's ARRAY holds heterogeneous VARIANT
+    # elements, so ARRAY_CONSTRUCT() has no such ambiguity.
+    if dialect == "bigquery":
+        return {"ctor": lambda x: f"[{x}]", "empty": "CAST([] AS ARRAY<STRING>)", "append": lambda arr, x: f"ARRAY_CONCAT({arr}, [{x}])", "contains": lambda arr, x: f"{x} IN UNNEST({arr})"}
+    if dialect == "databricks":
+        return {"ctor": lambda x: f"array({x})", "empty": "CAST(array() AS ARRAY<STRING>)", "append": lambda arr, x: f"concat({arr}, array({x}))", "contains": lambda arr, x: f"array_contains({arr}, {x})"}
+    return {"ctor": lambda x: f"ARRAY_CONSTRUCT({x})", "empty": "ARRAY_CONSTRUCT()", "append": lambda arr, x: f"ARRAY_APPEND({arr}, {x})",
+            "contains": lambda arr, x: f"ARRAY_CONTAINS(({x})::VARIANT, {arr})"}
+
+
+def _build_sql_neighbors_query(dialect: str, edges_tbl: str, name: str, hops: int, relation: Optional[str]) -> str:
+    # Databricks also supports a `) MAX RECURSION LEVEL n` safety clause (confirmed against its own
+    # docs), but it's not load-bearing here -- the `n.depth < hops` predicate below already bounds
+    # recursion to a SMALLER depth than that platform's own default (100) ever would, for every
+    # hops/max_hops value this component allows (capped at 3/6) -- and it's omitted since sqlglot
+    # 28.0.0 has no parser support for it (confirmed directly), so it can't be sqlglot-validated
+    # the way every other statement in this file is.
+    fns = _sql_array_fns(dialect)
+    qname = _sql_str(name)
+    other = "(CASE WHEN e.source = n.name THEN e.target ELSE e.source END)"
+    relation_filter = f"e.relation = {_sql_str(relation)}" if relation else "TRUE"
+    return (
+        f"WITH RECURSIVE neighbors (name, depth, path) AS (\n"
+        f"  SELECT {qname}, 0, {fns['ctor'](qname)}\n"
+        f"  UNION ALL\n"
+        f"  SELECT {other}, n.depth + 1, {fns['append']('n.path', other)}\n"
+        f"  FROM {edges_tbl} AS e JOIN neighbors AS n ON (e.source = n.name OR e.target = n.name)\n"
+        f"  WHERE n.depth < {int(hops)} AND {relation_filter} AND NOT {fns['contains']('n.path', other)}\n"
+        f")\n"
+        f"SELECT name, MIN(depth) AS depth FROM neighbors WHERE name != {qname} GROUP BY name ORDER BY depth"
+    )
+
+
+def _build_sql_path_query(dialect: str, edges_tbl: str, source: str, target: str, max_hops: int) -> str:
+    fns = _sql_array_fns(dialect)
+    qsource, qtarget = _sql_str(source), _sql_str(target)
+    other = "(CASE WHEN e.source = p.name THEN e.target ELSE e.source END)"
+    return (
+        f"WITH RECURSIVE paths (name, depth, path, rels) AS (\n"
+        f"  SELECT {qsource}, 0, {fns['ctor'](qsource)}, {fns['empty']}\n"
+        f"  UNION ALL\n"
+        f"  SELECT {other}, p.depth + 1, {fns['append']('p.path', other)}, {fns['append']('p.rels', 'e.relation')}\n"
+        f"  FROM {edges_tbl} AS e JOIN paths AS p ON (e.source = p.name OR e.target = p.name)\n"
+        f"  WHERE p.depth < {int(max_hops)} AND NOT {fns['contains']('p.path', other)}\n"
+        f")\n"
+        f"SELECT path, rels FROM paths WHERE name = {qtarget} ORDER BY depth LIMIT 1"
+    )
+
+
+def _build_sql_search_entities_query(nodes_tbl: str, query: str, type: Optional[str], limit: int) -> str:
+    q = _sql_str(f"%{query.lower()}%")
+    type_filter = f"AND type = {_sql_str(type)}" if type is not None else ""
+    return (f"SELECT id, name, type, mentions FROM {nodes_tbl} "
+            f"WHERE LOWER(name) LIKE {q} {type_filter} "
+            f"ORDER BY mentions DESC LIMIT {int(limit)}")
+
+
+def _build_sql_top_entities_query(nodes_tbl: str, type: Optional[str], limit: int) -> str:
+    type_filter = f"WHERE type = {_sql_str(type)} " if type is not None else ""
+    return f"SELECT name, type, mentions FROM {nodes_tbl} {type_filter}ORDER BY mentions DESC LIMIT {int(limit)}"
+
+
+def _build_sql_entity_relations_queries(edges_tbl: str, name: str) -> "Tuple[str, str]":
+    qname = _sql_str(name)
+    out_q = f"SELECT target AS other, relation, confidence, mention_count, evidence FROM {edges_tbl} WHERE source = {qname}"
+    in_q = f"SELECT source AS other, relation, confidence, mention_count, evidence FROM {edges_tbl} WHERE target = {qname}"
+    return out_q, in_q
+# END sql_tables read path
+
+
 def _check_required_env_var(var_name: Optional[str], *, label: str) -> None:
     if var_name and not os.environ.get(var_name):
         raise ValueError(
@@ -134,7 +309,7 @@ class KnowledgeGraphSearchResource(dg.ConfigurableResource):
     mutable state as a declared field without it becoming part of the schema, so the cache lives
     in a module-level dict keyed by id(self) instead)."""
 
-    provider: Literal["networkx", "neo4j", "falkordb"] = Field(default="networkx", description="Graph store the knowledge graph lives in.")
+    provider: Literal["networkx", "neo4j", "falkordb", "sql_tables"] = Field(default="networkx", description="Graph store the knowledge graph lives in.")
     path: Optional[str] = Field(default=None, description="networkx only: local JSON file path (written by KnowledgeGraphBuilderComponent's write_graph step).")
     uri: Optional[str] = Field(default=None, description="neo4j only: bolt/neo4j connection URI.")
     username_env_var: Optional[str] = Field(default=None, description="neo4j/falkordb: env var holding the username.")
@@ -144,6 +319,28 @@ class KnowledgeGraphSearchResource(dg.ConfigurableResource):
     port: int = Field(default=6379, description="falkordb only: Redis port.")
     graph_name: str = Field(default="knowledge_graph", description="neo4j/falkordb: the `graph` tag / FalkorDB graph key the builder wrote under. networkx: only used to name the default file path when `path` is unset.")
     max_results: int = Field(default=50, description="Cap on rows returned by search_entities/get_neighbors/top_entities.")
+    sql_dialect: Optional[str] = Field(default=None, description="sql_tables only: 'snowflake_cortex', 'bigquery', or 'databricks' -- same 3 dialects as knowledge_graph_builder's own execution_mode='sql'.")
+    output_table: Optional[str] = Field(default=None, description="sql_tables only: the base table name knowledge_graph_builder's write_graph step wrote under (reads <output_table>_nodes/<output_table>_edges).")
+    snowflake_account_env_var: str = Field(default="SNOWFLAKE_ACCOUNT", description="sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake account identifier.")
+    snowflake_user_env_var: str = Field(default="SNOWFLAKE_USER", description="sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake username.")
+    snowflake_password_env_var: Optional[str] = Field(default="SNOWFLAKE_PASSWORD", description="sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake password.")
+    snowflake_database: Optional[str] = Field(default=None, description="sql_tables + sql_dialect='snowflake_cortex': database name.")
+    snowflake_schema: Optional[str] = Field(default="PUBLIC", description="sql_tables + sql_dialect='snowflake_cortex': schema name.")
+    snowflake_warehouse: Optional[str] = Field(default=None, description="sql_tables + sql_dialect='snowflake_cortex': virtual warehouse. Uses the user default if unset.")
+    databricks_host_env_var: str = Field(default="DATABRICKS_HOST", description="sql_tables + sql_dialect='databricks': env var holding the workspace URL.")
+    databricks_token_env_var: str = Field(default="DATABRICKS_TOKEN", description="sql_tables + sql_dialect='databricks': env var holding a personal access token.")
+    databricks_http_path: Optional[str] = Field(default=None, description="sql_tables + sql_dialect='databricks': SQL warehouse HTTP path, e.g. /sql/1.0/warehouses/<id>.")
+    bigquery_project_id: Optional[str] = Field(default=None, description="sql_tables + sql_dialect='bigquery': GCP project for the BQ job. Defaults to the ambient credentials' project.")
+
+    def _sql_cfg(self) -> dict:
+        return {
+            "sql_dialect": self.sql_dialect, "output_table": self.output_table,
+            "snowflake_account_env_var": self.snowflake_account_env_var, "snowflake_user_env_var": self.snowflake_user_env_var,
+            "snowflake_password_env_var": self.snowflake_password_env_var, "snowflake_database": self.snowflake_database,
+            "snowflake_schema": self.snowflake_schema, "snowflake_warehouse": self.snowflake_warehouse,
+            "databricks_host_env_var": self.databricks_host_env_var, "databricks_token_env_var": self.databricks_token_env_var,
+            "databricks_http_path": self.databricks_http_path, "bigquery_project_id": self.bigquery_project_id,
+        }
 
     def _cfg(self) -> dict:
         return {
@@ -160,8 +357,20 @@ class KnowledgeGraphSearchResource(dg.ConfigurableResource):
             cache[key] = _build_networkx_graph(path)
         return cache[key]
 
+    def _sql_tables(self) -> "Tuple[str, str]":
+        if not self.output_table:
+            raise ValueError("KnowledgeGraphSearch: provider='sql_tables' requires `output_table` (the base name knowledge_graph_builder's write_graph step wrote under).")
+        if self.sql_dialect not in ("snowflake_cortex", "bigquery", "databricks"):
+            raise ValueError(f"KnowledgeGraphSearch: provider='sql_tables' requires sql_dialect to be one of 'snowflake_cortex', 'bigquery', 'databricks'; got {self.sql_dialect!r}.")
+        return _sql_tables_names(self.output_table, self.sql_dialect)
+
     def search_entities(self, query: str, type: Optional[str] = None) -> dict:
         q = query.lower()
+        if self.provider == "sql_tables":
+            nodes_tbl, _ = self._sql_tables()
+            sql = _build_sql_search_entities_query(nodes_tbl, query, type, self.max_results)
+            rows = _run_sql_tables_query(self._sql_cfg(), sql)
+            return {"entities": [{"name": r["name"], "type": r["type"], "mention_count": r["mentions"], "aliases": None} for r in rows]}
         if self.provider == "networkx":
             g = self._graph()
             hits = []
@@ -182,6 +391,19 @@ class KnowledgeGraphSearchResource(dg.ConfigurableResource):
         return {"entities": records}
 
     def get_entity(self, name: str) -> dict:
+        if self.provider == "sql_tables":
+            nodes_tbl, edges_tbl = self._sql_tables()
+            node_rows = _run_sql_tables_query(self._sql_cfg(), f"SELECT type, mentions FROM {nodes_tbl} WHERE id = {_sql_str(name)}")
+            if not node_rows:
+                return {"error": f"entity {name!r} not found"}
+            out_q, in_q = _build_sql_entity_relations_queries(edges_tbl, name)
+            out_rows = _run_sql_tables_query(self._sql_cfg(), out_q)
+            in_rows = _run_sql_tables_query(self._sql_cfg(), in_q)
+            relations = (
+                [{"direction": "out", "relation": r["relation"], "other": r["other"], "confidence": r["confidence"], "mention_count": r["mention_count"], "evidence": r["evidence"]} for r in out_rows]
+                + [{"direction": "in", "relation": r["relation"], "other": r["other"], "confidence": r["confidence"], "mention_count": r["mention_count"], "evidence": r["evidence"]} for r in in_rows]
+            )
+            return {"name": name, "type": node_rows[0]["type"], "aliases": None, "mention_count": node_rows[0]["mentions"], "relations": relations}
         if self.provider == "networkx":
             g = self._graph()
             if not g.has_node(name):
@@ -219,6 +441,17 @@ class KnowledgeGraphSearchResource(dg.ConfigurableResource):
 
     def get_neighbors(self, name: str, hops: int = 1, relation: Optional[str] = None) -> dict:
         hops = max(1, min(int(hops), 3))
+        if self.provider == "sql_tables":
+            nodes_tbl, edges_tbl = self._sql_tables()
+            sql = _build_sql_neighbors_query(self.sql_dialect, edges_tbl, name, hops, relation)
+            rows = _run_sql_tables_query(self._sql_cfg(), sql)
+            names = [r["name"] for r in rows]
+            types = {}
+            if names:
+                names_sql = ", ".join(_sql_str(n) for n in names)
+                types = {r["id"]: r["type"] for r in _run_sql_tables_query(self._sql_cfg(), f"SELECT id, type FROM {nodes_tbl} WHERE id IN ({names_sql})")}
+            results = [{"name": r["name"], "type": types.get(r["name"]), "distance": int(r["depth"])} for r in rows]
+            return {"neighbors": results[: self.max_results]}
         if self.provider == "networkx":
             g = self._graph()
             if not g.has_node(name):
@@ -255,6 +488,15 @@ class KnowledgeGraphSearchResource(dg.ConfigurableResource):
 
     def find_path(self, source: str, target: str, max_hops: int = 4) -> dict:
         max_hops = max(1, min(int(max_hops), 6))
+        if self.provider == "sql_tables":
+            _, edges_tbl = self._sql_tables()
+            sql = _build_sql_path_query(self.sql_dialect, edges_tbl, source, target, max_hops)
+            rows = _run_sql_tables_query(self._sql_cfg(), sql)
+            if not rows:
+                return {"path": None}
+            path = _maybe_json_list(rows[0]["path"])
+            rels = _maybe_json_list(rows[0]["rels"])
+            return {"path": path, "relations": rels}
         if self.provider == "networkx":
             import networkx as nx
             g = self._graph()
@@ -282,6 +524,11 @@ class KnowledgeGraphSearchResource(dg.ConfigurableResource):
         return {"path": records[0]["path"], "relations": records[0]["relations"]}
 
     def top_entities(self, type: Optional[str] = None) -> dict:
+        if self.provider == "sql_tables":
+            nodes_tbl, _ = self._sql_tables()
+            sql = _build_sql_top_entities_query(nodes_tbl, type, self.max_results)
+            rows = _run_sql_tables_query(self._sql_cfg(), sql)
+            return {"entities": [{"name": r["name"], "type": r["type"], "mention_count": r["mentions"]} for r in rows]}
         if self.provider == "networkx":
             g = self._graph()
             rows = [
@@ -356,7 +603,7 @@ class KnowledgeGraphSearchServerComponent(dg.Component, dg.Model, dg.Resolvable)
             "env vars). Any mcp_servers-aware component can then reference it via server_resource_key."
         ),
     )
-    provider: Literal["networkx", "neo4j", "falkordb"] = Field(default="networkx", description="Graph store the knowledge graph lives in.")
+    provider: Literal["networkx", "neo4j", "falkordb", "sql_tables"] = Field(default="networkx", description="Graph store the knowledge graph lives in.")
     path: Optional[str] = Field(default=None, description="networkx only: local JSON file path (written by KnowledgeGraphBuilderComponent's write_graph step).")
     uri: Optional[str] = Field(default=None, description="neo4j only: bolt/neo4j connection URI.")
     username_env_var: Optional[str] = Field(default=None, description="neo4j/falkordb: env var holding the username.")
@@ -366,6 +613,18 @@ class KnowledgeGraphSearchServerComponent(dg.Component, dg.Model, dg.Resolvable)
     port: int = Field(default=6379, description="falkordb only: Redis port.")
     graph_name: str = Field(default="knowledge_graph", description="neo4j/falkordb: the `graph` tag / FalkorDB graph key the builder wrote under. networkx: only used to name the default file path when `path` is unset.")
     max_results: int = Field(default=50, description="Cap on rows returned by search_entities/get_neighbors/top_entities.")
+    sql_dialect: Optional[str] = Field(default=None, description="sql_tables only: 'snowflake_cortex', 'bigquery', or 'databricks' -- same 3 dialects as knowledge_graph_builder's own execution_mode='sql'.")
+    output_table: Optional[str] = Field(default=None, description="sql_tables only: the base table name knowledge_graph_builder's write_graph step wrote under (reads <output_table>_nodes/<output_table>_edges).")
+    snowflake_account_env_var: str = Field(default="SNOWFLAKE_ACCOUNT", description="sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake account identifier.")
+    snowflake_user_env_var: str = Field(default="SNOWFLAKE_USER", description="sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake username.")
+    snowflake_password_env_var: Optional[str] = Field(default="SNOWFLAKE_PASSWORD", description="sql_tables + sql_dialect='snowflake_cortex': env var holding the Snowflake password.")
+    snowflake_database: Optional[str] = Field(default=None, description="sql_tables + sql_dialect='snowflake_cortex': database name.")
+    snowflake_schema: Optional[str] = Field(default="PUBLIC", description="sql_tables + sql_dialect='snowflake_cortex': schema name.")
+    snowflake_warehouse: Optional[str] = Field(default=None, description="sql_tables + sql_dialect='snowflake_cortex': virtual warehouse. Uses the user default if unset.")
+    databricks_host_env_var: str = Field(default="DATABRICKS_HOST", description="sql_tables + sql_dialect='databricks': env var holding the workspace URL.")
+    databricks_token_env_var: str = Field(default="DATABRICKS_TOKEN", description="sql_tables + sql_dialect='databricks': env var holding a personal access token.")
+    databricks_http_path: Optional[str] = Field(default=None, description="sql_tables + sql_dialect='databricks': SQL warehouse HTTP path, e.g. /sql/1.0/warehouses/<id>.")
+    bigquery_project_id: Optional[str] = Field(default=None, description="sql_tables + sql_dialect='bigquery': GCP project for the BQ job. Defaults to the ambient credentials' project.")
     inspection_asset_name: str = Field(default="knowledge_graph_search_tools", description="Asset key for the inspection asset reporting this server's configured settings.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -385,10 +644,21 @@ class KnowledgeGraphSearchServerComponent(dg.Component, dg.Model, dg.Resolvable)
     def build_defs(self, context: dg.ComponentLoadContext) -> Definitions:
         if self.provider == "neo4j" and not self.uri:
             raise ValueError("KnowledgeGraphSearchServerComponent: provider='neo4j' requires `uri`.")
+        if self.provider == "sql_tables":
+            if not self.output_table:
+                raise ValueError("KnowledgeGraphSearchServerComponent: provider='sql_tables' requires `output_table`.")
+            if self.sql_dialect not in ("snowflake_cortex", "bigquery", "databricks"):
+                raise ValueError("KnowledgeGraphSearchServerComponent: provider='sql_tables' requires sql_dialect to be one of 'snowflake_cortex', 'bigquery', 'databricks'.")
         resource = KnowledgeGraphSearchResource(
             provider=self.provider, path=self.path, uri=self.uri, username_env_var=self.username_env_var,
             password_env_var=self.password_env_var, database=self.database, host=self.host, port=self.port,
             graph_name=self.graph_name, max_results=self.max_results,
+            sql_dialect=self.sql_dialect, output_table=self.output_table,
+            snowflake_account_env_var=self.snowflake_account_env_var, snowflake_user_env_var=self.snowflake_user_env_var,
+            snowflake_password_env_var=self.snowflake_password_env_var, snowflake_database=self.snowflake_database,
+            snowflake_schema=self.snowflake_schema, snowflake_warehouse=self.snowflake_warehouse,
+            databricks_host_env_var=self.databricks_host_env_var, databricks_token_env_var=self.databricks_token_env_var,
+            databricks_http_path=self.databricks_http_path, bigquery_project_id=self.bigquery_project_id,
         )
         resources: Dict[str, Any] = {self.resource_key: resource}
 
@@ -409,10 +679,37 @@ class KnowledgeGraphSearchServerComponent(dg.Component, dg.Model, dg.Resolvable)
                 mcp_env["KNOWLEDGE_GRAPH_SEARCH_USERNAME_ENV_VAR"] = self.username_env_var
             if self.password_env_var:
                 mcp_env["KNOWLEDGE_GRAPH_SEARCH_PASSWORD_ENV_VAR"] = self.password_env_var
+            if self.provider == "sql_tables":
+                mcp_env["KNOWLEDGE_GRAPH_SEARCH_SQL_DIALECT"] = self.sql_dialect
+                mcp_env["KNOWLEDGE_GRAPH_SEARCH_OUTPUT_TABLE"] = self.output_table
+                mcp_env["KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_ACCOUNT_ENV_VAR"] = self.snowflake_account_env_var
+                mcp_env["KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_USER_ENV_VAR"] = self.snowflake_user_env_var
+                if self.snowflake_password_env_var:
+                    mcp_env["KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_PASSWORD_ENV_VAR"] = self.snowflake_password_env_var
+                if self.snowflake_database:
+                    mcp_env["KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_DATABASE"] = self.snowflake_database
+                if self.snowflake_schema:
+                    mcp_env["KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_SCHEMA"] = self.snowflake_schema
+                if self.snowflake_warehouse:
+                    mcp_env["KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_WAREHOUSE"] = self.snowflake_warehouse
+                mcp_env["KNOWLEDGE_GRAPH_SEARCH_DATABRICKS_HOST_ENV_VAR"] = self.databricks_host_env_var
+                mcp_env["KNOWLEDGE_GRAPH_SEARCH_DATABRICKS_TOKEN_ENV_VAR"] = self.databricks_token_env_var
+                if self.databricks_http_path:
+                    mcp_env["KNOWLEDGE_GRAPH_SEARCH_DATABRICKS_HTTP_PATH"] = self.databricks_http_path
+                if self.bigquery_project_id:
+                    mcp_env["KNOWLEDGE_GRAPH_SEARCH_BIGQUERY_PROJECT_ID"] = self.bigquery_project_id
+            passthrough = [v for v in (
+                self.username_env_var, self.password_env_var,
+                self.snowflake_account_env_var if self.provider == "sql_tables" else None,
+                self.snowflake_user_env_var if self.provider == "sql_tables" else None,
+                self.snowflake_password_env_var if self.provider == "sql_tables" else None,
+                self.databricks_host_env_var if self.provider == "sql_tables" else None,
+                self.databricks_token_env_var if self.provider == "sql_tables" else None,
+            ) if v]
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key, type="stdio",
                 command=[sys.executable, "-m", _this_module_name()], env=mcp_env,
-                live_env_passthrough=[v for v in (self.username_env_var, self.password_env_var) if v],
+                live_env_passthrough=passthrough,
             )
 
         tags = dict(self.asset_tags or {})
@@ -499,7 +796,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     """Env: KNOWLEDGE_GRAPH_SEARCH_PROVIDER (default networkx), KNOWLEDGE_GRAPH_SEARCH_PATH
     (networkx), KNOWLEDGE_GRAPH_SEARCH_URI/_USERNAME_ENV_VAR/_PASSWORD_ENV_VAR/_DATABASE (neo4j),
     KNOWLEDGE_GRAPH_SEARCH_HOST/_PORT (falkordb), KNOWLEDGE_GRAPH_SEARCH_GRAPH_NAME,
-    KNOWLEDGE_GRAPH_SEARCH_MAX_RESULTS (default 50)."""
+    KNOWLEDGE_GRAPH_SEARCH_MAX_RESULTS (default 50). provider='sql_tables':
+    KNOWLEDGE_GRAPH_SEARCH_SQL_DIALECT, _OUTPUT_TABLE, _SNOWFLAKE_ACCOUNT_ENV_VAR/_USER_ENV_VAR/
+    _PASSWORD_ENV_VAR/_DATABASE/_SCHEMA/_WAREHOUSE, _DATABRICKS_HOST_ENV_VAR/_TOKEN_ENV_VAR/
+    _HTTP_PATH, _BIGQUERY_PROJECT_ID."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
     resource = KnowledgeGraphSearchResource(
         provider=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_PROVIDER", "networkx"),
@@ -512,6 +812,18 @@ def main(argv: Optional[List[str]] = None) -> None:
         port=int(os.environ.get("KNOWLEDGE_GRAPH_SEARCH_PORT", "6379")),
         graph_name=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_GRAPH_NAME", "knowledge_graph"),
         max_results=int(os.environ.get("KNOWLEDGE_GRAPH_SEARCH_MAX_RESULTS", "50")),
+        sql_dialect=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_SQL_DIALECT"),
+        output_table=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_OUTPUT_TABLE"),
+        snowflake_account_env_var=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_ACCOUNT_ENV_VAR", "SNOWFLAKE_ACCOUNT"),
+        snowflake_user_env_var=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_USER_ENV_VAR", "SNOWFLAKE_USER"),
+        snowflake_password_env_var=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_PASSWORD_ENV_VAR", "SNOWFLAKE_PASSWORD"),
+        snowflake_database=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_DATABASE"),
+        snowflake_schema=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_SCHEMA", "PUBLIC"),
+        snowflake_warehouse=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_SNOWFLAKE_WAREHOUSE"),
+        databricks_host_env_var=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_DATABRICKS_HOST_ENV_VAR", "DATABRICKS_HOST"),
+        databricks_token_env_var=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_DATABRICKS_TOKEN_ENV_VAR", "DATABRICKS_TOKEN"),
+        databricks_http_path=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_DATABRICKS_HTTP_PATH"),
+        bigquery_project_id=os.environ.get("KNOWLEDGE_GRAPH_SEARCH_BIGQUERY_PROJECT_ID"),
     )
     build_mcp_server(resource).run(transport="stdio")
 

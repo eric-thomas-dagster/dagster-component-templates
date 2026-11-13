@@ -1,2 +1,33 @@
-pandas
-networkx
+pandas>=1.5.0
+networkx>=2.8  # write_graph provider='networkx' (default)
+
+# extract op method='llm' (default), resolve op llm_adjudication=True:
+#   pip install litellm
+
+# extract op method='spacy':
+#   pip install spacy
+#   python -m spacy download en_core_web_sm
+
+# resolve op embedding_similarity_threshold set, embed_provider='sentence_transformers' (default):
+#   pip install sentence-transformers
+# resolve op embed_provider='openai':
+#   pip install openai
+# resolve op embed_provider='cohere':
+#   pip install cohere
+# resolve op embed_provider='litellm':
+#   pip install litellm
+
+# write_graph op provider='neo4j':
+#   pip install neo4j
+# write_graph op provider='falkordb':
+#   pip install falkordb
+
+# source: {kind: warehouse_query, resource_key: ...} against a registered Dagster resource:
+#   (no extra pip deps here -- the resource itself, e.g. dagster-duckdb/dagster-snowflake, is the user's own dependency)
+# source: {kind: warehouse_query, database_url_env_var: ...} (bare SQLAlchemy, no Dagster resource):
+#   pip install sqlalchemy   # plus the dialect for your warehouse (psycopg2, snowflake-sqlalchemy, etc.)
+
+# execution_mode='sql': no extra pip deps -- SQL runs server-side via the warehouse's own
+# resource (snowflake_resource / bigquery_resource / databricks resource), which must already
+# be registered. sqlglot is used only by this component's own test suite to validate generated
+# SQL syntax, never at runtime.

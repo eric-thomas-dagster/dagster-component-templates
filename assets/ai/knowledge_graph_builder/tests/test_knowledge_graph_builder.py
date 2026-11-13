@@ -126,6 +126,206 @@ def test_extract_spacy_raises_clear_import_error_when_spacy_missing(mod):
         mod._do_extract(_chunk_df(), {"method": "spacy"}, "doc_id", _Logger())
 
 
+# ─── extract: entity_filter (noise reduction) ──────────────────────────────
+# Real production evidence (docs.dagster.io, method='spacy', min_mentions: 2): the top
+# "entities" by mention count were "you" (1766), "that" (1208), "we" (689), a zero-width
+# space (631), "it" (492), "which" (468) -- pronouns/determiners/invisible characters, not
+# real entities. entity_filter='basic' (default) drops these; 'none' restores old behavior.
+
+def test_entity_text_is_noisy_catches_pronouns_zero_width_space_and_short_text(mod):
+    assert mod._entity_text_is_noisy("you", 3) is True  # pronoun
+    assert mod._entity_text_is_noisy("​", 3) is True  # zero-width space: no alphabetic char
+    assert mod._entity_text_is_noisy("ab", 3) is True  # shorter than min_entity_chars
+    assert mod._entity_text_is_noisy("", 3) is True
+    assert mod._entity_text_is_noisy("   ", 3) is True
+    assert mod._entity_text_is_noisy("Acme", 3) is False
+
+
+class _FakeLexeme:
+    def __init__(self, is_oov):
+        self.is_oov = is_oov
+
+
+class _FakeVocab:
+    """Fakes just enough of spaCy's Vocab for _is_real_word: `len(vocab.vectors)` and
+    `vocab[lemma].is_oov`."""
+    def __init__(self, n_vectors, oov_lemmas=()):
+        self.vectors = [None] * n_vectors
+        self._oov_lemmas = set(oov_lemmas)
+
+    def __getitem__(self, lemma):
+        return _FakeLexeme(is_oov=lemma in self._oov_lemmas)
+
+
+def test_is_real_word_requires_alphabetic_lemma(mod):
+    assert mod._is_real_word("", _FakeVocab(0)) is False
+    assert mod._is_real_word("123", _FakeVocab(0)) is False
+
+
+def test_is_real_word_with_no_vectors_is_a_no_op(mod):
+    # en_core_web_sm (this component's default spacy_model) ships with no word vectors --
+    # is_oov is unreliable for it, so the check must not flag every lemma as fake.
+    vocab = _FakeVocab(n_vectors=0)
+    assert mod._is_real_word("dependencie", vocab) is True
+
+
+def test_is_real_word_with_vectors_flags_oov_lemma(mod):
+    vocab = _FakeVocab(n_vectors=1, oov_lemmas={"dependencie"})
+    assert mod._is_real_word("dependencie", vocab) is False
+    assert mod._is_real_word("dependency", vocab) is True
+
+
+def test_extract_llm_entity_filter_basic_drops_pronoun_entities(mod, monkeypatch):
+    def fake_completion(model, messages, api_key, temperature):
+        payload = [
+            {"subject": "you", "relation": "use", "object": "Acme Corp", "confidence": 0.9, "evidence": "e"},
+            {"subject": "Alice", "relation": "works_at", "object": "Acme Corp", "confidence": 0.9, "evidence": "e"},
+        ]
+        return _FakeResponse(json.dumps(payload))
+
+    import litellm
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    out = mod._do_extract(_chunk_df(), {"method": "llm", "model": "gpt-4o-mini"}, "doc_id", _Logger())
+    assert set(out["subject"]) == {"Alice"}  # "you" dropped from both chunks
+    assert out.attrs["filter_counts"] == {"entities_filtered": 2, "triples_filtered": 2}
+
+
+def test_extract_llm_entity_filter_none_keeps_pronoun_entities(mod, monkeypatch):
+    def fake_completion(model, messages, api_key, temperature):
+        return _FakeResponse(json.dumps([{"subject": "you", "relation": "use", "object": "Acme Corp", "confidence": 0.9, "evidence": "e"}]))
+
+    import litellm
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    out = mod._do_extract(_chunk_df(), {"method": "llm", "model": "gpt-4o-mini", "entity_filter": "none"}, "doc_id", _Logger())
+    assert "you" in set(out["subject"])
+    assert out.attrs["filter_counts"] == {"entities_filtered": 0, "triples_filtered": 0}
+
+
+def test_extract_llm_entity_filter_must_be_basic_or_none(mod):
+    with pytest.raises(ValueError, match="entity_filter must be"):
+        mod._do_extract(_chunk_df(), {"method": "llm", "model": "x", "entity_filter": "bogus"}, "doc_id", _Logger())
+
+
+class _FakeToken:
+    """Fakes just enough of a spaCy Token for _extract_spacy_sentence: .text, .pos_, .dep_,
+    .i (index in the sentence, used by _entity_span_at), .lemma_, .is_stop, and .children
+    (iterated directly, not a real spaCy Children generator)."""
+    def __init__(self, text, pos_, dep_, i, lemma_=None, is_stop=False, children=()):
+        self.text = text
+        self.pos_ = pos_
+        self.dep_ = dep_
+        self.i = i
+        self.lemma_ = lemma_ if lemma_ is not None else text.lower()
+        self.is_stop = is_stop
+        self.children = list(children)
+
+
+class _FakeSpan:
+    """Fakes just enough of a spaCy entity Span for _extract_spacy_sentence: .text, .label_,
+    .root (the span's syntactic head token), .start/.end (token index range)."""
+    def __init__(self, text, label_, root, start, end):
+        self.text = text
+        self.label_ = label_
+        self.root = root
+        self.start = start
+        self.end = end
+
+
+class _FakeSent:
+    def __init__(self, tokens, text):
+        self._tokens = tokens
+        self.text = text
+
+    def __iter__(self):
+        return iter(self._tokens)
+
+
+def _pronoun_sentence():
+    """'You use that.' -- a pronoun subject and a pronoun object, no named entities
+    recognized (matches the real evidence: pronouns are extracted as raw dependency-parse
+    children, never as spaCy NER spans, so they only ever reach this filter as raw tokens)."""
+    subj = _FakeToken("You", pos_="PRON", dep_="nsubj", i=0, is_stop=True)
+    verb = _FakeToken("use", pos_="VERB", dep_="ROOT", i=1, lemma_="use")
+    obj = _FakeToken("that", pos_="PRON", dep_="dobj", i=2, is_stop=True)
+    verb.children = [subj, obj]
+    return _FakeSent([subj, verb, obj], "You use that.")
+
+
+def test_extract_spacy_sentence_basic_filter_drops_pronoun_subject_and_object(mod):
+    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(_pronoun_sentence(), ents=[], entity_filter="basic")
+    assert triples == []
+    assert entities_filtered == 2
+    assert triples_filtered == 1
+
+
+def test_extract_spacy_sentence_none_filter_keeps_pronoun_nodes(mod):
+    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(_pronoun_sentence(), ents=[], entity_filter="none")
+    assert len(triples) == 1
+    assert triples[0]["subject"] == "You"
+    assert triples[0]["object"] == "that"
+    assert entities_filtered == 0
+    assert triples_filtered == 0
+
+
+def _real_entity_sentence():
+    """'Dagster orchestrates pipelines.' -- a PROPN subject and a NOUN object, both real
+    entities entity_filter='basic' must keep."""
+    subj = _FakeToken("Dagster", pos_="PROPN", dep_="nsubj", i=0)
+    verb = _FakeToken("orchestrates", pos_="VERB", dep_="ROOT", i=1, lemma_="orchestrate")
+    obj = _FakeToken("pipelines", pos_="NOUN", dep_="dobj", i=2)
+    verb.children = [subj, obj]
+    return _FakeSent([subj, verb, obj], "Dagster orchestrates pipelines.")
+
+
+def test_extract_spacy_sentence_basic_filter_keeps_propn_and_noun_entities(mod):
+    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(_real_entity_sentence(), ents=[], entity_filter="basic")
+    assert len(triples) == 1
+    assert triples[0]["subject"] == "Dagster"
+    assert triples[0]["object"] == "pipelines"
+    assert entities_filtered == 0
+    assert triples_filtered == 0
+
+
+def test_extract_spacy_sentence_basic_filter_checks_entity_span_root_pos(mod):
+    """When spaCy's NER recognizes a multi-token span ("Acme Corp"), the POS check applies
+    to the span's root token (its syntactic head), not the raw dependency-parse child token
+    the span happened to be found at."""
+    root_tok = _FakeToken("Corp", pos_="PROPN", dep_="ROOT", i=2)
+    raw_obj_tok = _FakeToken("Acme", pos_="PROPN", dep_="dobj", i=1)
+    span = _FakeSpan("Acme Corp", "ORG", root=root_tok, start=1, end=3)
+    subj = _FakeToken("Alice", pos_="PROPN", dep_="nsubj", i=0)
+    verb = _FakeToken("founded", pos_="VERB", dep_="ROOT", i=3, lemma_="found")
+    verb.children = [subj, raw_obj_tok]
+    sent = _FakeSent([subj, verb, raw_obj_tok], "Alice founded Acme Corp.")
+    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(sent, ents=[span], entity_filter="basic")
+    assert len(triples) == 1
+    assert triples[0]["object"] == "Acme Corp"
+    assert triples[0]["object_type"] == "ORG"
+    assert entities_filtered == 0
+
+
+def test_extract_spacy_sentence_basic_filter_drops_relation_with_unreal_lemma(mod):
+    vocab = _FakeVocab(n_vectors=1, oov_lemmas={"orchestrix"})
+    sent = _real_entity_sentence()
+    sent._tokens[1].lemma_ = "orchestrix"  # a lemmatizer artifact, not a real word
+    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", vocab=vocab)
+    assert triples == []
+    assert triples_filtered == 1
+
+
+def test_extract_spacy_sentence_respects_custom_entity_pos_and_min_entity_chars(mod):
+    subj = _FakeToken("AI", pos_="PROPN", dep_="nsubj", i=0)  # 2 chars, under the default min_entity_chars=3
+    verb = _FakeToken("helps", pos_="VERB", dep_="ROOT", i=1, lemma_="help")
+    obj = _FakeToken("teams", pos_="NOUN", dep_="dobj", i=2)
+    verb.children = [subj, obj]
+    sent = _FakeSent([subj, verb, obj], "AI helps teams.")
+    triples, _, triples_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic")
+    assert triples == []  # "AI" is shorter than the default min_entity_chars=3
+    assert triples_filtered == 1
+    triples, _, triples_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", min_entity_chars=2)
+    assert len(triples) == 1  # with a lower min_entity_chars, "AI" now qualifies
+
+
 # ─── resolve ────────────────────────────────────────────────────────────────
 
 def _triples_df():

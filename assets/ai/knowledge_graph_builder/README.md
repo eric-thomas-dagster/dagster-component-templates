@@ -81,6 +81,20 @@ attributes:
   dependency-parse-based subject-verb-object extraction over named
   entities -- no API key, modest precision, reports no calibrated
   confidence so `min_confidence` is ignored). Each output row is ONE triple.
+  `entity_filter: basic` (default) drops noise before it ever reaches
+  `resolve`/`write_graph`: entities that are pronouns/determiners/stop
+  words (e.g. "you", "that", "it"), shorter than `min_entity_chars`
+  (default 3), or with no alphabetic character at all (catches a
+  zero-width space and other invisible/punctuation-only text); for
+  `method: spacy` specifically, an entity is additionally kept only if its
+  head token's part of speech is in `entity_pos` (default `[PROPN, NOUN]`
+  -- this is what excludes pronoun/determiner subjects and objects), and a
+  relation is dropped if its verb lemma isn't a real word (catches
+  lemmatizer artifacts like "dependencie"). `entity_filter: none` restores
+  the old unfiltered behavior. `resolve`'s `min_mentions` is always applied
+  to the already-filtered triples, since `resolve` reads `extract`'s output
+  as its input step. The run's `extraction_settings` metadata reports
+  `entity_filter`, `entities_filtered`, and `triples_filtered`.
 - **`resolve`**: always merges exact case/punctuation-normalized aliases
   within the same entity type; optionally also merges near-duplicate names
   above `embedding_similarity_threshold` (cosine similarity of name

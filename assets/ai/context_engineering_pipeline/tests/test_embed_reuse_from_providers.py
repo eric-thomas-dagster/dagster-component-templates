@@ -101,3 +101,30 @@ def test_lancedb_reuse_from_real(mod, tmp_path):
     assert out.attrs["stats"]["embeddings_reused"] == 1
     # lancedb stores vectors as float32 -- a real precision artifact on round-trip, not a bug.
     assert list(out["embedding"])[0] == pytest.approx([0.1, 0.2], abs=1e-6)
+    # Real bug: embedding_model used to be hardcoded None in this all-reused case (nothing was
+    # freshly embedded this run) -- the configured model is still a known, static fact and must
+    # always be reported, not just when a fresh embedding call happened to run.
+    assert out.attrs["stats"]["embedding_model"] == "m"
+    assert out.attrs["stats"]["embeddings_computed"] == 0
+
+
+def test_all_reused_still_reports_the_provider_default_model_name(mod, tmp_path):
+    """Same all-reused scenario, but `model` is left unset -- embedding_model must report the
+    resolved provider default ('all-MiniLM-L6-v2' for sentence_transformers), not None."""
+    import lancedb
+
+    digest_unchanged = hashlib.sha256(b"unchanged text").hexdigest()
+    db = lancedb.connect(str(tmp_path / "lance"))
+    seed = pd.DataFrame({
+        "chunk_id": ["c1"], "vector": [[0.1, 0.2]],
+        "content_hash": [digest_unchanged], "embedding_model": ["all-MiniLM-L6-v2"],
+    })
+    db.create_table("kb", seed, mode="overwrite")
+
+    df = _df(["c1"], ["unchanged text"])
+    out = mod._do_embed(df, {
+        "provider": "sentence_transformers",
+        "reuse_from": {"provider": "lancedb", "collection_name": "kb", "connection_string": str(tmp_path / "lance")},
+    }, _FakeCtx())
+
+    assert out.attrs["stats"]["embedding_model"] == "all-MiniLM-L6-v2"

@@ -37516,8 +37516,8 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "pandas",
-          "networkx"
+          "pandas>=1.5.0",
+          "networkx>=2.8"
         ]
       },
       "icon": "AccountTree",
@@ -37531,7 +37531,10 @@
         "side_effects": "Writes to the configured graph store (local file, or a real neo4j/falkordb database). sync_mode='replace_all' deletes the whole graph first -- refused when the asset is partitioned.",
         "anti_uses": "Not a retrieval/search interface itself -- pair with knowledge_graph_search_server to let an agent query the resulting graph. extract method='llm' calls a real model per chunk (cost scales with chunk count); use reuse_from to avoid re-paying for unchanged chunks on rebuild.",
         "input_type": "pd.DataFrame",
-        "output_type": "pd.DataFrame"
+        "output_type": "pd.DataFrame",
+        "requires_pip": [
+          "litellm (extract method=\"llm\", the default)"
+        ]
       },
       "produces": [
         "asset"
@@ -37544,7 +37547,40 @@
         "neo4j",
         "networkx",
         "falkordb"
-      ]
+      ],
+      "option_requirements": {
+        "extract.method=llm": [
+          "litellm>=1.30.0"
+        ],
+        "extract.method=spacy": [
+          "spacy",
+          "en_core_web_sm (python -m spacy download en_core_web_sm)"
+        ],
+        "resolve.embedding_similarity_threshold=<set>": [
+          "sentence-transformers"
+        ],
+        "resolve.embed_provider=openai": [
+          "openai"
+        ],
+        "resolve.embed_provider=cohere": [
+          "cohere"
+        ],
+        "resolve.embed_provider=litellm": [
+          "litellm>=1.30.0"
+        ],
+        "resolve.llm_adjudication=true": [
+          "litellm>=1.30.0"
+        ],
+        "write_graph.provider=neo4j": [
+          "neo4j"
+        ],
+        "write_graph.provider=falkordb": [
+          "falkordb"
+        ],
+        "source.kind=warehouse_query,database_url_env_var=<set>": [
+          "sqlalchemy"
+        ]
+      }
     },
     {
       "id": "knowledge_graph_search_query",

@@ -148,6 +148,53 @@ def _extract_json_block(text: str) -> Any:
     raise ValueError(f"no valid JSON found in text: {text[:200]!r}")
 
 
+# ── extract op: entity_filter='basic' noise reduction ───────────────────────────────────────
+# Real production evidence (docs.dagster.io, method='spacy', min_mentions: 2): the top
+# "entities" by mention count were "you" (1766), "that" (1208), "we" (689), a zero-width
+# space (631), "it" (492), "which" (468) -- every one a pronoun/determiner/stopword or
+# invisible character that spaCy's NER didn't recognize as a real entity, so extraction fell
+# back to the raw token text. entity_filter='basic' (the extract step's default) drops these
+# before they ever reach resolve/write_graph; entity_filter='none' restores the old behavior.
+_STOPWORD_ENTITY_BLOCKLIST = {
+    "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",
+    "this", "that", "these", "those", "who", "whom", "which", "what",
+    "a", "an", "the", "some", "any", "no", "all", "each", "every", "either", "neither",
+    "my", "your", "his", "its", "our", "their", "mine", "yours", "ours", "theirs",
+    "here", "there", "something", "someone", "anything", "anyone", "nothing", "everything",
+}
+
+
+def _entity_text_is_noisy(text: Optional[str], min_entity_chars: int) -> bool:
+    """Text-only noise check -- the part of entity_filter='basic' that applies to EVERY
+    extract method (method='llm' triples have no POS tags to check; method='spacy' triples
+    get this plus the richer POS-based checks in _extract_spacy_sentence below). True when
+    `text` is empty/whitespace-only, has no alphabetic character at all (catches a zero-width
+    space and other invisible/punctuation-only text), is shorter than `min_entity_chars`, or
+    is a common pronoun/determiner/stopword."""
+    stripped = (text or "").strip()
+    if not stripped:
+        return True
+    if not any(c.isalpha() for c in stripped):
+        return True
+    if len(stripped) < min_entity_chars:
+        return True
+    return stripped.lower() in _STOPWORD_ENTITY_BLOCKLIST
+
+
+def _is_real_word(lemma: str, vocab) -> bool:
+    """Best-effort 'is this verb lemma a real word, not a lemmatizer artifact' check for
+    entity_filter='basic'. Always requires the lemma to be alphabetic. Beyond that: only
+    meaningful for a spaCy model with real word vectors (en_core_web_md/lg) -- en_core_web_sm
+    (this component's default spacy_model) ships with NO word vectors, so `is_oov` is True for
+    virtually every token in it regardless of validity, making the check a no-op for sm models
+    rather than a false positive flood."""
+    if not lemma or not lemma.isalpha():
+        return False
+    if len(vocab.vectors) == 0:
+        return True
+    return not vocab[lemma].is_oov
+
+
 def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
     """Execute SQL via a Dagster resource exposing .get_engine() (SQLAlchemy), .get_connection()
     (DBAPI), or .get_client() (vendor client), or a bare SQLAlchemy engine built from
@@ -927,9 +974,15 @@ def _extract_llm(df: pd.DataFrame, step: dict, id_column: str, text_column: str,
     relation_types = step.get("relation_types")
     min_confidence = float(step.get("min_confidence", 0.0))
     max_triples_per_chunk = step.get("max_triples_per_chunk")
+    entity_filter = step.get("entity_filter", "basic")
+    if entity_filter not in ("basic", "none"):
+        raise ValueError(f"extract op: entity_filter must be 'basic' or 'none', got {entity_filter!r}")
+    min_entity_chars = int(step.get("min_entity_chars", 3))
 
     rows: List[Dict[str, Any]] = []
     errors = 0
+    entities_filtered = 0
+    triples_filtered = 0
     for _, row in df.iterrows():
         text = str(row[text_column]) if pd.notna(row.get(text_column)) else ""
         if not text.strip():
@@ -955,21 +1008,31 @@ def _extract_llm(df: pd.DataFrame, step: dict, id_column: str, text_column: str,
                 confidence = None
             if confidence is not None and confidence < min_confidence:
                 continue
+            subject_text, object_text = str(t["subject"]).strip(), str(t["object"]).strip()
+            if entity_filter == "basic":
+                subj_noisy = _entity_text_is_noisy(subject_text, min_entity_chars)
+                obj_noisy = _entity_text_is_noisy(object_text, min_entity_chars)
+                if subj_noisy or obj_noisy:
+                    entities_filtered += int(subj_noisy) + int(obj_noisy)
+                    triples_filtered += 1
+                    continue
             rows.append({
                 id_column: row[id_column],
                 "chunk_id": row.get("chunk_id"),
                 "content_hash": row.get("content_hash"),
-                "subject": str(t["subject"]).strip(),
+                "subject": subject_text,
                 "subject_type": (str(t["subject_type"]).strip() if t.get("subject_type") else None),
                 "relation": str(t["relation"]).strip(),
-                "object": str(t["object"]).strip(),
+                "object": object_text,
                 "object_type": (str(t["object_type"]).strip() if t.get("object_type") else None),
                 "confidence": confidence,
                 "evidence": (str(t.get("evidence")).strip() if t.get("evidence") else text[:300]),
             })
     if errors:
         context.log.warning(f"extract (llm): {errors} chunk(s) failed extraction and were skipped")
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    out.attrs["filter_counts"] = {"entities_filtered": entities_filtered, "triples_filtered": triples_filtered}
+    return out
 
 
 def _load_spacy(spacy_model: str):
@@ -992,11 +1055,31 @@ def _entity_span_at(token, ents) -> Optional[Any]:
     return None
 
 
-def _extract_spacy_sentence(sent, ents) -> List[Dict[str, Any]]:
+def _extract_spacy_sentence(
+    sent,
+    ents,
+    entity_filter: str = "basic",
+    min_entity_chars: int = 3,
+    entity_pos: Tuple[str, ...] = ("PROPN", "NOUN"),
+    vocab=None,
+) -> Tuple[List[Dict[str, Any]], int, int]:
     """Dependency-parse SVO extraction: for each verb, pair its nsubj/nsubjpass child with its
     dobj/attr/oprd child (or, failing that, the object of its first prepositional child). Simple
-    and local, not a calibrated extractor -- documented as heuristic, no confidence is reported."""
+    and local, not a calibrated extractor -- documented as heuristic, no confidence is reported.
+
+    entity_filter='basic' (default): an entity is kept only if its head token's POS is in
+    `entity_pos` (PROPN/NOUN by default -- this alone excludes PRON/DET, so "you"/"that"/"this"
+    never qualify as entities), it isn't a stop word, and its text passes the same length/alpha/
+    stopword-blocklist check used by the llm extractor (`_entity_text_is_noisy`). The entity's
+    "head" is `ent.root` when spaCy's NER recognized it as a named-entity span, or the raw token
+    itself when extraction fell back to a bare dependency-parse child (the common case for the
+    noise this filter targets -- a pronoun subject is never a named entity, so it only ever
+    reaches this check as a raw token). A relation is additionally dropped if its lemma isn't a
+    real word per `_is_real_word` (catches lemmatizer artifacts like "dependencie").
+    Returns (triples, entities_filtered, triples_filtered)."""
     triples = []
+    entities_filtered = 0
+    triples_filtered = 0
     for token in sent:
         if token.pos_ != "VERB":
             continue
@@ -1010,15 +1093,39 @@ def _extract_spacy_sentence(sent, ents) -> List[Dict[str, Any]]:
             continue
         subj_ent = _entity_span_at(subj, ents)
         obj_ent = _entity_span_at(obj, ents)
+        subject_text = subj_ent.text if subj_ent is not None else subj.text
+        object_text = obj_ent.text if obj_ent is not None else obj.text
+
+        if entity_filter == "basic":
+            subj_head = subj_ent.root if subj_ent is not None else subj
+            obj_head = obj_ent.root if obj_ent is not None else obj
+            subj_noisy = (
+                _entity_text_is_noisy(subject_text, min_entity_chars)
+                or subj_head.is_stop
+                or subj_head.pos_ not in entity_pos
+            )
+            obj_noisy = (
+                _entity_text_is_noisy(object_text, min_entity_chars)
+                or obj_head.is_stop
+                or obj_head.pos_ not in entity_pos
+            )
+            if subj_noisy or obj_noisy:
+                entities_filtered += int(subj_noisy) + int(obj_noisy)
+                triples_filtered += 1
+                continue
+            if vocab is not None and not _is_real_word(token.lemma_, vocab):
+                triples_filtered += 1
+                continue
+
         triples.append({
-            "subject": subj_ent.text if subj_ent is not None else subj.text,
+            "subject": subject_text,
             "subject_type": subj_ent.label_ if subj_ent is not None else None,
             "relation": token.lemma_,
-            "object": obj_ent.text if obj_ent is not None else obj.text,
+            "object": object_text,
             "object_type": obj_ent.label_ if obj_ent is not None else None,
             "evidence": sent.text.strip()[:300],
         })
-    return triples
+    return triples, entities_filtered, triples_filtered
 
 
 def _extract_spacy(df: pd.DataFrame, step: dict, id_column: str, text_column: str, context) -> pd.DataFrame:
@@ -1026,8 +1133,15 @@ def _extract_spacy(df: pd.DataFrame, step: dict, id_column: str, text_column: st
         context.log.warning("extract (spacy): min_confidence is ignored -- spaCy's dependency-parse extraction reports no calibrated confidence.")
     nlp = _load_spacy(step.get("spacy_model", "en_core_web_sm"))
     max_triples_per_chunk = step.get("max_triples_per_chunk")
+    entity_filter = step.get("entity_filter", "basic")
+    if entity_filter not in ("basic", "none"):
+        raise ValueError(f"extract op: entity_filter must be 'basic' or 'none', got {entity_filter!r}")
+    min_entity_chars = int(step.get("min_entity_chars", 3))
+    entity_pos = tuple(step.get("entity_pos") or ("PROPN", "NOUN"))
 
     rows: List[Dict[str, Any]] = []
+    entities_filtered = 0
+    triples_filtered = 0
     for _, row in df.iterrows():
         text = str(row[text_column]) if pd.notna(row.get(text_column)) else ""
         if not text.strip():
@@ -1035,7 +1149,13 @@ def _extract_spacy(df: pd.DataFrame, step: dict, id_column: str, text_column: st
         doc = nlp(text)
         triples: List[Dict[str, Any]] = []
         for sent in doc.sents:
-            triples.extend(_extract_spacy_sentence(sent, list(doc.ents)))
+            sent_triples, sent_entities_filtered, sent_triples_filtered = _extract_spacy_sentence(
+                sent, list(doc.ents), entity_filter=entity_filter, min_entity_chars=min_entity_chars,
+                entity_pos=entity_pos, vocab=nlp.vocab,
+            )
+            triples.extend(sent_triples)
+            entities_filtered += sent_entities_filtered
+            triples_filtered += sent_triples_filtered
             if max_triples_per_chunk is not None and len(triples) >= int(max_triples_per_chunk):
                 break
         if max_triples_per_chunk is not None:
@@ -1051,7 +1171,9 @@ def _extract_spacy(df: pd.DataFrame, step: dict, id_column: str, text_column: st
                 "confidence": None,
                 "evidence": t["evidence"],
             })
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    out.attrs["filter_counts"] = {"entities_filtered": entities_filtered, "triples_filtered": triples_filtered}
+    return out
 
 
 def _reuse_extraction(step: dict, chunk_ids_with_hash: Dict[str, str], id_column: str, context) -> Tuple[pd.DataFrame, set]:
@@ -1089,11 +1211,13 @@ def _do_extract(df: pd.DataFrame, step: dict, id_column: str, context) -> pd.Dat
             to_extract = df[~df["chunk_id"].isin(reused_ids)]
 
     fresh_df = (_extract_llm if method == "llm" else _extract_spacy)(to_extract, step, id_column, text_column, context)
+    filter_counts = fresh_df.attrs.get("filter_counts", {"entities_filtered": 0, "triples_filtered": 0})
     out = pd.concat([reused_df, fresh_df], ignore_index=True) if len(reused_df) else fresh_df
     out.attrs["stats"] = {
         "chunks_extracted": len(to_extract), "chunks_reused": len(df) - len(to_extract), "triple_count": len(out),
         "extraction_method": method,
     }
+    out.attrs["filter_counts"] = filter_counts
     return out
 
 
@@ -1939,9 +2063,13 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
                     df_out = _do_chunk(df_in, step, id_column, text_column, metadata_columns, context)
                 elif op == "extract":
                     df_out = _do_extract(df_in, step, id_column, context)
+                    filter_counts = df_out.attrs.get("filter_counts") or {}
                     extraction_settings = {
                         "method": step.get("method", "llm"), "model": step.get("model"),
                         "entity_types": step.get("entity_types"), "relation_types": step.get("relation_types"),
+                        "entity_filter": step.get("entity_filter", "basic"),
+                        "entities_filtered": filter_counts.get("entities_filtered", 0),
+                        "triples_filtered": filter_counts.get("triples_filtered", 0),
                     }
                 elif op == "resolve":
                     df_out = _do_resolve(df_in, step, context)

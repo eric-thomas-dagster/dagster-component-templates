@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dagster-community-components"
-version = "0.10.151"
+version = "0.10.152"
 description = "Community-maintained Dagster components — ingestion, transforms, IO managers, sensors, sinks, resources, and more."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -117,6 +117,7 @@ include = [
 #   pip install dagster-community-components[pii-redaction]        # log_redaction's enable_presidio=True option
 #   pip install dagster-community-components[gateway]              # KnowledgeSearch + ReceiptMiddleware, free/local default
 #   pip install dagster-community-components[sitemap_crawler]      # sitemap_crawler_ingestion's own deps (bs4 + its default duckdb destination)
+#   pip install dagster-community-components[knowledge-graph]      # knowledge_graph_builder's default config (extract method='llm' + write_graph provider='networkx')
 [project.optional-dependencies]
 splunk = ["requests>=2.28"]
 otlp = ["requests>=2.28"]
@@ -133,6 +134,7 @@ gateway = ["fastmcp>=2.0", "sentence-transformers", "chromadb"]
 # `destination` is left unset) -- a fresh install without either failed with an opaque
 # ModuleNotFoundError until this extra existed.
 sitemap_crawler = ["beautifulsoup4>=4.12.0", "duckdb>=0.9.0"]
+knowledge-graph = ["networkx>=2.8", "litellm>=1.30.0"]
 
 [tool.pytest.ini_options]
 # Durable fix for a real, repeatedly-hit class of bug: with pytest's default "prepend"

@@ -62,3 +62,50 @@ def test_blank_lines_and_comment_only_lines_produce_no_empty_entries(mod, tmp_pa
 def test_no_requirements_file_yields_empty_deps(mod, tmp_path):
     derived = mod.build_derivable_fields(tmp_path)
     assert derived["_pip_deps"] == []
+
+
+# ─── unavailable_reason ─────────────────────────────────────────────────────
+# Real bug this guards: a first version blindly guessed every pip spec's import name (splitting
+# on "-"), which would have wrongly reported plenty of installed hyphenated packages (their own
+# real import name differs, e.g. beautifulsoup4 -> bs4) as "unavailable" -- worse than not
+# checking them at all. Only PIP_TO_IMPORT_NAME's explicit entries, or a simple single-word name
+# that trivially equals its own import name, are ever checked.
+
+def test_unavailable_reason_is_none_when_every_hard_dep_is_installed(mod, tmp_path):
+    (tmp_path / "requirements.txt").write_text("pandas>=1.5.0\n")  # pandas is installed in this test env
+    derived = mod.build_derivable_fields(tmp_path)
+    assert "unavailable_reason" not in derived
+
+
+def test_unavailable_reason_flags_a_genuinely_missing_package(mod, tmp_path):
+    (tmp_path / "requirements.txt").write_text("this_package_definitely_does_not_exist_anywhere>=1.0\n")
+    derived = mod.build_derivable_fields(tmp_path)
+    assert "unavailable_reason" in derived
+    assert "this_package_definitely_does_not_exist_anywhere" in derived["unavailable_reason"]
+
+
+def test_unavailable_reason_uses_the_explicit_import_name_override(mod, tmp_path):
+    # beautifulsoup4's real import name is bs4, not beautifulsoup4 -- if bs4 isn't installed in
+    # this test env, the reason must name the override's import, never a naive guess.
+    (tmp_path / "requirements.txt").write_text("beautifulsoup4>=4.12.0\n")
+    derived = mod.build_derivable_fields(tmp_path)
+    if importlib_util_find_spec_missing("bs4"):
+        assert "unavailable_reason" in derived
+    else:
+        assert "unavailable_reason" not in derived
+
+
+def test_unavailable_reason_never_guesses_an_unmapped_hyphenated_package(mod, tmp_path):
+    # Not in PIP_TO_IMPORT_NAME, and hyphenated -- must never be guessed/flagged, regardless of
+    # whether some made-up import name would or wouldn't resolve.
+    (tmp_path / "requirements.txt").write_text("some-made-up-package-not-in-the-override-table>=1.0\n")
+    derived = mod.build_derivable_fields(tmp_path)
+    assert "unavailable_reason" not in derived
+
+
+def importlib_util_find_spec_missing(name: str) -> bool:
+    import importlib.util
+    try:
+        return importlib.util.find_spec(name) is None
+    except (ImportError, ModuleNotFoundError, ValueError):
+        return True

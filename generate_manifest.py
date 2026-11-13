@@ -40,7 +40,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -60,7 +62,71 @@ EXCLUDE_TOP = {
 DERIVABLE_KEYS = {
     "name", "category", "description", "tags", "path",
     "readme_url", "component_url", "schema_url", "example_url", "requirements_url",
+    "unavailable_reason",
 }
+
+# `option_requirements` ({"field=value": ["pip spec", ...]} -- packages needed only for a
+# specific config option, e.g. knowledge_graph_builder's {"extract.method=spacy": ["spacy"]})
+# is a RECOGNIZED but deliberately NOT-derivable key, same as icon/agent_hints/validation: a
+# component's requirements.txt mixes always-required deps with free-form prose comment blocks
+# per option ("# extract op method='spacy':\n#   pip install spacy"), which aren't reliably
+# machine-parseable into a clean {condition: [specs]} structure (checked directly across this
+# repo's requirements.txt files -- the phrasing varies too much: "Optional -- only when...",
+# "Only required if you use...", inline "# for s3://" comments on the install line itself,
+# etc.). Hand-author it per component as a worked example (see knowledge_graph_builder's own
+# entry) rather than guessing a parser that would silently mis-parse most of them.
+#
+# PIP package name -> real importable module name, for the common cases where they differ --
+# used by `_unavailable_reason` below to check a component's HARD (always-required, uncommented)
+# pip_deps against what's actually importable in the environment that ran this script. Starting
+# narrow and explicit on purpose: a wrong guess here would wrongly report an installed package as
+# "unavailable" (worse than just not checking it at all), so anything not listed here AND not a
+# simple lowercase single-word name (which trivially equals its own import name, e.g. "pandas",
+# "networkx", "litellm") is left unchecked rather than guessed.
+PIP_TO_IMPORT_NAME = {
+    "beautifulsoup4": "bs4",
+    "scikit-learn": "sklearn",
+    "pyyaml": "yaml",
+    "python-dotenv": "dotenv",
+    "pillow": "PIL",
+    "protobuf": "google.protobuf",
+    "psycopg2-binary": "psycopg2",
+    "google-cloud-speech": "google.cloud.speech",
+    "google-cloud-bigquery": "google.cloud.bigquery",
+    "snowflake-connector-python": "snowflake.connector",
+    "azure-storage-blob": "azure.storage.blob",
+    "duckdb-engine": "duckdb_engine",
+}
+
+
+def _unavailable_reason(pip_deps: list[str]) -> str | None:
+    """Best-effort, environment-dependent check: are this component's HARD pip_deps (the
+    always-required, uncommented lines in requirements.txt -- never the optional per-option ones
+    documented only as comments) importable right now, in whatever environment ran this script?
+    This reflects THIS repo's own CI/dev install at generation time, not necessarily the
+    environment a given user's Dagster deployment actually runs in -- a best-effort heads-up for
+    the UI to show ("this type may need `pip install X`"), not a live guarantee for any specific
+    deployment. Returns None when every hard dep either resolves or can't be confidently checked
+    (never a false "unavailable" from a wrong import-name guess)."""
+    missing = []
+    for spec in pip_deps:
+        pkg_name = re.split(r"[<>=!~\[\s;]", spec, maxsplit=1)[0].strip().lower()
+        if not pkg_name:
+            continue
+        import_name = PIP_TO_IMPORT_NAME.get(pkg_name)
+        if import_name is None:
+            if "-" in pkg_name or "." in pkg_name:
+                continue  # not a confident guess -- never flag a package we can't name correctly
+            import_name = pkg_name
+        try:
+            found = importlib.util.find_spec(import_name) is not None
+        except (ImportError, ModuleNotFoundError, ValueError):
+            found = False
+        if not found:
+            missing.append(pkg_name)
+    if not missing:
+        return None
+    return f"pip install {' '.join(sorted(missing))} (missing in the environment that generated this manifest)"
 
 
 def find_component_dirs() -> list[Path]:
@@ -118,6 +184,9 @@ def build_derivable_fields(component_dir: Path) -> dict:
                 line = raw_line.split("#", 1)[0].strip()
                 if line:
                     pip_deps.append(line)
+    reason = _unavailable_reason(pip_deps)
+    if reason is not None:
+        entry["unavailable_reason"] = reason
     entry["_pip_deps"] = pip_deps  # consumed by caller, not written as-is
     return entry
 
@@ -143,6 +212,11 @@ def sync(check_only: bool) -> int:
             entry = dict(existing_by_id[component_id])  # preserve all extra keys
             changed = any(entry.get(k) != v for k, v in derived.items())
             entry.update(derived)
+            if "unavailable_reason" not in derived and entry.pop("unavailable_reason", None) is not None:
+                # Re-derived clean this run (the previously-missing package is now importable, or
+                # requirements.txt no longer lists it) -- dict.update() alone never clears a key
+                # that's simply absent from `derived`, so this has to be done explicitly.
+                changed = True
             deps = dict(entry.get("dependencies") or {})
             if deps.get("pip") != pip_deps:
                 changed = True

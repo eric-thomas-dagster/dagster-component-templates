@@ -1635,6 +1635,17 @@ def _fetch_existing_embeddings(ids: List[str], cfg: dict) -> Dict[str, Tuple[Opt
     raise ValueError(f"embed op reuse_from: unsupported provider {provider!r}. Valid: chromadb, qdrant, pinecone, lancedb.")
 
 
+def _resolve_embedding_model_name(step: dict) -> str:
+    """The model name embed resolves to when `step['model']` is unset -- the same per-provider
+    default `_do_embed_raw` falls back to in each of its own branches. Used wherever the
+    configured model must be known WITHOUT actually running an embedding call: `_reuse_embeddings`
+    (to match a store's recorded embedding_model) and `_do_embed`'s all-reused case (nothing was
+    freshly embedded this run to read the model name back off of, but the configured model is
+    still a known, static fact about the step -- it should never be reported as unknown/None)."""
+    return step.get("model") or {"sentence_transformers": "all-MiniLM-L6-v2", "openai": "text-embedding-3-small",
+                                   "cohere": "embed-english-v3.0", "litellm": "text-embedding-3-small"}.get(step.get("provider", "sentence_transformers"))
+
+
 def _reuse_embeddings(df: pd.DataFrame, step: dict, output_column: str, context) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Split df into (already-embedded, still-needs-embedding) using an existing vector store
     (chromadb/qdrant/pinecone/lancedb): a chunk is reused when the store holds the same chunk_id
@@ -1644,8 +1655,7 @@ def _reuse_embeddings(df: pd.DataFrame, step: dict, output_column: str, context)
     for needed in ("chunk_id", "content_hash"):
         if needed not in df.columns:
             raise ValueError(f"embed op reuse_from needs column {needed!r} (produced by the chunk op)")
-    model_name = step.get("model") or {"sentence_transformers": "all-MiniLM-L6-v2", "openai": "text-embedding-3-small",
-                                         "cohere": "embed-english-v3.0", "litellm": "text-embedding-3-small"}.get(step.get("provider", "sentence_transformers"))
+    model_name = _resolve_embedding_model_name(step)
     ids = df["chunk_id"].astype(str).tolist()
     existing = _fetch_existing_embeddings(ids, cfg)
     if not existing:
@@ -1676,7 +1686,7 @@ def _do_embed(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
         embedding_stats = dict(computed.attrs["embedding_stats"])
     else:
         computed = todo.assign(**{output_column: [], "embedding_model": []})
-        embedding_stats = {"embedding_model": None, "embedding_time_seconds": 0.0, "embedding_tokens": 0}
+        embedding_stats = {"embedding_model": _resolve_embedding_model_name(step), "embedding_time_seconds": 0.0, "embedding_tokens": 0}
     out = pd.concat([reused, computed]).sort_index().reset_index(drop=True)
     out.attrs["stats"] = {"embeddings_reused": len(reused), "embeddings_computed": len(todo), **embedding_stats}
     context.log.info(f"embed: reused {len(reused)} embedding(s), computed {len(todo)}")
@@ -4714,9 +4724,28 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 "op": MetadataValue.text(op_name),
                 "elapsed_seconds": MetadataValue.float(round(elapsed, 3)),
             }
+            # Type-dispatched, not a blind str(v) -- a prior version always emitted
+            # MetadataValue.text(str(v)), which reported every int count (dropped,
+            # duplicates_dropped, dropped_small, embeddings_reused, embeddings_computed, ...) as a
+            # TEXT metadata value (e.g. "dropped": "515") and, when embed's reuse_from reused every
+            # chunk (embedding_model is None in that case -- nothing was freshly embedded this run),
+            # rendered the literal string "None" instead of omitting the field or reporting the
+            # still-configured model. `reasons` (filter's per-reason drop counts) is a dict and
+            # belongs in JSON metadata, not stringified.
             for k, v in (df.attrs.get("stats") or {}).items():
+                if v is None:
+                    continue
                 with contextlib.suppress(Exception):
-                    md[k] = MetadataValue.text(str(v))
+                    if k == "reasons":
+                        md[k] = MetadataValue.json(v)
+                    elif isinstance(v, bool):
+                        md[k] = MetadataValue.text(str(v))
+                    elif isinstance(v, int):
+                        md[k] = MetadataValue.int(v)
+                    elif isinstance(v, float):
+                        md[k] = MetadataValue.float(v)
+                    else:
+                        md[k] = MetadataValue.text(str(v))
             return md
 
         # --- one @dg.op per step --------------------------------------------------------------

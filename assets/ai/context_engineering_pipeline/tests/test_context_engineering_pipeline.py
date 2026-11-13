@@ -194,6 +194,31 @@ def test_per_step_ops_retrieval_eval_check_attaches_to_the_final_step_asset(mod,
     assert ev.asset_key.to_user_string() == "support_kb" and ev.passed
 
 
+def test_per_step_ops_metadata_reports_counts_as_int_and_reasons_as_json(mod, tickets_df):
+    """_step_metadata (per_step_ops=True's Python-mode per-step metadata builder) used to blindly
+    emit MetadataValue.text(str(v)) for every stats key -- a real bug that reported filter's int
+    `dropped` count as the TEXT "3" instead of a real int, and its `reasons` dict as a stringified
+    Python repr instead of real JSON metadata."""
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="kb", upstream_asset_key="raw_tickets", id_column="ticket_id", text_column="body",
+        per_step_ops=True,
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200},
+            {"id": "filtered", "op": "filter", "min_chars": 1000},  # every chunk is shorter than this
+        ],
+    )
+    result = _materialize(component, tickets_df)
+    assert result.success
+    filtered_md = next(
+        e.materialization.metadata for e in result.get_asset_materialization_events()
+        if e.materialization.asset_key == dg.AssetKey("kb")
+    )
+    assert isinstance(filtered_md["dropped"], dg.IntMetadataValue)
+    assert filtered_md["dropped"].value == 3
+    assert isinstance(filtered_md["reasons"], dg.JsonMetadataValue)
+    assert filtered_md["reasons"].value == {"min_chars": 3}
+
+
 def test_per_step_ops_sql_rejects_partitioning(mod):
     """per_step_ops=True + execution_mode='sql' is supported (see test_sql_per_step_ops.py for the real,
     executed coverage) but not yet combined with partitioning -- per-step-table partition staging is a

@@ -127,3 +127,32 @@ Dagster Designer's planner (Genie) reads three optional top-level fields. Withou
 
 `tests/test_manifest_genie_fields.py` checks the shapes and that each `requires_resources` entry names a real resource component and a real config path.
 
+## `option_requirements` / `unavailable_reason` — what a component needs, beyond its base `dependencies.pip`
+
+`dependencies.pip` (derived automatically by `generate_manifest.py` from `requirements.txt`'s
+always-required, uncommented lines) already answers "what must be installed for this type to
+load at all." These two fields fill in the rest of "what does the UI need to tell someone before
+they hit a `ModuleNotFoundError`":
+
+- `option_requirements`: `{"field.path=value": ["pip spec", ...]}` — packages needed only when a
+  specific config option is set to a specific value (e.g. a non-default provider, or an opt-in
+  knob). **Hand-authored, not auto-derived**: `requirements.txt`'s own per-option comment blocks
+  (`# extract op method='spacy':\n#   pip install spacy`) are free-form prose for a human reader
+  and deliberately not parsed into this structure (checked directly: the phrasing varies too much
+  across this repo's requirements.txt files to parse reliably without risking a wrong/missing
+  entry). Write `option_requirements` by hand from the same requirements.txt comments when you
+  enrich a component's manifest entry — see `knowledge_graph_builder`'s entry for a worked example
+  covering llm/spacy extract methods, every `resolve` embed provider, and both `write_graph`
+  non-default providers.
+- `unavailable_reason`: a string, **auto-derived** by `generate_manifest.py` from `dependencies.pip`
+  -- set when one of a component's HARD (always-required) pip deps isn't importable in whatever
+  environment last ran the script. This reflects that environment's install state at generation
+  time, not necessarily any given user's own Dagster deployment -- a best-effort heads-up for the
+  UI ("this type may need `pip install X`"), not a live per-deployment guarantee. Never run
+  `generate_manifest.py` (write mode) from an ad hoc/incomplete dev environment and commit the
+  result wholesale -- it would stamp `unavailable_reason` onto every component missing an optional
+  package on that one machine, most of which are perfectly installable and simply not installed
+  there. Run it for real from whatever environment is meant to represent "what's actually
+  available," or hand-edit just the entry you're working on (as this convention note's own
+  `knowledge_graph_builder` worked example did).
+

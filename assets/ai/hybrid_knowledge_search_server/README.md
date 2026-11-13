@@ -53,6 +53,40 @@ other provider is left `null` rather than guessed at.
 
 Every result is capped by `max_results` (default 50).
 
+## Closed-loop receipts (`receipts_db_path`)
+
+Without this, a knowledge base built with `context_engineering_pipeline`'s `receipts:`
+policy learns nothing when agents reach it through this search server -- only the generated
+FastMCP gateway and `rag_pipeline` ever called `record_retrieval`.
+
+Set `receipts_db_path` to a SQLite file path and:
+- `search` records a retrieval receipt per call that has a vector component (`mode: vector` or
+  `hybrid`) for its vector-sourced passages (chunk ids and scores only -- never the query or
+  chunk text) and returns `receipt_id`. `mode: graph` alone records nothing (no ranked vector
+  retrieval to attribute a receipt to).
+- Quarantined chunks (`feedback_quarantined` metadata, the same field `write_vector_store`'s
+  receipts policy stamps) are always dropped from vector results, whether or not
+  `receipts_db_path` is set.
+- A new `record_feedback(receipt_id, signal, user_id?)` tool is exposed. `signal` is one of
+  `thumbs_up`, `thumbs_down`, `accepted`, `edited`, `escalated`, `reopened`, `closed_won`,
+  `closed_lost`, `reformulated`. `user_id`, if given, becomes the outcome's `outcome_ref`: a
+  later call with the same `user_id` for the same `receipt_id` supersedes the earlier one.
+- The inspection asset reports `retrievals_recorded`/`outcomes_recorded` counts.
+
+**Why a plain file path, not a `receipts_resource_key`:** `search`/`record_feedback` run
+inside this server's own stdio MCP subprocess (`python -m <this module>`, launched from plain
+environment variables), which has no Dagster `context.resources` to resolve a resource key
+from. `receipts_db_path` is read directly by that subprocess (via
+`HYBRID_KG_SEARCH_RECEIPTS_DB_PATH` when launched through `mcp_server_resource_key`) using a
+small, self-contained SQLite writer -- not the full multi-backend `ContextReceiptStore` (no
+bigquery/sql backends, no usage sensor, no rerank priors here). Point a real
+`ContextReceiptStoreComponent(backend="sqlite", database_path=<same path>)` resource at the
+SAME file elsewhere in your project to read these receipts back. See
+`knowledge_search_server`'s own README for the same mechanism in more detail.
+
+Outcomes recorded via `record_feedback` are real-time, in-session feedback. For outcomes that
+arrive later from an external system, use `receipt_outcome_ingestion` instead.
+
 ## Other tools (drive it step by step)
 
 | Tool | Returns |
@@ -108,6 +142,7 @@ id counts the overlap fraction was computed from.
 | `graph` | `Dict[str, Any]` | `dict()` | Same fields as knowledge_graph_search_server's KnowledgeGraphSearchResource (provider, path, uri, username_env_var, password_env_var, database, host, port, graph_name). |
 | `knowledge_base` | `str` | — | Optional UI-linking label. |
 | `max_results` | `int` | `50` | Cap on rows returned by any list-returning method. |
+| `receipts_db_path` | `str` | — | SQLite file path. When set, search() records a retrieval receipt per call with a vector component (mode='vector' or 'hybrid') and a new record_feedback(receipt_id, signal, user_id?) tool is exposed. Quarantined chunks ar… _(full docs in schema.json + component README)_ |
 | `inspection_asset_name` | `str` | `"hybrid_knowledge_search_tools"` | Asset key for the inspection asset reporting this server's configured settings and the corpus-overlap check. |
 
 [//]: # (FIELDS:END)

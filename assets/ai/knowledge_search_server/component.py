@@ -6,14 +6,27 @@ id, and chunk id as JSON.
 Same dual-mode shape as `dagster_workflow_tools`:
   1. An importable `KnowledgeSearchResource` (embed-query + vector-store-query logic
      adapted from `resources/context_receipt_store`'s own `KnowledgeSearch` -- its
-     `_embed_query`/`_query_vector_store` helpers are copied verbatim here, drift-tested
-     against that file; its `priors`/exploration/receipt-building ceremony is NOT carried
-     over, since that's specific to the receipt-learning-loop feature this component
-     doesn't integrate with) registered under `resource_key`.
+     `_embed_query`/`_query_vector_store` helpers, canonical receipt-table DDL,
+     quarantine-filtering, and `record_retrieval`/`record_outcome` shape are all copied
+     verbatim here, drift-tested against that file; its `priors`/exploration-based rerank is
+     NOT carried over, since nothing here learns item priors from outcomes the way the
+     rerank-aware gateway does -- see `receipts_db_path` for what IS carried over)
+     registered under `resource_key`.
   2. A self-contained stdio MCP server: `python -m <dotted.path.to.this.module>`.
 `mcp_server_resource_key`, if set, ALSO registers a stdio MCP-server-shaped resource
 (same convention as `dagster_workflow_tools`' own `mcp_server_resource_key`) so any
 mcp_servers-aware component can reference this server via `server_resource_key`.
+
+`receipts_db_path`, when set, makes `search_knowledge` record a retrieval receipt per search
+(chunk ids/scores only, never the query or chunk text) and exposes a new `record_feedback`
+tool so an agent or app can report an outcome (thumbs_up, thumbs_down, accepted, edited,
+escalated, ...). Quarantined chunks (`feedback_quarantined` metadata) are always dropped from
+results, independent of whether receipts are configured. See `KnowledgeSearchResource.
+receipts_db_path`'s own docstring for why this is a plain SQLite file path, not a Dagster
+resource_key: the stdio MCP subprocess that actually answers searches has no
+`context.resources` to resolve one from. Outcomes recorded here are real-time, in-session
+feedback; `receipt_outcome_ingestion` is the complementary batch path for outcomes that arrive
+later from an external feedback system (a support ticket's resolution, a CSV export, ...).
 
 Needs its own explicit embed/vector-store settings (provider, connection_string,
 collection_name, embed_provider, embed_model) -- there is no way to read another
@@ -38,9 +51,15 @@ direct `ResourceDefinition`/`ConfigurableResource` introspection), so this is th
 catalog-visible surface for "a knowledge-search server is configured here", mirroring
 `openapi_tool_server`'s own `mode='mcp_server'` inspection-asset precedent.
 """
+import hashlib
+import json
 import logging
 import os
+import sqlite3
 import sys
+import time
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
@@ -247,6 +266,198 @@ def _query_vector_store(
 # END knowledge-search core
 
 
+# BEGIN receipt-warehouse-ddl (canonical; inlined verbatim, byte-identical, by every component that creates or reads the receipt tables -- drift-tested)
+RECEIPT_TABLE_NAMES = ("context_receipts", "context_receipt_items", "context_receipt_excluded", "context_receipt_events", "context_item_scores")
+RECEIPT_DIALECTS = ("bigquery", "snowflake", "databricks", "postgres", "mysql", "duckdb", "sqlite")
+
+
+def receipt_table(dataset: str, name: str, prefix: str = "", dialect: str = "bigquery") -> str:
+    """Table reference for a receipt table. `dataset` is the namespace: `project.dataset` (bigquery), `database.schema` (snowflake),
+    `catalog.schema` (databricks), `schema` (postgres/duckdb), `database` (mysql); "" for sqlite or the connection default."""
+    if name not in RECEIPT_TABLE_NAMES:
+        raise ValueError(f"unknown receipt table {name!r}; valid: {RECEIPT_TABLE_NAMES}")
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    parts = [p for p in dataset.strip("`").split(".") if p] + [f"{prefix}{name}"]
+    if dialect == "bigquery":
+        return "`" + ".".join(parts) + "`"          # BigQuery reads `a.b.c` as one path
+    if dialect in ("databricks", "mysql"):
+        return ".".join(f"`{p}`" for p in parts)
+    if dialect in ("postgres", "duckdb", "sqlite"):
+        return ".".join(f'"{p}"' for p in parts)
+    return ".".join(parts)                          # snowflake: unquoted, case-insensitive
+
+
+_RECEIPT_TYPES = {  # (string, long string, integer, float, timestamp)
+    "bigquery": ("STRING", "STRING", "INT64", "FLOAT64", "TIMESTAMP"),
+    "snowflake": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMP_TZ"),
+    "databricks": ("STRING", "STRING", "BIGINT", "DOUBLE", "TIMESTAMP"),
+    "postgres": ("TEXT", "TEXT", "BIGINT", "DOUBLE PRECISION", "TIMESTAMPTZ"),
+    "mysql": ("VARCHAR(255)", "LONGTEXT", "BIGINT", "DOUBLE", "DATETIME(6)"),   # UTC by convention
+    "duckdb": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMPTZ"),
+    "sqlite": ("TEXT", "TEXT", "INTEGER", "REAL", "TEXT"),                       # ISO-8601 UTC strings
+}
+
+
+def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
+    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
+    Event payloads stay JSON text in `payload_json`; priors and feedback are computed from them (SQL: JSON_VALUE and friends, or in Python)."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    K = "`rank`" if dialect == "mysql" else "rank"        # RANK is reserved in MySQL 8
+    t = lambda n: receipt_table(dataset, n, prefix, dialect)  # noqa: E731
+    return [
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
+  receipt_id {S} NOT NULL, created_at {T} NOT NULL, context_name {S} NOT NULL, context_version {S}, policy_version {S},
+  caller_id {S}, purpose {S}, query_hash {S}, eligible_count {I}, excluded_count {I}, dagster_asset_key {S},
+  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S}, dagster_partition_key {S})""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, source_asset_key {S}, source_version {S}, source_partition {S},
+  source_code_version {S}, {K} {I}, score {F}, selection {S})""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_excluded')} (
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, reason {S} NOT NULL, source_asset_key {S}, source_version {S},
+  source_partition {S}, source_code_version {S})""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_events')} (
+  event_id {S} NOT NULL, receipt_id {S} NOT NULL, event_type {S} NOT NULL, occurred_at {T} NOT NULL, payload_json {L} NOT NULL)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_item_scores')} (
+  item_id {S} NOT NULL, retrievals {I} NOT NULL, outcome_weight {F} NOT NULL, outcome_sum {F} NOT NULL, prior {F} NOT NULL,
+  updated_at {T} NOT NULL)""",
+    ]
+
+
+# Columns added after the first release: (table, column, kind). A deployed table created from an older DDL lacks them, so
+# creators probe each one and run the ALTER only when the probe fails (never a destructive step; existing rows read NULL).
+RECEIPT_ADDED_COLUMNS = (("context_receipts", "dagster_partition_key", "string"),)
+
+
+def receipt_column_upgrades(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
+    """``[(probe_sql, alter_sql)]`` per late-added column: run ``probe_sql``; if it raises (column missing), run ``alter_sql``."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    out = []
+    for table, column, kind in RECEIPT_ADDED_COLUMNS:
+        ref = receipt_table(dataset, table, prefix, dialect)
+        out.append((f"SELECT {column} FROM {ref} WHERE 1 = 0", f"ALTER TABLE {ref} ADD COLUMN {column} {S if kind == 'string' else L}"))
+    return out
+# END receipt-warehouse-ddl
+
+
+# Outcome signals -> default value in [-1, 1] (same vocabulary as context_receipt_store's own
+# OUTCOME_SIGNALS; unknown signals need an explicit value, which record_feedback's 3-arg tool
+# signature doesn't expose -- so an unlisted signal here is simply rejected, not silently
+# defaulted to 0).
+OUTCOME_SIGNALS = {
+    "thumbs_up": 1.0,
+    "thumbs_down": -1.0,
+    "accepted": 0.5,
+    "edited": -0.3,
+    "escalated": -0.7,
+    "reopened": -0.7,
+    "closed_won": 1.0,
+    "closed_lost": -0.5,
+    "reformulated": -0.2,
+}
+_CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def _new_receipt_id() -> str:
+    """Time-sortable ULID, generated client-side -- same scheme as context_receipt_store's own
+    `new_receipt_id()` (copied, not imported, per this repo's self-contained-component
+    convention), so receipt ids from this server sort/compare the same way."""
+    value = (int(time.time() * 1000) << 80) | int.from_bytes(os.urandom(10), "big")
+    chars = []
+    for _ in range(26):
+        chars.append(_CROCKFORD[value & 31])
+        value >>= 5
+    return "".join(reversed(chars))
+
+
+class _ReceiptWriter:
+    """Minimal, SQLite-only receipt writer for recording retrievals/outcomes directly from this
+    MCP server's own stdio subprocess. Deliberately NOT the full `ContextReceiptStore` (that
+    class also supports bigquery/sql backends, a usage sensor, context policy enforcement, and
+    learned-prior rerank scoring) -- just enough to record_retrieval/record_outcome against a
+    local file, using the SAME canonical receipt-table DDL/names a real
+    `ContextReceiptStoreComponent(backend='sqlite', database_path=...)` resource reads. Point
+    both at the same file and that resource's own sensors/asset checks see receipts recorded
+    here. This exists only because the stdio MCP subprocess has no Dagster
+    context.resources available at tool-call time (confirmed: `main()` below constructs
+    `KnowledgeSearchResource` from plain env vars, never from a Dagster resource registry)."""
+
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self._ensure_tables()
+
+    def _connect(self):
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _ensure_tables(self) -> None:
+        with self._connect() as conn:
+            for stmt in receipt_table_ddl("", dialect="sqlite"):
+                conn.execute(stmt)
+
+    def record_retrieval(
+        self, *, context_name: str, items: List[Dict[str, Any]],
+        eligible_count: Optional[int] = None, purpose: Optional[str] = None, query_hash: Optional[str] = None,
+    ) -> str:
+        receipt_id = _new_receipt_id()
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """INSERT INTO context_receipts (
+                    receipt_id, created_at, context_name, context_version, policy_version,
+                    caller_id, purpose, query_hash, eligible_count, excluded_count,
+                    dagster_asset_key, dagster_run_id, trace_id, mcp_session_id, mcp_request_id, dagster_partition_key
+                ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, 0, NULL, NULL, NULL, NULL, NULL, NULL)""",
+                (receipt_id, created_at, context_name, purpose, query_hash, eligible_count),
+            )
+            conn.executemany(
+                """INSERT INTO context_receipt_items (
+                    receipt_id, item_id, source_asset_key, source_version, source_partition,
+                    source_code_version, rank, score, selection
+                ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, 'ranked')""",
+                [
+                    (
+                        receipt_id, item["item_id"], item.get("source_asset_key"), item.get("source_version"),
+                        item.get("source_code_version"), item.get("rank"), item.get("score"),
+                    )
+                    for item in items
+                ],
+            )
+        return receipt_id
+
+    def record_outcome(
+        self, receipt_id: str, *, signal: str, value: Optional[float] = None,
+        source: Optional[str] = None, outcome_ref: Optional[str] = None,
+    ) -> None:
+        if value is None:
+            if signal not in OUTCOME_SIGNALS:
+                raise ValueError(f"unknown signal {signal!r} requires an explicit value")
+            value = OUTCOME_SIGNALS[signal]
+        payload = {"signal": signal, "value": float(value), "source": source, "outcome_ref": outcome_ref}
+        with self._connect() as conn:
+            exists = conn.execute("SELECT 1 FROM context_receipts WHERE receipt_id = ?", (receipt_id,)).fetchone()
+            if exists is None:
+                raise KeyError(f"unknown context receipt: {receipt_id}")
+            conn.execute(
+                "INSERT INTO context_receipt_events (event_id, receipt_id, event_type, occurred_at, payload_json) "
+                "VALUES (?, ?, 'outcome', ?, ?)",
+                (str(uuid.uuid4()), receipt_id, datetime.now(timezone.utc).isoformat(),
+                 json.dumps(payload, sort_keys=True, separators=(",", ":"))),
+            )
+
+    def counts(self) -> Dict[str, int]:
+        """Best-effort {"retrievals": n, "outcomes": n} -- used by the inspection asset."""
+        with self._connect() as conn:
+            retrievals = conn.execute("SELECT COUNT(*) FROM context_receipts").fetchone()[0]
+            outcomes = conn.execute("SELECT COUNT(*) FROM context_receipt_events WHERE event_type = 'outcome'").fetchone()[0]
+        return {"retrievals": retrievals, "outcomes": outcomes}
+
+
 _EMBED_DEFAULT_API_KEY_ENV_VAR = {"openai": "OPENAI_API_KEY", "cohere": "COHERE_API_KEY"}
 
 
@@ -282,6 +493,23 @@ class KnowledgeSearchResource(dg.ConfigurableResource):
     embed_model: Optional[str] = Field(default=None, description="Must match the embed model the knowledge base was built with.")
     embed_api_key_env_var: Optional[str] = Field(default=None, description="Env var holding the embed provider's API key (openai/cohere/litellm).")
     text_metadata_key: str = Field(default="chunk_text", description="Metadata key holding chunk text for non-chromadb stores (chromadb always has it via its own documents field regardless). Must match write_vector_store's own text_column if it was customized.")
+    receipts_db_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "SQLite file path. When set, every search() call records a retrieval receipt "
+            "(chunk ids and scores only, never the query or chunk text) into this file and "
+            "returns its receipt_id, and quarantined chunks (feedback_quarantined=true in "
+            "their metadata, the same field write_vector_store's receipts policy stamps) are "
+            "dropped before they're returned at all -- honoring quarantine the same way the "
+            "FastMCP gateway's own KnowledgeSearch.search() does. Point a real "
+            "ContextReceiptStoreComponent(backend='sqlite', database_path=<same path>) "
+            "resource at this SAME file elsewhere in your project to read these receipts back "
+            "(sensors, asset checks, context_receipt_bigquery_sync, etc.) -- this field does "
+            "NOT register or require a Dagster resource itself: the stdio MCP subprocess that "
+            "actually runs search_knowledge has no Dagster context.resources to resolve one "
+            "from, so it opens this file directly instead."
+        ),
+    )
 
     def search(self, query: str, top_k: int = 5) -> dict:
         _check_required_env_var(
@@ -293,13 +521,20 @@ class KnowledgeSearchResource(dg.ConfigurableResource):
             label="vector store API key",
         )
         embedding = _embed_query(query, self.embed_provider, self.embed_model, self.embed_api_key_env_var)
-        hits = _query_vector_store(
+        raw_hits = _query_vector_store(
             embedding, provider=self.provider, connection_string=self.connection_string,
             collection_name=self.collection_name, top_k=top_k, api_key_env_var=self.api_key_env_var,
             vector_bucket_name=self.vector_bucket_name, aws_region=self.aws_region, demo_mode=self.demo_mode,
         )
+        eligible_count = len(raw_hits)
+        # Honor quarantine the same way the FastMCP gateway's own KnowledgeSearch.search() does
+        # (resources/context_receipt_store/component.py) -- always, not just when receipts are
+        # configured, since a quarantined chunk is a data-quality fact independent of whether
+        # this particular search happens to be recorded.
+        hits = [h for h in raw_hits if not (h.get("metadata") or {}).get("feedback_quarantined")]
         chunks = []
-        for h in hits:
+        items = []
+        for rank, h in enumerate(hits):
             meta = h.get("metadata") or {}
             text = h.get("document") if h.get("document") is not None else meta.get(self.text_metadata_key)
             chunks.append({
@@ -309,7 +544,35 @@ class KnowledgeSearchResource(dg.ConfigurableResource):
                 "source": meta.get("source_asset_key"),
                 "doc_id": meta.get("source_id"),
             })
-        return {"chunks": chunks}
+            items.append({
+                "item_id": meta.get("chunk_id", h["id"]),
+                "source_asset_key": meta.get("source_asset_key"),
+                "source_version": meta.get("source_version"),
+                "source_code_version": meta.get("source_code_version"),
+                "rank": rank,
+                "score": h.get("score"),
+            })
+        result: Dict[str, Any] = {"chunks": chunks}
+        if self.receipts_db_path:
+            receipt_id = _ReceiptWriter(self.receipts_db_path).record_retrieval(
+                context_name=self.collection_name,
+                items=items,
+                eligible_count=eligible_count,
+                query_hash=hashlib.sha256(query.encode("utf-8")).hexdigest(),
+            )
+            result["receipt_id"] = receipt_id
+        return result
+
+    def record_feedback(self, receipt_id: str, signal: str, user_id: Optional[str] = None) -> dict:
+        """Records an outcome (thumbs_up/thumbs_down/accepted/edited/escalated/reopened/
+        closed_won/closed_lost/reformulated -- see OUTCOME_SIGNALS) against a prior search's
+        receipt_id. `user_id`, when given, becomes the outcome's `outcome_ref`: a later call
+        with the SAME user_id for the SAME receipt supersedes the earlier one when scoring, so
+        a user changing their mind isn't double-counted."""
+        if not self.receipts_db_path:
+            raise ValueError("record_feedback: receipts_db_path is not configured on this server.")
+        _ReceiptWriter(self.receipts_db_path).record_outcome(receipt_id, signal=signal, outcome_ref=user_id)
+        return {"recorded": True}
 
 
 class _McpServerShapeResource(dg.ConfigurableResource):
@@ -404,6 +667,19 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
     embed_model: Optional[str] = Field(default=None, description="Must match the embed model the knowledge base was built with (the embed step's own model).")
     embed_api_key_env_var: Optional[str] = Field(default=None, description="Env var holding the embed provider's API key (openai/cohere/litellm).")
     text_metadata_key: str = Field(default="chunk_text", description="Metadata key holding chunk text for non-chromadb stores. Must match write_vector_store's own text_column if it was customized -- and that column must have been included in metadata_columns, since write_vector_store excludes the text column from metadata by default.")
+    receipts_db_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "SQLite file path. When set, search_knowledge records a retrieval receipt per "
+            "search (chunk ids and scores only, never the query or chunk text) and a new "
+            "record_feedback(receipt_id, signal, user_id?) tool is exposed so an agent or app "
+            "can report thumbs_up/thumbs_down/accepted/edited/escalated/... Quarantined chunks "
+            "are always dropped before being returned, whether or not this is set. See "
+            "KnowledgeSearchResource.receipts_db_path's own docs for why this is a plain file "
+            "path rather than a Dagster resource_key -- the stdio MCP subprocess that answers "
+            "searches has no Dagster context to resolve one from."
+        ),
+    )
     inspection_asset_name: str = Field(default="knowledge_search_tools", description="Asset key for the inspection asset reporting this server's configured settings.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -438,6 +714,7 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
             vector_bucket_name=self.vector_bucket_name,
             aws_region=self.aws_region,
             demo_mode=self.demo_mode,
+            receipts_db_path=self.receipts_db_path,
         )
         resources: Dict[str, Any] = {self.resource_key: resource}
 
@@ -459,6 +736,8 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["KNOWLEDGE_SEARCH_API_KEY_ENV_VAR"] = self.api_key_env_var
             if self.embed_model:
                 mcp_env["KNOWLEDGE_SEARCH_EMBED_MODEL"] = self.embed_model
+            if self.receipts_db_path:
+                mcp_env["KNOWLEDGE_SEARCH_RECEIPTS_DB_PATH"] = self.receipts_db_path
             if self.embed_api_key_env_var:
                 mcp_env["KNOWLEDGE_SEARCH_EMBED_API_KEY_ENV_VAR"] = self.embed_api_key_env_var
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
@@ -482,6 +761,7 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
         provider, collection_name = self.provider, self.collection_name
         embed_provider, embed_model = self.embed_provider, self.embed_model
         knowledge_base = self.knowledge_base
+        receipts_db_path = self.receipts_db_path
 
         @asset(
             key=AssetKey.from_user_string(self.inspection_asset_name),
@@ -491,20 +771,38 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=tags,
         )
         def _inspection_asset(context: AssetExecutionContext):
+            tool_names = ["search_knowledge"]
+            tool_descriptions = {
+                "search_knowledge": "Search the knowledge base for chunks relevant to a query. Returns "
+                                    "{chunks: [{chunk_id, text, score, source, doc_id}, ...]} on success, or "
+                                    "{error: ...} naming exactly what's misconfigured.",
+            }
+            if receipts_db_path:
+                tool_names.append("record_feedback")
+                tool_descriptions["record_feedback"] = (
+                    "Record an outcome (thumbs_up/thumbs_down/accepted/edited/escalated/reopened/"
+                    "closed_won/closed_lost/reformulated) against a prior search's receipt_id, "
+                    "optionally scoped by user_id."
+                )
             md = {
                 "provider": MetadataValue.text(provider),
                 "collection_name": MetadataValue.text(collection_name),
                 "embed_provider": MetadataValue.text(embed_provider),
                 "embed_model": MetadataValue.text(embed_model or "(default)"),
-                "tool_names": MetadataValue.json(["search_knowledge"]),
-                "tool_descriptions": MetadataValue.json({
-                    "search_knowledge": "Search the knowledge base for chunks relevant to a query. Returns "
-                                        "{chunks: [{chunk_id, text, score, source, doc_id}, ...]} on success, or "
-                                        "{error: ...} naming exactly what's misconfigured.",
-                }),
+                "tool_names": MetadataValue.json(tool_names),
+                "tool_descriptions": MetadataValue.json(tool_descriptions),
             }
             if knowledge_base:
                 md["knowledge_base"] = MetadataValue.text(knowledge_base)
+            if receipts_db_path:
+                md["receipts_db_path"] = MetadataValue.text(receipts_db_path)
+                if os.path.exists(receipts_db_path):
+                    counts = _ReceiptWriter(receipts_db_path).counts()
+                    md["retrievals_recorded"] = MetadataValue.int(counts["retrievals"])
+                    md["outcomes_recorded"] = MetadataValue.int(counts["outcomes"])
+                else:
+                    md["retrievals_recorded"] = MetadataValue.int(0)
+                    md["outcomes_recorded"] = MetadataValue.int(0)
             context.add_output_metadata(md)
 
         return Definitions(assets=[_inspection_asset], resources=resources)
@@ -527,8 +825,19 @@ def build_mcp_server(resource: KnowledgeSearchResource, server_name: str = "know
         """Search the knowledge base for chunks relevant to `query`. Returns
         {"chunks": [{"chunk_id", "text", "score", "source", "doc_id"}, ...]} on success, or
         {"error": "..."} naming exactly what's misconfigured (e.g. a missing API key env
-        var) rather than a generic tool-call failure."""
+        var) rather than a generic tool-call failure. When receipts_db_path is configured,
+        also returns a receipt_id -- pass it to record_feedback to report an outcome."""
         return _safe_search(resource, query, top_k)
+
+    if resource.receipts_db_path:
+        @mcp.tool()
+        def record_feedback(receipt_id: str, signal: str, user_id: Optional[str] = None) -> dict:
+            """Record an outcome against a prior search_knowledge call's receipt_id: signal is
+            one of thumbs_up, thumbs_down, accepted, edited, escalated, reopened, closed_won,
+            closed_lost, reformulated. user_id (optional) scopes the outcome so a later call
+            with the same user_id for the same receipt supersedes the earlier one instead of
+            double-counting a changed mind."""
+            return _safe_record_feedback(resource, receipt_id, signal, user_id)
 
     return mcp
 
@@ -543,6 +852,13 @@ def _safe_search(resource: "KnowledgeSearchResource", query: str, top_k: int) ->
         return {"error": f"{type(e).__name__}: {e}"}
 
 
+def _safe_record_feedback(resource: "KnowledgeSearchResource", receipt_id: str, signal: str, user_id: Optional[str]) -> dict:
+    try:
+        return resource.record_feedback(receipt_id, signal, user_id)
+    except Exception as e:  # noqa: BLE001 -- surface as data, the agent loop must not crash
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     """Env: KNOWLEDGE_SEARCH_COLLECTION_NAME (required), KNOWLEDGE_SEARCH_PROVIDER (default
     chromadb), KNOWLEDGE_SEARCH_CONNECTION_STRING, KNOWLEDGE_SEARCH_API_KEY_ENV_VAR,
@@ -550,7 +866,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     KNOWLEDGE_SEARCH_EMBED_MODEL, KNOWLEDGE_SEARCH_EMBED_API_KEY_ENV_VAR,
     KNOWLEDGE_SEARCH_TEXT_METADATA_KEY (default chunk_text),
     KNOWLEDGE_SEARCH_VECTOR_BUCKET_NAME / KNOWLEDGE_SEARCH_AWS_REGION (provider=s3vectors),
-    KNOWLEDGE_SEARCH_DEMO_MODE (default 1; provider=s3vectors only)."""
+    KNOWLEDGE_SEARCH_DEMO_MODE (default 1; provider=s3vectors only),
+    KNOWLEDGE_SEARCH_RECEIPTS_DB_PATH (optional -- enables receipt recording + record_feedback)."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     collection_name = os.environ.get("KNOWLEDGE_SEARCH_COLLECTION_NAME")
     if not collection_name:
@@ -567,6 +884,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         vector_bucket_name=os.environ.get("KNOWLEDGE_SEARCH_VECTOR_BUCKET_NAME"),
         aws_region=os.environ.get("KNOWLEDGE_SEARCH_AWS_REGION"),
         demo_mode=os.environ.get("KNOWLEDGE_SEARCH_DEMO_MODE", "1") != "0",
+        receipts_db_path=os.environ.get("KNOWLEDGE_SEARCH_RECEIPTS_DB_PATH"),
     )
     build_mcp_server(resource).run(transport="stdio")
 

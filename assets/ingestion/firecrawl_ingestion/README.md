@@ -20,6 +20,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `crawl_max_depth` | optional | Max link-following depth from `crawl_url`. |
 | `output_format` | optional (default `markdown`) | Comma-separated Firecrawl content formats, e.g. `markdown` or `markdown,html` -- one output column per format. |
 | `only_main_content` | optional (default `true`) | Strip boilerplate (nav/ads/footers) from scraped content. |
+| `strip_boilerplate` | optional (default `true`) | On top of `only_main_content`, drop lines that repeat across most of this run's pages. |
 | `poll_interval_seconds` | optional (default `5`) | Seconds between status checks for a `crawl_url` job. |
 | `poll_timeout_seconds` | optional (default `600`) | Max seconds to wait for a `crawl_url` job to complete. |
 
@@ -115,6 +116,7 @@ As a safety net independent of `write_disposition`, the returned DataFrame is al
 | `crawl_limit` | `int` | `100` | Max pages to crawl when crawl_url is set (Firecrawl's `limit`). Ignored in urls/scrape mode. |
 | `crawl_max_depth` | `int` | — | Max link-following depth from crawl_url (Firecrawl's `maxDiscoveryDepth`). Unset: Firecrawl's own default. Ignored in urls/scrape mode. |
 | `only_main_content` | `bool` | `true` | Strip boilerplate (nav/ads/footers) from scraped content -- Firecrawl's `onlyMainContent`. Recommended for RAG: cleaner markdown, fewer wasted tokens. |
+| `strip_boilerplate` | `bool` | `true` | On top of only_main_content (Firecrawl's own server-side chrome removal), drop any line that repeats across a wide fraction of this run's scraped/crawled pages -- catches chrome Firecrawl's own heuristic still lets throu… _(full docs in schema.json + component README)_ |
 | `poll_timeout_seconds` | `int` | `600` | Max seconds to wait for a crawl_url job to reach status='completed' before raising a timeout error. |
 | `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising… _(full docs in schema.json + component README)_ |
 | `hash_salt` | `str` | — | Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use "{{ env.VAR_NAME }}" for the inlin… _(full docs in schema.json + component README)_ |

@@ -88,6 +88,36 @@ def _dedupe_by_doc_id(df: "pd.DataFrame") -> Tuple["pd.DataFrame", int]:
     return df.reset_index(drop=True), before - len(df)
 
 
+def _strip_repeated_boilerplate_lines(contents: List[str], min_page_fraction: float = 0.6) -> Tuple[List[str], int]:
+    """Cross-page pass, on top of only_main_content's own server-side chrome removal: drops
+    lines that appear (after whitespace-normalization) on at least `min_page_fraction` of the
+    given pages -- catches chrome Firecrawl's own "main content" heuristic still lets through
+    (a promo banner or "Sign in" link it treats as real content). Needs at least 2 pages to have
+    any cross-page signal at all. Returns (cleaned_contents, total_chars_removed)."""
+    if len(contents) < 2:
+        return contents, 0
+    line_page_counts: Dict[str, int] = {}
+    per_page_lines: List[List[str]] = []
+    for content in contents:
+        lines = [ln.strip() for ln in (content or "").split("\n")]
+        per_page_lines.append(lines)
+        for line in {ln for ln in lines if ln}:
+            line_page_counts[line] = line_page_counts.get(line, 0) + 1
+    threshold = max(2, int(len(contents) * min_page_fraction))
+    frequent_lines = {line for line, count in line_page_counts.items() if count >= threshold}
+    if not frequent_lines:
+        return contents, 0
+    cleaned: List[str] = []
+    removed_chars = 0
+    for content, lines in zip(contents, per_page_lines):
+        raw_lines = (content or "").split("\n")
+        kept = [raw for raw, stripped in zip(raw_lines, lines) if stripped not in frequent_lines]
+        new_content = "\n".join(kept)
+        removed_chars += len(content or "") - len(new_content)
+        cleaned.append(new_content)
+    return cleaned, removed_chars
+
+
 # BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
 def _resolve_hash_salt(hash_salt, hash_salt_env_var):
     if hash_salt:
@@ -412,6 +442,16 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
         description=(
             "Strip boilerplate (nav/ads/footers) from scraped content -- Firecrawl's "
             "`onlyMainContent`. Recommended for RAG: cleaner markdown, fewer wasted tokens."
+        ),
+    )
+    strip_boilerplate: bool = Field(
+        default=True,
+        description=(
+            "On top of only_main_content (Firecrawl's own server-side chrome removal), drop "
+            "any line that repeats across a wide fraction of this run's scraped/crawled pages -- "
+            "catches chrome Firecrawl's own heuristic still lets through (e.g. a 'Sign in' link "
+            "or promo banner it treats as real content). Needs at least 2 pages to have any "
+            "cross-page signal; a no-op below that. Run metadata reports `removed_chars`."
         ),
     )
     poll_interval_seconds: int = Field(
@@ -781,6 +821,7 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
         crawl_max_depth = self.crawl_max_depth
         output_format = self.output_format
         only_main_content = self.only_main_content
+        strip_boilerplate = self.strip_boilerplate
         poll_interval_seconds = self.poll_interval_seconds
         poll_timeout_seconds = self.poll_timeout_seconds
 
@@ -959,6 +1000,19 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
                 for page_data in crawl_pages:
                     rows.append(_row_from_page(crawl_url, page_data))
 
+            removed_chars = 0
+            if strip_boilerplate and rows:
+                import hashlib as _hashlib
+                primary_format = formats_list[0]
+                cleaned_contents, removed_chars = _strip_repeated_boilerplate_lines([r["content"] for r in rows])
+                for row, cleaned in zip(rows, cleaned_contents):
+                    if cleaned != row["content"]:
+                        row["content"] = cleaned
+                        row[primary_format] = cleaned
+                        row["content_hash"] = _hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+                if removed_chars:
+                    context.log.info(f"strip_boilerplate: removed {removed_chars} repeated-line char(s) across {len(rows)} page(s)")
+
             @dlt.resource(name="pages")
             def _pages_resource():
                 yield from rows
@@ -1000,6 +1054,8 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
                 "write_disposition": MetadataValue.text(write_disposition),
                 "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
             }
+            if strip_boilerplate:
+                base_metadata["removed_chars"] = MetadataValue.int(removed_chars)
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations

@@ -5687,8 +5687,7 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "anthropic>=0.40.0",
-          "mcp>=1.30,<3"
+          "anthropic>=0.40.0"
         ]
       },
       "produces": [
@@ -5705,7 +5704,12 @@
         "llm",
         "genai",
         "tool use agent"
-      ]
+      ],
+      "option_requirements": {
+        "mcp_servers=<set>": [
+          "mcp>=1.30,<3"
+        ]
+      }
     },
     {
       "id": "anthropic_llm",
@@ -13820,7 +13824,38 @@
           "config_path": "receipts.resource_key",
           "reason": "reads retrieval receipts back into every rebuild"
         }
-      ]
+      ],
+      "option_requirements": {
+        "embed.provider=sentence_transformers": [
+          "transformers",
+          "torch",
+          "sentence-transformers"
+        ],
+        "embed.provider=openai": [
+          "openai"
+        ],
+        "embed.provider=cohere": [
+          "cohere"
+        ],
+        "embed.provider=litellm": [
+          "litellm"
+        ],
+        "write_vector_store.provider=chromadb": [
+          "chromadb"
+        ],
+        "write_vector_store.provider=pinecone": [
+          "pinecone"
+        ],
+        "write_vector_store.provider=qdrant": [
+          "qdrant-client"
+        ],
+        "write_vector_store.provider=s3vectors": [
+          "boto3"
+        ],
+        "write_vector_store.provider=lancedb": [
+          "lancedb"
+        ]
+      }
     },
     {
       "id": "context_receipt_bigquery_sync",
@@ -29625,8 +29660,7 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "google-genai>=0.7.0",
-          "mcp>=1.30,<3"
+          "google-genai>=0.7.0"
         ]
       },
       "produces": [
@@ -29644,7 +29678,12 @@
         "llm",
         "genai",
         "tool use agent"
-      ]
+      ],
+      "option_requirements": {
+        "mcp_servers=<set>": [
+          "mcp>=1.30,<3"
+        ]
+      }
     },
     {
       "id": "gemini_image_generation",
@@ -33903,7 +33942,30 @@
         "agent-tools",
         "rag",
         "graphrag"
-      ]
+      ],
+      "option_requirements": {
+        "vector_store.embed_provider=openai": [
+          "openai"
+        ],
+        "vector_store.embed_provider=cohere": [
+          "cohere"
+        ],
+        "vector_store.embed_provider=litellm": [
+          "litellm"
+        ],
+        "vector_store.provider=pinecone": [
+          "pinecone"
+        ],
+        "vector_store.provider=qdrant": [
+          "qdrant-client"
+        ],
+        "vector_store.provider=faiss": [
+          "faiss-cpu"
+        ],
+        "vector_store.provider=s3vectors": [
+          "boto3"
+        ]
+      }
     },
     {
       "id": "iceberg_catalog_resource",
@@ -37724,6 +37786,29 @@
           "chromadb",
           "mcp>=1.30,<3"
         ]
+      },
+      "option_requirements": {
+        "embed_provider=openai": [
+          "openai"
+        ],
+        "embed_provider=cohere": [
+          "cohere"
+        ],
+        "embed_provider=litellm": [
+          "litellm"
+        ],
+        "provider=pinecone": [
+          "pinecone"
+        ],
+        "provider=qdrant": [
+          "qdrant-client"
+        ],
+        "provider=faiss": [
+          "faiss-cpu"
+        ],
+        "provider=s3vectors": [
+          "boto3"
+        ]
       }
     },
     {
@@ -39694,8 +39779,7 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "litellm>=1.30.0",
-          "mcp>=1.30,<3"
+          "litellm>=1.30.0"
         ]
       },
       "produces": [
@@ -39714,7 +39798,12 @@
         "genai",
         "tool use agent"
       ],
-      "featured": true
+      "featured": true,
+      "option_requirements": {
+        "mcp_servers=<set>": [
+          "mcp>=1.30,<3"
+        ]
+      }
     },
     {
       "id": "litellm_audio_transcription",
@@ -47107,8 +47196,7 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "openai>=1.30.0",
-          "mcp>=1.30,<3"
+          "openai>=1.30.0"
         ]
       },
       "produces": [
@@ -47129,7 +47217,12 @@
         "llm",
         "genai",
         "tool use agent"
-      ]
+      ],
+      "option_requirements": {
+        "mcp_servers=<set>": [
+          "mcp>=1.30,<3"
+        ]
+      }
     },
     {
       "id": "openai_llm",
@@ -69409,8 +69502,7 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "openai>=1.0.0",
-          "mcp>=1.30,<3"
+          "openai>=1.0.0"
         ]
       },
       "produces": [
@@ -69423,7 +69515,12 @@
         "llm",
         "genai",
         "tool use agent"
-      ]
+      ],
+      "option_requirements": {
+        "mcp_servers=<set>": [
+          "mcp>=1.30,<3"
+        ]
+      }
     },
     {
       "id": "vercel_deployment_sensor",

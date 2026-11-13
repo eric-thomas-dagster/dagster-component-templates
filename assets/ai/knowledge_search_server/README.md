@@ -115,6 +115,45 @@ attributes:
 ```
 `context.resources.knowledge_search.search("what is your return policy?", top_k=5)`.
 
+## Closed-loop receipts (`receipts_db_path`)
+
+Without this, a knowledge base built with `context_engineering_pipeline`'s `receipts:`
+policy learns nothing when agents reach it through this search server -- only the generated
+FastMCP gateway (`resources/context_receipt_store/examples/fastmcp_gateway.py`) and
+`rag_pipeline` ever called `record_retrieval`.
+
+Set `receipts_db_path` to a SQLite file path and:
+- `search_knowledge` records a retrieval receipt per call (chunk ids and scores only -- never
+  the query text or chunk text) and returns `receipt_id`.
+- Quarantined chunks (`feedback_quarantined` in their metadata, the same field
+  `write_vector_store`'s receipts policy stamps) are dropped before they're ever returned --
+  honoring quarantine the same way the FastMCP gateway's own `KnowledgeSearch.search()` does.
+  This happens whether or not `receipts_db_path` is set.
+- A new `record_feedback(receipt_id, signal, user_id?)` tool is exposed. `signal` is one of
+  `thumbs_up`, `thumbs_down`, `accepted`, `edited`, `escalated`, `reopened`, `closed_won`,
+  `closed_lost`, `reformulated` (same vocabulary as `ContextReceiptStoreComponent`'s own
+  `OUTCOME_SIGNALS`). `user_id`, if given, becomes the outcome's `outcome_ref`: a later call
+  with the same `user_id` for the same `receipt_id` supersedes the earlier one, so a user
+  changing their mind isn't double-counted.
+- The inspection asset reports `retrievals_recorded`/`outcomes_recorded` counts.
+
+**Why a plain file path, not a `receipts_resource_key`** (the shape every other
+receipt-integrated component in this repo uses, e.g. `rag_pipeline`'s `receipts.resource_key`):
+`search_knowledge`/`record_feedback` run inside this server's own stdio MCP subprocess
+(`python -m <this module>`, launched from plain environment variables -- see `main()`), which
+has no Dagster `context.resources` to resolve a resource key from at all. `receipts_db_path`
+is read directly by the subprocess (via `KNOWLEDGE_SEARCH_RECEIPTS_DB_PATH` when launched
+through `mcp_server_resource_key`) using a small, self-contained SQLite writer -- not the full
+multi-backend `ContextReceiptStore` (no bigquery/sql backends, no usage sensor, no rerank
+priors here). Point a REAL `ContextReceiptStoreComponent(backend="sqlite",
+database_path=<same path>)` resource at the SAME file elsewhere in your project, and its own
+sensors/asset checks/`context_receipt_bigquery_sync` see receipts recorded from this server
+too, since both write the same canonical receipt tables.
+
+Outcomes recorded via `record_feedback` are real-time, in-session feedback. For outcomes that
+arrive later from an external system (a support ticket's resolution, a CSV export, a warehouse
+query), use `receipt_outcome_ingestion` instead -- the two are complementary, not alternatives.
+
 ## Catalog visibility: the inspection asset
 
 Resources have no tag mechanism of their own (confirmed via direct
@@ -167,6 +206,7 @@ plays.
 | `embed_model` | `str` | — | Must match the embed model the knowledge base was built with (the embed step's own model). |
 | `embed_api_key_env_var` | `str` | — | Env var holding the embed provider's API key (openai/cohere/litellm). |
 | `text_metadata_key` | `str` | `"chunk_text"` | Metadata key holding chunk text for non-chromadb stores. Must match write_vector_store's own text_column if it was customized -- and that column must have been included in metadata_columns, since write_vector_store exclu… _(full docs in schema.json + component README)_ |
+| `receipts_db_path` | `str` | — | SQLite file path. When set, search_knowledge records a retrieval receipt per search (chunk ids and scores only, never the query or chunk text) and a new record_feedback(receipt_id, signal, user_id?) tool is exposed so an… _(full docs in schema.json + component README)_ |
 | `inspection_asset_name` | `str` | `"knowledge_search_tools"` | Asset key for the inspection asset reporting this server's configured settings. |
 
 [//]: # (FIELDS:END)

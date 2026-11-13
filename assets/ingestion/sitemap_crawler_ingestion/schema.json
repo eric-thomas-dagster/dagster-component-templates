@@ -383,6 +383,12 @@
       "label": "Write Disposition",
       "description": "dlt write disposition for the destination table. 'replace' (default): each run's crawl fully replaces the table. dlt's own default is 'append', which has no notion of a previous crawl's pages becoming stale -- every re-run keeps adding another full copy of every page on top of the last (a real, previously-shipped bug: row_count doubled on every rerun of an unchanged site, with no way to tell the loads apart downstream). 'merge': upserts keyed on `doc_id` (the page URL) -- keeps pages from a prior run that this run's crawl didn't revisit (e.g. max_pages capped this run short), unlike 'replace' which drops them. 'append': the old behavior, kept as an explicit opt-in for anyone who deliberately wants a historical log of every crawl rather than current-state pages.",
       "required": false
+    },
+    "strip_boilerplate": {
+      "type": "boolean",
+      "label": "Strip Boilerplate",
+      "description": "Drop page chrome before it reaches extraction: <nav>/<header>/<footer>/<aside> tags and role='navigation'/'banner'/'contentinfo' elements are removed, and when the page has a <main> or <article> tag, only ITS text is kept (not the rest of <body>). On top of that, any line that repeats across a wide fraction of this run's pages (e.g. a 'Sign in' link or a promo banner baked into every page's template, with no semantic landmark tag to catch structurally) is dropped from every page it appears on -- a real production issue: crawled pages without this turned entity extraction's navigation/footer text into nonsense \"entities\" like \"Tags\"/\"page\"/\"banner\". Set False to restore raw full-page text. Run metadata reports `removed_chars`.",
+      "required": false
     }
   }
 }

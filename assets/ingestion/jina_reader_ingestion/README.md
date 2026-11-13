@@ -19,6 +19,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `wait_for_selector` | optional | CSS selector (`X-Wait-For-Selector`) -- wait for this element to render before extracting (JS-rendered pages). |
 | `request_timeout_seconds` | optional | `X-Timeout` header, integer seconds (Jina caps this at 180). |
 | `with_generated_alt` | optional (default `false`) | `X-With-Generated-Alt` header -- caption images lacking alt text. |
+| `strip_boilerplate` | optional (default `true`) | On top of Jina's own cleaning, drop lines that repeat across most of this run's fetched pages. |
 
 ## Output shape
 
@@ -103,6 +104,7 @@ As a safety net independent of `write_disposition`, the returned DataFrame is al
 | `wait_for_selector` | `str` | — | Sent as the X-Wait-For-Selector request header: a CSS selector. When set, Jina Reader waits until the matched element is rendered before extracting content -- useful for JS-rendered/dynamically-loaded pages. |
 | `request_timeout_seconds` | `int` | — | Sent as the X-Timeout request header (integer seconds; Jina caps this at 180). When set, Jina Reader waits for network idle or this timeout before returning instead of returning early -- useful for slow or JS-heavy pages… _(full docs in schema.json + component README)_ |
 | `with_generated_alt` | `bool` | `false` | Sent as the X-With-Generated-Alt request header. When True, Jina Reader captions every image on the page and adds 'Image [idx]: [caption]' as alt text for images that don't already have one -- useful when image content m… _(full docs in schema.json + component README)_ |
+| `strip_boilerplate` | `bool` | `true` | Jina's Reader API already strips most nav/footer chrome server-side before returning clean markdown -- this adds a cross-page pass on top: any line that repeats across a wide fraction of this run's fetched pages (e.g. a… _(full docs in schema.json + component README)_ |
 | `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising… _(full docs in schema.json + component README)_ |
 | `hash_salt` | `str` | — | Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use "{{ env.VAR_NAME }}" for the inlin… _(full docs in schema.json + component README)_ |
 | `hash_salt_env_var` | `str` | — | Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time. |

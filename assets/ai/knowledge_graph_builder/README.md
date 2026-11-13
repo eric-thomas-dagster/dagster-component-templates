@@ -88,19 +88,50 @@ attributes:
   zero-width space and other invisible/punctuation-only text); for
   `method: spacy` specifically, an entity is additionally kept only if its
   head token's part of speech is in `entity_pos` (default `[PROPN, NOUN]`
-  -- this is what excludes pronoun/determiner subjects and objects), and a
-  relation is dropped if its verb lemma isn't a real word (catches
-  lemmatizer artifacts like "dependencie"). `entity_filter: none` restores
-  the old unfiltered behavior. `resolve`'s `min_mentions` is always applied
-  to the already-filtered triples, since `resolve` reads `extract`'s output
-  as its input step. The run's `extraction_settings` metadata reports
-  `entity_filter`, `entities_filtered`, and `triples_filtered`.
+  -- this is what excludes pronoun/determiner subjects and objects).
+  `entity_filter: none` restores the old unfiltered behavior. `resolve`'s
+  `min_mentions` is always applied to the already-filtered triples, since
+  `resolve` reads `extract`'s output as its input step. The run's
+  `extraction_settings` metadata reports `entity_filter`,
+  `lemmatize_entities`, `entities_filtered`, `triples_filtered`, and
+  `relations_filtered`.
+
+  `method: spacy`-specific refinements on top of `entity_filter`:
+  - `lemmatize_entities` (default true): a plain, non-NER-recognized NOUN
+    entity is normalized to its lemma + casefolded ("assets" -> "asset",
+    "libraries" -> "library") before `resolve` ever sees it, so morphological
+    variants merge as the SAME node instead of three similar-looking ones. A
+    named-entity span and any PROPN head are never lemmatized (a proper
+    noun's lemma is usually identical or a wrong guess). The original
+    surface form is kept and surfaces later as a node alias -- see
+    `resolve`/`write_graph` below.
+  - Relation words: the verb's lemma is used only when it's a real word
+    (checked against the model's own vocabulary); a lemmatizer artifact
+    ("dependencie", "instal", "partition" clipped from a bare verb form)
+    falls back to the verb's own surface form instead of dropping the
+    triple. A verb's phrasal particle or preposition child is appended to
+    the relation ("depend" + "on" -> "depend on", "install" + "with" ->
+    "install with"). A relation is only dropped (and counted in
+    `relations_filtered`) when it has no alphabetic character at all.
+  - Entity typing: when spaCy's NER recognized a span, its own label is
+    used (e.g. `ORG`, `PERSON`) -- unchanged. Otherwise the head token's
+    POS is looked up in `entity_type_map` (default `{PROPN: product, NOUN:
+    concept}`, configurable) so every node gets a real `type` instead of
+    being left untyped -- a graph UI otherwise has no colors to group by,
+    and `extract.entity_types` (an LLM-prompt hint) does nothing on this
+    path since there's no LLM involved.
 - **`resolve`**: always merges exact case/punctuation-normalized aliases
-  within the same entity type; optionally also merges near-duplicate names
-  above `embedding_similarity_threshold` (cosine similarity of name
-  embeddings), optionally confirmed per candidate pair by an LLM
-  (`llm_adjudication: true`). `min_mentions` drops entities (and every
-  triple referencing them) seen fewer times than that across the run.
+  within the same entity type (plus, when `extract.lemmatize_entities`
+  normalized an entity, its morphological variants -- see above); optionally
+  also merges near-duplicate names above `embedding_similarity_threshold`
+  (cosine similarity of name embeddings), optionally confirmed per candidate
+  pair by an LLM (`llm_adjudication: true`). `min_mentions` drops entities
+  (and every triple referencing them) seen fewer times than that across the
+  run. Every surface form a merged entity ever appeared as (case variants,
+  pre-lemmatization forms) is carried forward and written onto the final
+  graph node's `aliases` attribute by `write_graph` -- so a merge can always
+  be inspected after the fact, not just inferred from the fact that fewer
+  nodes exist than expected.
 - **`write_graph`**: `provider: networkx` (a local JSON file), `neo4j`, or
   `falkordb`. `sync_mode`: `upsert` (default), `replace_sources` (also
   removes triples whose source rows are in this run but that this run no

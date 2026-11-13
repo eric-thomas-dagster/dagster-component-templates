@@ -366,6 +366,12 @@
       "label": "Write Disposition",
       "description": "dlt write disposition for the destination table. 'replace' (default): each run's scrape fully replaces the table. dlt's own default is 'append', which has no notion of a previous scrape's pages becoming stale -- every re-run keeps adding another full copy of every page on top of the last (a real, previously-shipped bug: row_count doubled on every rerun of the same URLs, with no way to tell the loads apart downstream). 'merge': upserts keyed on `doc_id` (the page URL) -- keeps pages from a prior run that this run didn't re-scrape, unlike 'replace' which drops them. 'append': the old behavior, kept as an explicit opt-in for anyone who deliberately wants a historical log of every scrape rather than current-state pages.",
       "required": false
+    },
+    "strip_boilerplate": {
+      "type": "boolean",
+      "label": "Strip Boilerplate",
+      "description": "On top of only_main_content (Firecrawl's own server-side chrome removal), drop any line that repeats across a wide fraction of this run's scraped/crawled pages -- catches chrome Firecrawl's own heuristic still lets through (e.g. a 'Sign in' link or promo banner it treats as real content). Needs at least 2 pages to have any cross-page signal; a no-op below that. Run metadata reports `removed_chars`.",
+      "required": false
     }
   }
 }

@@ -1031,7 +1031,7 @@ def _extract_llm(df: pd.DataFrame, step: dict, id_column: str, text_column: str,
     if errors:
         context.log.warning(f"extract (llm): {errors} chunk(s) failed extraction and were skipped")
     out = pd.DataFrame(rows)
-    out.attrs["filter_counts"] = {"entities_filtered": entities_filtered, "triples_filtered": triples_filtered}
+    out.attrs["filter_counts"] = {"entities_filtered": entities_filtered, "triples_filtered": triples_filtered, "relations_filtered": 0}
     return out
 
 
@@ -1055,6 +1055,37 @@ def _entity_span_at(token, ents) -> Optional[Any]:
     return None
 
 
+_DEFAULT_ENTITY_TYPE_MAP = {"PROPN": "product", "NOUN": "concept"}
+
+
+def _relation_text(token, vocab) -> Tuple[str, bool]:
+    """Builds the relation text for one verb: its lemma when `_is_real_word` trusts it, else the
+    raw surface verb form -- a mangled lemma ("dependencie", "instal", "partition" from a clipped
+    or bare-verb lemmatization) is never silently used, but the triple is no longer dropped for
+    it either; the plain surface word is still a perfectly usable relation. Appends a phrasal
+    particle or preposition child's own surface text when the verb has one: "depend" + "on" ->
+    "depend on", "install" + "with" -> "install with", "look" + "up" -> "look up". Returns
+    (relation_text, is_non_alphabetic) -- only a relation with NO alphabetic character at all
+    (vanishingly rare) is still dropped."""
+    base = token.lemma_ if (vocab is None or _is_real_word(token.lemma_, vocab)) else token.text.lower()
+    particle = next((c for c in token.children if c.dep_ in ("prt", "prep")), None)
+    if particle is not None:
+        base = f"{base} {particle.text.lower()}"
+    return base, not any(ch.isalpha() for ch in base)
+
+
+def _maybe_lemmatize_entity(text: str, ent, head, lemmatize: bool) -> Tuple[str, str]:
+    """Returns (final_text, surface_text) for one entity. Lemmatizes + casefolds only a plain
+    (non-NER) NOUN head ("assets" -> "asset", "libraries" -> "library") -- a proper noun's lemma
+    is usually identical or a wrong guess, so PROPN heads and any NER-recognized span are left
+    exactly as spaCy surfaced them. `surface_text` is always the pre-lemmatization form (even
+    when unchanged), so a caller can track it as an alias regardless of whether this entity was
+    actually lemmatized."""
+    if lemmatize and ent is None and head.pos_ == "NOUN":
+        return head.lemma_.lower(), text
+    return text, text
+
+
 def _extract_spacy_sentence(
     sent,
     ents,
@@ -1062,7 +1093,9 @@ def _extract_spacy_sentence(
     min_entity_chars: int = 3,
     entity_pos: Tuple[str, ...] = ("PROPN", "NOUN"),
     vocab=None,
-) -> Tuple[List[Dict[str, Any]], int, int]:
+    lemmatize_entities: bool = True,
+    entity_type_map: Optional[Dict[str, str]] = None,
+) -> Tuple[List[Dict[str, Any]], int, int, int]:
     """Dependency-parse SVO extraction: for each verb, pair its nsubj/nsubjpass child with its
     dobj/attr/oprd child (or, failing that, the object of its first prepositional child). Simple
     and local, not a calibrated extractor -- documented as heuristic, no confidence is reported.
@@ -1074,12 +1107,25 @@ def _extract_spacy_sentence(
     "head" is `ent.root` when spaCy's NER recognized it as a named-entity span, or the raw token
     itself when extraction fell back to a bare dependency-parse child (the common case for the
     noise this filter targets -- a pronoun subject is never a named entity, so it only ever
-    reaches this check as a raw token). A relation is additionally dropped if its lemma isn't a
-    real word per `_is_real_word` (catches lemmatizer artifacts like "dependencie").
-    Returns (triples, entities_filtered, triples_filtered)."""
+    reaches this check as a raw token).
+
+    `lemmatize_entities` (default True): see `_maybe_lemmatize_entity`.
+
+    Entity typing: when spaCy's NER recognized a named-entity span, its own label is used
+    (unchanged behavior). Otherwise (a plain dependency-parse token, no NER recognition --
+    today's only case this function ever produces, since no other PERSON/ORG/etc-style type
+    exists for it) the head token's POS is looked up in `entity_type_map` (default
+    `_DEFAULT_ENTITY_TYPE_MAP`: PROPN -> 'product', NOUN -> 'concept') so every node gets SOME
+    type instead of being left untyped -- a UI graph view otherwise has no colors to show, and
+    `extract.entity_types` does nothing on this path (it's an LLM-prompt hint, meaningless
+    without NER).
+
+    Returns (triples, entities_filtered, triples_filtered, relations_filtered)."""
+    type_map = entity_type_map if entity_type_map is not None else _DEFAULT_ENTITY_TYPE_MAP
     triples = []
     entities_filtered = 0
     triples_filtered = 0
+    relations_filtered = 0
     for token in sent:
         if token.pos_ != "VERB":
             continue
@@ -1093,12 +1139,12 @@ def _extract_spacy_sentence(
             continue
         subj_ent = _entity_span_at(subj, ents)
         obj_ent = _entity_span_at(obj, ents)
+        subj_head = subj_ent.root if subj_ent is not None else subj
+        obj_head = obj_ent.root if obj_ent is not None else obj
         subject_text = subj_ent.text if subj_ent is not None else subj.text
         object_text = obj_ent.text if obj_ent is not None else obj.text
 
         if entity_filter == "basic":
-            subj_head = subj_ent.root if subj_ent is not None else subj
-            obj_head = obj_ent.root if obj_ent is not None else obj
             subj_noisy = (
                 _entity_text_is_noisy(subject_text, min_entity_chars)
                 or subj_head.is_stop
@@ -1113,19 +1159,26 @@ def _extract_spacy_sentence(
                 entities_filtered += int(subj_noisy) + int(obj_noisy)
                 triples_filtered += 1
                 continue
-            if vocab is not None and not _is_real_word(token.lemma_, vocab):
-                triples_filtered += 1
-                continue
+
+        relation, relation_is_bad = _relation_text(token, vocab)
+        if relation_is_bad:
+            relations_filtered += 1
+            continue
+
+        subject_final, subject_surface = _maybe_lemmatize_entity(subject_text, subj_ent, subj_head, lemmatize_entities)
+        object_final, object_surface = _maybe_lemmatize_entity(object_text, obj_ent, obj_head, lemmatize_entities)
 
         triples.append({
-            "subject": subject_text,
-            "subject_type": subj_ent.label_ if subj_ent is not None else None,
-            "relation": token.lemma_,
-            "object": object_text,
-            "object_type": obj_ent.label_ if obj_ent is not None else None,
+            "subject": subject_final,
+            "subject_surface": subject_surface,
+            "subject_type": subj_ent.label_ if subj_ent is not None else type_map.get(subj_head.pos_),
+            "relation": relation,
+            "object": object_final,
+            "object_surface": object_surface,
+            "object_type": obj_ent.label_ if obj_ent is not None else type_map.get(obj_head.pos_),
             "evidence": sent.text.strip()[:300],
         })
-    return triples, entities_filtered, triples_filtered
+    return triples, entities_filtered, triples_filtered, relations_filtered
 
 
 def _extract_spacy(df: pd.DataFrame, step: dict, id_column: str, text_column: str, context) -> pd.DataFrame:
@@ -1138,10 +1191,13 @@ def _extract_spacy(df: pd.DataFrame, step: dict, id_column: str, text_column: st
         raise ValueError(f"extract op: entity_filter must be 'basic' or 'none', got {entity_filter!r}")
     min_entity_chars = int(step.get("min_entity_chars", 3))
     entity_pos = tuple(step.get("entity_pos") or ("PROPN", "NOUN"))
+    lemmatize_entities = bool(step.get("lemmatize_entities", True))
+    entity_type_map = step.get("entity_type_map") or _DEFAULT_ENTITY_TYPE_MAP
 
     rows: List[Dict[str, Any]] = []
     entities_filtered = 0
     triples_filtered = 0
+    relations_filtered = 0
     for _, row in df.iterrows():
         text = str(row[text_column]) if pd.notna(row.get(text_column)) else ""
         if not text.strip():
@@ -1149,13 +1205,15 @@ def _extract_spacy(df: pd.DataFrame, step: dict, id_column: str, text_column: st
         doc = nlp(text)
         triples: List[Dict[str, Any]] = []
         for sent in doc.sents:
-            sent_triples, sent_entities_filtered, sent_triples_filtered = _extract_spacy_sentence(
+            sent_triples, sent_entities_filtered, sent_triples_filtered, sent_relations_filtered = _extract_spacy_sentence(
                 sent, list(doc.ents), entity_filter=entity_filter, min_entity_chars=min_entity_chars,
-                entity_pos=entity_pos, vocab=nlp.vocab,
+                entity_pos=entity_pos, vocab=nlp.vocab, lemmatize_entities=lemmatize_entities,
+                entity_type_map=entity_type_map,
             )
             triples.extend(sent_triples)
             entities_filtered += sent_entities_filtered
             triples_filtered += sent_triples_filtered
+            relations_filtered += sent_relations_filtered
             if max_triples_per_chunk is not None and len(triples) >= int(max_triples_per_chunk):
                 break
         if max_triples_per_chunk is not None:
@@ -1165,14 +1223,17 @@ def _extract_spacy(df: pd.DataFrame, step: dict, id_column: str, text_column: st
                 id_column: row[id_column],
                 "chunk_id": row.get("chunk_id"),
                 "content_hash": row.get("content_hash"),
-                "subject": t["subject"], "subject_type": t["subject_type"],
+                "subject": t["subject"], "subject_surface": t["subject_surface"], "subject_type": t["subject_type"],
                 "relation": t["relation"],
-                "object": t["object"], "object_type": t["object_type"],
+                "object": t["object"], "object_surface": t["object_surface"], "object_type": t["object_type"],
                 "confidence": None,
                 "evidence": t["evidence"],
             })
     out = pd.DataFrame(rows)
-    out.attrs["filter_counts"] = {"entities_filtered": entities_filtered, "triples_filtered": triples_filtered}
+    out.attrs["filter_counts"] = {
+        "entities_filtered": entities_filtered, "triples_filtered": triples_filtered,
+        "relations_filtered": relations_filtered,
+    }
     return out
 
 
@@ -1290,19 +1351,24 @@ def _do_resolve(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     max_entities_for_embedding_resolve = int(step.get("max_entities_for_embedding_resolve", 500))
     llm_adjudication = bool(step.get("llm_adjudication", False))
 
-    # mention occurrences: every (name, type) appearance as a subject or object
-    occurrences: List[Tuple[str, Optional[str]]] = []
+    # mention occurrences: every (name, type, surface) appearance as a subject or object.
+    # `surface` is the pre-lemmatization text (extract's own subject_surface/object_surface
+    # columns, when the extract step is 'spacy' with lemmatize_entities=True) -- falls back to
+    # `name` itself when those columns don't exist (llm method, or an un-lemmatized entity),
+    # which reproduces today's exact alias behavior for anything not freshly lemmatized.
+    occurrences: List[Tuple[str, Optional[str], str]] = []
     for _, row in df.iterrows():
-        occurrences.append((row["subject"], row.get("subject_type")))
-        occurrences.append((row["object"], row.get("object_type")))
+        occurrences.append((row["subject"], row.get("subject_type"), row.get("subject_surface") or row["subject"]))
+        occurrences.append((row["object"], row.get("object_type"), row.get("object_surface") or row["object"]))
 
-    groups: Dict[Tuple[str, str], Dict[str, Any]] = {}  # (normalized_key, type_bucket) -> {names: Counter, mention_count}
+    groups: Dict[Tuple[str, str], Dict[str, Any]] = {}  # (normalized_key, type_bucket) -> {names: Counter, surfaces: set, mention_count}
     from collections import Counter
-    for name, etype in occurrences:
+    for name, etype, surface in occurrences:
         type_bucket = etype or ""
         key = (_normalize_entity_key(name), type_bucket)
-        g = groups.setdefault(key, {"names": Counter(), "mention_count": 0, "type": etype})
+        g = groups.setdefault(key, {"names": Counter(), "surfaces": set(), "mention_count": 0, "type": etype})
         g["names"][str(name)] += 1
+        g["surfaces"].add(str(surface))
         g["mention_count"] += 1
         if etype and not g["type"]:
             g["type"] = etype
@@ -1364,7 +1430,7 @@ def _do_resolve(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
         final_name = canonical[root]
         key_to_final[k] = final_name
         m = merged.setdefault(final_name, {"type": root_group["type"], "aliases": set(), "mention_count": 0})
-        m["aliases"].update(groups[k]["names"].keys())
+        m["aliases"].update(groups[k]["surfaces"])
         m["mention_count"] += groups[k]["mention_count"]
 
     kept_entities = {name for name, m in merged.items() if m["mention_count"] >= min_mentions}
@@ -1558,6 +1624,11 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
         if col not in df.columns:
             raise ValueError(f"write_graph op: column {col!r} not in upstream columns: {list(df.columns)}")
     graph_name = step.get("graph_name", "knowledge_graph")
+    # resolve's own computed alias sets (name -> {"aliases": [...], ...}), when resolve was the
+    # immediately-prior step -- seeds each node's aliases with every surface form resolve merged
+    # into it, instead of just the final canonical name. A no-op (falls back to {name}, today's
+    # behavior) when write_graph follows extract directly with no resolve step in between.
+    resolved_entities = df.attrs.get("entities") or {}
 
     # Aggregate this run's rows into one record per unique (subject, relation, object).
     edges: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
@@ -1580,7 +1651,10 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
         if sid is not None:
             source_ids_this_run.add(sid)
         for name, etype in ((s, row.get("subject_type")), (o, row.get("object_type"))):
-            n = nodes.setdefault(name, {"type": None, "aliases": {name}, "mention_count": 0})
+            if name not in nodes:
+                seed_aliases = set(resolved_entities.get(name, {}).get("aliases") or [name])
+                nodes[name] = {"type": None, "aliases": seed_aliases, "mention_count": 0}
+            n = nodes[name]
             n["mention_count"] += 1
             if etype and not n["type"]:
                 n["type"] = etype
@@ -2068,8 +2142,10 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
                         "method": step.get("method", "llm"), "model": step.get("model"),
                         "entity_types": step.get("entity_types"), "relation_types": step.get("relation_types"),
                         "entity_filter": step.get("entity_filter", "basic"),
+                        "lemmatize_entities": step.get("lemmatize_entities", True),
                         "entities_filtered": filter_counts.get("entities_filtered", 0),
                         "triples_filtered": filter_counts.get("triples_filtered", 0),
+                        "relations_filtered": filter_counts.get("relations_filtered", 0),
                     }
                 elif op == "resolve":
                     df_out = _do_resolve(df_in, step, context)

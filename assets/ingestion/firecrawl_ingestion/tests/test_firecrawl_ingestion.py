@@ -136,6 +136,69 @@ def test_scrape_mode_multiple_urls_returns_one_row_each(mod, monkeypatch):
     assert {r["url"] for r in rows} == {"https://example.com/a", "https://example.com/b"}
 
 
+def test_strip_repeated_boilerplate_lines_drops_lines_common_to_most_pages(mod):
+    pages = [
+        "Sign in\nReal content A\nFooter copyright",
+        "Sign in\nReal content B\nFooter copyright",
+        "Sign in\nReal content C\nFooter copyright",
+    ]
+    cleaned, removed_chars = mod._strip_repeated_boilerplate_lines(pages)
+    assert removed_chars > 0
+    for c, unique in zip(cleaned, ("Real content A", "Real content B", "Real content C")):
+        assert unique in c
+        assert "Sign in" not in c
+
+
+def test_strip_repeated_boilerplate_lines_single_page_is_a_no_op(mod):
+    cleaned, removed_chars = mod._strip_repeated_boilerplate_lines(["Sign in\nOnly page"])
+    assert cleaned == ["Sign in\nOnly page"]
+    assert removed_chars == 0
+
+
+def test_strip_boilerplate_removes_repeated_chrome_line_across_scraped_pages(mod, monkeypatch):
+    """Firecrawl's own only_main_content already strips structural chrome server-side -- this
+    tests the ADDITIONAL cross-page pass for whatever it still lets through (a 'Sign in' line
+    Firecrawl's heuristic treated as real main content on every page)."""
+    def fake_post(url, json=None, headers=None, timeout=None):
+        requested = json["url"]
+        return FakeResponse(json_body={
+            "success": True,
+            "data": {
+                "markdown": f"Sign in\nUnique content for {requested}",
+                "metadata": {"title": f"Title for {requested}", "sourceURL": requested},
+            },
+        })
+
+    install_fake_requests(monkeypatch, mod, post=fake_post)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, urls="https://example.com/a,https://example.com/b")
+    result = _materialize(component)
+    assert result.success
+    rows = list(fake_pipeline.run_calls[-1][0])
+    for row in rows:
+        assert "Sign in" not in row["content"]
+        assert "Sign in" not in row["markdown"]  # the primary-format column is kept in sync too
+    metadata = result.get_asset_materialization_events()[-1].materialization.metadata
+    assert metadata["removed_chars"].value > 0
+
+
+def test_strip_boilerplate_false_keeps_repeated_lines(mod, monkeypatch):
+    def fake_post(url, json=None, headers=None, timeout=None):
+        requested = json["url"]
+        return FakeResponse(json_body={
+            "success": True,
+            "data": {"markdown": f"Sign in\nUnique content for {requested}", "metadata": {"sourceURL": requested}},
+        })
+
+    install_fake_requests(monkeypatch, mod, post=fake_post)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, urls="https://example.com/a,https://example.com/b", strip_boilerplate=False)
+    result = _materialize(component)
+    assert result.success
+    rows = list(fake_pipeline.run_calls[-1][0])
+    assert all("Sign in" in row["content"] for row in rows)
+
+
 def test_scrape_failure_response_raises(mod, monkeypatch):
     def fake_post(url, json=None, headers=None, timeout=None):
         return FakeResponse(json_body={"success": False, "error": "no such page"})

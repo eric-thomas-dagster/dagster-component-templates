@@ -37,9 +37,15 @@ the vector collection's chunk ids and the graph's chunk ids. Every other provide
 reports `overlap_with_knowledge_base: null` with a `overlap_note` explaining why (no cheap
 full-id-listing API for that combination) rather than silently guessing.
 """
+import hashlib
+import json
 import logging
 import os
+import sqlite3
 import sys
+import time
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import dagster as dg
@@ -194,6 +200,199 @@ def _query_vector_store(embedding, *, provider, connection_string, collection_na
         return [{"id": v["key"], "metadata": v.get("metadata") or {}, "document": None, "score": v.get("distance")} for v in resp.get("vectors", [])]
     raise ValueError(f"HybridKnowledgeSearch: unsupported provider {provider!r}. Valid: chromadb, pinecone, qdrant, faiss, s3vectors.")
 # END knowledge-search core
+
+
+# BEGIN receipt-warehouse-ddl (canonical; inlined verbatim, byte-identical, by every component that creates or reads the receipt tables -- drift-tested)
+RECEIPT_TABLE_NAMES = ("context_receipts", "context_receipt_items", "context_receipt_excluded", "context_receipt_events", "context_item_scores")
+RECEIPT_DIALECTS = ("bigquery", "snowflake", "databricks", "postgres", "mysql", "duckdb", "sqlite")
+
+
+def receipt_table(dataset: str, name: str, prefix: str = "", dialect: str = "bigquery") -> str:
+    """Table reference for a receipt table. `dataset` is the namespace: `project.dataset` (bigquery), `database.schema` (snowflake),
+    `catalog.schema` (databricks), `schema` (postgres/duckdb), `database` (mysql); "" for sqlite or the connection default."""
+    if name not in RECEIPT_TABLE_NAMES:
+        raise ValueError(f"unknown receipt table {name!r}; valid: {RECEIPT_TABLE_NAMES}")
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    parts = [p for p in dataset.strip("`").split(".") if p] + [f"{prefix}{name}"]
+    if dialect == "bigquery":
+        return "`" + ".".join(parts) + "`"          # BigQuery reads `a.b.c` as one path
+    if dialect in ("databricks", "mysql"):
+        return ".".join(f"`{p}`" for p in parts)
+    if dialect in ("postgres", "duckdb", "sqlite"):
+        return ".".join(f'"{p}"' for p in parts)
+    return ".".join(parts)                          # snowflake: unquoted, case-insensitive
+
+
+_RECEIPT_TYPES = {  # (string, long string, integer, float, timestamp)
+    "bigquery": ("STRING", "STRING", "INT64", "FLOAT64", "TIMESTAMP"),
+    "snowflake": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMP_TZ"),
+    "databricks": ("STRING", "STRING", "BIGINT", "DOUBLE", "TIMESTAMP"),
+    "postgres": ("TEXT", "TEXT", "BIGINT", "DOUBLE PRECISION", "TIMESTAMPTZ"),
+    "mysql": ("VARCHAR(255)", "LONGTEXT", "BIGINT", "DOUBLE", "DATETIME(6)"),   # UTC by convention
+    "duckdb": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMPTZ"),
+    "sqlite": ("TEXT", "TEXT", "INTEGER", "REAL", "TEXT"),                       # ISO-8601 UTC strings
+}
+
+
+def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
+    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
+    Event payloads stay JSON text in `payload_json`; priors and feedback are computed from them (SQL: JSON_VALUE and friends, or in Python)."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    K = "`rank`" if dialect == "mysql" else "rank"        # RANK is reserved in MySQL 8
+    t = lambda n: receipt_table(dataset, n, prefix, dialect)  # noqa: E731
+    return [
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
+  receipt_id {S} NOT NULL, created_at {T} NOT NULL, context_name {S} NOT NULL, context_version {S}, policy_version {S},
+  caller_id {S}, purpose {S}, query_hash {S}, eligible_count {I}, excluded_count {I}, dagster_asset_key {S},
+  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S}, dagster_partition_key {S})""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, source_asset_key {S}, source_version {S}, source_partition {S},
+  source_code_version {S}, {K} {I}, score {F}, selection {S})""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_excluded')} (
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, reason {S} NOT NULL, source_asset_key {S}, source_version {S},
+  source_partition {S}, source_code_version {S})""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_events')} (
+  event_id {S} NOT NULL, receipt_id {S} NOT NULL, event_type {S} NOT NULL, occurred_at {T} NOT NULL, payload_json {L} NOT NULL)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_item_scores')} (
+  item_id {S} NOT NULL, retrievals {I} NOT NULL, outcome_weight {F} NOT NULL, outcome_sum {F} NOT NULL, prior {F} NOT NULL,
+  updated_at {T} NOT NULL)""",
+    ]
+
+
+# Columns added after the first release: (table, column, kind). A deployed table created from an older DDL lacks them, so
+# creators probe each one and run the ALTER only when the probe fails (never a destructive step; existing rows read NULL).
+RECEIPT_ADDED_COLUMNS = (("context_receipts", "dagster_partition_key", "string"),)
+
+
+def receipt_column_upgrades(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
+    """``[(probe_sql, alter_sql)]`` per late-added column: run ``probe_sql``; if it raises (column missing), run ``alter_sql``."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    out = []
+    for table, column, kind in RECEIPT_ADDED_COLUMNS:
+        ref = receipt_table(dataset, table, prefix, dialect)
+        out.append((f"SELECT {column} FROM {ref} WHERE 1 = 0", f"ALTER TABLE {ref} ADD COLUMN {column} {S if kind == 'string' else L}"))
+    return out
+# END receipt-warehouse-ddl
+
+
+# Outcome signals -> default value in [-1, 1] (same vocabulary as context_receipt_store's own
+# OUTCOME_SIGNALS; unknown signals need an explicit value, which record_feedback's 3-arg tool
+# signature doesn't expose -- so an unlisted signal here is simply rejected, not silently
+# defaulted to 0).
+OUTCOME_SIGNALS = {
+    "thumbs_up": 1.0,
+    "thumbs_down": -1.0,
+    "accepted": 0.5,
+    "edited": -0.3,
+    "escalated": -0.7,
+    "reopened": -0.7,
+    "closed_won": 1.0,
+    "closed_lost": -0.5,
+    "reformulated": -0.2,
+}
+_CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def _new_receipt_id() -> str:
+    """Time-sortable ULID, generated client-side -- same scheme as context_receipt_store's own
+    `new_receipt_id()` (copied, not imported, per this repo's self-contained-component
+    convention), so receipt ids from this server sort/compare the same way."""
+    value = (int(time.time() * 1000) << 80) | int.from_bytes(os.urandom(10), "big")
+    chars = []
+    for _ in range(26):
+        chars.append(_CROCKFORD[value & 31])
+        value >>= 5
+    return "".join(reversed(chars))
+
+
+class _ReceiptWriter:
+    """Minimal, SQLite-only receipt writer for recording retrievals/outcomes directly from this
+    MCP server's own stdio subprocess. Deliberately NOT the full `ContextReceiptStore` (that
+    class also supports bigquery/sql backends, a usage sensor, context policy enforcement, and
+    learned-prior rerank scoring) -- just enough to record_retrieval/record_outcome against a
+    local file, using the SAME canonical receipt-table DDL/names a real
+    `ContextReceiptStoreComponent(backend='sqlite', database_path=...)` resource reads. Point
+    both at the same file and that resource's own sensors/asset checks see receipts recorded
+    here. This exists only because the stdio MCP subprocess has no Dagster
+    context.resources available at tool-call time (confirmed: `main()` below constructs
+    `HybridKnowledgeSearchResource` from plain env vars, never from a Dagster resource
+    registry)."""
+
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self._ensure_tables()
+
+    def _connect(self):
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _ensure_tables(self) -> None:
+        with self._connect() as conn:
+            for stmt in receipt_table_ddl("", dialect="sqlite"):
+                conn.execute(stmt)
+
+    def record_retrieval(
+        self, *, context_name: str, items: List[Dict[str, Any]],
+        eligible_count: Optional[int] = None, purpose: Optional[str] = None, query_hash: Optional[str] = None,
+    ) -> str:
+        receipt_id = _new_receipt_id()
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """INSERT INTO context_receipts (
+                    receipt_id, created_at, context_name, context_version, policy_version,
+                    caller_id, purpose, query_hash, eligible_count, excluded_count,
+                    dagster_asset_key, dagster_run_id, trace_id, mcp_session_id, mcp_request_id, dagster_partition_key
+                ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, 0, NULL, NULL, NULL, NULL, NULL, NULL)""",
+                (receipt_id, created_at, context_name, purpose, query_hash, eligible_count),
+            )
+            conn.executemany(
+                """INSERT INTO context_receipt_items (
+                    receipt_id, item_id, source_asset_key, source_version, source_partition,
+                    source_code_version, rank, score, selection
+                ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, 'ranked')""",
+                [
+                    (
+                        receipt_id, item["item_id"], item.get("source_asset_key"), item.get("source_version"),
+                        item.get("source_code_version"), item.get("rank"), item.get("score"),
+                    )
+                    for item in items
+                ],
+            )
+        return receipt_id
+
+    def record_outcome(
+        self, receipt_id: str, *, signal: str, value: Optional[float] = None,
+        source: Optional[str] = None, outcome_ref: Optional[str] = None,
+    ) -> None:
+        if value is None:
+            if signal not in OUTCOME_SIGNALS:
+                raise ValueError(f"unknown signal {signal!r} requires an explicit value")
+            value = OUTCOME_SIGNALS[signal]
+        payload = {"signal": signal, "value": float(value), "source": source, "outcome_ref": outcome_ref}
+        with self._connect() as conn:
+            exists = conn.execute("SELECT 1 FROM context_receipts WHERE receipt_id = ?", (receipt_id,)).fetchone()
+            if exists is None:
+                raise KeyError(f"unknown context receipt: {receipt_id}")
+            conn.execute(
+                "INSERT INTO context_receipt_events (event_id, receipt_id, event_type, occurred_at, payload_json) "
+                "VALUES (?, ?, 'outcome', ?, ?)",
+                (str(uuid.uuid4()), receipt_id, datetime.now(timezone.utc).isoformat(),
+                 json.dumps(payload, sort_keys=True, separators=(",", ":"))),
+            )
+
+    def counts(self) -> Dict[str, int]:
+        """Best-effort {"retrievals": n, "outcomes": n} -- used by the inspection asset."""
+        with self._connect() as conn:
+            retrievals = conn.execute("SELECT COUNT(*) FROM context_receipts").fetchone()[0]
+            outcomes = conn.execute("SELECT COUNT(*) FROM context_receipt_events WHERE event_type = 'outcome'").fetchone()[0]
+        return {"retrievals": retrievals, "outcomes": outcomes}
 
 
 # BEGIN knowledge-graph-store core (duplicated from knowledge_graph_builder's/
@@ -444,6 +643,19 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
     ))
     knowledge_base: Optional[str] = Field(default=None, description="Optional UI-linking label.")
     max_results: int = Field(default=50, description="Cap on rows returned by any list-returning method.")
+    receipts_db_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "SQLite file path. When set, every search() call with a vector component "
+            "(mode='vector' or 'hybrid') records a retrieval receipt for its vector-sourced "
+            "passages (chunk ids and scores only, never the query or chunk text) and returns "
+            "receipt_id; mode='graph' alone records nothing (no ranked vector retrieval to "
+            "attribute a receipt to). Quarantined chunks (feedback_quarantined metadata) are "
+            "always dropped from vector results, whether or not this is set. See "
+            "KnowledgeSearchResource.receipts_db_path's own docs (knowledge_search_server) for "
+            "why this is a plain file path rather than a Dagster resource_key."
+        ),
+    )
 
     def _vector_cfg(self) -> dict:
         return {
@@ -502,16 +714,23 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
 
     # ─── vector primitive ───────────────────────────────────────────────
 
-    def _vector_search(self, query: str, top_k: int) -> List[Dict[str, Any]]:
+    def _vector_search(self, query: str, top_k: int) -> Tuple[List[Dict[str, Any]], int]:
+        """Returns (hits, eligible_count). `eligible_count` is the raw hit count BEFORE
+        quarantine filtering -- quarantined chunks (`feedback_quarantined` metadata, the same
+        field `write_vector_store`'s receipts policy stamps) are dropped here, honoring
+        quarantine the same way the FastMCP gateway's own KnowledgeSearch.search() does,
+        independent of whether receipts are configured on this server at all."""
         vcfg = self._vector_cfg()
         if not vcfg["collection_name"]:
             raise ValueError("HybridKnowledgeSearch: vector_store.collection_name is required.")
         embedding = _embed_query(query, vcfg["embed_provider"], vcfg["embed_model"], vcfg["embed_api_key_env_var"])
-        hits = _query_vector_store(
+        raw_hits = _query_vector_store(
             embedding, provider=vcfg["provider"], connection_string=vcfg["connection_string"],
             collection_name=vcfg["collection_name"], top_k=top_k, api_key_env_var=vcfg["api_key_env_var"],
             vector_bucket_name=vcfg["vector_bucket_name"], aws_region=vcfg["aws_region"], demo_mode=vcfg["demo_mode"],
         )
+        eligible_count = len(raw_hits)
+        hits = [h for h in raw_hits if not (h.get("metadata") or {}).get("feedback_quarantined")]
         out = []
         for h in hits:
             meta = h.get("metadata") or {}
@@ -519,8 +738,9 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
             out.append({
                 "chunk_id": meta.get("chunk_id", h["id"]), "text": text, "score": h.get("score"),
                 "source": meta.get("source_asset_key"), "doc_id": meta.get("source_id"),
+                "source_version": meta.get("source_version"), "source_code_version": meta.get("source_code_version"),
             })
-        return out
+        return out, eligible_count
 
     def _backfill_text_from_chromadb(self, chunk_id: str) -> Optional[str]:
         vcfg = self._vector_cfg()
@@ -776,8 +996,11 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
                     seen_triple_keys.add(key)
                     triples.append({**t, "chunk_id": cid, "path": path_label})
 
+        vector_hits: List[Dict[str, Any]] = []
+        eligible_count: Optional[int] = None
         if mode in ("vector", "hybrid"):
-            for h in self._vector_search(query, top_k):
+            vector_hits, eligible_count = self._vector_search(query, top_k)
+            for h in vector_hits:
                 rec = _passage(h["chunk_id"])
                 for field in ("text", "score", "source", "doc_id"):
                     if h.get(field) is not None:
@@ -820,7 +1043,34 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
                 rec["text"] = self._backfill_text_from_chromadb(rec["chunk_id"])
 
         ordered = sorted(passages.values(), key=lambda r: (r["score"] is None, -(r["score"] or 0)))
-        return {"passages": ordered[: self.max_results], "triples": triples[: self.max_results]}
+        result: Dict[str, Any] = {"passages": ordered[: self.max_results], "triples": triples[: self.max_results]}
+        if self.receipts_db_path and vector_hits:
+            items = [
+                {
+                    "item_id": h["chunk_id"], "source_asset_key": h.get("source"),
+                    "source_version": h.get("source_version"), "source_code_version": h.get("source_code_version"),
+                    "rank": rank, "score": h.get("score"),
+                }
+                for rank, h in enumerate(vector_hits)
+            ]
+            result["receipt_id"] = _ReceiptWriter(self.receipts_db_path).record_retrieval(
+                context_name=self._vector_cfg()["collection_name"],
+                items=items,
+                eligible_count=eligible_count,
+                query_hash=hashlib.sha256(query.encode("utf-8")).hexdigest(),
+            )
+        return result
+
+    def record_feedback(self, receipt_id: str, signal: str, user_id: Optional[str] = None) -> dict:
+        """Records an outcome (thumbs_up/thumbs_down/accepted/edited/escalated/reopened/
+        closed_won/closed_lost/reformulated -- see OUTCOME_SIGNALS) against a prior search()
+        call's receipt_id. `user_id`, when given, becomes the outcome's `outcome_ref`: a later
+        call with the SAME user_id for the SAME receipt supersedes the earlier one when
+        scoring, so a user changing their mind isn't double-counted."""
+        if not self.receipts_db_path:
+            raise ValueError("record_feedback: receipts_db_path is not configured on this server.")
+        _ReceiptWriter(self.receipts_db_path).record_outcome(receipt_id, signal=signal, outcome_ref=user_id)
+        return {"recorded": True}
 
     # ─── corpus-overlap check (build-time / inspection-asset metadata) ──
 
@@ -940,6 +1190,18 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
     graph: Dict[str, Any] = Field(default_factory=dict, description="Same fields as knowledge_graph_search_server's KnowledgeGraphSearchResource (provider, path, uri, username_env_var, password_env_var, database, host, port, graph_name).")
     knowledge_base: Optional[str] = Field(default=None, description="Optional UI-linking label.")
     max_results: int = Field(default=50, description="Cap on rows returned by any list-returning method.")
+    receipts_db_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "SQLite file path. When set, search() records a retrieval receipt per call with a "
+            "vector component (mode='vector' or 'hybrid') and a new record_feedback(receipt_id, "
+            "signal, user_id?) tool is exposed. Quarantined chunks are always dropped from "
+            "vector results, whether or not this is set. See HybridKnowledgeSearchResource."
+            "receipts_db_path's own docs for why this is a plain file path, not a Dagster "
+            "resource_key -- the stdio MCP subprocess that answers searches has no Dagster "
+            "context to resolve one from."
+        ),
+    )
     inspection_asset_name: str = Field(default="hybrid_knowledge_search_tools", description="Asset key for the inspection asset reporting this server's configured settings and the corpus-overlap check.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -969,11 +1231,14 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
         resource = HybridKnowledgeSearchResource(
             vector_store=_drop_none(self.vector_store), graph=_drop_none(self.graph),
             knowledge_base=self.knowledge_base, max_results=self.max_results,
+            receipts_db_path=self.receipts_db_path,
         )
         resources: Dict[str, Any] = {self.resource_key: resource}
 
         if self.mcp_server_resource_key:
             mcp_env: Dict[str, str] = {"HYBRID_KG_SEARCH_MAX_RESULTS": str(self.max_results)}
+            if self.receipts_db_path:
+                mcp_env["HYBRID_KG_SEARCH_RECEIPTS_DB_PATH"] = self.receipts_db_path
             for field, env_key in _VECTOR_ENV_KEYS.items():
                 v = self.vector_store.get(field)
                 if v is not None:
@@ -996,6 +1261,7 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
         tags.setdefault("dagster-community/hybrid-knowledge-search", self.knowledge_base or self.resource_key)
 
         vector_store_cfg, graph_cfg, knowledge_base = dict(self.vector_store), dict(self.graph), self.knowledge_base
+        receipts_db_path = self.receipts_db_path
 
         @asset(
             key=AssetKey.from_user_string(self.inspection_asset_name),
@@ -1006,6 +1272,26 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
         )
         def _inspection_asset(context: AssetExecutionContext):
             overlap = resource.check_overlap()
+            tool_names = [
+                "search", "search_entities", "get_entity", "get_neighbors", "find_path",
+                "get_chunks_for_entity", "get_graph_context",
+            ]
+            tool_descriptions = {
+                "search": "Hybrid (or vector-only / graph-only) search: passages + supporting triples, merged and de-duplicated by chunk_id.",
+                "search_entities": "Fuzzy name/alias search over graph entities.",
+                "get_entity": "Exact-name entity lookup: attributes, relations, evidence.",
+                "get_neighbors": "Entities within N hops (<=3) of a given entity.",
+                "find_path": "Shortest path (<=6 hops) between two entities.",
+                "get_chunks_for_entity": "Every chunk_id an entity appears in.",
+                "get_graph_context": "Entities + triples associated with a given chunk_id.",
+            }
+            if receipts_db_path:
+                tool_names.append("record_feedback")
+                tool_descriptions["record_feedback"] = (
+                    "Record an outcome (thumbs_up/thumbs_down/accepted/edited/escalated/reopened/"
+                    "closed_won/closed_lost/reformulated) against a prior search's receipt_id, "
+                    "optionally scoped by user_id."
+                )
             md = {
                 "vector_provider": MetadataValue.text(vector_store_cfg.get("provider", "chromadb")),
                 "vector_collection_name": MetadataValue.text(vector_store_cfg.get("collection_name") or ""),
@@ -1015,22 +1301,20 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
                 "overlap_note": MetadataValue.text(overlap["overlap_note"]),
                 "chunk_count_vector": (MetadataValue.int(overlap["vector_chunk_count"]) if overlap["vector_chunk_count"] is not None else MetadataValue.null()),
                 "chunk_count_graph": (MetadataValue.int(overlap["graph_chunk_count"]) if overlap["graph_chunk_count"] is not None else MetadataValue.null()),
-                "tool_names": MetadataValue.json([
-                    "search", "search_entities", "get_entity", "get_neighbors", "find_path",
-                    "get_chunks_for_entity", "get_graph_context",
-                ]),
-                "tool_descriptions": MetadataValue.json({
-                    "search": "Hybrid (or vector-only / graph-only) search: passages + supporting triples, merged and de-duplicated by chunk_id.",
-                    "search_entities": "Fuzzy name/alias search over graph entities.",
-                    "get_entity": "Exact-name entity lookup: attributes, relations, evidence.",
-                    "get_neighbors": "Entities within N hops (<=3) of a given entity.",
-                    "find_path": "Shortest path (<=6 hops) between two entities.",
-                    "get_chunks_for_entity": "Every chunk_id an entity appears in.",
-                    "get_graph_context": "Entities + triples associated with a given chunk_id.",
-                }),
+                "tool_names": MetadataValue.json(tool_names),
+                "tool_descriptions": MetadataValue.json(tool_descriptions),
             }
             if knowledge_base:
                 md["knowledge_base"] = MetadataValue.text(knowledge_base)
+            if receipts_db_path:
+                md["receipts_db_path"] = MetadataValue.text(receipts_db_path)
+                if os.path.exists(receipts_db_path):
+                    counts = _ReceiptWriter(receipts_db_path).counts()
+                    md["retrievals_recorded"] = MetadataValue.int(counts["retrievals"])
+                    md["outcomes_recorded"] = MetadataValue.int(counts["outcomes"])
+                else:
+                    md["retrievals_recorded"] = MetadataValue.int(0)
+                    md["outcomes_recorded"] = MetadataValue.int(0)
             context.add_output_metadata(md)
 
         return Definitions(assets=[_inspection_asset], resources=resources)
@@ -1081,6 +1365,16 @@ def build_mcp_server(resource: HybridKnowledgeSearchResource, server_name: str =
         """Entities + triples associated with a given chunk_id."""
         return _safe(resource.get_graph_context, chunk_id)
 
+    if resource.receipts_db_path:
+        @mcp.tool()
+        def record_feedback(receipt_id: str, signal: str, user_id: Optional[str] = None) -> dict:
+            """Record an outcome against a prior search() call's receipt_id: signal is one of
+            thumbs_up, thumbs_down, accepted, edited, escalated, reopened, closed_won,
+            closed_lost, reformulated. user_id (optional) scopes the outcome so a later call
+            with the same user_id for the same receipt supersedes the earlier one instead of
+            double-counting a changed mind."""
+            return _safe(resource.record_feedback, receipt_id, signal, user_id)
+
     return mcp
 
 
@@ -1101,7 +1395,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     _GRAPH_NAME. provider='sql_tables': _GRAPH_SQL_DIALECT, _GRAPH_OUTPUT_TABLE,
     _GRAPH_SNOWFLAKE_ACCOUNT_ENV_VAR/_USER_ENV_VAR/_PASSWORD_ENV_VAR/_DATABASE/_SCHEMA/_WAREHOUSE,
     _GRAPH_DATABRICKS_HOST_ENV_VAR/_TOKEN_ENV_VAR/_HTTP_PATH, _GRAPH_BIGQUERY_PROJECT_ID.
-    HYBRID_KG_SEARCH_MAX_RESULTS (default 50)."""
+    HYBRID_KG_SEARCH_MAX_RESULTS (default 50).
+    HYBRID_KG_SEARCH_RECEIPTS_DB_PATH (optional -- enables receipt recording + record_feedback)."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
     collection_name = os.environ.get("HYBRID_KG_SEARCH_VECTOR_COLLECTION_NAME")
     if not collection_name:
@@ -1145,6 +1440,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     resource = HybridKnowledgeSearchResource(
         vector_store=_drop_none(vector_store), graph=_drop_none(graph),
         max_results=int(os.environ.get("HYBRID_KG_SEARCH_MAX_RESULTS", "50")),
+        receipts_db_path=os.environ.get("HYBRID_KG_SEARCH_RECEIPTS_DB_PATH"),
     )
     build_mcp_server(resource).run(transport="stdio")
 

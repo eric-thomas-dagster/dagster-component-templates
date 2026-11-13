@@ -190,6 +190,36 @@ def _dedupe_by_doc_id(df: "pd.DataFrame") -> Tuple["pd.DataFrame", int]:
     return df.reset_index(drop=True), before - len(df)
 
 
+def _strip_repeated_boilerplate_lines(contents: List[str], min_page_fraction: float = 0.6) -> Tuple[List[str], int]:
+    """Cross-page pass, on top of Jina Reader's own server-side cleaning: drops lines that
+    appear (after whitespace-normalization) on at least `min_page_fraction` of the given pages --
+    catches chrome Jina's own "clean markdown" heuristic still lets through (a 'Sign in' link or
+    promo banner it treats as real content). Needs at least 2 pages to have any cross-page
+    signal at all. Returns (cleaned_contents, total_chars_removed)."""
+    if len(contents) < 2:
+        return contents, 0
+    line_page_counts: Dict[str, int] = {}
+    per_page_lines: List[List[str]] = []
+    for content in contents:
+        lines = [ln.strip() for ln in (content or "").split("\n")]
+        per_page_lines.append(lines)
+        for line in {ln for ln in lines if ln}:
+            line_page_counts[line] = line_page_counts.get(line, 0) + 1
+    threshold = max(2, int(len(contents) * min_page_fraction))
+    frequent_lines = {line for line, count in line_page_counts.items() if count >= threshold}
+    if not frequent_lines:
+        return contents, 0
+    cleaned: List[str] = []
+    removed_chars = 0
+    for content, lines in zip(contents, per_page_lines):
+        raw_lines = (content or "").split("\n")
+        kept = [raw for raw, stripped in zip(raw_lines, lines) if stripped not in frequent_lines]
+        new_content = "\n".join(kept)
+        removed_chars += len(content or "") - len(new_content)
+        cleaned.append(new_content)
+    return cleaned, removed_chars
+
+
 def _fetch_jina_page(url, api_key, target_selector, wait_for_selector, timeout_seconds, with_generated_alt):
     """GET https://r.jina.ai/<url> with Accept: application/json. See the module
     docstring for the verified request/response shape and sources. Defensive about the
@@ -462,6 +492,17 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
             "captions every image on the page and adds 'Image [idx]: [caption]' as alt "
             "text for images that don't already have one -- useful when image content "
             "matters for the downstream RAG pipeline's retrieval."
+        ),
+    )
+    strip_boilerplate: bool = Field(
+        default=True,
+        description=(
+            "Jina's Reader API already strips most nav/footer chrome server-side before "
+            "returning clean markdown -- this adds a cross-page pass on top: any line that "
+            "repeats across a wide fraction of this run's fetched pages (e.g. a 'Sign in' "
+            "link or promo banner Jina's own cleaning still let through) is dropped from "
+            "every page it appears on. Needs at least 2 URLs to have any cross-page signal; "
+            "a no-op below that. Run metadata reports `removed_chars`."
         ),
     )
 
@@ -822,6 +863,7 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
         wait_for_selector = self.wait_for_selector
         request_timeout_seconds = self.request_timeout_seconds
         with_generated_alt = self.with_generated_alt
+        strip_boilerplate = self.strip_boilerplate
         api_key_env_var = self.api_key_env_var
 
         _kind_map = {
@@ -902,6 +944,7 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
             )
 
             api_key = EnvVar(api_key_env_var).get_value() if api_key_env_var else None
+            _removed_chars_holder = {"value": 0}
 
             @dlt.resource(
                 name=table_name,
@@ -928,16 +971,17 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                 },
             )
             def _pages_resource():
+                rows: List[Dict[str, Any]] = []
                 for url in urls_list:
                     try:
-                        yield _fetch_jina_page(
+                        rows.append(_fetch_jina_page(
                             url, api_key, target_selector, wait_for_selector,
                             request_timeout_seconds, with_generated_alt,
-                        )
+                        ))
                     except Exception as e:  # noqa: BLE001 -- one bad URL must not fail the whole run
                         context.log.warning(f"Jina Reader fetch failed for {url!r}: {e}")
                         _failed_at = datetime.now(timezone.utc).isoformat()
-                        yield {
+                        rows.append({
                             "doc_id": url,
                             "content": None,
                             "title": None,
@@ -948,7 +992,19 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                             "fetched_at": _failed_at,
                             "text": None,
                             "error": str(e),
-                        }
+                        })
+                if strip_boilerplate and rows:
+                    import hashlib as _hashlib
+                    cleaned_contents, removed_chars = _strip_repeated_boilerplate_lines([r.get("content") or "" for r in rows])
+                    _removed_chars_holder["value"] = removed_chars
+                    for row, cleaned in zip(rows, cleaned_contents):
+                        if row.get("content") and cleaned != row["content"]:
+                            row["content"] = cleaned
+                            row["text"] = cleaned
+                            row["content_hash"] = _hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+                    if removed_chars:
+                        context.log.info(f"strip_boilerplate: removed {removed_chars} repeated-line char(s) across {len(rows)} page(s)")
+                yield from rows
 
             dlt_resources = [_pages_resource()]
             if write_disposition == "merge":
@@ -985,6 +1041,8 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                 "write_disposition": MetadataValue.text(write_disposition),
                 "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
             }
+            if strip_boilerplate:
+                base_metadata["removed_chars"] = MetadataValue.int(_removed_chars_holder["value"])
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations

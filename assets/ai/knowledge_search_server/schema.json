@@ -139,6 +139,12 @@
       "label": "Demo Mode",
       "description": "Only affects provider='s3vectors' -- query a local JSON-file-backed fake (written by VectorStoreWriterComponent's own demo_mode) instead of a real AWS account. No effect on chromadb/pinecone/qdrant/faiss.",
       "required": false
+    },
+    "receipts_db_path": {
+      "type": "string",
+      "label": "Receipts Db Path",
+      "description": "SQLite file path. When set, search_knowledge records a retrieval receipt per search (chunk ids and scores only, never the query or chunk text) and a new record_feedback(receipt_id, signal, user_id?) tool is exposed so an agent or app can report thumbs_up/thumbs_down/accepted/edited/escalated/... Quarantined chunks are always dropped before being returned, whether or not this is set. See KnowledgeSearchResource.receipts_db_path's own docs for why this is a plain file path rather than a Dagster resource_key -- the stdio MCP subprocess that answers searches has no Dagster context to resolve one from.",
+      "required": false
     }
   }
 }

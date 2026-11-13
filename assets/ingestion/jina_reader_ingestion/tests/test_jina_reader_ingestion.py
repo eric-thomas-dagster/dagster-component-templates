@@ -65,6 +65,68 @@ def test_multi_url_fetch_returns_one_row_per_url(mod, monkeypatch, tmp_path):
     assert meta["urls_succeeded"] == 2
 
 
+def test_strip_repeated_boilerplate_lines_drops_lines_common_to_most_pages(mod):
+    pages = [
+        "Sign in\nReal content A\nFooter copyright",
+        "Sign in\nReal content B\nFooter copyright",
+        "Sign in\nReal content C\nFooter copyright",
+    ]
+    cleaned, removed_chars = mod._strip_repeated_boilerplate_lines(pages)
+    assert removed_chars > 0
+    for c, unique in zip(cleaned, ("Real content A", "Real content B", "Real content C")):
+        assert unique in c
+        assert "Sign in" not in c
+
+
+def test_strip_repeated_boilerplate_lines_single_page_is_a_no_op(mod):
+    cleaned, removed_chars = mod._strip_repeated_boilerplate_lines(["Sign in\nOnly page"])
+    assert cleaned == ["Sign in\nOnly page"]
+    assert removed_chars == 0
+
+
+def test_strip_boilerplate_removes_repeated_chrome_line_across_fetched_pages(mod, monkeypatch, tmp_path):
+    """Jina's own Reader API already strips most chrome server-side -- this tests the
+    ADDITIONAL cross-page pass for whatever it still lets through."""
+    install_fake_requests_get(
+        monkeypatch, mod,
+        {
+            "https://example.com/a": FakeResponse(json_body={
+                "data": {"url": "https://example.com/a", "title": "Page A", "content": "Sign in\nUnique content for A"}
+            }),
+            "https://example.com/b": FakeResponse(json_body={
+                "data": {"url": "https://example.com/b", "title": "Page B", "content": "Sign in\nUnique content for B"}
+            }),
+        },
+    )
+    component = _build_component(mod, tmp_path)
+    result = _materialize(component)
+    assert result.success
+    df = result.output_for_node("test_asset")
+    assert all("Sign in" not in t for t in df["text"])
+    assert any("Unique content for A" in t for t in df["text"])
+    meta = {k: v.value for k, v in result.asset_materializations_for_node("test_asset")[0].metadata.items()}
+    assert meta["removed_chars"] > 0
+
+
+def test_strip_boilerplate_false_keeps_repeated_lines(mod, monkeypatch, tmp_path):
+    install_fake_requests_get(
+        monkeypatch, mod,
+        {
+            "https://example.com/a": FakeResponse(json_body={
+                "data": {"url": "https://example.com/a", "title": "Page A", "content": "Sign in\nUnique content for A"}
+            }),
+            "https://example.com/b": FakeResponse(json_body={
+                "data": {"url": "https://example.com/b", "title": "Page B", "content": "Sign in\nUnique content for B"}
+            }),
+        },
+    )
+    component = _build_component(mod, tmp_path, strip_boilerplate=False)
+    result = _materialize(component)
+    assert result.success
+    df = result.output_for_node("test_asset")
+    assert all("Sign in" in t for t in df["text"])
+
+
 def test_emits_the_document_source_contract_columns(mod, monkeypatch, tmp_path):
     install_fake_requests_get(
         monkeypatch, mod,

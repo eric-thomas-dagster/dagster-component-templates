@@ -146,6 +146,109 @@ def test_leaf_sitemap_title_and_content_extracted_without_script_or_style(mod, m
     assert "color: red" not in row["content"]
 
 
+# --- strip_boilerplate ------------------------------------------------------------------
+
+_PAGE_WITH_CHROME = (
+    "<html><head><title>{title}</title></head><body>"
+    "<nav>Home | Docs | Blog</nav>"
+    "<header>Site Header</header>"
+    "<div role='banner'>Promo banner</div>"
+    "<main><h1>{title}</h1><p>Real body content for {title}.</p></main>"
+    "<aside>Related links sidebar</aside>"
+    "<div role='contentinfo'>Copyright 2026</div>"
+    "<footer>Footer links</footer>"
+    "</body></html>"
+)
+
+
+def test_extract_page_content_strips_nav_header_footer_aside_and_landmark_roles(mod):
+    html = _PAGE_WITH_CHROME.format(title="Page")
+    title, content = mod._extract_page_content(html, strip_boilerplate=True)
+    assert title == "Page"
+    assert "Real body content for Page." in content
+    for chrome in ("Home | Docs | Blog", "Site Header", "Promo banner", "Related links sidebar", "Copyright 2026", "Footer links"):
+        assert chrome not in content
+
+
+def test_extract_page_content_strip_boilerplate_false_keeps_everything(mod):
+    html = _PAGE_WITH_CHROME.format(title="Page")
+    _, content = mod._extract_page_content(html, strip_boilerplate=False)
+    assert "Site Header" in content
+    assert "Footer links" in content
+
+
+def test_extract_page_content_prefers_article_when_no_main(mod):
+    html = (
+        "<html><head><title>T</title></head><body>"
+        "<nav>Home</nav>"
+        "<article>Article-only content.</article>"
+        "<div>Sidebar text not inside any landmark tag.</div>"
+        "</body></html>"
+    )
+    _, content = mod._extract_page_content(html, strip_boilerplate=True)
+    assert "Article-only content." in content
+    assert "Sidebar text not inside any landmark tag." not in content  # outside <article>, dropped
+
+
+def test_strip_repeated_boilerplate_lines_drops_lines_common_to_most_pages(mod):
+    pages = [
+        "Sign in\nReal content A\nFooter copyright",
+        "Sign in\nReal content B\nFooter copyright",
+        "Sign in\nReal content C\nFooter copyright",
+    ]
+    cleaned, removed_chars = mod._strip_repeated_boilerplate_lines(pages)
+    assert removed_chars > 0
+    for c, unique in zip(cleaned, ("Real content A", "Real content B", "Real content C")):
+        assert unique in c
+        assert "Sign in" not in c
+        assert "Footer copyright" not in c
+
+
+def test_strip_repeated_boilerplate_lines_keeps_content_unique_to_one_page(mod):
+    pages = ["Sign in\nUnique to page 1", "Sign in\nUnique to page 2"]
+    cleaned, _ = mod._strip_repeated_boilerplate_lines(pages)
+    assert "Unique to page 1" in cleaned[0]
+    assert "Unique to page 2" in cleaned[1]
+
+
+def test_strip_repeated_boilerplate_lines_single_page_is_a_no_op(mod):
+    cleaned, removed_chars = mod._strip_repeated_boilerplate_lines(["Sign in\nOnly page"])
+    assert cleaned == ["Sign in\nOnly page"]
+    assert removed_chars == 0
+
+
+def test_crawl_strips_repeated_chrome_line_with_no_semantic_wrapper(mod, monkeypatch):
+    """End-to-end: a 'Sign in' line baked directly into <body> (no nav/header tag, so
+    structural stripping alone wouldn't catch it) still gets removed because it repeats
+    across every crawled page -- and the run reports removed_chars."""
+    def _page(title):
+        return f"<html><head><title>{title}</title></head><body><div>Sign in</div><p>Unique content for {title}.</p></body></html>"
+
+    def fake_get(url, headers=None, timeout=None):
+        if url.endswith("/robots.txt"):
+            return _robots_allow_all(url)
+        if url == "https://example.com/sitemap.xml":
+            return FakeResponse(content=LEAF_SITEMAP.encode())
+        if url.endswith("/a"):
+            return FakeResponse(text=_page("Page A"))
+        return FakeResponse(text=_page("Page B"))
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = mod.SitemapCrawlerIngestionComponent(
+        asset_name="test_asset", sitemap_url="https://example.com/sitemap.xml",
+        include_preview_metadata=False, request_delay_seconds=0,
+    )
+    result = _materialize(component)
+    assert result.success
+    rows = list(fake_pipeline.run_calls[-1][0])
+    for row in rows:
+        assert "Sign in" not in row["content"]
+    assert "Unique content for Page A." in rows[0]["content"]
+    metadata = result.get_asset_materialization_events()[-1].materialization.metadata
+    assert metadata["removed_chars"].value > 0
+
+
 # --- sitemap mode: sitemap index (recursion one level) ----------------------------------
 
 def test_sitemap_index_recurses_one_level_into_child_sitemaps(mod, monkeypatch):

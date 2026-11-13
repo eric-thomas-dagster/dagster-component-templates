@@ -13,6 +13,17 @@ Two discovery modes (exactly one required):
 
 Every fetched page's content is extracted the same way `document_corpus`'s own `.html` branch does: `<script>`/`<style>` tags are stripped, then BeautifulSoup's `.get_text()` extracts the body text and `<title>` the page title.
 
+`strip_boilerplate` (default `true`) additionally drops page chrome before it reaches
+extraction: `<nav>`/`<header>`/`<footer>`/`<aside>` tags and `role="navigation"`/`"banner"`/
+`"contentinfo"` elements are removed, and when the page has a `<main>` or `<article>` tag,
+only its text is kept. On top of that, any line that repeats across a wide fraction of this
+run's crawled pages (a "Sign in" link or a promo banner baked into every page's template, with
+no semantic landmark tag to catch structurally) is dropped from every page it appears on. Real
+production motivation: crawled pages without this turned navigation/footer text into nonsense
+knowledge-graph "entities" like `Tags`, `page`, `banner` when fed through
+`knowledge_graph_builder`. Run metadata reports `removed_chars`. Set `false` to restore raw
+full-page text.
+
 By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Set `destination` to persist directly to any dlt-supported destination. See `../DESTINATIONS.md`.
 
 ## Configuration
@@ -26,6 +37,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `max_depth` | optional (default `3`) | Max link-following hops from a seed URL in plain-crawl mode. Ignored when `sitemap_url` is set. |
 | `include_patterns` / `exclude_patterns` | optional | Comma-separated substring filters applied to every candidate URL, in both modes. |
 | `respect_robots_txt` | optional (default `true`) | Check and honor each domain's robots.txt. |
+| `strip_boilerplate` | optional (default `true`) | Drop nav/header/footer/aside/landmark-role chrome and cross-page repeated lines before extraction. |
 | `request_delay_seconds` | optional (default `0.5`) | Seconds to sleep between page fetches. |
 | `user_agent` | optional | User-Agent header sent with every request. |
 
@@ -110,6 +122,7 @@ As a safety net independent of `write_disposition`, the returned DataFrame is al
 | `include_patterns` | `str` | — | Comma-separated substrings (not regexes -- see component docstring for why) a candidate URL must contain at least one of, to be fetched. Applied in both modes, e.g. '/docs/' to scope a crawl or sitemap to one section of a site. |
 | `exclude_patterns` | `str` | — | Comma-separated substrings; a candidate URL containing any of these is skipped. Applied after include_patterns, in both modes. |
 | `respect_robots_txt` | `bool` | `true` | Check each domain's robots.txt (via urllib.robotparser) before fetching any page, skipping disallowed URLs. Set False only when you have explicit permission to crawl a site regardless of its robots.txt. |
+| `strip_boilerplate` | `bool` | `true` | Drop page chrome before it reaches extraction: <nav>/<header>/<footer>/<aside> tags and role='navigation'/'banner'/'contentinfo' elements are removed, and when the page has a <main> or <article> tag, only ITS text is kep… _(full docs in schema.json + component README)_ |
 | `request_delay_seconds` | `float` | `0.5` | Seconds to sleep between successive page fetches -- politeness, avoid hammering a site. |
 | `user_agent` | `str` | `"dagster-community-components-sitemap-crawler/1.0"` | User-Agent header sent with every request. Defaults to a string identifying this project (not a browser impersonation) -- change it to identify your own deployment if a site's robots.txt or access logs need that. |
 | `skip_unchanged` | `bool` | `false` | Persist a per-URL {etag, last_modified, content_hash} fingerprint to state_path between runs. On the next run, each known URL is fetched with If-None-Match/If-Modified-Since from its stored etag/last_modified; a 304 resp… _(full docs in schema.json + component README)_ |

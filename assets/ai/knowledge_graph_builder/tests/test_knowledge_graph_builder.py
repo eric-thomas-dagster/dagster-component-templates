@@ -187,7 +187,7 @@ def test_extract_llm_entity_filter_basic_drops_pronoun_entities(mod, monkeypatch
     monkeypatch.setattr(litellm, "completion", fake_completion)
     out = mod._do_extract(_chunk_df(), {"method": "llm", "model": "gpt-4o-mini"}, "doc_id", _Logger())
     assert set(out["subject"]) == {"Alice"}  # "you" dropped from both chunks
-    assert out.attrs["filter_counts"] == {"entities_filtered": 2, "triples_filtered": 2}
+    assert out.attrs["filter_counts"] == {"entities_filtered": 2, "triples_filtered": 2, "relations_filtered": 0}
 
 
 def test_extract_llm_entity_filter_none_keeps_pronoun_entities(mod, monkeypatch):
@@ -198,7 +198,7 @@ def test_extract_llm_entity_filter_none_keeps_pronoun_entities(mod, monkeypatch)
     monkeypatch.setattr(litellm, "completion", fake_completion)
     out = mod._do_extract(_chunk_df(), {"method": "llm", "model": "gpt-4o-mini", "entity_filter": "none"}, "doc_id", _Logger())
     assert "you" in set(out["subject"])
-    assert out.attrs["filter_counts"] == {"entities_filtered": 0, "triples_filtered": 0}
+    assert out.attrs["filter_counts"] == {"entities_filtered": 0, "triples_filtered": 0, "relations_filtered": 0}
 
 
 def test_extract_llm_entity_filter_must_be_basic_or_none(mod):
@@ -273,19 +273,21 @@ def _pronoun_sentence():
 
 
 def test_extract_spacy_sentence_basic_filter_drops_pronoun_subject_and_object(mod):
-    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(_pronoun_sentence(), ents=[], entity_filter="basic")
+    triples, entities_filtered, triples_filtered, relations_filtered = mod._extract_spacy_sentence(_pronoun_sentence(), ents=[], entity_filter="basic")
     assert triples == []
     assert entities_filtered == 2
     assert triples_filtered == 1
+    assert relations_filtered == 0
 
 
 def test_extract_spacy_sentence_none_filter_keeps_pronoun_nodes(mod):
-    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(_pronoun_sentence(), ents=[], entity_filter="none")
+    triples, entities_filtered, triples_filtered, relations_filtered = mod._extract_spacy_sentence(_pronoun_sentence(), ents=[], entity_filter="none")
     assert len(triples) == 1
     assert triples[0]["subject"] == "You"
     assert triples[0]["object"] == "that"
     assert entities_filtered == 0
     assert triples_filtered == 0
+    assert relations_filtered == 0
 
 
 def _real_entity_sentence():
@@ -299,12 +301,16 @@ def _real_entity_sentence():
 
 
 def test_extract_spacy_sentence_basic_filter_keeps_propn_and_noun_entities(mod):
-    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(_real_entity_sentence(), ents=[], entity_filter="basic")
+    triples, entities_filtered, triples_filtered, relations_filtered = mod._extract_spacy_sentence(_real_entity_sentence(), ents=[], entity_filter="basic")
     assert len(triples) == 1
     assert triples[0]["subject"] == "Dagster"
     assert triples[0]["object"] == "pipelines"
     assert entities_filtered == 0
     assert triples_filtered == 0
+    assert relations_filtered == 0
+    # A4: no NER recognition for either -> typed from POS via the default entity_type_map.
+    assert triples[0]["subject_type"] == "product"   # PROPN
+    assert triples[0]["object_type"] == "concept"    # NOUN
 
 
 def test_extract_spacy_sentence_basic_filter_checks_entity_span_root_pos(mod):
@@ -318,20 +324,73 @@ def test_extract_spacy_sentence_basic_filter_checks_entity_span_root_pos(mod):
     verb = _FakeToken("founded", pos_="VERB", dep_="ROOT", i=3, lemma_="found")
     verb.children = [subj, raw_obj_tok]
     sent = _FakeSent([subj, verb, raw_obj_tok], "Alice founded Acme Corp.")
-    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(sent, ents=[span], entity_filter="basic")
+    triples, entities_filtered, triples_filtered, relations_filtered = mod._extract_spacy_sentence(sent, ents=[span], entity_filter="basic")
     assert len(triples) == 1
     assert triples[0]["object"] == "Acme Corp"
-    assert triples[0]["object_type"] == "ORG"
+    assert triples[0]["object_type"] == "ORG"  # NER label wins over the POS-based type map
+    assert triples[0]["subject_type"] == "product"  # Alice: PROPN, no NER recognition here
     assert entities_filtered == 0
 
 
-def test_extract_spacy_sentence_basic_filter_drops_relation_with_unreal_lemma(mod):
+def test_extract_spacy_sentence_uses_surface_form_when_lemma_is_not_a_real_word(mod):
+    """Real production evidence: spaCy's lemmatizer sometimes produces a non-word
+    ("dependencie", "instal", "partition" clipped from a bare verb form). The OLD behavior
+    dropped the whole triple for this; the fix is to fall back to the verb's own surface form
+    instead -- the triple survives, just without a (possibly wrong) lemma."""
     vocab = _FakeVocab(n_vectors=1, oov_lemmas={"orchestrix"})
     sent = _real_entity_sentence()
     sent._tokens[1].lemma_ = "orchestrix"  # a lemmatizer artifact, not a real word
-    triples, entities_filtered, triples_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", vocab=vocab)
+    triples, entities_filtered, triples_filtered, relations_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", vocab=vocab)
+    assert len(triples) == 1
+    assert triples[0]["relation"] == "orchestrates"  # surface form, lowercased -- not "orchestrix"
+    assert triples_filtered == 0
+    assert relations_filtered == 0
+
+
+def test_extract_spacy_sentence_drops_non_alphabetic_relation(mod):
+    sent = _real_entity_sentence()
+    sent._tokens[1].lemma_ = "123"  # no alphabetic character at all
+    sent._tokens[1].text = "123"
+    triples, entities_filtered, triples_filtered, relations_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic")
     assert triples == []
-    assert triples_filtered == 1
+    assert relations_filtered == 1
+
+
+def test_extract_spacy_sentence_builds_phrasal_relation_from_preposition(mod):
+    """'The library depends on Python.' -- the verb's own 'prep' child ('on') is appended to the
+    relation (depend -> 'depend on'), and the object comes from inside that same prepositional
+    phrase (pobj), matching real documentation-style phrasing ("X depends on Y", "X integrates
+    with Y")."""
+    subj = _FakeToken("library", pos_="NOUN", dep_="nsubj", i=0, lemma_="library")
+    verb = _FakeToken("depends", pos_="VERB", dep_="ROOT", i=1, lemma_="depend")
+    prep = _FakeToken("on", pos_="ADP", dep_="prep", i=2)
+    pobj = _FakeToken("Python", pos_="PROPN", dep_="pobj", i=3)
+    prep.children = [pobj]
+    verb.children = [subj, prep]
+    sent = _FakeSent([subj, verb, prep, pobj], "The library depends on Python.")
+    triples, _, _, relations_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic")
+    assert len(triples) == 1
+    assert triples[0]["relation"] == "depend on"
+    assert triples[0]["object"] == "Python"
+    assert relations_filtered == 0
+
+
+def test_extract_spacy_sentence_builds_phrasal_relation_from_particle(mod):
+    """'You can install Python with pip.' (simplified to isolate the particle/prep logic: the
+    direct object comes from dobj, and a SEPARATE prep child still gets appended) -- 'install' +
+    'with' -> 'install with'."""
+    subj = _FakeToken("you", pos_="PRON", dep_="nsubj", i=0, is_stop=True)
+    verb = _FakeToken("install", pos_="VERB", dep_="ROOT", i=1, lemma_="install")
+    obj = _FakeToken("Python", pos_="PROPN", dep_="dobj", i=2)
+    prep = _FakeToken("with", pos_="ADP", dep_="prep", i=3)
+    pip_obj = _FakeToken("pip", pos_="NOUN", dep_="pobj", i=4, lemma_="pip")
+    prep.children = [pip_obj]
+    verb.children = [subj, obj, prep]
+    sent = _FakeSent([subj, verb, obj, prep, pip_obj], "You can install Python with pip.")
+    triples, _, _, _ = mod._extract_spacy_sentence(sent, ents=[], entity_filter="none")
+    assert len(triples) == 1
+    assert triples[0]["relation"] == "install with"
+    assert triples[0]["object"] == "Python"  # dobj wins over the prep's own pobj
 
 
 def test_extract_spacy_sentence_respects_custom_entity_pos_and_min_entity_chars(mod):
@@ -340,11 +399,94 @@ def test_extract_spacy_sentence_respects_custom_entity_pos_and_min_entity_chars(
     obj = _FakeToken("teams", pos_="NOUN", dep_="dobj", i=2)
     verb.children = [subj, obj]
     sent = _FakeSent([subj, verb, obj], "AI helps teams.")
-    triples, _, triples_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic")
+    triples, _, triples_filtered, _ = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic")
     assert triples == []  # "AI" is shorter than the default min_entity_chars=3
     assert triples_filtered == 1
-    triples, _, triples_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", min_entity_chars=2)
+    triples, _, triples_filtered, _ = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", min_entity_chars=2)
     assert len(triples) == 1  # with a lower min_entity_chars, "AI" now qualifies
+
+
+# ─── extract (spacy): lemmatize_entities (A1) ──────────────────────────────
+
+def test_extract_spacy_sentence_lemmatizes_plain_noun_entities_by_default(mod):
+    """'assets' -> 'asset': a plain (non-NER) NOUN entity is lemmatized + casefolded by default,
+    with the original surface form tracked separately for aliasing."""
+    subj = _FakeToken("Dagster", pos_="PROPN", dep_="nsubj", i=0)
+    verb = _FakeToken("manages", pos_="VERB", dep_="ROOT", i=1, lemma_="manage")
+    obj = _FakeToken("assets", pos_="NOUN", dep_="dobj", i=2, lemma_="asset")
+    verb.children = [subj, obj]
+    sent = _FakeSent([subj, verb, obj], "Dagster manages assets.")
+    triples, _, _, _ = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic")
+    assert len(triples) == 1
+    assert triples[0]["object"] == "asset"            # lemmatized
+    assert triples[0]["object_surface"] == "assets"    # original surface form preserved
+    assert triples[0]["subject"] == "Dagster"          # PROPN: never lemmatized
+    assert triples[0]["subject_surface"] == "Dagster"
+
+
+def test_extract_spacy_sentence_lemmatize_entities_false_keeps_surface_form(mod):
+    subj = _FakeToken("Dagster", pos_="PROPN", dep_="nsubj", i=0)
+    verb = _FakeToken("manages", pos_="VERB", dep_="ROOT", i=1, lemma_="manage")
+    obj = _FakeToken("assets", pos_="NOUN", dep_="dobj", i=2, lemma_="asset")
+    verb.children = [subj, obj]
+    sent = _FakeSent([subj, verb, obj], "Dagster manages assets.")
+    triples, _, _, _ = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", lemmatize_entities=False)
+    assert triples[0]["object"] == "assets"
+    assert triples[0]["object_surface"] == "assets"
+
+
+def test_extract_spacy_sentence_never_lemmatizes_an_ner_recognized_span(mod):
+    """A named-entity span is never lemmatized even if its root token happens to be a NOUN --
+    only a plain dependency-parse token (no NER recognition at all) is a lemmatization
+    candidate."""
+    root_tok = _FakeToken("libraries", pos_="NOUN", dep_="dobj", i=2, lemma_="library")
+    span = _FakeSpan("Open Source Libraries", "ORG", root=root_tok, start=2, end=5)
+    subj = _FakeToken("Dagster", pos_="PROPN", dep_="nsubj", i=0)
+    verb = _FakeToken("maintains", pos_="VERB", dep_="ROOT", i=1, lemma_="maintain")
+    verb.children = [subj, root_tok]
+    sent = _FakeSent([subj, verb, root_tok], "Dagster maintains Open Source Libraries.")
+    triples, _, _, _ = mod._extract_spacy_sentence(sent, ents=[span], entity_filter="basic")
+    assert triples[0]["object"] == "Open Source Libraries"  # unchanged -- it's an NER span
+    assert triples[0]["object_type"] == "ORG"
+
+
+def test_extract_spacy_lemmatize_entities_merges_mentions_across_a_documentation_paragraph(mod, monkeypatch):
+    """End-to-end (extract -> resolve) over a short documentation-style paragraph: 'libraries'
+    (sentence 1) and 'libraries' again (sentence 2) both lemmatize to 'library' and get merged by
+    resolve into ONE node with 2 mentions, with both original surface forms recorded as aliases."""
+    sent1_subj = _FakeToken("Dagster", pos_="PROPN", dep_="nsubj", i=0)
+    sent1_verb = _FakeToken("supports", pos_="VERB", dep_="ROOT", i=1, lemma_="support")
+    sent1_obj = _FakeToken("libraries", pos_="NOUN", dep_="dobj", i=2, lemma_="library")
+    sent1_verb.children = [sent1_subj, sent1_obj]
+    sent1 = _FakeSent([sent1_subj, sent1_verb, sent1_obj], "Dagster supports many libraries.")
+
+    sent2_subj = _FakeToken("Libraries", pos_="NOUN", dep_="nsubj", i=0, lemma_="library")
+    sent2_verb = _FakeToken("help", pos_="VERB", dep_="ROOT", i=1, lemma_="help")
+    sent2_obj = _FakeToken("teams", pos_="NOUN", dep_="dobj", i=2, lemma_="team")
+    sent2_verb.children = [sent2_subj, sent2_obj]
+    sent2 = _FakeSent([sent2_subj, sent2_verb, sent2_obj], "Libraries help teams.")
+
+    class _FakeDoc:
+        def __init__(self, sents):
+            self.sents = sents
+            self.ents = []
+
+    class _FakeNlp:
+        vocab = _FakeVocab(n_vectors=0)
+
+        def __call__(self, text):
+            return _FakeDoc([sent1, sent2])
+
+    monkeypatch.setattr(mod, "_load_spacy", lambda model: _FakeNlp())
+    df = pd.DataFrame([{"doc_id": "d1", "chunk_id": "d1_0", "content_hash": "h", "chunk_text": "Dagster supports many libraries. Libraries help teams."}])
+    extracted = mod._do_extract(df, {"method": "spacy"}, "doc_id", _Logger())
+    assert set(extracted["object"]) | set(extracted["subject"]) >= {"library"}
+    assert "libraries" not in set(extracted["object"]) | set(extracted["subject"])  # replaced by the lemma everywhere
+
+    resolved = mod._do_resolve(extracted, {}, _Logger())
+    assert resolved.attrs["entities"]["library"]["mention_count"] == 2
+    assert "libraries" in resolved.attrs["entities"]["library"]["aliases"]
+    assert "Libraries" in resolved.attrs["entities"]["library"]["aliases"]
 
 
 # ─── resolve ────────────────────────────────────────────────────────────────
@@ -408,6 +550,35 @@ def test_write_graph_networkx_upsert_creates_file_with_expected_shape(mod, tmp_p
     edge_data = list(g.get_edge_data("Alice", "Acme").values())[0]
     assert edge_data["chunk_ids"] == ["c1"]
     assert edge_data["source_ids"] == ["d1"]
+
+
+def test_write_graph_seeds_node_aliases_from_resolves_computed_aliases(mod, tmp_path):
+    """Real bug: write_graph used to seed every node's aliases with just {name} (the FINAL
+    canonical name only) regardless of what resolve had already merged -- resolve's own alias
+    computation (case variants, lemma-merged surface forms) was silently dropped before it ever
+    reached the graph store, so a merge could never be inspected after the fact."""
+    path = str(tmp_path / "kg.json")
+    df = pd.DataFrame([
+        {"doc_id": "d1", "chunk_id": "c1", "content_hash": "h1", "subject": "asset", "subject_type": "concept",
+         "relation": "manage", "object": "Dagster", "object_type": "product", "confidence": None, "evidence": "ev1"},
+    ])
+    df.attrs["entities"] = {"asset": {"type": "concept", "aliases": ["asset", "assets", "Assets"], "mention_count": 3}}
+    mod._do_write_graph(df, {"provider": "networkx", "path": path}, "doc_id", _Logger(), partitioned=False)
+    g = mod._build_networkx_graph(path)
+    assert set(g.nodes["asset"]["aliases"]) == {"asset", "assets", "Assets"}
+
+
+def test_write_graph_falls_back_to_bare_name_when_no_resolve_step_ran(mod, tmp_path):
+    """write_graph directly after extract (no resolve step in between): df.attrs has no
+    'entities' key at all -- falls back to today's {name}-only aliasing, not a crash."""
+    path = str(tmp_path / "kg.json")
+    df = pd.DataFrame([
+        {"doc_id": "d1", "chunk_id": "c1", "content_hash": "h1", "subject": "Alice", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Acme", "object_type": "ORG", "confidence": 0.9, "evidence": "ev1"},
+    ])
+    mod._do_write_graph(df, {"provider": "networkx", "path": path}, "doc_id", _Logger(), partitioned=False)
+    g = mod._build_networkx_graph(path)
+    assert g.nodes["Alice"]["aliases"] == ["Alice"]
 
 
 def test_write_graph_networkx_replace_sources_removes_stale_triples(mod, tmp_path):

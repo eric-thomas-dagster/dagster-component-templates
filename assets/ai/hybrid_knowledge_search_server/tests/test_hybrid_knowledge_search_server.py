@@ -107,7 +107,7 @@ def test_search_mode_must_be_valid(resource):
 # ─── chunk <-> entity round trip (explicit test ask) ───────────────────────
 
 def test_chunk_found_by_vector_search_resolves_to_its_entities(resource):
-    vector_hits = resource._vector_search("Who works at Acme?", top_k=1)
+    vector_hits, _eligible_count = resource._vector_search("Who works at Acme?", top_k=1)
     chunk_id = vector_hits[0]["chunk_id"]
     ctx = resource.get_graph_context(chunk_id)
     assert set(ctx["entities"]) == {"Alice", "Acme Corp"}

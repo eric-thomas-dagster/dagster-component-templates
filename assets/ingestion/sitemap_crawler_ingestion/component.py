@@ -464,7 +464,7 @@ class _RobotsCache:
 
 # --- page content extraction (same BeautifulSoup pattern as document_corpus's _extract_text) --
 
-def _extract_page_content(html_text: str) -> Tuple[Optional[str], str]:
+def _extract_page_content(html_text: str, strip_boilerplate: bool = True) -> Tuple[Optional[str], str]:
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html_text, "html.parser")
@@ -472,8 +472,47 @@ def _extract_page_content(html_text: str) -> Tuple[Optional[str], str]:
         tag.decompose()
     title_tag = soup.find("title")
     title = title_tag.get_text(strip=True) if title_tag else None
-    content = soup.get_text(separator="\n")
+    content_root = soup
+    if strip_boilerplate:
+        for tag in soup(["nav", "header", "footer", "aside"]):
+            tag.decompose()
+        for tag in soup.find_all(attrs={"role": ["navigation", "banner", "contentinfo"]}):
+            tag.decompose()
+        main = soup.find("main") or soup.find("article")
+        if main is not None:
+            content_root = main
+    content = content_root.get_text(separator="\n")
     return title, content
+
+
+def _strip_repeated_boilerplate_lines(contents: List[str], min_page_fraction: float = 0.6) -> Tuple[List[str], int]:
+    """Cross-page pass, on top of per-page structural stripping: drops lines that appear
+    (after whitespace-normalization) on at least `min_page_fraction` of the given pages --
+    catches chrome text with no semantic nav/header/footer/role wrapper to catch structurally
+    (a promo banner or "Sign in" link embedded directly in <body>). Needs at least 2 pages to
+    have any cross-page signal at all. Returns (cleaned_contents, total_chars_removed)."""
+    if len(contents) < 2:
+        return contents, 0
+    line_page_counts: Dict[str, int] = {}
+    per_page_lines: List[List[str]] = []
+    for content in contents:
+        lines = [ln.strip() for ln in (content or "").split("\n")]
+        per_page_lines.append(lines)
+        for line in {ln for ln in lines if ln}:
+            line_page_counts[line] = line_page_counts.get(line, 0) + 1
+    threshold = max(2, int(len(contents) * min_page_fraction))
+    frequent_lines = {line for line, count in line_page_counts.items() if count >= threshold}
+    if not frequent_lines:
+        return contents, 0
+    cleaned: List[str] = []
+    removed_chars = 0
+    for content, lines in zip(contents, per_page_lines):
+        raw_lines = (content or "").split("\n")
+        kept = [raw for raw, stripped in zip(raw_lines, lines) if stripped not in frequent_lines]
+        new_content = "\n".join(kept)
+        removed_chars += len(content or "") - len(new_content)
+        cleaned.append(new_content)
+    return cleaned, removed_chars
 
 
 def _row_from_page(url: str, title: Optional[str], content: str, lastmod: Optional[str] = None) -> Dict[str, Any]:
@@ -607,6 +646,21 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
             "Check each domain's robots.txt (via urllib.robotparser) before fetching any "
             "page, skipping disallowed URLs. Set False only when you have explicit "
             "permission to crawl a site regardless of its robots.txt."
+        ),
+    )
+    strip_boilerplate: bool = Field(
+        default=True,
+        description=(
+            "Drop page chrome before it reaches extraction: <nav>/<header>/<footer>/<aside> "
+            "tags and role='navigation'/'banner'/'contentinfo' elements are removed, and when "
+            "the page has a <main> or <article> tag, only ITS text is kept (not the rest of "
+            "<body>). On top of that, any line that repeats across a wide fraction of this "
+            "run's pages (e.g. a 'Sign in' link or a promo banner baked into every page's "
+            "template, with no semantic landmark tag to catch structurally) is dropped from "
+            "every page it appears on -- a real production issue: crawled pages without this "
+            "turned entity extraction's navigation/footer text into nonsense \"entities\" like "
+            "\"Tags\"/\"page\"/\"banner\". Set False to restore raw full-page text. Run metadata "
+            "reports `removed_chars`."
         ),
     )
     request_delay_seconds: float = Field(
@@ -1002,6 +1056,7 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
         include_patterns = self.include_patterns
         exclude_patterns = self.exclude_patterns
         respect_robots_txt = self.respect_robots_txt
+        strip_boilerplate = self.strip_boilerplate
         request_delay_seconds = self.request_delay_seconds
         user_agent = self.user_agent
         skip_unchanged = self.skip_unchanged
@@ -1132,7 +1187,7 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                     pages_failed += 1
                     context.log.warning(f"Failed to fetch {url}: {e}")
                     return None
-                title, content = _extract_page_content(resp.text)
+                title, content = _extract_page_content(resp.text, strip_boilerplate=strip_boilerplate)
                 row = _row_from_page(url, title, content, lastmod=lastmod)
                 if skip_unchanged and prior and prior.get("content_hash") == row["content_hash"]:
                     pages_skipped += 1
@@ -1198,6 +1253,25 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                 except Exception as e:  # noqa: BLE001
                     context.log.warning(f"skip_unchanged: could not write state_path={state_path!r}: {e}")
 
+            # Deliberately runs AFTER state_path is written: skip_unchanged's freshness check
+            # (both inside _fetch_one and in state_path itself) always compares PRE-this-pass
+            # content_hashes (computed from _extract_page_content's structural stripping only).
+            # If this ran before the state_path write, the NEXT run's comparison would be
+            # structural-only-hash vs. structural+repeated-line-hash -- permanently mismatched,
+            # so skip_unchanged would never detect "unchanged" again. Running the full `rows`
+            # list through this pass every run (even for 304-reused rows) is cheap and correct;
+            # only the persisted fingerprint's own stored hash predates this pass, which is fine
+            # since nothing ever compares against it directly.
+            removed_chars = 0
+            if strip_boilerplate and rows:
+                cleaned_contents, removed_chars = _strip_repeated_boilerplate_lines([r["content"] for r in rows])
+                for row, cleaned in zip(rows, cleaned_contents):
+                    if cleaned != row["content"]:
+                        row["content"] = cleaned
+                        row["content_hash"] = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+                if removed_chars:
+                    context.log.info(f"strip_boilerplate: removed {removed_chars} repeated-line char(s) across {len(rows)} page(s)")
+
             @dlt.resource(name="pages")
             def _pages_resource():
                 yield from rows
@@ -1252,6 +1326,8 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                 "write_disposition": MetadataValue.text(write_disposition),
                 "load_id": MetadataValue.text(load_id) if load_id else MetadataValue.null(),
             }
+            if strip_boilerplate:
+                base_metadata["removed_chars"] = MetadataValue.int(removed_chars)
             if skip_unchanged:
                 base_metadata["pages_fetched"] = MetadataValue.int(pages_fetched)
                 base_metadata["pages_skipped"] = MetadataValue.int(pages_skipped)

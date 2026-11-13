@@ -80,6 +80,12 @@
       "description": "Extra asset tags, applied to the inspection asset.",
       "required": false,
       "ui:widget": "key-value"
+    },
+    "receipts_db_path": {
+      "type": "string",
+      "label": "Receipts Db Path",
+      "description": "SQLite file path. When set, search() records a retrieval receipt per call with a vector component (mode='vector' or 'hybrid') and a new record_feedback(receipt_id, signal, user_id?) tool is exposed. Quarantined chunks are always dropped from vector results, whether or not this is set. See HybridKnowledgeSearchResource.receipts_db_path's own docs for why this is a plain file path, not a Dagster resource_key -- the stdio MCP subprocess that answers searches has no Dagster context to resolve one from.",
+      "required": false
     }
   }
 }

@@ -27,6 +27,7 @@ on:
       - "assets/ai/dagster_workflow_tools/**"
       - "assets/ai/openapi_tool_server/**"
       - "assets/ai/knowledge_search_server/**"
+      - "assets/ai/knowledge_graph_search_server/**"
       - "resources/mcp_server_resource/**"
       - "assets/ai/agentic_pipeline_authoring_tools/**"
       - "tests/test_mcp_*.py"
@@ -52,6 +53,7 @@ env:
     assets/ai/dagster_workflow_tools/tests
     assets/ai/openapi_tool_server/tests
     assets/ai/knowledge_search_server/tests
+    assets/ai/knowledge_graph_search_server/tests
     resources/mcp_server_resource/tests
     assets/ai/agentic_pipeline_authoring_tools/tests
 

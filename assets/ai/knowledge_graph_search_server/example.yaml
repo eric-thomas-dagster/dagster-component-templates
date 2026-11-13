@@ -1,0 +1,8 @@
+type: dagster_community_components.KnowledgeGraphSearchServerComponent
+attributes:
+  resource_key: support_kg_search
+  mcp_server_resource_key: support_kg_search_mcp
+  provider: networkx
+  path: /tmp/support_kg.json
+  graph_name: support_kg
+  max_results: 50

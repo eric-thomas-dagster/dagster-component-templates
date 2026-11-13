@@ -1,0 +1,13 @@
+dagster
+pydantic
+
+# default provider='networkx' (free/local)
+networkx
+
+# only for the stdio MCP server entrypoint (python -m <module>). The in-process
+# resource + inspection asset do not need it
+mcp>=1.30,<3
+
+# only for provider='neo4j' / provider='falkordb'
+# neo4j
+# falkordb

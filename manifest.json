@@ -37389,6 +37389,109 @@
       }
     },
     {
+      "id": "knowledge_graph_builder",
+      "name": "Knowledge Graph Builder",
+      "category": "ai",
+      "description": "Chunk text, extract (subject, relation, object) triples, resolve entity aliases, and write a provenance-carrying knowledge graph.",
+      "path": "assets/ai/knowledge_graph_builder",
+      "tags": [
+        "knowledge-graph",
+        "ai",
+        "entity-extraction"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_builder/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_builder/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_builder/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_builder/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_builder/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "networkx"
+        ]
+      },
+      "icon": "AccountTree",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-12"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame of raw text rows (id_column + text_column), or a SQL `source`.",
+        "outputs": "The final step's triples (subject/relation/object + provenance) as a DataFrame -- the real graph lives in the configured store (networkx file / neo4j / falkordb), not in this asset's own value.",
+        "side_effects": "Writes to the configured graph store (local file, or a real neo4j/falkordb database). sync_mode='replace_all' deletes the whole graph first -- refused when the asset is partitioned.",
+        "anti_uses": "Not a retrieval/search interface itself -- pair with knowledge_graph_search_server to let an agent query the resulting graph. extract method='llm' calls a real model per chunk (cost scales with chunk count); use reuse_from to avoid re-paying for unchanged chunks on rebuild.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "graph",
+        "entities",
+        "relationships",
+        "extraction",
+        "neo4j",
+        "networkx",
+        "falkordb"
+      ]
+    },
+    {
+      "id": "knowledge_graph_search_server",
+      "name": "Knowledge Graph Search Server",
+      "category": "ai",
+      "description": "Lets an agent search a knowledge graph built by KnowledgeGraphBuilderComponent via search_entities/get_entity/get_neighbors/find_path/top_entities.",
+      "path": "assets/ai/knowledge_graph_search_server",
+      "tags": [
+        "knowledge-graph",
+        "ai",
+        "mcp-server"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_server/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_server/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_server/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_server/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_server/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pydantic",
+          "networkx",
+          "mcp>=1.30,<3"
+        ]
+      },
+      "icon": "Search",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-12"
+      },
+      "agent_hints": {
+        "inputs": "Reads the graph store directly (a networkx JSON file, or a live neo4j/falkordb query) -- not a Dagster asset input.",
+        "outputs": "Registers a KnowledgeGraphSearchResource (and, optionally, an MCP-server-shaped resource) plus a small inspection asset; no data asset output.",
+        "side_effects": "provider='networkx' loads the graph file once at server start -- restart the server after knowledge_graph_builder rewrites the file to see the update. neo4j/falkordb issue a live read-only query per tool call instead.",
+        "anti_uses": "Does not build or write to the graph -- pair with knowledge_graph_builder for that. graph_name/path/uri must match what the builder's write_graph step used, or every tool returns empty/not-found.",
+        "input_type": "none",
+        "output_type": "none"
+      },
+      "produces": [
+        "asset",
+        "resource"
+      ],
+      "keywords": [
+        "graph",
+        "search",
+        "mcp",
+        "agent-tools",
+        "neo4j",
+        "networkx",
+        "falkordb"
+      ]
+    },
+    {
       "id": "knowledge_search_server",
       "name": "knowledge_search_server",
       "category": "ai",
@@ -72801,5 +72904,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1398
+  "total": 1400
 }

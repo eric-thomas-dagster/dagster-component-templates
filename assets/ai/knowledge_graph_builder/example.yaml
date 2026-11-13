@@ -1,0 +1,26 @@
+type: dagster_community_components.KnowledgeGraphBuilderComponent
+attributes:
+  asset_name: support_kg
+  upstream_asset_key: raw_support_documents   # a folder/doc-source asset: id_column + text_column
+  id_column: doc_id
+  text_column: body
+  steps:
+    - id: chunks
+      op: chunk
+      chunk_size: 1500
+      chunk_overlap: 150
+    - id: triples
+      op: extract
+      method: llm
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+      entity_types: [person, organization, product, issue]
+    - id: resolved
+      op: resolve
+      min_mentions: 2
+    - id: graph
+      op: write_graph
+      provider: networkx
+      path: /tmp/support_kg.json
+      sync_mode: replace_sources
+  group_name: knowledge_graph

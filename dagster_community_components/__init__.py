@@ -24,7 +24,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.146"
+__version__ = "0.10.147"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 
@@ -774,6 +774,8 @@ _CLASS_PATHS: dict[str, str] = {
     "KlaviyoProfileUpsertComponent": "assets/reverse_etl/klaviyo_profile_upsert/component.py",
     "KlaviyoResource": "resources/klaviyo_resource/component.py",
     "KlaviyoResourceComponent": "resources/klaviyo_resource/component.py",
+    "KnowledgeGraphBuilderComponent": "assets/ai/knowledge_graph_builder/component.py",
+    "KnowledgeGraphSearchServerComponent": "assets/ai/knowledge_graph_search_server/component.py",
     "KnowledgeSearchServerComponent": "assets/ai/knowledge_search_server/component.py",
     "KustomerConversationsIngestionComponent": "assets/ingestion/kustomer_conversations_ingestion/component.py",
     "KustomerResourceComponent": "resources/kustomer_resource/component.py",

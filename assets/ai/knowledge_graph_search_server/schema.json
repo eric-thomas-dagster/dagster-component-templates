@@ -1,0 +1,124 @@
+{
+  "component_type": "dagster_community_components.KnowledgeGraphSearchServerComponent",
+  "description": "Lets an agent search a knowledge graph built by KnowledgeGraphBuilderComponent via search_entities/get_entity/get_neighbors/find_path/top_entities.",
+  "category": "ai",
+  "icon": "Search",
+  "x-dagster-io": {
+    "inputs": { "type": "none" },
+    "outputs": { "type": "none", "description": "Registers a resource + (optionally) an MCP server resource, plus a small inspection asset." }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "default": "knowledge_graph_search",
+      "label": "Resource Key",
+      "description": "Dagster resource key the in-process KnowledgeGraphSearchResource is registered under."
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource under this key, built from this component's own settings. Any mcp_servers-aware component can then reference it via server_resource_key.",
+      "required": false,
+      "default": null
+    },
+    "provider": {
+      "type": "string",
+      "default": "networkx",
+      "label": "Provider",
+      "description": "Graph store the knowledge graph lives in.",
+      "enum": ["networkx", "neo4j", "falkordb"],
+      "ui:widget": "select"
+    },
+    "path": {
+      "type": "string",
+      "label": "Path",
+      "description": "networkx only: local JSON file path (written by KnowledgeGraphBuilderComponent's write_graph step).",
+      "required": false,
+      "default": null
+    },
+    "uri": {
+      "type": "string",
+      "label": "Uri",
+      "description": "neo4j only: bolt/neo4j connection URI.",
+      "required": false,
+      "default": null
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "neo4j/falkordb: env var holding the username.",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "neo4j/falkordb: env var holding the password.",
+      "required": false,
+      "default": null
+    },
+    "database": {
+      "type": "string",
+      "default": "neo4j",
+      "label": "Database",
+      "description": "neo4j only: database name."
+    },
+    "host": {
+      "type": "string",
+      "default": "localhost",
+      "label": "Host",
+      "description": "falkordb only: Redis host."
+    },
+    "port": {
+      "type": "integer",
+      "default": 6379,
+      "label": "Port",
+      "description": "falkordb only: Redis port."
+    },
+    "graph_name": {
+      "type": "string",
+      "default": "knowledge_graph",
+      "label": "Graph Name",
+      "description": "neo4j/falkordb: the `graph` tag / FalkorDB graph key the builder wrote under. networkx: only used to name the default file path when `path` is unset."
+    },
+    "max_results": {
+      "type": "integer",
+      "default": 50,
+      "label": "Max Results",
+      "description": "Cap on rows returned by search_entities/get_neighbors/top_entities."
+    },
+    "inspection_asset_name": {
+      "type": "string",
+      "default": "knowledge_graph_search_tools",
+      "label": "Inspection Asset Name",
+      "description": "Asset key for the inspection asset reporting this server's configured settings."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Extra asset tags, applied to the inspection asset.",
+      "required": false,
+      "ui:widget": "key-value"
+    }
+  }
+}

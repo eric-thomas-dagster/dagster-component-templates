@@ -1,0 +1,217 @@
+{
+  "component_type": "dagster_community_components.KnowledgeGraphBuilderComponent",
+  "description": "Chunk text, extract (subject, relation, object) triples, resolve entity aliases, and write a provenance-carrying knowledge graph.",
+  "category": "ai",
+  "icon": "AccountTree",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": false,
+      "description": "Upstream DataFrame of raw text rows (id_column + text_column), or a SQL `source`"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "The final step's triples (subject/relation/object + provenance); the real graph lives in the configured store (networkx file / neo4j / falkordb)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame of raw text rows. Mutually exclusive with `source` -- set exactly one.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull raw text rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false
+    },
+    "id_column": {
+      "type": "string",
+      "label": "Id Column",
+      "description": "Column uniquely identifying each source row -- threaded through to every triple as provenance.",
+      "required": true,
+      "x-dagster-widget": "column"
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "description": "Column containing the raw text to chunk.",
+      "required": true,
+      "x-dagster-widget": "column"
+    },
+    "metadata_columns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Metadata Columns",
+      "description": "Additional source columns carried forward onto every chunk row.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "max_source_rows": {
+      "type": "integer",
+      "label": "Max Source Rows",
+      "description": "Safety cap on source rows processed per materialize. Pair with partitioning to bound each run to a slice of a large corpus.",
+      "required": false,
+      "default": null
+    },
+    "steps": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Steps",
+      "description": "Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` names a prior step's id to read from; defaults to the immediately preceding step. The first step must be op='chunk'. Valid ops: 'chunk', 'extract' (method: llm|spacy), 'resolve', 'write_graph' (provider: networkx|neo4j|falkordb, sync_mode: upsert|replace_sources|replace_all).",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the asset.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog. Defaults to ['ai', 'knowledge-graph'] if unset.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "default": "exponential",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": ["linear", "exponential"],
+      "ui:widget": "select"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily'/'weekly'/'monthly'/'hourly'/'cron'/'static'/'multi'/'dynamic'/None.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "cron", "static", "multi", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "default": "%Y-%m-%d",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition_type='cron' keys."
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "default": 0,
+      "label": "Partition End Offset",
+      "description": "0 (default) excludes the current, in-progress time window; 1 includes it."
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for time-based partitions (defaults to UTC).",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date (ISO). Required for time-based types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static/multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec. Overrides the flat partition fields.",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset.",
+      "required": false,
+      "default": null,
+      "enum": ["single_run", "multi_run"],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Policy Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only.",
+      "required": false,
+      "default": null
+    }
+  }
+}

@@ -29,6 +29,7 @@ MCP_COMPONENTS = {
     "assets/ai/dagster_workflow_tools": "server",
     "assets/ai/openapi_tool_server": "server (fastmcp from_openapi)",
     "assets/ai/knowledge_search_server": "server",
+    "assets/ai/knowledge_graph_search_server": "server",
     "resources/mcp_server_resource": "client (tool-listing inspection asset)",
     "assets/ai/agentic_pipeline_authoring_tools": "server",
 }

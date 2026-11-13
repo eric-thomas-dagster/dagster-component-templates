@@ -1,13 +1,14 @@
-# Dagster+ config-sync CLIs
+# Dagster+ CLIs
 
-Two standalone Python scripts for syncing GitOps-managed configuration
-into a Dagster+ deployment via the real GraphQL API. Both mirror the
-shape of the built-in `dagster-cloud deployment alert-policies sync`:
-YAML manifest in → idempotent upsert-by-name out.
+Standalone Python scripts that talk to a Dagster+ deployment's real GraphQL (and, for
+`migrate_asset_metadata.py`, REST) API directly — no SDK, no build step. Two sync
+GitOps-managed configuration in (mirroring the shape of the built-in `dagster-cloud deployment
+alert-policies sync`: YAML manifest in → idempotent upsert-by-name out), two pull reporting data
+out, and one performs a one-time, non-idempotent migration action.
 
 **Verified against a live Dagster+ deployment (2026-09).** GraphQL
-mutation names + input types match the real Dagster+ schema (not
-inferred).
+mutation/query names and input types match the real Dagster+ schema where stated (not
+inferred) — see each script's own section below for exactly what was verified when.
 
 | Script | Manages / pulls | Dagster+ concept |
 |---|---|---|
@@ -15,6 +16,71 @@ inferred).
 | [`sync_custom_metrics.py`](sync_custom_metrics/sync_custom_metrics.py) | Push custom Insights metrics | Custom Metrics |
 | [`pull_credit_usage.py`](pull_credit_usage/pull_credit_usage.py) | Pull credit usage rollup | Insights (usage) |
 | [`pull_audit_logs.py`](pull_audit_logs/pull_audit_logs.py) | Pull audit log entries | Cloud Settings → Audit Log |
+| [`migrate_asset_metadata.py`](migrate_asset_metadata/migrate_asset_metadata.py) | Carry metadata from one asset key to another | Asset catalog / materialization history |
+
+## Migrate — carry an asset's metadata over after a rename
+
+Renaming an asset in code doesn't move its materialization history: the catalog, metadata,
+and history are all keyed by asset key, and Dagster has no "rename" operation (the event log
+is append-only). The renamed asset shows up as brand new, with none of the old one's history.
+Dagster support's standard answer to this is "report backfilled materializations under the new
+key" (via `dg.AssetMaterialization` — see [external assets
+docs](https://dagster.io/docs/guides/build/assets/external-assets#recording-materializations-and-metadata)),
+and Dagster's own [`examples/oss-metadata-to-plus`](https://github.com/dagster-io/dagster/tree/master/examples/oss-metadata-to-plus)
+example does exactly this from an OSS instance into Dagster+. This script does the same thing,
+but entirely within Dagster+ — asset-to-asset, no OSS instance involved — and supports a
+genuine key *rename* (the upstream example assumes the read key and write key are the same).
+
+It reads the source asset's materialization history (every metadata entry Dagster+ recorded)
+via GraphQL, and reports new events carrying that metadata under the destination key via
+Dagster+'s real `report_asset_materialization/` REST endpoint (the same one the upstream
+example uses). **Read the caveats in the script's own docstring before running this for real** —
+in short: the new events get TODAY's timestamp, not the original historical dates (there's no
+API to backdate them); this is not reversible (no "delete a materialization" API); and the
+write endpoint needs an **agent token**, not a regular user/service token.
+
+```bash
+export DAGSTER_CLOUD_API_TOKEN=agent:xxxxxxxx   # must be an agent token
+
+# Preview first (default -- never writes anything):
+./migrate_asset_metadata.py migrate \
+    --deployment-url https://acme.dagster.cloud/prod \
+    --token-env DAGSTER_CLOUD_API_TOKEN \
+    --source-asset-key "old/asset/key" \
+    --dest-asset-key "new/asset/key"
+
+# Then actually report the events:
+./migrate_asset_metadata.py migrate \
+    --deployment-url https://acme.dagster.cloud/prod \
+    --token-env DAGSTER_CLOUD_API_TOKEN \
+    --source-asset-key "old/asset/key" \
+    --dest-asset-key "new/asset/key" \
+    --yes
+
+# Batch rename via manifest (examples/migrate_asset_metadata.example.yaml):
+./migrate_asset_metadata.py migrate manifest.yaml \
+    --deployment-url https://acme.dagster.cloud/prod \
+    --token-env DAGSTER_CLOUD_API_TOKEN --yes
+
+# Inspect a source asset's history first, read-only:
+./migrate_asset_metadata.py list-materializations \
+    --deployment-url https://acme.dagster.cloud/prod \
+    --token-env DAGSTER_CLOUD_API_TOKEN \
+    --asset-key "old/asset/key"
+```
+
+By default, one event is reported per partition (the latest metadata for that partition) —
+enough to repopulate the new asset's catalog page and partition status grid. Pass `--all-events`
+to instead replay every historical event per partition (usually not more useful: every event
+still lands with today's timestamp either way, so this just produces several near-identical
+events instead of one).
+
+GraphQL field names for the ~19 `MetadataEntry` subtypes (`TextMetadataEntry.text`,
+`JsonMetadataEntry.jsonString`, etc.) are never hardcoded — the script introspects your own
+deployment's schema at runtime and only ever requests fields that actually exist on it, so it
+self-corrects across Dagster+ schema versions instead of drifting. A metadata entry whose type
+has no plain scalar value (table/table-schema-shaped entries) is skipped and reported as
+skipped, never silently dropped or guessed at.
 
 ## Pull — credit usage across deployments × code locations × assets × days
 
@@ -87,12 +153,12 @@ correct per-day breakdown (top daily bucket: `prod, 2026-04-19,
 
 ## Zero deps except PyYAML
 
-Both scripts use Python 3.8+ stdlib + PyYAML only. No SDK install, no
-build step. Copy one file, `chmod +x`, run.
+Every script in this directory uses Python 3.8+ stdlib only (PyYAML only where a script reads
+a YAML manifest). No SDK install, no build step. Copy one file, `chmod +x`, run.
 
 ```bash
 pip install pyyaml
-chmod +x sync_catalog_views.py sync_custom_metrics.py
+chmod +x sync_catalog_views.py sync_custom_metrics.py migrate_asset_metadata.py
 ```
 
 ## Usage — Catalog Views (asset selections)
@@ -261,9 +327,16 @@ curl -X POST https://acme.dagster.cloud/prod/graphql \
 Look for mutations matching `catalogView` or `customMetric`. If names
 differ, edit the `Q_*` constants at the top of each script.
 
+`migrate_asset_metadata.py` is the exception: it never hardcodes `MetadataEntry` subtype field
+names at all — it introspects your deployment's own schema for those at runtime, every run (see
+its own docstring). The `assetNodeOrError`/`assetMaterializations` query shape and the
+`report_asset_materialization/` REST endpoint itself are NOT introspected, only verified against
+Dagster's own `examples/oss-metadata-to-plus` example — if either has changed shape on your
+deployment, this is the first place to look.
+
 ## Sharing with customers
 
-Both scripts are self-contained — safe to copy directly to a customer
+Every script here is self-contained — safe to copy directly to a customer
 environment. They import only Python stdlib + PyYAML; no dependency on
 `dagster_community_components` or any other internal tooling. Rename
 them or the `argparse` `prog=` string if desired.

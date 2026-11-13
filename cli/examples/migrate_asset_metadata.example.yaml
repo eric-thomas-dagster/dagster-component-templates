@@ -1,0 +1,5 @@
+migrations:
+  - source_asset_key: analytics/old_customer_metrics
+    dest_asset_key: analytics/customer_metrics
+  - source_asset_key: legacy_orders_raw
+    dest_asset_key: ingestion/orders_raw

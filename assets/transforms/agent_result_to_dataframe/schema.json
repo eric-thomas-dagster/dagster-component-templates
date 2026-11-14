@@ -221,6 +221,12 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields.",
       "required": false,
       "default": null
+    },
+    "flatten_nested": {
+      "type": "boolean",
+      "label": "Flatten Nested",
+      "description": "When a row's field is itself a dict (e.g. explode_field='items' where each item is {item: {ticket_id, ...}, text, ...}), expand that one field's own keys into {field}_{subfield} columns (item_ticket_id, ...) instead of dropping it (the default) or JSON-stringifying it (today's behavior when the field is named explicitly in include_columns). One level deep only -- a field nested two levels down still JSON-stringifies/drops the same as before.",
+      "required": false
     }
   }
 }

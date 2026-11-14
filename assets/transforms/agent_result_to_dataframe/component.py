@@ -84,9 +84,21 @@ def _coerce_agent_results(upstream: Any) -> List[tuple]:
     return [(None, upstream)]
 
 
-def _row_from_dict(d: Dict[str, Any], include: Optional[List[str]], exclude: Optional[List[str]]) -> Dict[str, Any]:
-    row: Dict[str, Any] = {}
+def _row_from_dict(
+    d: Dict[str, Any], include: Optional[List[str]], exclude: Optional[List[str]], flatten_nested: bool = False
+) -> Dict[str, Any]:
+    flat: Dict[str, Any] = {}
     for k, v in d.items():
+        if flatten_nested and isinstance(v, dict):
+            # One level deep only: a dict-valued field's own fields become {field}_{subfield}
+            # columns (e.g. item: {ticket_id: ...} -> item_ticket_id), instead of either being
+            # dropped (default) or JSON-stringified (when named explicitly in include_columns).
+            for sub_k, sub_v in v.items():
+                flat[f"{k}_{sub_k}"] = sub_v
+        else:
+            flat[k] = v
+    row: Dict[str, Any] = {}
+    for k, v in flat.items():
         if include:
             if k not in include:
                 continue
@@ -200,8 +212,10 @@ class AgentResultToDataFrameComponent(Component, Model, Resolvable):
             "'one_row': one row per run, built from the result dict's own scalar fields "
             "(final_answer, iterations, tool_calls_made, ... whatever the upstream actually has). "
             "'explode': one row per entry of a list-valued field (see explode_field). "
-            "'extract': parse `final_answer` as JSON (or a fenced ```json block) into columns/rows -- "
-            "for agents prompted to return structured output."
+            "'extract': parse `final_answer` (agent assets) or, when that's absent, `text` "
+            "(agentic_pipeline step assets) as JSON (or a fenced ```json block) into columns/rows -- "
+            "for agents prompted to return structured output, or a pipeline step whose own text "
+            "is already a JSON list of flat records (e.g. route per_item output_join: records)."
         ),
     )
     explode_field: str = Field(
@@ -217,9 +231,20 @@ class AgentResultToDataFrameComponent(Component, Model, Resolvable):
         ),
     )
 
+    flatten_nested: bool = Field(
+        default=False,
+        description=(
+            "When a row's field is itself a dict (e.g. explode_field='items' where each item is "
+            "{item: {ticket_id, ...}, text, ...}), expand that one field's own keys into "
+            "{field}_{subfield} columns (item_ticket_id, ...) instead of dropping it (the default) "
+            "or JSON-stringifying it (today's behavior when the field is named explicitly in "
+            "include_columns). One level deep only -- a field nested two levels down still "
+            "JSON-stringifies/drops the same as before."
+        ),
+    )
     include_columns: Optional[Union[str, List[str]]] = Field(
         default=None,
-        description="Only keep these columns from each row (run/extra columns are always added). Default: every scalar field present.",
+        description="Only keep these columns from each row (run/extra columns are always added). Default: every scalar field present. With flatten_nested, name the FLATTENED column (item_ticket_id, not item).",
     )
     exclude_columns: Optional[Union[str, List[str]]] = Field(
         default=None,
@@ -366,6 +391,7 @@ class AgentResultToDataFrameComponent(Component, Model, Resolvable):
         on_parse_error = self.on_parse_error
         include_columns = list(self.include_columns) if self.include_columns else None
         exclude_columns = list(self.exclude_columns) if self.exclude_columns else None
+        flatten_nested = self.flatten_nested
         add_run_columns = self.add_run_columns
         extra_columns = dict(self.extra_columns or {})
 
@@ -393,7 +419,7 @@ class AgentResultToDataFrameComponent(Component, Model, Resolvable):
             if mode == "one_row":
                 for pk, result in coerced:
                     result = result if isinstance(result, dict) else {"value": result}
-                    built_rows.append((pk, _row_from_dict(result, include_columns, exclude_columns)))
+                    built_rows.append((pk, _row_from_dict(result, include_columns, exclude_columns, flatten_nested)))
 
             elif mode == "explode":
                 saw_field = False
@@ -411,7 +437,7 @@ class AgentResultToDataFrameComponent(Component, Model, Resolvable):
                     saw_field = True
                     for item in items:
                         item_d = item if isinstance(item, dict) else {"value": item}
-                        built_rows.append((pk, _row_from_dict(item_d, include_columns, exclude_columns)))
+                        built_rows.append((pk, _row_from_dict(item_d, include_columns, exclude_columns, flatten_nested)))
                 if not saw_field and coerced:
                     sample_keys = sorted(coerced[0][1].keys()) if isinstance(coerced[0][1], dict) else []
                     raise ValueError(
@@ -421,7 +447,15 @@ class AgentResultToDataFrameComponent(Component, Model, Resolvable):
 
             else:  # extract
                 for pk, result in coerced:
-                    raw = result.get("final_answer") if isinstance(result, dict) else result
+                    if isinstance(result, dict):
+                        # An agentic_pipeline step result has `text`, not `final_answer` (that's
+                        # an agent-asset-shaped field) -- prefer final_answer when present (an
+                        # agent asset may have both), fall back to text.
+                        raw = result.get("final_answer")
+                        if raw is None:
+                            raw = result.get("text")
+                    else:
+                        raw = result
                     raw_text = raw if isinstance(raw, str) else ("" if raw is None else str(raw))
                     try:
                         parsed = _extract_json_block(raw_text)
@@ -435,10 +469,10 @@ class AgentResultToDataFrameComponent(Component, Model, Resolvable):
                     if isinstance(parsed, list):
                         for item in parsed:
                             item_d = item if isinstance(item, dict) else {"value": item}
-                            built_rows.append((pk, _row_from_dict(item_d, include_columns, exclude_columns)))
+                            built_rows.append((pk, _row_from_dict(item_d, include_columns, exclude_columns, flatten_nested)))
                     else:
                         parsed_d = parsed if isinstance(parsed, dict) else {"value": parsed}
-                        built_rows.append((pk, _row_from_dict(parsed_d, include_columns, exclude_columns)))
+                        built_rows.append((pk, _row_from_dict(parsed_d, include_columns, exclude_columns, flatten_nested)))
 
             final_rows: List[Dict[str, Any]] = []
             for pk, row in built_rows:

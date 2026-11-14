@@ -37,7 +37,7 @@
     "if_exists": {
       "type": "string",
       "label": "If Exists",
-      "description": "Behavior if the table already exists: 'replace', 'append', or 'fail'",
+      "description": "Behavior if the table already exists: 'replace' (drop + recreate the WHOLE table every run -- wipes out every other partition's rows too), 'append' (add rows -- a rerun of the same partition duplicates it), 'fail', or 'replace_partition' (partitioned pipelines: deletes just the rows matching this run's partition key, then inserts, in one transaction -- requires partition_date_column or partition_static_column set to a column present in the upstream DataFrame).",
       "required": false,
       "default": "replace",
       "enum": [
@@ -94,7 +94,7 @@
     "partition_date_column": {
       "type": "string",
       "label": "Partition Date Column",
-      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at'). With if_exists='replace_partition', this is also the column deleted by before insert.",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -117,7 +117,7 @@
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
-      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region'). With if_exists='replace_partition', this is also the column deleted by before insert.",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"

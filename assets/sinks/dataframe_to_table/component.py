@@ -266,7 +266,14 @@ class DataframeToTableComponent(Component, Model, Resolvable):
     )
     if_exists: str = Field(
         default="replace",
-        description="Behavior if the table already exists: 'replace', 'append', or 'fail'",
+        description=(
+            "Behavior if the table already exists: 'replace' (drop + recreate the WHOLE table "
+            "every run -- wipes out every other partition's rows too), 'append' (add rows -- "
+            "a rerun of the same partition duplicates it), 'fail', or 'replace_partition' "
+            "(partitioned pipelines: deletes just the rows matching this run's partition key, "
+            "then inserts, in one transaction -- requires partition_date_column or "
+            "partition_static_column set to a column present in the upstream DataFrame)."
+        ),
     )
     schema_name: Optional[str] = Field(
         alias="schema",
@@ -331,7 +338,10 @@ class DataframeToTableComponent(Component, Model, Resolvable):
     )
     partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter upstream DataFrame to the current date partition key.",
+        description=(
+            "Column used to filter upstream DataFrame to the current date partition key. With "
+            "if_exists='replace_partition', this is also the column deleted by before insert."
+        ),
     )
     dynamic_partition_name: Optional[str] = Field(
         default=None,
@@ -353,7 +363,11 @@ class DataframeToTableComponent(Component, Model, Resolvable):
     )
     partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+        description=(
+            "Column used to filter upstream DataFrame to the current static partition dimension "
+            "(e.g. 'customer_id'). With if_exists='replace_partition', this is also the column "
+            "deleted by before insert."
+        ),
     )
     backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
         default=None,
@@ -587,6 +601,12 @@ group_name=group_name,
             # Filter to current partition if partitioned
             # A single_run/multi_run backfill range spans several partition keys:
             # keep rows matching ANY key in the range (one key on a normal run).
+            # [{"date": <key>} | {"static": <key>} | {"date": ..., "static": ...}, ...] -- one dict
+            # per partition key in the (possibly multi-key backfill) range, used by
+            # if_exists='replace_partition' below to delete exactly the rows this run is about
+            # to replace. Populated alongside the SAME filtering logic so the two can never
+            # disagree on which column/value identifies "this partition".
+            _partition_match_keys: List[Dict[str, str]] = []
             if context.has_partition_key or context.has_partition_key_range:
                 import numpy as _np
                 _keys = [context.partition_key] if context.has_partition_key else list(context.partition_keys)
@@ -596,14 +616,20 @@ group_name=group_name,
                     _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
                     _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
                     _m = _np.ones(len(upstream), dtype=bool)
+                    _match: Dict[str, str] = {}
                     if partition_date_column and partition_date_column in upstream.columns and _date_key:
                         _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
                         _m &= (_col_dates == _date_key).to_numpy()
+                        _match["date"] = _date_key
                     if partition_static_column and partition_static_column in upstream.columns and _static_key:
                         _m &= (upstream[partition_static_column].astype(str) == _static_key).to_numpy()
+                        _match["static"] = _static_key
                     elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                         _m &= (upstream[partition_static_column].astype(str) == str(_pk)).to_numpy()
+                        _match["static"] = str(_pk)
                     _keep |= _m
+                    if _match:
+                        _partition_match_keys.append(_match)
                 upstream = upstream[_keep]
             try:
                 import sqlalchemy
@@ -672,7 +698,50 @@ group_name=group_name,
             }
             if _to_sql_dtype:
                 _to_sql_kwargs["dtype"] = _to_sql_dtype
-            upstream.to_sql(table_name, engine, **_to_sql_kwargs)
+
+            if if_exists == "replace_partition":
+                # Delete exactly the rows this run is about to replace, then insert the new
+                # ones, in ONE transaction -- a daily pipeline's own "replace just today" need:
+                # `replace` would wipe every other day, `append` would duplicate a rerun day.
+                if not _partition_match_keys:
+                    raise ValueError(
+                        "dataframe_to_table: if_exists='replace_partition' requires this asset "
+                        "to be partitioned AND partition_date_column or partition_static_column "
+                        "set to a column present in the upstream DataFrame -- that's the column "
+                        "this deletes by, to find the prior rows this run replaces."
+                    )
+                quote = engine.dialect.identifier_preparer.quote
+                qualified_table = f"{quote(schema)}.{quote(table_name)}" if schema else quote(table_name)
+                table_exists = sqlalchemy.inspect(engine).has_table(table_name, schema=schema)
+                with engine.begin() as conn:
+                    if table_exists:
+                        for _match in _partition_match_keys:
+                            _conditions = []
+                            _params: Dict[str, Any] = {}
+                            if "date" in _match:
+                                # Half-open range, not equality: the column may carry a time
+                                # component (e.g. "2024-01-02 08:00:00") even though the
+                                # partition key is just the date -- an exact string match against
+                                # _match["date"] (the bare date) would never hit those rows.
+                                import datetime as _dt
+                                _start = _dt.datetime.strptime(_match["date"], "%Y-%m-%d").date()
+                                _end = _start + _dt.timedelta(days=1)
+                                _col = quote(str(partition_date_column))
+                                _conditions.append(f"{_col} >= :date_start AND {_col} < :date_end")
+                                _params["date_start"] = _start.isoformat()
+                                _params["date_end"] = _end.isoformat()
+                            if "static" in _match:
+                                _conditions.append(f"{quote(str(partition_static_column))} = :static_val")
+                                _params["static_val"] = _match["static"]
+                            conn.execute(
+                                sqlalchemy.text(f"DELETE FROM {qualified_table} WHERE " + " AND ".join(_conditions)),
+                                _params,
+                            )
+                    _insert_kwargs = dict(_to_sql_kwargs)
+                    _insert_kwargs["if_exists"] = "append"  # table is already there (or to_sql creates it) -- never replace here
+                    upstream.to_sql(table_name, conn, **_insert_kwargs)
+            else:
+                upstream.to_sql(table_name, engine, **_to_sql_kwargs)
 
             context.log.info(f"Successfully wrote {row_count} rows to {table_name}")
             return MaterializeResult(metadata={

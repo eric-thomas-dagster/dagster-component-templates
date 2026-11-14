@@ -109,6 +109,13 @@ def test_resource_connection_string_branch(mod, db):
     assert _ids(url) == [1, 2, 3]
 
 
+def test_unset_database_url_env_var_raises_a_clear_error_not_engine_none(mod, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    sink = _comp(mod).build_defs(None).assets[0]  # default database_url_env_var="DATABASE_URL", unset
+    with pytest.raises(EnvironmentError, match="Set either 'database_url' or env var 'DATABASE_URL'"):
+        dg.materialize([_flat_upstream(), sink])
+
+
 def test_resource_with_neither_api_raises_clear_error(mod, db):
     sink = _comp(mod, resource_key="bad").build_defs(None).assets[0]
     with pytest.raises(Exception, match="neither .get_engine"):
@@ -161,6 +168,48 @@ def test_single_run_backfill_range_writes_every_key_in_range_once(mod, db):
     assert r.success
     assert _ids(url) == [101, 102, 201, 202, 301, 302]
     assert r.asset_materializations_for_node("to_table")[0].metadata["row_count"].value == 6
+
+
+# ------------------------------------------------------- if_exists='replace_partition'
+
+def test_replace_partition_rerun_of_a_day_does_not_duplicate_and_other_days_survive(mod, db):
+    """The exact daily-pipeline need: `replace` wipes every other day, `append` duplicates a
+    rerun day. replace_partition deletes just this partition's rows, then inserts -- run A, run
+    B, re-run A, and the table ends with exactly one copy each of A and B."""
+    _, url = db
+    up = daily_upstream()
+    sink = _partitioned(mod, url, if_exists="replace_partition").build_defs(None).assets[0]
+    instance, io = dg.DagsterInstance.ephemeral(), PartitionedMemoryIOManager()
+    materialize_upstream_days(up, instance, io, ["2024-01-02", "2024-01-03"])
+
+    r1 = dg.materialize([up, sink], selection=[sink.key], partition_key="2024-01-02", instance=instance, resources={"io_manager": io})
+    assert r1.success
+    r2 = dg.materialize([up, sink], selection=[sink.key], partition_key="2024-01-03", instance=instance, resources={"io_manager": io})
+    assert r2.success
+    assert _ids(url) == [101, 102, 201, 202]
+
+    # re-run partition A (same day, same rows) -- must not duplicate, and day B must survive
+    r3 = dg.materialize([up, sink], selection=[sink.key], partition_key="2024-01-02", instance=instance, resources={"io_manager": io})
+    assert r3.success
+    assert _ids(url) == [101, 102, 201, 202]
+
+
+def test_replace_partition_works_on_the_very_first_run_no_table_yet(mod, db):
+    _, url = db
+    up = daily_upstream()
+    sink = _partitioned(mod, url, if_exists="replace_partition").build_defs(None).assets[0]
+    instance, io = dg.DagsterInstance.ephemeral(), PartitionedMemoryIOManager()
+    materialize_upstream_days(up, instance, io, ["2024-01-02"])
+    r = dg.materialize([up, sink], selection=[sink.key], partition_key="2024-01-02", instance=instance, resources={"io_manager": io})
+    assert r.success
+    assert _ids(url) == [101, 102]
+
+
+def test_replace_partition_requires_a_partition_column_configured(mod, db):
+    _, url = db
+    sink = _comp(mod, database_url=url, if_exists="replace_partition").build_defs(None).assets[0]
+    with pytest.raises(Exception, match="replace_partition.*requires this asset to be partitioned"):
+        dg.materialize([_flat_upstream(), sink])
 
 
 def test_range_filter_actually_runs_on_a_partition_agnostic_upstream(mod, db):

@@ -46,17 +46,21 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 
 ### Partitions
 
+**What a partitioned run actually writes.** `partition_date_column`/`partition_static_column` only control which rows of the upstream DataFrame THIS run keeps (filtering to the current partition key) -- they don't by themselves change how those rows land in the table. That's `if_exists`'s job, and for a partitioned pipeline running one partition (e.g. one day) per run, neither of the two pandas-native options is usually what you want: `replace` drops and recreates the WHOLE table every run (every other partition's rows are gone), and `append` just adds rows (rerunning the same partition duplicates it). Set **`if_exists: replace_partition`** for the daily-pipeline shape: it deletes just the rows matching this run's partition key (using `partition_date_column`/`partition_static_column` to find them), then inserts, in one transaction -- run day A, run day B, rerun day A, and the table ends with exactly one copy each of A and B.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. With if_exists='replace_partition', this is also the column deleted by before insert. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). With if_exists='replace_partition', this is also the column deleted by before insert. |
 
 ### Retry policy
 
@@ -70,7 +74,7 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `if_exists` | `str` | `"replace"` | Behavior if the table already exists: 'replace', 'append', or 'fail' |
+| `if_exists` | `str` | `"replace"` | Behavior if the table already exists: 'replace' (drop + recreate the WHOLE table every run -- wipes out every other partition's rows too), 'append' (add rows -- a rerun of the same partition duplicates it), 'fail', or 'r… _(full docs in schema.json + component README)_ |
 
 ### Other
 
@@ -103,11 +107,12 @@ attributes:
 
 ### if_exists Behavior
 
-- `replace`: Drops the existing table and recreates it (schema is derived from the DataFrame).
-- `append`: Inserts rows into the existing table without modifying the schema.
+- `replace`: Drops the existing table and recreates it (schema is derived from the DataFrame). For a partitioned asset, this wipes out every OTHER partition's rows too -- it has no notion of partitions at all.
+- `append`: Inserts rows into the existing table without modifying the schema. For a partitioned asset, rerunning the same partition duplicates its rows.
 - `fail`: Raises an error if the table already exists.
+- `replace_partition`: Deletes just the rows matching this run's partition key (via `partition_date_column`/`partition_static_column`), then inserts, in one transaction. The shape a partitioned pipeline (one partition materialized per run) almost always actually wants -- see [Partitions](#partitions) above. Requires the asset to be partitioned and at least one of those two column fields set to a real column in the upstream DataFrame; creates the table on the very first run same as the other modes.
 
-`replace` is the safest default for idempotent pipelines.
+`replace` is the safest default for an UNPARTITIONED, idempotent pipeline. For a partitioned one, use `replace_partition`.
 
 ### Chunked Writing
 

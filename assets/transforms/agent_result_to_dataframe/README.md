@@ -26,16 +26,31 @@ component bridges the two.
 - **`one_row`** (default): one row per run, built from the result dict's own
   top-level scalar fields. Nested fields (lists/dicts, e.g.
   `tool_call_details`, `transcript`) are dropped unless named explicitly in
-  `include_columns`, in which case they're serialized to a JSON string column.
+  `include_columns`, in which case they're serialized to a JSON string column
+  -- or, with `flatten_nested: true`, expanded one level deep into
+  `{field}_{subfield}` columns instead (see below).
 - **`explode`**: one row per entry of a list-valued field (`explode_field`,
-  default `tool_call_details`). Each entry's own fields become columns.
-- **`extract`**: parses `final_answer` as JSON -- either the whole string, or
-  the content of a fenced ```` ```json ```` block -- into columns/rows. For
-  agents prompted to return structured output. A single dict becomes one
-  row; a list of dicts becomes one row per item. Invalid JSON raises a clear
-  error by default; set `on_parse_error: keep_raw` to instead emit one row
-  with the raw text under `final_answer_raw` and the failure under
-  `parse_error`, rather than failing the whole run.
+  default `tool_call_details`). Each entry's own fields become columns --
+  same nested-field handling as `one_row` (drop / JSON-string / flatten).
+- **`extract`**: parses `final_answer` (agent assets) or, when that's absent,
+  `text` (`agentic_pipeline` step assets -- e.g. a `route` step with
+  `per_item: true` and `output_join: records` whose `text` is already a JSON
+  list of flat records) as JSON -- either the whole string, or the content of
+  a fenced ```` ```json ```` block -- into columns/rows. A single dict
+  becomes one row; a list of dicts becomes one row per item. Invalid JSON
+  raises a clear error by default; set `on_parse_error: keep_raw` to instead
+  emit one row with the raw text under `final_answer_raw` and the failure
+  under `parse_error`, rather than failing the whole run.
+
+### `flatten_nested` -- nested dict fields as columns, not JSON blobs
+
+By default a dict-valued field (e.g. `explode_field: items` where each item
+is `{item: {ticket_id, ...}, text, ...}`) is dropped, or -- named explicitly
+in `include_columns` -- serialized whole into one JSON-string column. Set
+`flatten_nested: true` to instead expand that field's own keys into
+`{field}_{subfield}` columns (`item_ticket_id`, `item_channel`, ...), one
+level deep. With `include_columns` set, name the *flattened* column
+(`item_ticket_id`), not the original nested field name (`item`).
 
 ## Partition-bridge heuristic
 
@@ -107,7 +122,8 @@ keys.
 |---|---|---|---|
 | `explode_field` | `str` | `"tool_call_details"` | mode='explode' only: the list-valued field to explode, one output row per entry. |
 | `on_parse_error` | `Literal['raise', 'keep_raw']` | `"raise"` | mode='extract' only. 'raise' (default): fail the run with a clear error on invalid JSON. 'keep_raw': instead emit one row with the raw text under `final_answer_raw` and the error message under `parse_error`, so a single… _(full docs in schema.json + component README)_ |
-| `include_columns` | `Union[str, List[str]]` | — | Only keep these columns from each row (run/extra columns are always added). Default: every scalar field present. |
+| `flatten_nested` | `bool` | `false` | When a row's field is itself a dict (e.g. explode_field='items' where each item is {item: {ticket_id, ...}, text, ...}), expand that one field's own keys into {field}_{subfield} columns (item_ticket_id, ...) instead of d… _(full docs in schema.json + component README)_ |
+| `include_columns` | `Union[str, List[str]]` | — | Only keep these columns from each row (run/extra columns are always added). Default: every scalar field present. With flatten_nested, name the FLATTENED column (item_ticket_id, not item). |
 | `exclude_columns` | `Union[str, List[str]]` | — | Drop these columns from the default/explicit column set. |
 | `add_run_columns` | `bool` | `true` | Add run_id, partition_key, materialized_at, and asset_key columns to every row. Needed so history accumulates correctly in a table a dataframe_to_* sink appends to. |
 | `extra_columns` | `Dict[str, str]` | — | Extra literal columns stamped onto every row, e.g. {pipeline: 'daily_digest', run_date: '{partition_key}'}. The literal substring '{partition_key}' is replaced with the current partition key (empty string when unpartitioned). |

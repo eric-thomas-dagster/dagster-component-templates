@@ -5,6 +5,8 @@ Everything here is real: a real upstream asset materializing a real dict
 through the real asset graph via dg.materialize(). Nothing is mocked --
 there's no paid call anywhere in this component.
 """
+import json
+
 import pandas as pd
 import dagster as dg
 import pytest
@@ -156,6 +158,50 @@ def test_pipeline_step_shape_works_generically(mod):
     assert df.iloc[0]["text"] == "draft content"
     assert df.iloc[0]["cost_usd"] == 0.002
     assert df.iloc[0]["op"] == "draft"
+
+
+def test_extract_mode_falls_back_to_text_for_a_pipeline_step_result(mod):
+    """A route step (per_item: true, output_join: records) materializes {text: <json list>, items,
+    n_items, routing_counts, op, cost_usd, ...} -- no final_answer at all. extract must read text."""
+    records = [
+        {"ticket_id": "T-1", "selected_specialist": "shipping", "text": "ETA is Friday."},
+        {"ticket_id": "T-2", "selected_specialist": "returns", "text": "Starting a return."},
+    ]
+    result = {
+        "text": json.dumps(records), "items": records, "n_items": 2,
+        "routing_counts": {"shipping": 1, "returns": 1}, "op": "route", "cost_usd": 0.01,
+    }
+    df = _materialize(mod, result, mode="extract")
+    assert df["ticket_id"].tolist() == ["T-1", "T-2"]
+    assert df["selected_specialist"].tolist() == ["shipping", "returns"]
+
+
+def test_extract_mode_prefers_final_answer_over_text_when_both_present(mod):
+    result = {"final_answer": '{"from": "final_answer"}', "text": '{"from": "text"}'}
+    df = _materialize(mod, result, mode="extract")
+    assert df.iloc[0]["from"] == "final_answer"
+
+
+def test_flatten_nested_expands_one_level_into_prefixed_columns(mod):
+    result = {
+        "final_answer": "x",
+        "items": [
+            {"item": {"ticket_id": "T-1", "channel": "email"}, "text": "reply 1"},
+            {"item": {"ticket_id": "T-2", "channel": "chat"}, "text": "reply 2"},
+        ],
+    }
+    df = _materialize(mod, result, mode="explode", explode_field="items", flatten_nested=True)
+    assert "item" not in df.columns
+    assert df["item_ticket_id"].tolist() == ["T-1", "T-2"]
+    assert df["item_channel"].tolist() == ["email", "chat"]
+    assert df["text"].tolist() == ["reply 1", "reply 2"]
+
+
+def test_flatten_nested_default_false_keeps_todays_drop_behavior(mod):
+    result = {"final_answer": "x", "items": [{"item": {"ticket_id": "T-1"}, "text": "reply 1"}]}
+    df = _materialize(mod, result, mode="explode", explode_field="items")
+    assert "item" not in df.columns and "item_ticket_id" not in df.columns
+    assert df.iloc[0]["text"] == "reply 1"
 
 
 def test_partition_bridge_dict_of_results_produces_one_row_per_partition(mod):

@@ -9166,6 +9166,16 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     #     - One op per RUN in the Runs page → coarse-grained retry
     #       (if step 6 fails, the whole partition restarts)
     #     - Zero IO-manager overhead between steps (in-memory state dict)
+    #     - REAL asset-to-asset lineage: internal_asset_deps (computed from
+    #       each step's own source:/sources:/inputs:) is a real @dg.multi_asset
+    #       parameter, so the Lineage tab shows the true chain (e.g.
+    #       classify -> filter -> digest), staleness propagates correctly,
+    #       "materialize downstream" and automation conditions targeting
+    #       "everything after filter" all work off that real graph. This is
+    #       exactly the pattern dagster-dbt's own `@dbt_assets` uses --
+    #       it is ALSO one op (its own docs call it "the op", singular)
+    #       whose per-model lineage comes from the dbt manifest the same
+    #       way this one comes from internal_asset_deps.
     #
     #   per_step_ops=True (@dg.graph_multi_asset):
     #     - One op PER STEP visible in the Runs page → finer-grained retry
@@ -9173,18 +9183,40 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     #     - Each step's state dict passes through the IO manager (default
     #       pickle to filesystem). ~50-200KB per hop for text-heavy
     #       pipelines. Real but not painful.
+    #     - Lineage is flat, not a chain: every declared asset shows the
+    #       SAME parents (the upstream asset, or none) regardless of which
+    #       step actually reads from which -- confirmed directly against
+    #       Dagster 1.13.29 that `@dg.graph_multi_asset` has no
+    #       internal_asset_deps-equivalent override and does not derive
+    #       differentiated per-output lineage from the op graph's own
+    #       topology, so there is no way to fix this short of not using
+    #       graph_multi_asset at all. If you need real lineage / staleness /
+    #       "materialize downstream" / automation conditions targeting a
+    #       subset, use the default (per_step_ops: false) -- it already has
+    #       all of that; you trade away only the separate per-step boxes in
+    #       the Runs page's Flat view (which dagster-dbt's own run page
+    #       doesn't have either, for the same underlying reason).
     #
-    # Also enables `can_subset` on the emitted graph — you can materialize
-    # just a subset of the declared output assets without running the
-    # whole pipeline.
+    # can_subset is NOT specific to per_step_ops -- both shapes support it
+    # (is_required=False per declared asset either way); per_step_ops only
+    # changes whether that subset runs as one op or several.
     per_step_ops: bool = Field(
         default=False,
         description=(
             "When True, emit as a `@dg.graph_multi_asset` with one @op per "
             "step (visible in the Runs page + finer-grained retry). State "
-            "dict flows through the IO manager between ops. Default False "
-            "keeps the single-op @multi_asset shape (coarse retry, no IO "
-            "overhead)."
+            "dict flows through the IO manager between ops. Lineage is flat "
+            "in this mode -- every declared asset shows the same parents "
+            "regardless of which step actually reads from which (a real "
+            "Dagster API limitation: graph_multi_asset has no "
+            "internal_asset_deps-equivalent override). Default False keeps "
+            "the single-op @multi_asset shape (coarse retry, no IO overhead) "
+            "and has REAL asset-to-asset lineage via internal_asset_deps -- "
+            "the same pattern dagster-dbt's own @dbt_assets uses -- so "
+            "staleness, 'materialize downstream', and automation conditions "
+            "targeting a subset all work correctly. Prefer per_step_ops: "
+            "true only when per-step visibility in the Runs page matters "
+            "more than real lineage for this particular pipeline."
         ),
     )
 

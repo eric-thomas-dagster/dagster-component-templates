@@ -123,7 +123,7 @@
       "type": "boolean",
       "label": "Per-Step Ops",
       "default": false,
-      "description": "When true, emit as @dg.graph_multi_asset with ONE OP PER STEP instead of a single @multi_asset. Runs page shows N step_keys (`{prefix}_ingest`, `{prefix}_{step_id}` per step, `{prefix}_extract`) instead of one composite op. Native per-op retry via Dagster's re-execution machinery — restart from any failed step. State dict serializes through the IO manager between ops. Default false keeps zero-overhead single-op behavior for high-throughput pipelines."
+      "description": "When true, emit as @dg.graph_multi_asset with ONE OP PER STEP instead of a single @multi_asset. Runs page shows N step_keys (`{prefix}_ingest`, `{prefix}_{step_id}` per step, `{prefix}_extract`) instead of one composite op. Native per-op retry via Dagster's re-execution machinery — restart from any failed step. State dict serializes through the IO manager between ops. Lineage is flat in this mode: every declared asset shows the SAME parents regardless of which step actually reads from which (graph_multi_asset has no internal_asset_deps-equivalent override — confirmed against Dagster 1.13.29). Default false keeps zero-overhead single-op behavior AND real asset-to-asset lineage via internal_asset_deps (the same pattern dagster-dbt's own @dbt_assets uses — it's also one op), so staleness, \"materialize downstream\", and automation conditions targeting a subset all work correctly. Prefer per_step_ops: true only when per-step visibility in the Runs page matters more than real lineage for this pipeline."
     },
     "park_warn_after_hours": {
       "type": "number",

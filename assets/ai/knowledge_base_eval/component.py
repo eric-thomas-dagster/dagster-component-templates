@@ -22,9 +22,10 @@ Each golden_set question gets:
   - `score`: fraction of `expected_terms` found (case-insensitive substring match) anywhere in
     the top-k results' text. A question with no `expected_terms` scores 1.0 (nothing to miss).
   - `hit`/`rank`: whether any of `expected_sources` (matched against each result's source,
-    doc_id, OR chunk_id) appears anywhere in the top-k, and the 1-indexed rank of the first
-    such match. Both are `None` when `expected_sources` isn't given for that question (not
-    applicable, not "missed").
+    doc_id, OR chunk_id, per `expected_sources_match_mode` -- 'exact' (default), 'suffix', or
+    'contains') appears anywhere in the top-k, and the 1-indexed rank of the first such match.
+    Both are `None` when `expected_sources` isn't given for that question (not applicable, not
+    "missed").
 
 `eval_summary` (asset metadata) is the run-level JSON: `{score, hit_rate, questions, passed, k}`
 -- `score` is the mean per-question score, `hit_rate` the fraction of hit-applicable questions
@@ -157,7 +158,24 @@ def _search_resource_results(resource: Any, question: str, k: int) -> List[Dict[
     )
 
 
-def _score_question(resource: Any, question: str, expected_terms: List[str], expected_sources: List[str], k: int) -> Dict[str, Any]:
+def _source_matches(candidates: "set[str]", expected_set: "set[str]", match_mode: str) -> bool:
+    """`expected_sources` match modes: 'exact' (today's behavior -- a candidate equals an
+    expected value exactly) | 'suffix' (a candidate ENDS WITH an expected value -- e.g.
+    expected_sources: ['concepts/tasks'] matches a real source
+    'https://www.prefect.io/docs/v3/concepts/tasks') | 'contains' (an expected value is a
+    substring anywhere in a candidate -- the most lenient, for a fragment that isn't
+    necessarily at the end of the path/URL)."""
+    if match_mode == "exact":
+        return bool(candidates & expected_set)
+    if match_mode == "suffix":
+        return any(c.endswith(e) for c in candidates for e in expected_set)
+    if match_mode == "contains":
+        return any(e in c for c in candidates for e in expected_set)
+    raise ValueError(f"expected_sources_match_mode must be 'exact' | 'suffix' | 'contains'; got {match_mode!r}")
+
+
+def _score_question(resource: Any, question: str, expected_terms: List[str], expected_sources: List[str], k: int,
+                     match_mode: str = "exact") -> Dict[str, Any]:
     """Pure scoring logic, decoupled from Dagster so it's directly unit-testable: takes an
     already-resolved resource object (or a test double) and returns the per-question dict shape
     both the golden-set loop and the ad hoc {question} override use."""
@@ -175,7 +193,7 @@ def _score_question(resource: Any, question: str, expected_terms: List[str], exp
         for i, r in enumerate(results):
             candidates = {str(r.get("source") or ""), str(r.get("doc_id") or ""), str(r.get("chunk_id") or "")}
             candidates.discard("")
-            if candidates & expected_set:
+            if _source_matches(candidates, expected_set, match_mode):
                 hit = True
                 rank = i + 1
                 break
@@ -235,6 +253,16 @@ class KnowledgeBaseEvalComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
     k: int = Field(default=5, description="Top-k results requested per question.")
+    expected_sources_match_mode: str = Field(
+        default="exact",
+        description=(
+            "How expected_sources are matched against each result's source/doc_id/chunk_id: "
+            "'exact' (default -- equals one of expected_sources exactly) | 'suffix' (a result's "
+            "value ENDS WITH an expected value -- e.g. expected_sources: ['concepts/tasks'] "
+            "matches 'https://www.prefect.io/docs/v3/concepts/tasks') | 'contains' (an expected "
+            "value is a substring anywhere in a result's value)."
+        ),
+    )
     min_score: float = Field(default=0.6, description="Absolute minimum mean score across golden_set. Asset check fails below this.")
     regression_pct: float = Field(
         default=10.0,
@@ -277,6 +305,9 @@ class KnowledgeBaseEvalComponent(dg.Component, dg.Model, dg.Resolvable):
         upstream_asset_key = self.upstream_asset_key
         golden_set = list(self.golden_set)
         k = self.k
+        match_mode = self.expected_sources_match_mode
+        if match_mode not in ("exact", "suffix", "contains"):
+            raise ValueError(f"expected_sources_match_mode must be 'exact' | 'suffix' | 'contains'; got {match_mode!r}")
         min_score = self.min_score
         regression_pct = self.regression_pct
         knowledge_base = self.knowledge_base
@@ -313,7 +344,7 @@ class KnowledgeBaseEvalComponent(dg.Component, dg.Model, dg.Resolvable):
             resource = getattr(context.resources, search_resource_key)
 
             if config.question:
-                result = _score_question(resource, config.question, [], [], k)
+                result = _score_question(resource, config.question, [], [], k, match_mode)
                 context.log.info(f"ad hoc question: {config.question!r} -> score={result['score']:.3f}")
                 context.add_output_metadata({
                     "ad_hoc_question": dg.MetadataValue.text(config.question),
@@ -328,6 +359,7 @@ class KnowledgeBaseEvalComponent(dg.Component, dg.Model, dg.Resolvable):
                     [str(t) for t in (item.get("expected_terms") or [])],
                     [str(s) for s in (item.get("expected_sources") or [])],
                     k,
+                    match_mode,
                 )
                 for item in golden_set
             ]

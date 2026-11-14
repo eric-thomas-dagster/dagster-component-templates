@@ -125,6 +125,12 @@
       "default": "exponential",
       "enum": ["linear", "exponential"],
       "ui:widget": "select"
+    },
+    "expected_sources_match_mode": {
+      "type": "string",
+      "label": "Expected Sources Match Mode",
+      "description": "How expected_sources are matched against each result's source/doc_id/chunk_id: 'exact' (default -- equals one of expected_sources exactly) \\| 'suffix' (a result's value ENDS WITH an expected value -- e.g. expected_sources: ['concepts/tasks'] matches 'https://www.prefect.io/docs/v3/concepts/tasks') \\| 'contains' (an expected value is a substring anywhere in a result's value).",
+      "required": false
     }
   }
 }

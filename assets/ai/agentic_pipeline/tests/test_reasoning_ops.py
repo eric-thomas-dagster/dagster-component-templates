@@ -138,6 +138,19 @@ def test_cascade_escalates_on_model_error_and_can_fail_when_exhausted(mod, fake_
         run(mod, ctx, {"id": "c", "op": "cascade", "models": ["a"], "accept": {"kind": "regex", "pattern": "YES"}, "on_exhausted": "fail"})
 
 
+def test_cascade_accept_json_tolerates_a_fenced_cheap_model_reply(mod, fake_litellm, ctx):
+    """A cheap model that wraps otherwise-valid JSON in a ```json fence (or adds a trailing
+    sentence after it) must not read as an escalation -- _parse_json_loose already strips
+    fences/surrounding prose; this locks that behavior in for cascade's accept: {kind: json}."""
+    fake_litellm.reply('```json\n{"urgent": true}\n```')
+    out, _ = run(mod, ctx, {"id": "c", "op": "cascade", "models": ["cheap", "strong"], "accept": {"kind": "json"}})
+    assert out["model_used"] == "cheap" and out["n_escalations"] == 0 and len(fake_litellm.calls) == 1
+
+    fake_litellm.reply('```json\n{"urgent": true}\n```\n\nLet me know if you need anything else!')
+    out2, _ = run(mod, ctx, {"id": "c2", "op": "cascade", "models": ["cheap", "strong"], "accept": {"kind": "json"}})
+    assert out2["model_used"] == "cheap" and out2["n_escalations"] == 0
+
+
 # ── plan ──────────────────────────────────────────────────────────────────────
 
 def plan_json(*tasks):

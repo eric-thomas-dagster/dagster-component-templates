@@ -116,6 +116,7 @@ re-evaluates whenever you rebuild the base asset.
 |---|---|---|---|
 | `knowledge_base` | `str` | — | Optional UI-linking label only -- the knowledge base this evaluates. Not read or validated. |
 | `k` | `int` | `5` | Top-k results requested per question. |
+| `expected_sources_match_mode` | `str` | `"exact"` | How expected_sources are matched against each result's source/doc_id/chunk_id: 'exact' (default -- equals one of expected_sources exactly) \| 'suffix' (a result's value ENDS WITH an expected value -- e.g. expected_source… _(full docs in schema.json + component README)_ |
 | `min_score` | `float` | `0.6` | Absolute minimum mean score across golden_set. Asset check fails below this. |
 | `regression_pct` | `float` | `10.0` | Max allowed drop, in percentage POINTS of the 0-1 score (e.g. 10 = may not fall more than 0.10 below the prior real eval), vs the most recent PRIOR materialization that itself has eval_summary metadata -- an ad hoc {ques… _(full docs in schema.json + component README)_ |
 

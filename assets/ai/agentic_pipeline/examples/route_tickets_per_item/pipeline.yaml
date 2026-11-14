@@ -1,0 +1,49 @@
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: ticket_routing
+  source:
+    kind: file
+    path: tickets.json
+
+  steps:
+    # ONE route step, per_item: true -- a fresh router decision + specialist answer for EACH
+    # ticket in the batch, not one decision for the whole batch. Without per_item (route's
+    # default), the router would pick a single specialist and that one specialist would answer
+    # every ticket in tickets.json, regardless of what each ticket is actually about.
+    - id: triage
+      op: route
+      source: source
+      per_item: true
+      output_join: records
+      router:
+        model: gpt-4o-mini
+        api_key_env_var: OPENAI_API_KEY
+      specialists:
+        - name: shipping
+          description: Delivery times, tracking numbers, and shipping delays.
+          model: gpt-4o-mini
+          api_key_env_var: OPENAI_API_KEY
+          system_prompt: "You are a shipping specialist. Answer the customer's shipping question directly and briefly."
+        - name: returns
+          description: Damaged, wrong, or missing items; refunds and returns.
+          model: gpt-4o-mini
+          api_key_env_var: OPENAI_API_KEY
+          system_prompt: "You are a returns specialist. Help the customer with their damaged, wrong, or missing item."
+        - name: account
+          description: Login, password, and account access problems.
+          model: gpt-4o-mini
+          api_key_env_var: OPENAI_API_KEY
+          system_prompt: "You are an account support specialist. Help the customer regain access to their account."
+
+    # Reads triage's records: one entry per ticket, each with its own selected_specialist,
+    # router_reasoning, and the specialist's answer -- the same shape a synthesize step already
+    # reads after a `map` step with output_join: records.
+    - id: digest
+      op: synthesize
+      sources: [triage]
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+      system_prompt: "Summarize how each ticket was routed and answered, one line per ticket."
+
+  outputs:
+    assets: [triage, digest]

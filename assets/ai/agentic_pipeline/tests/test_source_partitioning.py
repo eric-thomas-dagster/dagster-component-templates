@@ -1,6 +1,7 @@
 """A partitioned pipeline whose input never mentions the partition reads identical input every time: load-time guards per
 source kind, and {partition_start}/{partition_end} + safe quoting for `database` sources (same semantics as
 context_engineering_pipeline's warehouse_query). Real materializations against a real sqlite file."""
+import json
 import logging
 import sqlite3
 
@@ -123,6 +124,31 @@ def test_no_warning_when_templated_or_upstream_or_unpartitioned(mod, caplog):
         mod.AgenticPipelineComponent(asset_name_prefix="u", source={"kind": "file", "path": "x"}, steps=[dict(SUMM)],
                                      outputs={"assets": ["summ"]}).build_defs(None)
     assert not [r for r in caplog.records if "SAME input" in r.getMessage()]
+
+
+def test_upstream_asset_dataframe_source_is_serialized_to_json_records_not_str(mod, fake_litellm):
+    """str(df) truncates columns/rows with '...' and the model never sees the real cell text --
+    a DataFrame upstream output must become a JSON list of records instead (same shape a
+    {kind: file, path: *.json} source gives), the same way a plain str/dict-with-text already does."""
+    import pandas as pd
+
+    @dg.asset(name="raw")
+    def raw():
+        return pd.DataFrame([{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}])
+
+    c = mod.AgenticPipelineComponent(
+        asset_name_prefix="p", source={"kind": "upstream_asset", "upstream_asset_key": "raw"},
+        steps=[dict(SUMM)], outputs={"assets": ["summ"]},
+    )
+    defs = c.build_defs(None)
+    result = dg.materialize([raw, *defs.assets], instance=dg.DagsterInstance.ephemeral(), raise_on_error=False)
+    assert result.success, [e.event_specific_data.error.message for e in result.get_step_failure_events()]
+
+    prompt = prompt_of(fake_litellm)
+    assert "..." not in prompt, "the str(df) truncation bug must not recur"
+    assert "alice" in prompt and "bob" in prompt
+    records = json.loads(prompt.split("Rows: ", 1)[1])
+    assert records == [{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}]
 
 
 def test_file_source_gets_the_window_substituted(mod, fake_litellm, tmp_path):

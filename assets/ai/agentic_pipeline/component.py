@@ -1052,6 +1052,25 @@ def _resolve_source_headers(source_config: dict, sub) -> Dict[str, str]:
     return out
 
 
+def _upstream_asset_text(source: Any) -> str:
+    """Turn an `upstream_asset` source's materialized value into source text. A `str` or a
+    dict with a `text` key is used as-is; a pandas `DataFrame` is serialized to a JSON list of
+    records (the same shape a `{kind: file, path: *.json}` source gives) -- `str(df)` truncates
+    columns/rows with '...' and the real cell text never reaches the model. Anything else is
+    `str()`'d as a last resort."""
+    if isinstance(source, dict) and "text" in source:
+        return source["text"]
+    if isinstance(source, str):
+        return source
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None
+    if pd is not None and isinstance(source, pd.DataFrame):
+        return json.dumps(source.to_dict(orient="records"), default=str)
+    return str(source)
+
+
 def _ingest(
     source_config: dict,
     context,
@@ -1826,36 +1845,8 @@ def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     }
 
 
-def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
-    """Router picks best specialist; specialist answers.
-
-    router: {model, api_key_env_var, [system_prompt, temperature, max_tokens]}
-    specialists: [{name, description, model, [api_key_env_var, system_prompt, temperature, max_tokens]}]
-    fallback: <specialist_name>  (optional)
-    """
-    import json
-
-    materialized_at = _now_iso()
-    source_id = step.get("source", _ROOT_SOURCE_ID)
-    src_text = _get_source_text(state, source_id)
-
-    router = step["router"]
-    specialists = step["specialists"]
-    fallback = step.get("fallback")
-    include_reasoning = step.get("include_reasoning", True)
-
-    names = [s["name"] for s in specialists]
-    if len(set(names)) != len(names):
-        raise ValueError(f"specialist names must be unique: got {names}")
-    for n in names:
-        if not n.replace("_", "").isalnum():
-            raise ValueError(
-                f"specialist name {n!r} must be a valid identifier — router uses it as tool name."
-            )
-    if fallback is not None and fallback not in names:
-        raise ValueError(f"fallback={fallback!r} not in specialists {names}")
-
-    # One tool per specialist. Router calls exactly one.
+def _route_tool_schemas(specialists: List[dict], include_reasoning: bool) -> List[dict]:
+    """One tool per specialist, so the router model calls exactly one."""
     tools = []
     for s in specialists:
         params = {"type": "object", "properties": {}, "required": []}
@@ -1873,14 +1864,21 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                 "parameters": params,
             },
         })
+    return tools
+
+
+def _route_pick_one(router: dict, specialists: List[dict], names: List[str], fallback: Optional[str],
+                     include_reasoning: bool, tools: List[dict], text: str, context, label: str):
+    """One router decision + one specialist answer for `text`. `label` names what's being routed
+    ('step <id>' for the whole-batch path, 'item <i>' for per_item) only for the "no fallback"
+    error. Returns (selected, reasoning, routing_source, router_result, specialist_result)."""
+    import json
 
     router_system = router.get("system_prompt") or _default_router_prompt(specialists)
-    context.log.info(f"[route:{step.get('id', '?')}] routing through {router['model']} across {len(specialists)} specialists")
-
     router_result = _completion(
         model=router["model"],
         system_prompt=router_system,
-        user_prompt=src_text,
+        user_prompt=text,
         api_key_env_var=router.get("api_key_env_var"),
         api_base_env_var=router.get("api_base_env_var"),
         temperature=router.get("temperature", 0.0),
@@ -1906,22 +1904,20 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                 except json.JSONDecodeError:
                     reasoning = None
         else:
-            context.log.warning(f"[route] router picked unknown specialist {pick!r}")
+            context.log.warning(f"[route] router picked unknown specialist {pick!r} for {label}")
 
     if selected is None:
         if fallback is None:
-            raise RuntimeError(f"[route] router failed to pick a valid specialist and no fallback set")
-        context.log.warning(f"[route] falling back to {fallback!r}")
+            raise RuntimeError(f"[route] router failed to pick a valid specialist for {label} and no fallback set")
+        context.log.warning(f"[route] falling back to {fallback!r} for {label}")
         selected = fallback
         routing_source = "fallback"
 
     specialist = next(s for s in specialists if s["name"] == selected)
-    context.log.info(f"[route] selected specialist={selected} → {specialist['model']}")
-
     specialist_result = _completion(
         model=specialist["model"],
         system_prompt=specialist.get("system_prompt"),
-        user_prompt=src_text,
+        user_prompt=text,
         api_key_env_var=specialist.get("api_key_env_var"),
         api_base_env_var=specialist.get("api_base_env_var"),
         temperature=specialist.get("temperature", 0.0),
@@ -1930,21 +1926,155 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         thinking_budget=specialist.get("thinking_budget"),
         prompt_caching=bool(specialist.get("prompt_caching", False)),
     )
+    return selected, reasoning, routing_source, router_result, specialist_result
+
+
+def _join_per_item_route_results(results: List[Optional[Dict[str, Any]]], output_join: str) -> str:
+    """Join route/conditional_route per_item results into the step's `text` field -- same
+    newlines/jsonl/none/records shapes `map`'s `output_join` offers, so a synthesize/sink step
+    downstream of a per-item route reads it the way it already reads a map."""
+    if output_join == "newlines":
+        return "\n\n".join(r["text"] for r in results if r)
+    if output_join == "jsonl":
+        return "\n".join(json.dumps(r) for r in results if r)
+    if output_join == "none":
+        return ""
+    if output_join == "records":
+        merged = []
+        for r in results:
+            if not r:
+                continue
+            base = r["item"] if isinstance(r["item"], dict) else {"item": r["item"]}
+            extra = {k: v for k, v in r.items() if k != "item"}
+            merged.append({**base, **extra})
+        return json.dumps(merged, default=str)
+    raise ValueError(f"output_join must be 'newlines' | 'jsonl' | 'none' | 'records'; got {output_join!r}")
+
+
+def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Router picks best specialist; specialist answers.
+
+    router: {model, api_key_env_var, [system_prompt, temperature, max_tokens]}
+    specialists: [{name, description, model, [api_key_env_var, system_prompt, temperature, max_tokens]}]
+    fallback: <specialist_name>  (optional)
+
+    per_item (default false): source's text is parsed as a list (same rule map/invoke_component
+    use: a JSON array, a dict with a data/items/results/values list, else non-empty lines) and
+    this runs once PER ITEM -- a fresh router decision + specialist answer per item, not one
+    decision for the whole batch. max_concurrent thread-pools the per-item calls (default 1,
+    sequential); output_join ('newlines' default | 'jsonl' | 'none' | 'records') shapes the
+    joined `text`, same meaning as map's. Metadata in this mode: routing_counts
+    ({specialist_name: count}), n_items, n_fallbacks; n_llm_calls/cost_usd/tokens_total/
+    latency_ms cover every router + specialist call across all items.
+    """
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    src_text = _get_source_text(state, source_id)
+
+    router = step["router"]
+    specialists = step["specialists"]
+    fallback = step.get("fallback")
+    include_reasoning = step.get("include_reasoning", True)
+    per_item = bool(step.get("per_item", False))
+
+    names = [s["name"] for s in specialists]
+    if len(set(names)) != len(names):
+        raise ValueError(f"specialist names must be unique: got {names}")
+    for n in names:
+        if not n.replace("_", "").isalnum():
+            raise ValueError(
+                f"specialist name {n!r} must be a valid identifier — router uses it as tool name."
+            )
+    if fallback is not None and fallback not in names:
+        raise ValueError(f"fallback={fallback!r} not in specialists {names}")
+
+    tools = _route_tool_schemas(specialists, include_reasoning)
+
+    if not per_item:
+        context.log.info(f"[route:{step.get('id', '?')}] routing through {router['model']} across {len(specialists)} specialists")
+        selected, reasoning, routing_source, router_result, specialist_result = _route_pick_one(
+            router, specialists, names, fallback, include_reasoning, tools, src_text, context,
+            label=f"step {step.get('id', '?')!r}",
+        )
+        specialist = next(s for s in specialists if s["name"] == selected)
+        context.log.info(f"[route] selected specialist={selected} → {specialist['model']}")
+        return {
+            "text": specialist_result["content"],
+            "selected_specialist": selected,
+            "router_reasoning": reasoning,
+            "routing_source": routing_source,
+            "router_model": router["model"],
+            "specialist_model": specialist["model"],
+            "model_fingerprint": f"{router['model']}→{specialist['model']}",
+            "materialized_at": materialized_at,
+            "cost_usd": _sum_cost(router_result, specialist_result),
+            "latency_ms": _sum_latency(router_result, specialist_result),
+            "tokens_total": _sum_tokens(router_result, specialist_result),
+            "n_llm_calls": 2,
+            "usage": {"router": router_result["usage"], "specialist": specialist_result["usage"]},
+            "op": "route",
+        }
+
+    # ── per_item ──────────────────────────────────────────────────────────
+    items = _parse_items(src_text)
+    if not items:
+        context.log.warning(f"[route:{step.get('id', '?')}] per_item: no items parsed from source")
+    max_concurrent = int(step.get("max_concurrent", 1))
+    output_join = step.get("output_join", "newlines")
+
+    def _run_one(index_and_item):
+        i, item = index_and_item
+        item_str = json.dumps(item) if not isinstance(item, str) else item
+        selected, reasoning, routing_source, router_result, specialist_result = _route_pick_one(
+            router, specialists, names, fallback, include_reasoning, tools, item_str, context,
+            label=f"item {item!r}",
+        )
+        return i, item, selected, reasoning, routing_source, router_result, specialist_result
+
+    results: List[Any] = [None] * len(items)
+    all_llm_results: List[Dict[str, Any]] = []
+    counts: Dict[str, int] = {}
+    n_fallbacks = 0
+
+    def _store(i, item, selected, reasoning, routing_source, router_result, specialist_result):
+        nonlocal n_fallbacks
+        results[i] = {
+            "item": item, "selected_specialist": selected, "router_reasoning": reasoning,
+            "routing_source": routing_source, "text": specialist_result["content"],
+        }
+        all_llm_results.append(router_result)
+        all_llm_results.append(specialist_result)
+        counts[selected] = counts.get(selected, 0) + 1
+        if routing_source == "fallback":
+            n_fallbacks += 1
+
+    context.log.info(f"[route:{step.get('id', '?')}] per_item: {len(items)} item(s) × max_concurrent={max_concurrent}")
+
+    if max_concurrent > 1 and len(items) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        _cctx = contextvars.copy_context()  # workers must see the active policy + spend counters
+        with ThreadPoolExecutor(max_workers=max_concurrent) as pool:
+            for i, item, selected, reasoning, routing_source, router_result, specialist_result in pool.map(
+                lambda pair: _cctx.copy().run(_run_one, pair), enumerate(items)
+            ):
+                _store(i, item, selected, reasoning, routing_source, router_result, specialist_result)
+    else:
+        for pair in enumerate(items):
+            _store(*_run_one(pair))
 
     return {
-        "text": specialist_result["content"],
-        "selected_specialist": selected,
-        "router_reasoning": reasoning,
-        "routing_source": routing_source,
+        "text": _join_per_item_route_results(results, output_join),
+        "items": results,
+        "n_items": len(items),
+        "n_fallbacks": n_fallbacks,
+        "routing_counts": counts,
         "router_model": router["model"],
-        "specialist_model": specialist["model"],
-        "model_fingerprint": f"{router['model']}→{specialist['model']}",
+        "model_fingerprint": f"{router['model']}(per_item)→{'|'.join(names)}",
         "materialized_at": materialized_at,
-        "cost_usd": _sum_cost(router_result, specialist_result),
-        "latency_ms": _sum_latency(router_result, specialist_result),
-        "tokens_total": _sum_tokens(router_result, specialist_result),
-        "n_llm_calls": 2,
-        "usage": {"router": router_result["usage"], "specialist": specialist_result["usage"]},
+        "cost_usd": _sum_cost(*all_llm_results),
+        "latency_ms": _sum_latency(*all_llm_results),
+        "tokens_total": _sum_tokens(*all_llm_results),
+        "n_llm_calls": len(all_llm_results),
         "op": "route",
     }
 
@@ -2016,6 +2146,23 @@ def _evaluate_condition(src_text: str, cond: Dict[str, Any]) -> bool:
     )
 
 
+def _pick_conditional(conditions: List[dict], default: str, text: str):
+    """Evaluate `conditions` in order against `text`; first match wins. Returns
+    (selected, routing_source, match_index, matched_condition)."""
+    for i, cond in enumerate(conditions):
+        when = cond.get("when") or {}
+        if not when:
+            raise ValueError(f"conditional_route: condition {cond!r} missing `when: {{...}}`")
+        try:
+            if _evaluate_condition(text, when):
+                return cond["then"], "condition_match", i, cond
+        except Exception as e:  # noqa: BLE001 — surface bad conditions clearly
+            raise ValueError(
+                f"conditional_route: condition #{i} ({cond!r}) failed to evaluate: {e}"
+            ) from e
+    return default, "default", -1, None
+
+
 def _do_conditional_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Deterministic router — picks specialist by regex / contains / equals /
     JSON-path against upstream text (no router LLM). Then the picked
@@ -2032,6 +2179,10 @@ def _do_conditional_route(step: dict, state: Dict[str, Any], context) -> Dict[st
     label-based triage (`labels: ["bug"]` → bug_specialist), priority tags
     (regex `p[01]` → high_priority), size-based routing, etc. When the
     signal is soft ("does this issue read as a question?"), prefer `route`.
+
+    per_item (default false): same per-item fan-out as `route`'s per_item -- source's text is
+    parsed as a list and each item is matched against `conditions` independently (by that item's
+    own field value, for a jsonpath condition) instead of once for the whole batch.
     """
     materialized_at = _now_iso()
     source_id = step.get("source", _ROOT_SOURCE_ID)
@@ -2040,6 +2191,7 @@ def _do_conditional_route(step: dict, state: Dict[str, Any], context) -> Dict[st
     conditions = step.get("conditions") or []
     default = step.get("default")
     specialists = step.get("specialists") or []
+    per_item = bool(step.get("per_item", False))
     if not specialists:
         raise ValueError("conditional_route requires `specialists: [...]`.")
     if not default:
@@ -2062,62 +2214,110 @@ def _do_conditional_route(step: dict, state: Dict[str, Any], context) -> Dict[st
                 f"conditional_route: condition points at unknown specialist {then!r}. Known: {names}"
             )
 
-    selected = None
-    match_index = -1
-    matched_condition: Optional[Dict[str, Any]] = None
-    for i, cond in enumerate(conditions):
-        when = cond.get("when") or {}
-        if not when:
-            raise ValueError(f"conditional_route: condition {cond!r} missing `when: {{...}}`")
-        try:
-            if _evaluate_condition(src_text, when):
-                selected = cond["then"]
-                match_index = i
-                matched_condition = cond
-                break
-        except Exception as e:  # noqa: BLE001 — surface bad conditions clearly
-            raise ValueError(
-                f"conditional_route: condition #{i} ({cond!r}) failed to evaluate: {e}"
-            ) from e
+    if not per_item:
+        selected, routing_source, match_index, matched_condition = _pick_conditional(conditions, default, src_text)
+        specialist = next(s for s in specialists if s["name"] == selected)
+        context.log.info(
+            f"[conditional_route:{step.get('id', '?')}] picked={selected!r} "
+            f"via={routing_source} (condition #{match_index})"
+        )
+        specialist_result = _completion(
+            model=specialist["model"],
+            system_prompt=specialist.get("system_prompt"),
+            user_prompt=src_text,
+            api_key_env_var=specialist.get("api_key_env_var"),
+            api_base_env_var=specialist.get("api_base_env_var"),
+            temperature=specialist.get("temperature", 0.0),
+            max_tokens=specialist.get("max_tokens", 2048),
+            reasoning_effort=specialist.get("reasoning_effort"),
+            thinking_budget=specialist.get("thinking_budget"),
+            prompt_caching=bool(specialist.get("prompt_caching", False)),
+        )
+        return {
+            "text": specialist_result["content"],
+            "selected_specialist": selected,
+            "routing_source": routing_source,
+            "match_index": match_index,
+            "matched_condition": matched_condition,
+            "specialist_model": specialist["model"],
+            "model_fingerprint": f"[deterministic]→{specialist['model']}",
+            "materialized_at": materialized_at,
+            "cost_usd": _sum_cost(specialist_result),
+            "latency_ms": _sum_latency(specialist_result),
+            "tokens_total": _sum_tokens(specialist_result),
+            "n_llm_calls": 1,
+            "usage": {"specialist": specialist_result["usage"]},
+            "op": "conditional_route",
+        }
 
-    routing_source = "condition_match"
-    if selected is None:
-        selected = default
-        routing_source = "default"
+    # ── per_item ──────────────────────────────────────────────────────────
+    items = _parse_items(src_text)
+    if not items:
+        context.log.warning(f"[conditional_route:{step.get('id', '?')}] per_item: no items parsed from source")
+    max_concurrent = int(step.get("max_concurrent", 1))
+    output_join = step.get("output_join", "newlines")
 
-    specialist = next(s for s in specialists if s["name"] == selected)
-    context.log.info(
-        f"[conditional_route:{step.get('id', '?')}] picked={selected!r} "
-        f"via={routing_source} (condition #{match_index})"
-    )
+    def _run_one(index_and_item):
+        i, item = index_and_item
+        item_str = json.dumps(item) if not isinstance(item, str) else item
+        selected, routing_source, match_index, _matched = _pick_conditional(conditions, default, item_str)
+        specialist = next(s for s in specialists if s["name"] == selected)
+        specialist_result = _completion(
+            model=specialist["model"],
+            system_prompt=specialist.get("system_prompt"),
+            user_prompt=item_str,
+            api_key_env_var=specialist.get("api_key_env_var"),
+            api_base_env_var=specialist.get("api_base_env_var"),
+            temperature=specialist.get("temperature", 0.0),
+            max_tokens=specialist.get("max_tokens", 2048),
+            reasoning_effort=specialist.get("reasoning_effort"),
+            thinking_budget=specialist.get("thinking_budget"),
+            prompt_caching=bool(specialist.get("prompt_caching", False)),
+        )
+        return i, item, selected, routing_source, match_index, specialist_result
 
-    specialist_result = _completion(
-        model=specialist["model"],
-        system_prompt=specialist.get("system_prompt"),
-        user_prompt=src_text,
-        api_key_env_var=specialist.get("api_key_env_var"),
-        api_base_env_var=specialist.get("api_base_env_var"),
-        temperature=specialist.get("temperature", 0.0),
-        max_tokens=specialist.get("max_tokens", 2048),
-        reasoning_effort=specialist.get("reasoning_effort"),
-        thinking_budget=specialist.get("thinking_budget"),
-        prompt_caching=bool(specialist.get("prompt_caching", False)),
-    )
+    results: List[Any] = [None] * len(items)
+    all_llm_results: List[Dict[str, Any]] = []
+    counts: Dict[str, int] = {}
+    n_defaulted = 0
+
+    def _store(i, item, selected, routing_source, match_index, specialist_result):
+        nonlocal n_defaulted
+        results[i] = {
+            "item": item, "selected_specialist": selected, "routing_source": routing_source,
+            "match_index": match_index, "text": specialist_result["content"],
+        }
+        all_llm_results.append(specialist_result)
+        counts[selected] = counts.get(selected, 0) + 1
+        if routing_source == "default":
+            n_defaulted += 1
+
+    context.log.info(f"[conditional_route:{step.get('id', '?')}] per_item: {len(items)} item(s) × max_concurrent={max_concurrent}")
+
+    if max_concurrent > 1 and len(items) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        _cctx = contextvars.copy_context()
+        with ThreadPoolExecutor(max_workers=max_concurrent) as pool:
+            for i, item, selected, routing_source, match_index, specialist_result in pool.map(
+                lambda pair: _cctx.copy().run(_run_one, pair), enumerate(items)
+            ):
+                _store(i, item, selected, routing_source, match_index, specialist_result)
+    else:
+        for pair in enumerate(items):
+            _store(*_run_one(pair))
 
     return {
-        "text": specialist_result["content"],
-        "selected_specialist": selected,
-        "routing_source": routing_source,
-        "match_index": match_index,
-        "matched_condition": matched_condition,
-        "specialist_model": specialist["model"],
-        "model_fingerprint": f"[deterministic]→{specialist['model']}",
+        "text": _join_per_item_route_results(results, output_join),
+        "items": results,
+        "n_items": len(items),
+        "n_defaulted": n_defaulted,
+        "routing_counts": counts,
+        "model_fingerprint": f"[deterministic](per_item)→{'|'.join(names)}",
         "materialized_at": materialized_at,
-        "cost_usd": _sum_cost(specialist_result),
-        "latency_ms": _sum_latency(specialist_result),
-        "tokens_total": _sum_tokens(specialist_result),
-        "n_llm_calls": 1,
-        "usage": {"specialist": specialist_result["usage"]},
+        "cost_usd": _sum_cost(*all_llm_results),
+        "latency_ms": _sum_latency(*all_llm_results),
+        "tokens_total": _sum_tokens(*all_llm_results),
+        "n_llm_calls": len(all_llm_results),
         "op": "conditional_route",
     }
 
@@ -2604,6 +2804,117 @@ def _collect_skill_resource_keys(steps: List[Dict[str, Any]]) -> "set[str]":
         if step.get("op") == "sub_pipeline":
             keys |= _collect_skill_resource_keys(step.get("steps") or [])
     return keys
+
+
+_PLACEHOLDER_RE = re.compile(r"\{[A-Za-z_][A-Za-z0-9_]*\}")
+
+
+def _static_pipeline_checks(steps: List[Dict[str, Any]], source_config: Dict[str, Any]) -> List[str]:
+    """Structural checks `build_defs`/`validate_pipeline` can make before ever running a step --
+    these are drafts that parse fine (every field is individually valid) but are wrong at run
+    time: no data reaches the model, a strict schema silently drops an item on one bad value,
+    or a whole JSON list gets treated as a single document. Recurses into `sub_pipeline` steps
+    the same way `_collect_skill_resource_keys` does.
+    """
+    problems: List[str] = []
+    step_by_id = {s.get("id"): s for s in steps if s.get("id")}
+
+    def _effective_source_id(step: Dict[str, Any]) -> str:
+        src = step.get("source")
+        if isinstance(src, str):
+            return src
+        for spec in (step.get("inputs") or {}).values():
+            if isinstance(spec, dict) and isinstance(spec.get("from"), str):
+                return spec["from"]
+        return _ROOT_SOURCE_ID
+
+    root_is_json_list = (
+        source_config.get("kind") == "file"
+        and isinstance(source_config.get("path"), str)
+        and source_config["path"].rstrip().lower().endswith((".json", ".jsonl"))
+    )
+
+    for step in steps or []:
+        sid = step.get("id") or "?"
+        op = step.get("op")
+
+        if op == "synthesize" and not step.get("sources") and not step.get("inputs"):
+            problems.append(
+                f"step {sid} (synthesize) reads no data: add sources: [step_ids] or "
+                f"inputs: {{port: {{from: step_id}}}} -- a bare source: is ignored by synthesize."
+            )
+
+        if op in ("llm_call", "extract", "synthesize", "reduce"):
+            templates: List[str] = []
+            if op == "reduce":
+                for field in ("initial_prompt_template", "fold_prompt_template"):
+                    val = step.get(field)
+                    if isinstance(val, str):
+                        templates.append(val)
+            else:
+                val = step.get("prompt_template")
+                if isinstance(val, str):
+                    templates.append(val)
+            for tpl in templates:
+                if not _PLACEHOLDER_RE.search(tpl):
+                    problems.append(
+                        f"step {sid} ({op}) prompt_template has no {{...}} placeholder, so the step "
+                        f"never sees its input and the model will invent an answer: add {{text}}, "
+                        f"{{item}}, {{combined}}, {{items}}/{{prior}}, or a named {{port}}."
+                    )
+
+        _map_omf = step.get("on_missing_field") if op == "map" else None
+        if (
+            op in ("map", "extract")
+            and step.get("strict", True)
+            and _map_omf not in ("default", "retry_once", "skip")
+            and isinstance(step.get("output_schema"), dict)
+        ):
+            schema = step["output_schema"]
+            props = schema.get("properties") or {}
+            for field_name in (schema.get("required") or []):
+                if (props.get(field_name) or {}).get("type") == "boolean":
+                    fix = (
+                        "Set on_missing_field: default|retry_once|skip, or use a string enum instead "
+                        f"(e.g. '{field_name}_true'/'{field_name}_false')"
+                        if op == "map" else
+                        f"Use a string enum instead (e.g. '{field_name}_true'/'{field_name}_false'), or set strict: false"
+                    )
+                    problems.append(
+                        f"step {sid} ({op}, strict) requires boolean field '{field_name}': a model "
+                        f"that omits a false value fails the whole run. {fix}."
+                    )
+
+        if op in ("classify", "extract", "route", "conditional_route") and not (
+            op in ("route", "conditional_route") and step.get("per_item")
+        ):
+            eff_source = _effective_source_id(step)
+            producer = step_by_id.get(eff_source)
+            source_is_list = (eff_source == _ROOT_SOURCE_ID and root_is_json_list) or (
+                producer is not None
+                and producer.get("op") == "map"
+                and producer.get("output_join") in ("jsonl", "records")
+            )
+            if source_is_list and op in ("route", "conditional_route"):
+                problems.append(
+                    f"step {sid} ({op}) reads '{eff_source}', a JSON list: without per_item: true, "
+                    f"{op} is batch-level -- it picks ONE specialist for the WHOLE list, which then "
+                    f"answers every item (3 urgent tickets of different kinds all get the same "
+                    f"specialist's answer). Set per_item: true to route one item at a time instead."
+                )
+            elif source_is_list:
+                problems.append(
+                    f"step {sid} ({op}) reads '{eff_source}', a JSON list: {op} treats the whole "
+                    f"list as one document and returns a single label/extraction, not one per item. "
+                    f"Use map instead (its prompt_template reads {{item}})."
+                )
+
+        if op == "sub_pipeline":
+            problems.extend(
+                _static_pipeline_checks(step.get("steps") or [], step.get("sub_source") or source_config)
+            )
+
+    return problems
 
 
 def _safe_tag_value(value: str) -> str:
@@ -3474,6 +3785,12 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         )
         if _p is not None:
             _p.after_llm_call(iter_cost, _iter_tokens)
+        # Roll this call into the step's own __spend__ bucket (agentic_step_cost_usd/_tokens
+        # and the pipeline-level agentic_cost_usd/agentic_tokens roll-up both read from this) --
+        # every other LLM-calling op goes through _completion(), which already does this; this
+        # loop calls litellm directly (it needs tool_calls/tool_choice turn-by-turn) and was the
+        # one path that never told _STEP_SPEND about its calls.
+        _note_spend(iter_cost, _iter_tokens)
         _content_clean, _think = _split_reasoning(msg.content or "")
         _note_reasoning(model, _think)
         if not tool_calls:
@@ -3941,6 +4258,14 @@ def _parse_items(text: str) -> List[Any]:
     return [ln for ln in text.splitlines() if ln.strip()]
 
 
+def _default_for_schema_prop(prop: Dict[str, Any]) -> Any:
+    """map's on_missing_field='default': the property's own JSON Schema `default:` if it
+    declares one, else a type-based fallback."""
+    if "default" in prop:
+        return prop["default"]
+    return {"string": "", "integer": 0, "number": 0, "boolean": False, "array": [], "object": {}}.get(prop.get("type"))
+
+
 def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Apply an LLM call to each item in a list source; aggregate.
 
@@ -3967,6 +4292,24 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                           `invoke_component`/`map`/`reduce`'s own
                           _parse_items, for an agent-categorize →
                           deterministic-filter → agent-triage pipeline)
+      on_missing_field  — with output_schema + strict (the default): what to
+                          do about one item missing a required field, instead
+                          of failing the WHOLE step over one item (a common
+                          gpt-4o-mini failure mode: a boolean required field
+                          silently left out). 'fail' (default when unset):
+                          today's behavior, raises naming the item.
+                          'retry_once': re-issues that one item's call one
+                          more time; raises (naming the item) if the retry is
+                          STILL missing the field. 'default': fills the
+                          missing field with its JSON Schema `default:` if
+                          the property declares one, else a type-based
+                          fallback ("": 0: false: []: {}), and keeps the
+                          item. 'skip': drops that one item entirely (it's
+                          absent from items[]/text/records, n_skipped counts
+                          it) -- everything else still runs. `strict: false`
+                          (no on_missing_field set) keeps its old meaning:
+                          the item is kept with the field simply absent, no
+                          raise, no retry, no fill.
     """
     materialized_at = _now_iso()
     source_id = step.get("source", _ROOT_SOURCE_ID)
@@ -3993,6 +4336,11 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     output_join = step.get("output_join", "newlines")
     output_schema = step.get("output_schema")
     strict = bool(step.get("strict", True))
+    on_missing_field = step.get("on_missing_field")
+    if on_missing_field is not None and on_missing_field not in ("fail", "default", "retry_once", "skip"):
+        raise ValueError(f"map: on_missing_field must be 'fail' | 'default' | 'retry_once' | 'skip'; got {on_missing_field!r}")
+    # Unset: today's strict (True: raise: "fail") / non-strict ("passthrough": keep as-is, no raise) meaning.
+    effective_missing_mode = on_missing_field or ("fail" if strict else "passthrough")
 
     if output_join == "records" and not output_schema:
         raise ValueError("map: output_join='records' requires `output_schema` to be set.")
@@ -4031,9 +4379,7 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             tool_choice="required" if tool else None,
         )
 
-    def _to_result_entry(item, result):
-        if not tool:
-            return {"item": item, "text": result["content"]}
+    def _extract_from_result(item, result):
         if not result["tool_calls"]:
             raise RuntimeError(
                 f"map: LLM did not emit a tool call for item {item!r}. This "
@@ -4048,17 +4394,45 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                 f"map: LLM returned invalid JSON for item {item!r}: {e}. "
                 f"Raw: {raw_args[:300]}"
             ) from e
-        if strict:
-            required = output_schema.get("required") or []
-            missing = [k for k in required if k not in extracted]
-            if missing:
-                raise RuntimeError(
-                    f"map (strict): missing required fields {missing} in "
-                    f"extracted data for item {item!r}."
-                )
-        return {"item": item, "text": json.dumps(extracted), "extracted": extracted}
+        required = output_schema.get("required") or []
+        missing = [k for k in required if k not in extracted]
+        return extracted, missing
 
-    results: List[Any] = [None] * len(items)  # per-item output blobs
+    def _resolve_missing(item, extracted, missing):
+        """Apply on_missing_field once any retry is exhausted. Returns (extracted, skip)."""
+        if effective_missing_mode == "passthrough":
+            return extracted, False
+        if effective_missing_mode in ("fail", "retry_once"):
+            suffix = " even after one retry" if effective_missing_mode == "retry_once" else ""
+            raise RuntimeError(
+                f"map ({effective_missing_mode}): missing required fields {missing} in "
+                f"extracted data for item {item!r}{suffix}."
+            )
+        if effective_missing_mode == "skip":
+            return None, True
+        props = output_schema.get("properties") or {}
+        for k in missing:
+            extracted[k] = _default_for_schema_prop(props.get(k) or {})
+        return extracted, False
+
+    def _process_item(index_and_item):
+        i, item, result = _run_one(index_and_item)
+        extra_results = [result]
+        if not tool:
+            return i, item, {"item": item, "text": result["content"]}, extra_results
+        extracted, missing = _extract_from_result(item, result)
+        if missing and effective_missing_mode == "retry_once":
+            context.log.warning(f"[map:{step.get('id', '?')}] item {item!r} missing {missing} on first try, retrying once")
+            _, _, result = _run_one(index_and_item)
+            extra_results.append(result)
+            extracted, missing = _extract_from_result(item, result)
+        if missing:
+            extracted, skip = _resolve_missing(item, extracted, missing)
+            if skip:
+                return i, item, None, extra_results
+        return i, item, {"item": item, "text": json.dumps(extracted), "extracted": extracted}, extra_results
+
+    results: List[Any] = [None] * len(items)  # per-item output blobs (stays None for a skipped item)
     all_llm_results = []
 
     context.log.info(
@@ -4070,14 +4444,14 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         from concurrent.futures import ThreadPoolExecutor
         _cctx = contextvars.copy_context()  # workers must see the active policy + spend counters (they did not)
         with ThreadPoolExecutor(max_workers=max_concurrent) as pool:
-            for i, item, result in pool.map(lambda pair: _cctx.copy().run(_run_one, pair), enumerate(items)):
-                results[i] = _to_result_entry(item, result)
-                all_llm_results.append(result)
+            for i, item, entry, extra_results in pool.map(lambda pair: _cctx.copy().run(_process_item, pair), enumerate(items)):
+                results[i] = entry
+                all_llm_results.extend(extra_results)
     else:
         for pair in enumerate(items):
-            i, item, result = _run_one(pair)
-            results[i] = _to_result_entry(item, result)
-            all_llm_results.append(result)
+            i, item, entry, extra_results = _process_item(pair)
+            results[i] = entry
+            all_llm_results.extend(extra_results)
 
     # Join per-item texts into the top-level `text` field.
     joined_text: str
@@ -4104,6 +4478,7 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         "text": joined_text,
         "items": results,
         "n_items": len(items),
+        "n_skipped": sum(1 for r in results if r is None),
         "model": model,
         "model_fingerprint": f"{model}@t{temperature}×{len(items)}",
         "materialized_at": materialized_at,
@@ -5520,7 +5895,10 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
     except Exception as e:
         raise ValueError(
             f"invoke_component: failed to instantiate {component_type!r} with "
-            f"attributes={attributes!r}: {e}"
+            f"attributes={attributes!r}: {e}. If the error names an asset-graph-only field "
+            f"(upstream_asset_key, source, asset_name, ...), its value doesn't matter here -- "
+            f"no real asset gets registered -- pass any placeholder, e.g. "
+            f"upstream_asset_key: 'placeholder/upstream'."
         ) from e
 
     try:
@@ -5529,8 +5907,10 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
         raise ValueError(
             f"invoke_component: {component_type!r}.build_defs() failed: {e}. "
             f"Check that `attributes` satisfies that component's own required "
-            f"fields (asset-graph-specific ones included, even if their value "
-            f"doesn't matter for direct invocation)."
+            f"fields -- asset-graph-only ones included (upstream_asset_key, source, "
+            f"asset_name, ...): their value doesn't matter here, no real asset gets "
+            f"registered, so pass any placeholder, e.g. upstream_asset_key: "
+            f"'placeholder/upstream'."
         ) from e
 
     assets_defs = [a for a in (defs.assets or []) if hasattr(a, "op")]
@@ -5708,7 +6088,7 @@ _PLAN_JSON_HINT = (
 
 
 _JSON_META_KEYS = {"candidates", "escalations", "plan", "steps", "scores", "rationales", "unsupported_claims", "issues", "evidence",
-                   "skills_available", "skills_loaded"}
+                   "skills_available", "skills_loaded", "routing_counts"}
 
 
 def _code_version(obj: Any) -> str:
@@ -8252,20 +8632,37 @@ class LlmCallStep(_StepBase):
 
 
 class RouteStep(_StepBase):
-    """Router LLM picks a specialist by name via tool-call; specialist LLM answers."""
+    """Router LLM picks a specialist by name via tool-call; specialist LLM answers.
+
+    Batch-level by default: one router call picks ONE specialist for the entire source text. Set
+    `per_item: true` to route a list source (a batch of support tickets, say) one item at a
+    time instead -- a fresh router decision + specialist answer per item. Without it, a list
+    source still gets routed as a single unit (the router picks one specialist and it answers
+    for every item in the batch); `validate_pipeline` flags a route/conditional_route step whose
+    source is a list and `per_item` is not set."""
     op: Literal["route"]
     router: _LLMSubConfig = Field(description="LLM sub-config for the router.")
     specialists: List[_SpecialistConfig] = Field(description="List of specialist LLMs (2+).")
-    fallback: Optional[str] = Field(default=None, description="Specialist name to fall back to if the router can't pick. Unset: an invalid pick raises.")
+    fallback: Optional[str] = Field(default=None, description="Specialist name to fall back to if the router can't pick. Unset: an invalid pick raises (per_item: names the item).")
     include_reasoning: bool = Field(default=True, description="If true, surfaces the router's free-text reasoning as router_reasoning metadata.")
+    per_item: bool = Field(default=False, description="Route a list source one item at a time (a fresh router decision + specialist answer per item) instead of once for the whole batch. Source is parsed the same way map/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, else non-empty lines).")
+    max_concurrent: int = Field(default=1, description="per_item only: thread-pool workers for the per-item router+specialist calls. 1 = sequential.")
+    output_join: Literal["newlines", "jsonl", "none", "records"] = Field(default="newlines", description="per_item only: how to join per-item results into `text` -- same meaning as map's output_join. 'records' merges {item, selected_specialist, router_reasoning, routing_source, text} per item into one JSON array, directly consumable by a downstream synthesize/map/reduce.")
 
 
 class ConditionalRouteStep(_StepBase):
-    """Deterministic picker -- regex/contains/equals/JSON-path against upstream text -- routes to the matching specialist. No LLM call for the pick itself."""
+    """Deterministic picker -- regex/contains/equals/JSON-path against upstream text -- routes to the matching specialist. No LLM call for the pick itself.
+
+    Batch-level by default -- same `per_item` option as `route`: set it to match/route a list
+    source once per item (by that item's own field value, for a jsonpath condition) instead of
+    matching the whole batch as one unit."""
     op: Literal["conditional_route"]
     conditions: List[_ConditionSpec] = Field(description="First match wins.")
     default: str = Field(description="Specialist that runs when no condition matches.")
     specialists: List[_SpecialistConfig] = Field(description="Same shape as route's specialists.")
+    per_item: bool = Field(default=False, description="Match/route a list source one item at a time instead of once for the whole batch. Source is parsed the same way map/invoke_component parse a list.")
+    max_concurrent: int = Field(default=1, description="per_item only: thread-pool workers for the per-item specialist calls. 1 = sequential.")
+    output_join: Literal["newlines", "jsonl", "none", "records"] = Field(default="newlines", description="per_item only: how to join per-item results into `text` -- same meaning as map's output_join.")
 
 
 class DebateStep(_StepBase):
@@ -8354,7 +8751,8 @@ class MapStep(_StepBase):
     thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens.")
     prompt_caching: bool = Field(default=False, description="Anthropic models only.")
     output_schema: Optional[Dict[str, Any]] = Field(default=None, description="JSON Schema object -- forces per-item structured output via tool_choice=required (same mechanism as extract), required for output_join='records'.")
-    strict: bool = Field(default=True, description="With output_schema set: missing required fields raise (false: return the extracted dict as-is).")
+    strict: bool = Field(default=True, description="With output_schema set: missing required fields raise (false: return the extracted dict as-is). Superseded by on_missing_field when that's set.")
+    on_missing_field: Optional[Literal["fail", "default", "retry_once", "skip"]] = Field(default=None, description="With output_schema + strict (the default): what to do about one item missing a required field, instead of failing the whole step over it. 'fail' (default when unset): raise, naming the item. 'retry_once': re-issue that item's call once more; raise (naming the item) if still missing. 'default': fill the field with its JSON Schema `default:` or a type-based fallback, keep the item. 'skip': drop that one item entirely (n_skipped counts it); everything else still runs.")
 
 
 class ExtractStep(_StepBase):
@@ -8933,6 +9331,9 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         steps = [s.model_dump(exclude_unset=True, by_alias=True) for s in self.steps]
         source_config = dict(self.source)
         outputs = dict(self.outputs)
+        static_problems = _static_pipeline_checks(steps, source_config)
+        if static_problems:
+            raise ValueError("; ".join(static_problems))
         asset_ids: List[str] = list(outputs.get("assets", []))
         text_sinks: List[Dict[str, Any]] = list(outputs.get("text_sinks", []) or [])
         json_sinks: List[Dict[str, Any]] = list(outputs.get("json_sinks", []) or [])
@@ -9245,12 +9646,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # Ingest.
             elif source_config.get("kind") == "upstream_asset":
                 upstream = kwargs["source"]
-                if isinstance(upstream, dict) and "text" in upstream:
-                    initial_text = upstream["text"]
-                elif isinstance(upstream, str):
-                    initial_text = upstream
-                else:
-                    initial_text = str(upstream)
+                initial_text = _upstream_asset_text(upstream)
                 initial_entry = {"text": initial_text, "source_kind": "upstream_asset"}
                 context.log.info(f"ingested {len(initial_text)} chars from upstream asset")
             else:
@@ -9426,6 +9822,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                             md[f"{aid}__{k}"] = dg.MetadataValue.json(v)
                         elif k in _JSON_META_KEYS and v:
                             md[f"{aid}__{k}"] = dg.MetadataValue.json(v)
+                        elif k == "tool_call_trace" and v is not None:
+                            md[f"{aid}__tool_call_trace"] = dg.MetadataValue.json(v)
                         elif isinstance(v, (str, int, float, bool)):
                             md[f"{aid}__{k}"] = dg.MetadataValue.text(str(v))
                 md[f"{aid}__pipeline_version"] = dg.MetadataValue.text(_code_version({
@@ -9618,12 +10016,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 _resumed = _maybe_resume(context, partition_key)
                 if _resumed is not None:
                     return _resumed
-                if isinstance(source, dict) and "text" in source:
-                    initial_text = source["text"]
-                elif isinstance(source, str):
-                    initial_text = source
-                else:
-                    initial_text = str(source)
+                initial_text = _upstream_asset_text(source)
                 initial_entry = {"text": initial_text, "source_kind": "upstream_asset"}
                 context.log.info(
                     f"[{prefix}_ingest] {len(initial_text)} chars from upstream asset "

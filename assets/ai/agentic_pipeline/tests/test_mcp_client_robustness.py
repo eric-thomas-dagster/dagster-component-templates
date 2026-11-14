@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 
+import dagster as dg
 import pytest
 
 pytest.importorskip("mcp")
@@ -406,6 +407,42 @@ def test_loop_reconnects_for_each_call_and_leaves_nothing_running(mod, raw, fake
     assert pids[0] != pids[1]  # documented: a fresh stdio server per call (a stateful server loses state between calls)
     assert len(raw.pids()) == 4  # 1 discovery + 3 calls
     assert _wait_gone(raw.pids()) == []
+
+
+def test_loop_rolls_its_cost_and_tokens_into___spend__(mod, raw, fake_litellm, ctx):
+    """Regression: tool_use_loop calls litellm directly (it needs tool_calls/tool_choice turn by
+    turn), not through _completion() -- it was the one LLM-calling op that never told _STEP_SPEND
+    about its calls, so agentic_cost_usd/agentic_tokens (and this step's own
+    agentic_step_cost_usd/agentic_step_tokens) silently stayed 0 no matter how many calls it made."""
+    cfg = raw(name="svc")
+    fake_litellm.reply("", tool_calls=[tool_call("svc__echo", {"text": "hi"}, id="1")], tokens=40)
+    fake_litellm.reply("", tool_calls=[tool_call("finalize", {"answer": "done"}, id="f")], tokens=20)
+    state = new_state()
+    mod._run_step(_loop_step([cfg]), state, ctx)
+    spend = state["__spend__"]["agent"]
+    assert spend["llm_calls"] == 2
+    assert spend["cost_usd"] == pytest.approx(0.02)  # fake completion_cost() is a fixed 0.01/call
+    assert spend["tokens"] == 60
+
+
+@pytest.mark.parametrize("per_step_ops", [False, True])
+def test_tool_call_trace_is_emitted_in_both_per_step_ops_modes(mod, raw, fake_litellm, per_step_ops):
+    """README says tool_use_loop emits tool_call_trace metadata -- the single-op multi_asset path
+    (per_step_ops=False) hand-duplicates _build_step_metadata's field list instead of calling it,
+    and had silently dropped this one key, so it only ever showed up with per_step_ops: true."""
+    cfg = raw(name="svc")
+    fake_litellm.reply("", tool_calls=[tool_call("svc__echo", {"text": "hi"}, id="1")])
+    fake_litellm.reply("", tool_calls=[tool_call("finalize", {"answer": "done"}, id="f")])
+    c = mod.AgenticPipelineComponent(
+        asset_name_prefix="t", source={"kind": "literal", "text": "hello"},
+        steps=[{"id": "agent", "op": "tool_use_loop", "model": "gpt-4o-mini", "max_iterations": 8, "mcp_servers": [cfg]}],
+        outputs={"assets": ["agent"]}, per_step_ops=per_step_ops,
+    )
+    r = dg.materialize(c.build_defs(None).assets, raise_on_error=False)
+    assert r.success, [e.event_specific_data.error.message for e in r.get_step_failure_events()]
+    md = next(e.materialization.metadata for e in r.get_asset_materialization_events()
+              if e.materialization.asset_key.to_user_string() == "t_agent")
+    assert "agent__tool_call_trace" in md
 
 
 def test_loop_survives_a_crashing_tool_and_tells_the_model(mod, raw, fake_litellm, ctx):

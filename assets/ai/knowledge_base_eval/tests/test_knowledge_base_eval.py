@@ -117,6 +117,39 @@ def test_expected_sources_with_no_match_is_hit_false_rank_none(mod):
     assert result["rank"] is None
 
 
+# ─── expected_sources_match_mode ─────────────────────────────────────────────
+
+def test_default_match_mode_is_exact_a_suffix_alone_does_not_hit(mod):
+    resource = _FakeChunksResource({"q": [_hit("c1", "x", source="https://www.prefect.io/docs/v3/concepts/tasks")]})
+    result = mod._score_question(resource, "q", [], ["concepts/tasks"], 5)
+    assert result["hit"] is False
+
+
+def test_suffix_match_mode_hits_on_a_url_ending_with_the_expected_path(mod):
+    resource = _FakeChunksResource({"q": [_hit("c1", "x", source="https://www.prefect.io/docs/v3/concepts/tasks")]})
+    result = mod._score_question(resource, "q", [], ["concepts/tasks"], 5, "suffix")
+    assert result["hit"] is True
+    assert result["rank"] == 1
+
+
+def test_suffix_match_mode_does_not_hit_a_mid_path_fragment(mod):
+    resource = _FakeChunksResource({"q": [_hit("c1", "x", source="https://www.prefect.io/docs/v3/concepts/tasks")]})
+    result = mod._score_question(resource, "q", [], ["concepts"], 5, "suffix")
+    assert result["hit"] is False
+
+
+def test_contains_match_mode_hits_a_mid_path_fragment(mod):
+    resource = _FakeChunksResource({"q": [_hit("c1", "x", source="https://www.prefect.io/docs/v3/concepts/tasks")]})
+    result = mod._score_question(resource, "q", [], ["concepts"], 5, "contains")
+    assert result["hit"] is True
+
+
+def test_unknown_match_mode_raises_clearly(mod):
+    resource = _FakeChunksResource({"q": [_hit("c1", "x", source="s")]})
+    with pytest.raises(ValueError, match="expected_sources_match_mode must be"):
+        mod._score_question(resource, "q", [], ["s"], 5, "bogus")
+
+
 def test_sources_list_never_includes_passage_text(mod):
     resource = _FakeChunksResource({"q": [_hit("c1", "a very secret internal sentence", source="docs/x", doc_id="d1")]})
     result = mod._score_question(resource, "q", [], [], 5)

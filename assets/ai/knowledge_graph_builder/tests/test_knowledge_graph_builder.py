@@ -347,6 +347,36 @@ def test_extract_spacy_sentence_uses_surface_form_when_lemma_is_not_a_real_word(
     assert relations_filtered == 0
 
 
+def test_extract_spacy_sentence_fixes_the_ies_to_ie_lemma_artifact(mod):
+    """Real production evidence on en_core_web_sm (no word vectors -- _is_real_word is a
+    documented no-op there): a noun like "dependencies" whose dependency role got it parsed as
+    this sentence's verb (pos_="VERB" is what gets a token here at all -- see
+    _extract_spacy_sentence's own filter) is lemmatized with the wrong suffix rule ("-ies" ->
+    "-ie" instead of the correct "-ies" -> "-y"). Fixed to "dependency", not the bare artifact or
+    the (plural) raw surface form."""
+    vocab = _FakeVocab(0)  # en_core_web_sm: no vectors, _is_real_word is a no-op either way
+    sent = _real_entity_sentence()
+    sent._tokens[1].text = "dependencies"
+    sent._tokens[1].lemma_ = "dependencie"   # the lemmatizer artifact
+    triples, entities_filtered, triples_filtered, relations_filtered = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", vocab=vocab)
+    assert len(triples) == 1
+    assert triples[0]["relation"] == "dependency"
+    assert triples_filtered == 0
+    assert relations_filtered == 0
+
+
+def test_extract_spacy_sentence_keeps_genuine_short_ies_to_ie_verbs(mod):
+    """"dies"/"ties"/"lies"/"vies" are real English verbs whose CORRECT lemma does end in "-ie"
+    (die/tie/lie/vie) -- the "-ies"->"-ie" artifact fix must not clobber these."""
+    vocab = _FakeVocab(0)
+    sent = _real_entity_sentence()
+    sent._tokens[1].text = "lies"
+    sent._tokens[1].lemma_ = "lie"
+    triples, *_ = mod._extract_spacy_sentence(sent, ents=[], entity_filter="basic", vocab=vocab)
+    assert len(triples) == 1
+    assert triples[0]["relation"] == "lie"
+
+
 def test_extract_spacy_sentence_drops_non_alphabetic_relation(mod):
     sent = _real_entity_sentence()
     sent._tokens[1].lemma_ = "123"  # no alphabetic character at all

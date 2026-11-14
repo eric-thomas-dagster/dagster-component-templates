@@ -612,3 +612,18 @@ def test_invoke_component_before_a_park_gate_checkpoints_real_numpy_pandas_typed
     assert len(ckpt_files) == 1, "the park gate must actually write a checkpoint -- confirms build_defs succeeding wasn't a fluke"
     ckpt = json.loads(ckpt_files[0].read_text())  # must parse as real JSON -- this is what _to_jsonable would have rejected before the fix
     assert ckpt["state"]["kept"]["items"][0]["item"]["id"] in (1, 3)
+
+
+def test_invoke_component_error_suggests_a_placeholder_for_asset_graph_only_fields(mod, ctx):
+    """FilterComponent requires exactly one of upstream_asset_key/source even though invoke_component never
+    registers a real asset and ignores that value -- the error must say to pass a placeholder, not just surface
+    the target component's own validation message unexplained."""
+    from .conftest import new_state
+    state = new_state(text='[{"id": 1, "amount": 100}]')
+    step = {
+        "id": "kept", "op": "invoke_component",
+        "component_type": "dagster_community_components.FilterComponent",
+        "attributes": {"asset_name": "filter_out", "condition": "amount > 10"},  # upstream_asset_key/source omitted
+    }
+    with pytest.raises(ValueError, match="pass any placeholder, e.g. upstream_asset_key"):
+        mod._run_step(step, state, ctx)

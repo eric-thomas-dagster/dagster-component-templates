@@ -44,6 +44,8 @@ Notice each response is actually grounded in the specific question's content (th
 
 The native `route` op does this exact pattern too — a router LLM picks from an inline `specialists:` list, each with its own `system_prompt`. Use `route` when your specialist roster is small, fixed, and known at pipeline-write time (simpler: one file, no separate agent cards). Use `delegate` + `AgentCardComponent` when the roster is shared across multiple pipelines, or maintained/grown by someone other than whoever writes this particular pipeline YAML — add a fourth specialist by dropping in one more `AgentCardComponent`, with zero edits to `pipeline.yaml`.
 
+Both `route` examples here route a single question. For a batch (a day's support tickets, say), `route` is batch-level by default — one router decision for the WHOLE source, and that one specialist answers every item in it. Set `per_item: true` to route one item at a time instead; see the sibling `route_tickets_per_item` example.
+
 ## Running it for real
 
 **Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — the three specialist YAMLs as extra files sitting next to `pipeline.yaml` are never actually loaded as components. **Keep `specialist_agent_server.py` OUT of `defs/` entirely** -- Dagster's scanner also tries to import loose `.py` files it finds inside a defs directory as a definitions module, so a script sitting next to a `defs.yaml` can break the whole code location's loading, not just go unused. In your project's `defs/` folder, lay the YAMLs out as four sibling directories, each containing one file renamed to `defs.yaml`, with the script in a separate `scripts/` folder next to (not inside) `defs/`:

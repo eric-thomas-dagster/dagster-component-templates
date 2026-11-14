@@ -45,6 +45,88 @@ partition_type: daily
 partition_start: '2026-01-01'
 """
 
+SYNTHESIZE_BAD_SOURCE_YAML = """
+asset_name_prefix: demo
+source: {kind: literal, text: hello}
+steps:
+  - id: ingest
+    op: llm_call
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    prompt_template: '{text}'
+  - id: digest
+    op: synthesize
+    source: ingest
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+outputs: {assets: [ingest, digest]}
+"""
+
+MISSING_PLACEHOLDER_YAML = """
+asset_name_prefix: demo
+source: {kind: literal, text: hello}
+steps:
+  - id: digest
+    op: extract
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    prompt_template: 'Create a digest summarizing the number of tickets per topic.'
+    output_schema: {type: object, properties: {summary: {type: string}}, required: [summary]}
+outputs: {assets: [digest]}
+"""
+
+STRICT_BOOLEAN_REQUIRED_YAML = """
+asset_name_prefix: demo
+source: {kind: literal, text: hello}
+steps:
+  - id: extracted
+    op: map
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    prompt_template: '{item}'
+    output_schema: {type: object, properties: {urgent: {type: boolean}}, required: [urgent]}
+outputs: {assets: [extracted]}
+"""
+
+LIST_SOURCE_AS_ONE_DOC_YAML = """
+asset_name_prefix: demo
+source: {kind: literal, text: hello}
+steps:
+  - id: items
+    op: map
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    prompt_template: '{item}'
+    output_join: jsonl
+  - id: topic
+    op: classify
+    source: items
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    labels: [a, b]
+outputs: {assets: [items, topic]}
+"""
+
+ROUTE_ON_LIST_SOURCE_YAML = """
+asset_name_prefix: demo
+source: {kind: literal, text: hello}
+steps:
+  - id: items
+    op: map
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    prompt_template: '{item}'
+    output_join: jsonl
+  - id: triage
+    op: route
+    source: items
+    router: {model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY}
+    specialists:
+      - {name: billing, description: billing issues, model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY}
+      - {name: shipping, description: shipping issues, model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY}
+outputs: {assets: [items, triage]}
+"""
+
 MULTI_STEP_YAML = """
 asset_name_prefix: demo
 source: {kind: literal, text: hello}
@@ -135,6 +217,41 @@ def test_validate_pipeline_reports_a_build_time_error_too(tools):
     result = tools.call("validate_pipeline", {"yaml": BUILD_TIME_ERROR_YAML})
     assert result["valid"] is False
     assert result["errors"][0]["source"] == "build_defs"
+
+
+def test_validate_pipeline_catches_synthesize_with_bare_source_instead_of_sources(tools):
+    result = tools.call("validate_pipeline", {"yaml": SYNTHESIZE_BAD_SOURCE_YAML})
+    assert result["valid"] is False
+    msg = result["errors"][0]["message"]
+    assert "digest" in msg and "synthesize" in msg and "sources:" in msg
+
+
+def test_validate_pipeline_catches_prompt_template_with_no_placeholder(tools):
+    result = tools.call("validate_pipeline", {"yaml": MISSING_PLACEHOLDER_YAML})
+    assert result["valid"] is False
+    msg = result["errors"][0]["message"]
+    assert "digest" in msg and "no {...} placeholder" in msg
+
+
+def test_validate_pipeline_catches_strict_map_with_boolean_required_field(tools):
+    result = tools.call("validate_pipeline", {"yaml": STRICT_BOOLEAN_REQUIRED_YAML})
+    assert result["valid"] is False
+    msg = result["errors"][0]["message"]
+    assert "extracted" in msg and "urgent" in msg and "boolean" in msg
+
+
+def test_validate_pipeline_catches_classify_reading_a_map_jsonl_list_as_one_doc(tools):
+    result = tools.call("validate_pipeline", {"yaml": LIST_SOURCE_AS_ONE_DOC_YAML})
+    assert result["valid"] is False
+    msg = result["errors"][0]["message"]
+    assert "topic" in msg and "classify" in msg and "JSON list" in msg
+
+
+def test_validate_pipeline_catches_route_reading_a_map_jsonl_list_as_one_batch(tools):
+    result = tools.call("validate_pipeline", {"yaml": ROUTE_ON_LIST_SOURCE_YAML})
+    assert result["valid"] is False
+    msg = result["errors"][0]["message"]
+    assert "triage" in msg and "route" in msg and "batch-level" in msg
 
 
 def test_preview_pipeline_reports_assets_edges_and_needs(tools):

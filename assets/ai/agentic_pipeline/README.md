@@ -382,7 +382,7 @@ Now iterating on prompts is a one-file YAML edit (add/remove/rename keys under `
 
 **Alternative source shapes:**
 
-- **Wikipedia / any HTTP source** — replace `SyntheticPromptGeneratorComponent` with a custom asset that returns a `str` (Wikipedia REST summary, an internal doc, a slack message body, etc.). The `upstream_asset` source accepts a `str` or a dict with a `text` key; anything else gets `str()`'d.
+- **Wikipedia / any HTTP source** — replace `SyntheticPromptGeneratorComponent` with a custom asset that returns a `str` (Wikipedia REST summary, an internal doc, a slack message body, etc.). The `upstream_asset` source accepts a `str` or a dict with a `text` key; a pandas `DataFrame` is serialized to a JSON list of records; anything else gets `str()`'d.
 - **`file` source** — if the prompts already exist on disk, skip both components and use `source: {kind: file, path: "prompts/{partition_key}.txt"}` directly on the pipeline.
 - **`literal` source** — one hardcoded prompt for a quickstart / smoke test (the Quick Example above).
 
@@ -631,12 +631,19 @@ Single completion. LLM sub-config lives inline on the step (no `model` nesting).
 
 Router LLM picks a specialist by name via tool-call; specialist LLM answers.
 
+**Batch-level by default.** One router call picks ONE specialist for the entire source text. If the source is a JSON list of items (e.g. a batch of support tickets), the whole batch still gets routed as a single unit — the router picks one specialist and it answers for every item in the batch, not one specialist per item — unless `per_item: true` is set. `validate_pipeline` flags a `route`/`conditional_route` step whose source is a list and `per_item` is not set.
+
+**`per_item: true`** parses the source as a list (same rule `map`/`invoke_component` use: a JSON array, a dict with a `data`/`items`/`results`/`values` list, else non-empty lines) and runs a fresh router decision + specialist answer for each item — two model calls per item, so prefer a cheap model for the router. `max_concurrent` thread-pools the per-item calls; `output_join` shapes the joined `text` the same way `map`'s does (`records` merges `{item, selected_specialist, router_reasoning, routing_source, text}` per item into one JSON array, directly readable by a downstream `synthesize`/`map`/`reduce`). Metadata gains `routing_counts` (`{specialist_name: count}`), `n_items`, `n_fallbacks` — `n_llm_calls`/`cost_usd`/`tokens_total`/`latency_ms` cover every router + specialist call across all items.
+
 | Field | Required | Default | Description |
 |---|---|---|---|
 | `router` | ✅ | — | LLM sub-config for the router — see above. |
 | `specialists` | ✅ | — | List of specialist LLMs (2+). Each: `{name, description, model, ...LLM sub-config}`. `name` must be a valid identifier (used as a tool-call name); `description` seeds the router's routing decision. |
-| `fallback` |  | — | Specialist name to fall back to if the router can't pick. If unset and the router fails, an exception is raised. |
+| `fallback` |  | — | Specialist name to fall back to if the router can't pick. If unset and the router fails, an exception is raised (`per_item`: the error names the item). |
 | `include_reasoning` |  | `true` | If true, the router asks for a free-text `reasoning` field alongside the tool call and surfaces it as the `router_reasoning` metadata field. |
+| `per_item` |  | `false` | Route a list source one item at a time instead of once for the whole batch. |
+| `max_concurrent` |  | `1` | `per_item` only: thread-pool workers for the per-item calls. |
+| `output_join` |  | `newlines` | `per_item` only: `newlines` \| `jsonl` \| `none` \| `records` — same meaning as `map`'s. |
 
 ### `op: debate`
 
@@ -906,12 +913,17 @@ The same shape works for LangGraph, AutoGen, LlamaIndex Agents, DSPy — swap th
 
 Deterministic picker — regex / contains / equals / JSON-path against upstream text — routes to the matching specialist. Sibling of `route`, but the pick is a code path, not an LLM call.
 
+Batch-level by default — same `per_item` option as `route`: set it to match/route a list source one item at a time (by that item's own field value, for a `jsonpath` condition) instead of matching the whole batch as one unit. `max_concurrent`/`output_join` have the same meaning as `route`'s; metadata gains `routing_counts`, `n_items`, `n_defaulted`.
+
 | Field | Required | Default | Description |
 |---|---|---|---|
 | `conditions` | ✅ | — | List of `{when: {regex\|contains\|equals\|jsonpath: ...}, then: <specialist_name>}`. First match wins. |
 | `default` | ✅ | — | Specialist that runs when no condition matches. |
 | `specialists` | ✅ | — | List of `{name, description, model, api_key_env_var, system_prompt, temperature, max_tokens}` — same shape as `route`'s specialists. |
 | `source` |  | Most recent step | Upstream to inspect. |
+| `per_item` |  | `false` | Match/route a list source one item at a time instead of once for the whole batch. |
+| `max_concurrent` |  | `1` | `per_item` only: thread-pool workers for the per-item specialist calls. |
+| `output_join` |  | `newlines` | `per_item` only: `newlines` \| `jsonl` \| `none` \| `records` — same meaning as `map`'s. |
 
 `conditions[N].when` supports one of:
 - `regex: "p[01]"` — Python `re.search` (case-insensitive) against upstream text
@@ -935,7 +947,8 @@ Apply an LLM call to each item in a list source. Aggregates per-item results int
 | `max_concurrent` |  | `1` | Thread-pool workers. `1` = sequential; higher for I/O-bound throughput. |
 | `output_join` |  | `newlines` | How to join per-item texts into the top-level `text`. `newlines` (double-newline separator) / `jsonl` / `none` (downstream reads `items[]`) / `records` (requires `output_schema` — merges `{**item, **extracted}` per item into a JSON array). |
 | `output_schema` |  | — | JSON Schema object — forces per-item structured output via `tool_choice=required` (same mechanism as `extract`). Required for `output_join: records`. |
-| `strict` |  | `true` | With `output_schema` set: missing required fields raise (`false` → return the extracted dict as-is). |
+| `strict` |  | `true` | With `output_schema` set: missing required fields raise (`false` → return the extracted dict as-is). Superseded by `on_missing_field` when that's set. |
+| `on_missing_field` |  | — | What to do about one item missing a required field, instead of failing the whole step over it: `fail` (default when unset — today's behavior, raises naming the item) \| `retry_once` (re-issues that item's call once more; raises, naming the item, if still missing) \| `default` (fills the field with its JSON Schema `default:` or a type-based fallback, keeps the item) \| `skip` (drops that one item entirely — absent from `items[]`/`text`/`records`; `n_skipped` counts it). |
 | `temperature` |  | `0.0` | |
 | `max_tokens` |  | `1024` | Per-call max completion tokens. |
 | `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
@@ -1402,7 +1415,7 @@ All string fields on sources support `{partition_key}` substitution — a partit
 | Field | Required | Description |
 |---|---|---|
 | `kind` | ✅ | `upstream_asset` |
-| `upstream_asset_key` | ✅ | Asset key of the Dagster asset to load. Its output becomes the pipeline's initial source text — the pipeline's inputs then show as parents in the asset graph. |
+| `upstream_asset_key` | ✅ | Asset key of the Dagster asset to load. Its output becomes the pipeline's initial source text — the pipeline's inputs then show as parents in the asset graph. A `str` or a `dict` with a `text` key is used as-is; a pandas `DataFrame` is serialized to a JSON list of records (`df.to_dict(orient="records")`) — the same shape a `{kind: file, path: *.json}` source gives — so every cell reaches the model instead of a truncated `str(df)` repr; anything else gets `str()`'d. |
 
 **How partition matching works (confirmed from the implementation, not just the YAML surface):** the pipeline wires the upstream asset in as a real `dagster.AssetIn(key=upstream_asset_key)` input, with no custom `partition_mapping` set. When both the pipeline and the upstream asset share the same (or a Dagster-default-mappable) `partitions_def`, Dagster's own default partition mapping loads the upstream's materialization for the **same partition key** the pipeline run is executing — e.g. materializing the pipeline for `2026-03-05` reads the upstream asset's own `2026-03-05` partition, automatically, with no `{partition_key}` template needed on `upstream_asset_key` itself (unlike `file`/`url`, there's nothing to template — the match happens through the asset graph, not a string substitution). This is why `{partition_key}` templating doesn't apply to `upstream_asset` sources the way it does to `file`/`url`/`literal`. **Not separately verified:** behavior when the upstream asset's `partitions_def` does NOT match the pipeline's own (e.g. a different partition type or a `MultiPartitionsDefinition` on one side only) — that falls through to whatever Dagster's own default mapping rules do in that mismatched case, which this component doesn't override or special-case.
 

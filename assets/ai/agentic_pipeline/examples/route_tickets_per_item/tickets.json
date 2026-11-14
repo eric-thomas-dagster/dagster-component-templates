@@ -1,0 +1,5 @@
+[
+  {"id": "T-1001", "text": "When will my order ship? I ordered three days ago and haven't seen a tracking number yet."},
+  {"id": "T-1002", "text": "My order arrived completely damaged -- the box was crushed and the item inside is broken."},
+  {"id": "T-1003", "text": "I can't log in to my account anymore, it keeps saying my password is wrong even after I reset it."}
+]

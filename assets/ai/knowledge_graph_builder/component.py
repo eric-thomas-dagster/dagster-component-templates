@@ -1058,16 +1058,33 @@ def _entity_span_at(token, ents) -> Optional[Any]:
 _DEFAULT_ENTITY_TYPE_MAP = {"PROPN": "product", "NOUN": "concept"}
 
 
+_IES_TO_IE_REAL_LEMMAS = {"die", "tie", "lie", "vie", "untie", "retie"}
+
+
 def _relation_text(token, vocab) -> Tuple[str, bool]:
-    """Builds the relation text for one verb: its lemma when `_is_real_word` trusts it, else the
-    raw surface verb form -- a mangled lemma ("dependencie", "instal", "partition" from a clipped
-    or bare-verb lemmatization) is never silently used, but the triple is no longer dropped for
-    it either; the plain surface word is still a perfectly usable relation. Appends a phrasal
-    particle or preposition child's own surface text when the verb has one: "depend" + "on" ->
-    "depend on", "install" + "with" -> "install with", "look" + "up" -> "look up". Returns
-    (relation_text, is_non_alphabetic) -- only a relation with NO alphabetic character at all
-    (vanishingly rare) is still dropped."""
-    base = token.lemma_ if (vocab is None or _is_real_word(token.lemma_, vocab)) else token.text.lower()
+    """Builds the relation text for one verb: its lemma (corrected for the "-ies"->"-ie" artifact
+    below, or trusted via `_is_real_word` otherwise), else the raw surface verb form -- a mangled
+    lemma ("dependencie", "instal", "partition" from a clipped or bare-verb lemmatization) is
+    never silently used, but the triple is no longer dropped for it either; the plain surface
+    word is still a perfectly usable relation. Appends a phrasal particle or preposition child's
+    own surface text when the verb has one: "depend" + "on" -> "depend on", "install" + "with" ->
+    "install with", "look" + "up" -> "look up". Returns (relation_text, is_non_alphabetic) --
+    only a relation with NO alphabetic character at all (vanishingly rare) is still dropped."""
+    base = token.lemma_
+    surface = token.text.lower()
+    if surface.endswith("ies") and base.lower().endswith("ie") and base.lower() not in _IES_TO_IE_REAL_LEMMAS:
+        # Real production evidence: a noun ("dependencies", "proxies", "dictionaries", ...)
+        # whose dependency role got it parsed as this sentence's verb (this function is only
+        # ever called on a token spaCy's dependency parser already tagged pos_="VERB" -- its
+        # own POS tag can't be checked here to tell a genuine verb from a mistagged noun, so
+        # this leans on English morphology instead: no correct lemma ends in "-ie" from an
+        # "-ies" surface form except the closed set of short irregular verbs above (die/tie/
+        # lie/vie); every other "-ies" word's correct lemma ends in "-y" ("dependency",
+        # "proxy", "dictionary"). en_core_web_sm has no word vectors, so _is_real_word (below)
+        # is a documented no-op there -- this check doesn't need vectors either way.
+        base = base[:-2] + "y"
+    elif vocab is not None and not _is_real_word(base, vocab):
+        base = surface
     particle = next((c for c in token.children if c.dep_ in ("prt", "prep")), None)
     if particle is not None:
         base = f"{base} {particle.text.lower()}"

@@ -3669,7 +3669,7 @@
         }
       },
       "additionalProperties": true,
-      "description": "Deterministic picker -- regex/contains/equals/JSON-path against upstream text -- routes to the matching specialist. No LLM call for the pick itself.",
+      "description": "Deterministic picker -- regex/contains/equals/JSON-path against upstream text -- routes to the matching specialist. No LLM call for the pick itself.\n\nBatch-level by default -- same `per_item` option as `route`: set it to match/route a list\nsource once per item (by that item's own field value, for a jsonpath condition) instead of\nmatching the whole batch as one unit.",
       "properties": {
         "conditions": {
           "description": "First match wins.",
@@ -3705,10 +3705,34 @@
           "description": "Typed named input ports: {port_name: {from: step_id} | {literal: value}}, substituted as {port_name} in templates.",
           "title": "Inputs"
         },
+        "max_concurrent": {
+          "default": 1,
+          "description": "per_item only: thread-pool workers for the per-item specialist calls. 1 = sequential.",
+          "title": "Max Concurrent",
+          "type": "integer"
+        },
         "op": {
           "const": "conditional_route",
           "title": "Op",
           "type": "string"
+        },
+        "output_join": {
+          "default": "newlines",
+          "description": "per_item only: how to join per-item results into `text` -- same meaning as map's output_join.",
+          "enum": [
+            "newlines",
+            "jsonl",
+            "none",
+            "records"
+          ],
+          "title": "Output Join",
+          "type": "string"
+        },
+        "per_item": {
+          "default": false,
+          "description": "Match/route a list source one item at a time instead of once for the whole batch. Source is parsed the same way map/invoke_component parse a list.",
+          "title": "Per Item",
+          "type": "boolean"
         },
         "persona": {
           "anyOf": [
@@ -9584,6 +9608,25 @@
           "description": "LLM per item. Optional if `persona:` on the step resolves it.",
           "title": "Model"
         },
+        "on_missing_field": {
+          "anyOf": [
+            {
+              "enum": [
+                "fail",
+                "default",
+                "retry_once",
+                "skip"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "With output_schema + strict (the default): what to do about one item missing a required field, instead of failing the whole step over it. 'fail' (default when unset): raise, naming the item. 'retry_once': re-issue that item's call once more; raise (naming the item) if still missing. 'default': fill the field with its JSON Schema `default:` or a type-based fallback, keep the item. 'skip': drop that one item entirely (n_skipped counts it); everything else still runs.",
+          "title": "On Missing Field"
+        },
         "op": {
           "const": "map",
           "title": "Op",
@@ -9685,7 +9728,7 @@
         },
         "strict": {
           "default": true,
-          "description": "With output_schema set: missing required fields raise (false: return the extracted dict as-is).",
+          "description": "With output_schema set: missing required fields raise (false: return the extracted dict as-is). Superseded by on_missing_field when that's set.",
           "title": "Strict",
           "type": "boolean"
         },
@@ -12452,7 +12495,7 @@
         }
       },
       "additionalProperties": true,
-      "description": "Router LLM picks a specialist by name via tool-call; specialist LLM answers.",
+      "description": "Router LLM picks a specialist by name via tool-call; specialist LLM answers.\n\nBatch-level by default: one router call picks ONE specialist for the entire source text. Set\n`per_item: true` to route a list source (a batch of support tickets, say) one item at a\ntime instead -- a fresh router decision + specialist answer per item. Without it, a list\nsource still gets routed as a single unit (the router picks one specialist and it answers\nfor every item in the batch); `validate_pipeline` flags a route/conditional_route step whose\nsource is a list and `per_item` is not set.",
       "properties": {
         "fallback": {
           "anyOf": [
@@ -12464,7 +12507,7 @@
             }
           ],
           "default": null,
-          "description": "Specialist name to fall back to if the router can't pick. Unset: an invalid pick raises.",
+          "description": "Specialist name to fall back to if the router can't pick. Unset: an invalid pick raises (per_item: names the item).",
           "title": "Fallback"
         },
         "id": {
@@ -12494,10 +12537,34 @@
           "description": "Typed named input ports: {port_name: {from: step_id} | {literal: value}}, substituted as {port_name} in templates.",
           "title": "Inputs"
         },
+        "max_concurrent": {
+          "default": 1,
+          "description": "per_item only: thread-pool workers for the per-item router+specialist calls. 1 = sequential.",
+          "title": "Max Concurrent",
+          "type": "integer"
+        },
         "op": {
           "const": "route",
           "title": "Op",
           "type": "string"
+        },
+        "output_join": {
+          "default": "newlines",
+          "description": "per_item only: how to join per-item results into `text` -- same meaning as map's output_join. 'records' merges {item, selected_specialist, router_reasoning, routing_source, text} per item into one JSON array, directly consumable by a downstream synthesize/map/reduce.",
+          "enum": [
+            "newlines",
+            "jsonl",
+            "none",
+            "records"
+          ],
+          "title": "Output Join",
+          "type": "string"
+        },
+        "per_item": {
+          "default": false,
+          "description": "Route a list source one item at a time (a fresh router decision + specialist answer per item) instead of once for the whole batch. Source is parsed the same way map/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, else non-empty lines).",
+          "title": "Per Item",
+          "type": "boolean"
         },
         "persona": {
           "anyOf": [

@@ -20,7 +20,7 @@ _OP_HEADING = {op: f"`op: {op}`" for op in (
     "llm_call", "route", "conditional_route", "debate", "critique_loop", "synthesize",
     "mcp_call", "tool_use_loop", "handoff", "map", "extract", "classify", "reduce",
     "self_reflect", "sub_pipeline", "agent_call", "delegate", "invoke_component", "filter",
-    "verify", "eval", "best_of_n", "cascade", "plan", "decide", "approve",
+    "group", "verify", "eval", "best_of_n", "cascade", "plan", "decide", "approve",
 )}
 
 

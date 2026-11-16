@@ -2164,6 +2164,47 @@
               "additionalProperties": false
             },
             {
+              "title": "group",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "key"
+              ],
+              "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "group"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to most recent. Its text is parsed as a JSON list of records."
+                },
+                "inputs": {
+                  "type": "object"
+                },
+                "key": {
+                  "type": "string",
+                  "description": "Field name to group records by. Records missing this field are dropped (n_missing_key), not put in their own null group."
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "key"
+                  ],
+                  "description": "'none' (default): groups appear in first-seen order. 'key': sorted ascending by key value."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
               "title": "approve",
               "type": "object",
               "required": [

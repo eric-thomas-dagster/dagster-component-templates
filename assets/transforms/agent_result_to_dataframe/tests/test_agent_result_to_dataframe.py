@@ -197,6 +197,22 @@ def test_flatten_nested_expands_one_level_into_prefixed_columns(mod):
     assert df["text"].tolist() == ["reply 1", "reply 2"]
 
 
+def test_flatten_nested_surfaces_a_list_valued_field_as_json_instead_of_dropping_it(mod):
+    """A grouped item with list-valued fields (transaction_ids, amounts, ...) must not vanish --
+    flatten_nested can't expand a list into its own columns, but it shouldn't drop it either."""
+    result = {
+        "final_answer": "x",
+        "items": [
+            {"item": {"account_number": "A1", "transaction_ids": ["t1", "t2"], "amounts": [10, 20]}, "flagged": True},
+        ],
+    }
+    df = _materialize(mod, result, mode="explode", explode_field="items", flatten_nested=True)
+    assert df.iloc[0]["item_account_number"] == "A1"
+    assert json.loads(df.iloc[0]["item_transaction_ids"]) == ["t1", "t2"]
+    assert json.loads(df.iloc[0]["item_amounts"]) == [10, 20]
+    assert df.iloc[0]["flagged"] == True  # noqa: E712
+
+
 def test_flatten_nested_default_false_keeps_todays_drop_behavior(mod):
     result = {"final_answer": "x", "items": [{"item": {"ticket_id": "T-1"}, "text": "reply 1"}]}
     df = _materialize(mod, result, mode="explode", explode_field="items")

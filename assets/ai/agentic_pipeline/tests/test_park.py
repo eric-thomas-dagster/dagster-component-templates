@@ -614,16 +614,43 @@ def test_invoke_component_before_a_park_gate_checkpoints_real_numpy_pandas_typed
     assert ckpt["state"]["kept"]["items"][0]["item"]["id"] in (1, 3)
 
 
-def test_invoke_component_error_suggests_a_placeholder_for_asset_graph_only_fields(mod, ctx):
-    """FilterComponent requires exactly one of upstream_asset_key/source even though invoke_component never
-    registers a real asset and ignores that value -- the error must say to pass a placeholder, not just surface
-    the target component's own validation message unexplained."""
+def test_invoke_component_fills_in_asset_graph_only_fields_automatically(mod, ctx):
+    """FilterComponent requires `asset_name` and exactly one of upstream_asset_key/source even though
+    invoke_component never registers a real asset and ignores their value -- invoke_component must fill
+    in harmless placeholders for these itself rather than making every pipeline author discover and
+    hand-write them (both omitted here, construction/build_defs/call must all still succeed)."""
+    from .conftest import new_state
+    state = new_state(text='[{"id": 1, "amount": 100}, {"id": 2, "amount": 5}]')
+    step = {
+        "id": "kept", "op": "invoke_component",
+        "component_type": "dagster_community_components.FilterComponent",
+        "attributes": {"condition": "amount > 10"},  # asset_name/upstream_asset_key/source all omitted
+    }
+    mod._run_step(step, state, ctx)
+    assert json.loads(state["kept"]["text"]) == [{"id": 1, "amount": 100}]
+
+
+def test_invoke_component_explicit_attributes_are_not_overridden(mod, ctx):
+    """An explicitly set asset_name/upstream_asset_key must win over the auto-filled placeholder."""
     from .conftest import new_state
     state = new_state(text='[{"id": 1, "amount": 100}]')
     step = {
         "id": "kept", "op": "invoke_component",
         "component_type": "dagster_community_components.FilterComponent",
-        "attributes": {"asset_name": "filter_out", "condition": "amount > 10"},  # upstream_asset_key/source omitted
+        "attributes": {"asset_name": "my_name", "upstream_asset_key": "my_upstream", "condition": "amount > 10"},
     }
-    with pytest.raises(ValueError, match="pass any placeholder, e.g. upstream_asset_key"):
+    mod._run_step(step, state, ctx)  # must not raise -- explicit values satisfy the validator as-is
+    assert json.loads(state["kept"]["text"]) == [{"id": 1, "amount": 100}]
+
+
+def test_invoke_component_error_still_names_a_field_it_cannot_auto_fill(mod, ctx):
+    """A target's required field that ISN'T one of the three auto-filled ones must still surface clearly."""
+    from .conftest import new_state
+    state = new_state(text='[{"id": 1, "amount": 100}]')
+    step = {
+        "id": "kept", "op": "invoke_component",
+        "component_type": "dagster_community_components.FilterComponent",
+        "attributes": {},  # `condition` (FilterComponent's own required field, unrelated to the asset graph) is missing
+    }
+    with pytest.raises(ValueError, match="invoke_component: failed to instantiate"):
         mod._run_step(step, state, ctx)

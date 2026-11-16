@@ -4,7 +4,7 @@
 
 | Tool | Answers |
 |---|---|
-| `list_recent_failures(hours, limit)` | failed runs: failed step keys, innermost error class + first message line, asset keys |
+| `list_recent_failures(hours, limit)` | failed runs: failed step keys, root-cause error class + first message line (prefers a failure-observation-contract AssetObservation logged by the failing component over the STEP_FAILURE event's own error chain -- the latter's outermost frame is Dagster's "Execution of step ... failed" wrapper), asset keys |
 | `get_run_summary(run_id)` | status, timings, steps, failed-step error excerpt (redacted, truncated), tags |
 | `get_run_logs(run_id, level, max_lines)` | tail of event-log messages, secrets redacted |
 | `asset_status(asset_key)` | last materialization (time/run/data+code version), later failed run, `last_failure` (reason, error class/message, run, partition; from a real failure event if the storage keeps one, else a failure observation logged by our components, else the failed run; see `docs/failure_observation_contract.md`), partition counts, latest check results |
@@ -73,7 +73,7 @@ server_resource_key: dagster_instance_tools_mcp
 The instance (event log) alone cannot know the asset graph or partition set. Without `definitions_module`:
 - `asset_lineage`: **upstream only**, from materialization data-provenance (assets materialized with tracked inputs); `downstream` returns a clear error.
 - `asset_status.partitions`: materialized count + sample only; total / missing / failed are `null`.
-- `stale_assets`: age-based (older than `max_age_hours`, or a failed run after the last materialization) instead of data-version staleness.
+- `stale_assets`: age-based (older than `max_age_hours`, or a failed run after the last materialization) instead of data-version staleness -- the result's first two fields are `data_version_staleness_available: false` and a `note` saying so plainly (an asset with no reason listed may still be stale by data version; a model skimming a long `assets` list won't miss this the way a trailing-field note was easy to miss).
 - check results: discovered from the asset's last materialization run and recent check evaluations.
 
 With it: full graph lineage, partition total/failed/missing, and Dagster's own data-version staleness (uses a private `dagster._core` resolver; falls back to age-based if unavailable).

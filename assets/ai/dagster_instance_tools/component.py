@@ -338,9 +338,34 @@ class DagsterInstanceTools:
                     out[ev.step_key or "?"].append(ks)
         return out
 
+    def _failure_observations_by_step(self, run_id: str) -> Dict[str, Dict[str, Any]]:
+        """step_key -> {error_class, error_message} from this run's own failure-observation-contract
+        AssetObservations (docs/failure_observation_contract.md): the root cause the FAILING COMPONENT
+        itself caught and logged before re-raising, which is more reliable than walking the
+        STEP_FAILURE event's SerializableErrorInfo.cause chain -- that chain's outer frame is
+        Dagster's own "Execution of step ... failed" step-execution wrapper, and a component that
+        catches a real cause (e.g. a request TimeoutError) and re-raises a new, differently-worded
+        exception for its own context won't necessarily preserve that cause in the chain."""
+        out: Dict[str, Dict[str, Any]] = {}
+        try:
+            for r in self.instance.get_records_for_run(run_id, of_type=dg.DagsterEventType.ASSET_OBSERVATION).records:
+                ev = r.event_log_entry.dagster_event
+                o = ev.event_specific_data.asset_observation
+                md = {k: getattr(v, "value", v) for k, v in (o.metadata or {}).items()}
+                if md.get("failure_status") != "failed":
+                    continue
+                step_key = md.get("failed_step") or ev.step_key
+                if not step_key or (md.get("error_class") is None and not md.get("error_message")):
+                    continue
+                out[step_key] = {"error_class": md.get("error_class"), "error_message": _first_line(md.get("error_message") or "")}
+        except Exception:
+            pass
+        return out
+
     def _failed_steps(self, run_id: str, step_assets: Dict[str, List[str]]) -> List[Dict[str, Any]]:
         out = []
         seen = set()
+        failure_obs = self._failure_observations_by_step(run_id)
         recs = self.instance.get_records_for_run(run_id, of_type=dg.DagsterEventType.STEP_FAILURE).records
         for r in recs:
             ev = r.event_log_entry.dagster_event
@@ -349,7 +374,11 @@ class DagsterInstanceTools:
                 continue
             seen.add(sk)
             err = getattr(ev.event_specific_data, "error", None) if ev else None
-            out.append({"step_key": sk, **_error_chain(err), "asset_keys": step_assets.get(sk, [])})
+            chain = _error_chain(err)
+            fo = failure_obs.get(sk)
+            if fo and (fo.get("error_class") or fo.get("error_message")):
+                chain = {**chain, **{k: v for k, v in fo.items() if v}}
+            out.append({"step_key": sk, **chain, "asset_keys": step_assets.get(sk, [])})
         return out
 
     def _run_asset_failures(self, run_id: str) -> List[Dict[str, Any]]:
@@ -748,8 +777,17 @@ class DagsterInstanceTools:
                              "failed_run_id": failed["run_id"] if failed else None,
                              "last_failure": self._last_failure(key, ts)})
         rows.sort(key=lambda r: -(r["age_hours"] if r["age_hours"] is not None else 1e9))
-        return {"source": "age_based", "max_age_hours": age, "count": len(rows), "assets": rows[:n],
-                "note": "no definitions loaded: staleness judged by time since last materialization / a later failed run"}
+        return {
+            "data_version_staleness_available": False,
+            "note": (
+                "definitions_module is not set, so this is NOT Dagster's real data-version staleness "
+                "(an upstream asset's data changed but this one wasn't rerun) -- it only checks time "
+                "since last materialization and whether the latest run after it failed. An asset "
+                "below with no reason listed may still be stale by data version. Set definitions_module "
+                "on DagsterInstanceToolsComponent for accurate staleness."
+            ),
+            "source": "age_based", "max_age_hours": age, "count": len(rows), "assets": rows[:n],
+        }
 
     def t_receipt_stats(self, asset_key: Any = None, window_hours: Any = 168) -> Dict[str, Any]:
         if self.receipt_store is None:

@@ -102,7 +102,12 @@ def _row_from_dict(
         if include:
             if k not in include:
                 continue
-        elif not _is_scalar(v):
+        elif not _is_scalar(v) and not flatten_nested:
+            # Default (flatten_nested=False, no include_columns): today's drop behavior.
+            # With flatten_nested=True, a value this loop can't already expand into columns
+            # (a list, or a dict nested two levels deep) still comes through -- as a
+            # JSON-string column -- instead of silently vanishing, the same way a nested
+            # dict's own subfields already do above.
             continue
         row[k] = _coerce_value(v)
     for k in exclude or ():
@@ -236,10 +241,12 @@ class AgentResultToDataFrameComponent(Component, Model, Resolvable):
         description=(
             "When a row's field is itself a dict (e.g. explode_field='items' where each item is "
             "{item: {ticket_id, ...}, text, ...}), expand that one field's own keys into "
-            "{field}_{subfield} columns (item_ticket_id, ...) instead of dropping it (the default) "
-            "or JSON-stringifying it (today's behavior when the field is named explicitly in "
-            "include_columns). One level deep only -- a field nested two levels down still "
-            "JSON-stringifies/drops the same as before."
+            "{field}_{subfield} columns (item_ticket_id, ...) instead of dropping it (the default). "
+            "One level deep only -- a dict nested two levels down, or a list-valued field (e.g. "
+            "transaction_ids: [...]), isn't expanded into its own columns, but with flatten_nested "
+            "true it still comes through as one JSON-string column rather than being dropped. "
+            "With flatten_nested false (the default), every non-scalar field is dropped unless "
+            "named explicitly in include_columns (where it arrives JSON-stringified)."
         ),
     )
     include_columns: Optional[Union[str, List[str]]] = Field(

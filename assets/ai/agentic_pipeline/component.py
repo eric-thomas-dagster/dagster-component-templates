@@ -941,8 +941,9 @@ def _apply_ctx_substitutions(
     s: Any,
     partition_key: Optional[str],
     partition_fields: Optional[Dict[str, Any]],
+    run_input: Optional[str] = None,
 ) -> Any:
-    """Apply run-context substitutions: `{partition_key}` + `{partition.<name>}`.
+    """Apply run-context substitutions: `{partition_key}` + `{partition.<name>}` + `{input}`.
 
     Returns the input unchanged if it's not a string. When the input is
     EXACTLY a single `{partition.<name>}` placeholder (nothing else) and
@@ -950,6 +951,11 @@ def _apply_ctx_substitutions(
     return the typed value rather than str-coerced — this is what makes
     `tool_args: {issue_number: "{partition.issue_number:int}"}` land as
     int 30000 in the MCP call instead of the string "30000".
+
+    `{input}` is `run_input_tag`'s run tag value (see AgenticPipelineComponent's
+    `run_input_tag` field) -- a per-run value for the pipeline's prompts without
+    needing a dynamic partition per question (no sanitized/truncated key, no
+    id-suffix collision avoidance).
 
     Ports (`{port_name}`) are handled separately by `_substitute_ports`
     since they're per-op inputs, not run-level context.
@@ -967,6 +973,8 @@ def _apply_ctx_substitutions(
     if partition_fields:
         for k, v in partition_fields.items():
             s = s.replace("{partition." + k + "}", str(v))
+    if run_input is not None and "{input}" in s:
+        s = s.replace("{input}", str(run_input))
     return s
 
 
@@ -1077,6 +1085,7 @@ def _ingest(
     partition_key: Optional[str] = None,
     partition_fields: Optional[Dict[str, str]] = None,
     partitions_def=None,
+    run_input: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Return the initial state dict: {"text": str, "source_kind": str, ...}."""
     kind = source_config.get("kind", "literal")
@@ -1088,7 +1097,7 @@ def _ingest(
     window = _partition_window(partition_key, partitions_def)
 
     def _sub(s: Any) -> Any:
-        s = _apply_ctx_substitutions(s, partition_key, partition_fields)
+        s = _apply_ctx_substitutions(s, partition_key, partition_fields, run_input)
         if window and isinstance(s, str):
             for k, v in window.items():
                 s = s.replace("{" + k + "}", v)
@@ -2863,6 +2872,19 @@ def _static_pipeline_checks(steps: List[Dict[str, Any]], source_config: Dict[str
                         f"{{item}}, {{combined}}, {{items}}/{{prior}}, or a named {{port}}."
                     )
 
+        if op == "map":
+            map_tpl = step.get("prompt_template", "{item}")
+            if isinstance(map_tpl, str):
+                wrong_tokens = [tok for tok in ("{text}", "{combined}") if tok in map_tpl]
+                if wrong_tokens and "{item}" not in map_tpl:
+                    wrong_desc = " and ".join(wrong_tokens)
+                    problems.append(
+                        f"step {sid} (map) reads {wrong_desc}; a map step's placeholder is "
+                        f"{{item}} (the current item), not {wrong_desc} -- that reads the WHOLE "
+                        f"source text/list, repeated identically for every item, instead of the "
+                        f"one item being processed. Replace with {{item}}."
+                    )
+
         _map_omf = step.get("on_missing_field") if op == "map" else None
         if (
             op in ("map", "extract")
@@ -2892,8 +2914,10 @@ def _static_pipeline_checks(steps: List[Dict[str, Any]], source_config: Dict[str
             producer = step_by_id.get(eff_source)
             source_is_list = (eff_source == _ROOT_SOURCE_ID and root_is_json_list) or (
                 producer is not None
-                and producer.get("op") == "map"
-                and producer.get("output_join") in ("jsonl", "records")
+                and (
+                    (producer.get("op") == "map" and producer.get("output_join") in ("jsonl", "records"))
+                    or producer.get("op") == "group"
+                )
             )
             if source_is_list and op in ("route", "conditional_route"):
                 problems.append(
@@ -5791,6 +5815,26 @@ def _resolve_component_class(component_type: str):
     return cls
 
 
+def _fill_invoke_component_graph_placeholders(cls: Any, attributes: Dict[str, Any], step_id: str) -> Dict[str, Any]:
+    """invoke_component bypasses the asset graph entirely, but most components' own Pydantic model still
+    requires `asset_name`, and exactly one of `upstream_asset_key`/`source`, just to construct -- their
+    VALUE never matters here (no real asset gets registered). Rather than make every pipeline author
+    discover and hand-write a placeholder for these (the repo-wide field names for this are consistent
+    enough to rely on), fill in a harmless one for whichever of these three the target component
+    actually declares as a field AND `attributes` left unset. Never overrides a value the author did
+    set. Any OTHER required field the target has (uncommon for invoke_component's usual deterministic-
+    transform targets) still surfaces via the instantiate/build_defs error messages below, unchanged."""
+    fields = getattr(cls, "model_fields", None) or {}
+    filled = dict(attributes)
+    if "asset_name" in fields and "asset_name" not in filled:
+        filled["asset_name"] = f"invoke_component_{step_id}"
+    has_upstream_key_field = "upstream_asset_key" in fields
+    has_source_field = "source" in fields
+    if has_upstream_key_field and "upstream_asset_key" not in filled and (not has_source_field or "source" not in filled):
+        filled["upstream_asset_key"] = "invoke_component/unused_upstream"
+    return filled
+
+
 def _json_safe_record(obj: Any) -> Any:
     """Recursively coerce a value into something guaranteed JSON-safe (None/str/bool/int/float/list/dict with str
     keys) -- the exact set `_to_jsonable` (the park checkpoint writer) accepts. Duck-typed, no numpy/pandas import
@@ -5852,14 +5896,15 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
                         "dagster_community_components.FilterComponent".
       attributes      — dict passed to the component's constructor (same
                         fields as its own YAML `attributes:` block).
-                        IMPORTANT: most components' own Pydantic model
-                        requires asset-graph-specific fields (e.g.
-                        FilterComponent's `asset_name` + exactly one of
-                        `upstream_asset_key`/`source`) even though this op
-                        bypasses the graph entirely -- their VALUES don't
-                        matter here (no real asset gets registered), only
-                        that they satisfy whatever that component's own
-                        validation requires. Pass placeholders for those.
+                        `asset_name` and (exactly one of) `upstream_asset_key`/
+                        `source` are filled in automatically with a harmless
+                        placeholder when the target component declares them
+                        and `attributes` leaves them unset -- their VALUE
+                        never matters here (no real asset gets registered).
+                        Set them explicitly only if you want to override the
+                        placeholder. A target with some OTHER required,
+                        asset-graph-only field still needs it passed by hand
+                        (the instantiate/build_defs error below names it).
       input_kwarg     — which of the target asset's input names receives
                         the data. Auto-detected when the asset declares
                         exactly one input (the common case for a
@@ -5890,6 +5935,7 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
     _pol_component(component_type)
 
     cls = _resolve_component_class(component_type)
+    attributes = _fill_invoke_component_graph_placeholders(cls, attributes, step.get("id", "?"))
     try:
         comp = cls(**attributes)
     except Exception as e:
@@ -6066,6 +6112,71 @@ def _do_filter(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         "materialized_at": materialized_at,
         "latency_ms": latency_ms,
         "op": "filter",
+    }
+
+
+def _do_group(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Deterministic grouping -- no LLM. Groups the source's list items by one field's value into
+    `{key, records: [...]}` shapes, one per distinct value -- so a downstream step sees a group's
+    full records together (list-of-dicts), instead of the parallel-lists shape
+    `invoke_component`+`SummarizeComponent` groupby+aggregation produces (awkward for a model to
+    read: times/amounts/countries as separate same-length lists the model must zip back together
+    itself). A group's `records` is itself a list of items, so it composes directly with `map`'s
+    own `{item}` handling (map a prompt over each group) or a `synthesize`/`llm_call` reading the
+    group as one unit.
+
+    Config:
+      source / inputs — usual upstream ref; its text is parsed as a JSON list (same _parse_items
+                        as map/reduce/filter)
+      key             — field name to group records by (required). Records missing this field are
+                        dropped (counted in `n_missing_key`), not put in their own null group.
+      sort            — 'none' (default; groups appear in first-seen order) | 'key' (sorted
+                        ascending by key value)
+    """
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    key_field = step.get("key")
+    if not key_field:
+        raise ValueError("group requires `key:` (the field name to group records by)")
+    sort = step.get("sort", "none")
+    if sort not in ("none", "key"):
+        raise ValueError(f"group: sort must be 'none' or 'key', got {sort!r}")
+
+    items_in = _parse_items(src_text) if src_text else []
+    t0 = time.time()
+    groups: Dict[str, Dict[str, Any]] = {}
+    order: List[str] = []
+    n_missing_key = 0
+    for item in items_in:
+        if not isinstance(item, dict) or key_field not in item:
+            n_missing_key += 1
+            continue
+        key_val = item[key_field]
+        key_str = key_val if isinstance(key_val, str) else json.dumps(key_val, default=str)
+        if key_str not in groups:
+            groups[key_str] = {"key": key_val, "records": []}
+            order.append(key_str)
+        groups[key_str]["records"].append(item)
+    group_keys = sorted(order, key=lambda k: groups[k]["key"]) if sort == "key" else order
+    records = [groups[k] for k in group_keys]
+    latency_ms = int((time.time() - t0) * 1000)
+    text = json.dumps(records)
+    items_out = [{"item": r, "text": json.dumps(r)} for r in records]
+    if n_missing_key:
+        context.log.warning(f"[group:{step.get('id', '?')}] {n_missing_key} item(s) missing key {key_field!r}, skipped")
+    context.log.info(f"[group:{step.get('id', '?')}] {len(items_in)} row(s) -> {len(records)} group(s) by {key_field!r}")
+
+    return {
+        "text": text,
+        "items": items_out,
+        "n_items": len(records),
+        "n_input_rows": len(items_in),
+        "n_missing_key": n_missing_key,
+        "key_field": key_field,
+        "materialized_at": materialized_at,
+        "latency_ms": latency_ms,
+        "op": "group",
     }
 
 
@@ -7662,6 +7773,7 @@ _OPS = {
     "self_reflect": _do_self_reflect,
     "sub_pipeline": _do_sub_pipeline,
     "filter": _do_filter,
+    "group": _do_group,
     "agent_call": _do_agent_call,
     "delegate": _do_delegate,
     "invoke_component": _do_invoke_component,
@@ -7750,17 +7862,19 @@ def _default_router_prompt(specialists: List[dict]) -> str:
     return "\n".join(lines)
 
 
-def _deep_apply_ctx_substitutions(obj: Any, partition_key: Optional[str], partition_fields: Optional[Dict[str, str]]) -> Any:
-    """Recursively substitute `{partition_key}` + `{partition.<name>}` in every
+def _deep_apply_ctx_substitutions(
+    obj: Any, partition_key: Optional[str], partition_fields: Optional[Dict[str, str]], run_input: Optional[str] = None
+) -> Any:
+    """Recursively substitute `{partition_key}` + `{partition.<name>}` + `{input}` in every
     string leaf of a step dict / list / scalar. Non-strings pass through
     unchanged. Port substitution (`{port_name}`) is NOT done here — it
     happens per-op after inputs are resolved."""
     if isinstance(obj, str):
-        return _apply_ctx_substitutions(obj, partition_key, partition_fields)
+        return _apply_ctx_substitutions(obj, partition_key, partition_fields, run_input)
     if isinstance(obj, list):
-        return [_deep_apply_ctx_substitutions(x, partition_key, partition_fields) for x in obj]
+        return [_deep_apply_ctx_substitutions(x, partition_key, partition_fields, run_input) for x in obj]
     if isinstance(obj, dict):
-        return {k: _deep_apply_ctx_substitutions(v, partition_key, partition_fields) for k, v in obj.items()}
+        return {k: _deep_apply_ctx_substitutions(v, partition_key, partition_fields, run_input) for k, v in obj.items()}
     return obj
 
 
@@ -7841,11 +7955,11 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
     if _exp and step_id in (_exp.get("overrides") or {}):
         step = _apply_overrides(step, _exp["overrides"][step_id])
 
-    # Apply run-context substitutions ({partition_key}, {partition.<name>}) to
+    # Apply run-context substitutions ({partition_key}, {partition.<name>}, {input}) to
     # every string in the step dict before dispatch. Port substitution
     # (`{port_name}`) still happens per-op since it needs resolved inputs.
     _ctx = _ctx_of(state)
-    step = _deep_apply_ctx_substitutions(step, _ctx.get("partition_key"), _ctx.get("partition_fields"))
+    step = _deep_apply_ctx_substitutions(step, _ctx.get("partition_key"), _ctx.get("partition_fields"), _ctx.get("run_input"))
 
     # Expand `persona: <name>` references — step-level AND every sub-config.
     # Personas live in the reserved `__personas__` state entry, put there by
@@ -8262,9 +8376,9 @@ def _experiment_metadata(state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _sink_path(path: str, state: Dict[str, Any], partition_key: Optional[str], partition_fields: Optional[Dict[str, Any]]) -> str:
-    """Sink path with `{partition_key}` / `{partition.<name>}` and, when receipts are on, `{receipt_id}` (so downstream feedback can
-    carry the id back to receipt_outcome_ingestion). A receipt that could not be recorded renders as 'unrecorded'."""
-    out = _apply_ctx_substitutions(path, partition_key, partition_fields)
+    """Sink path with `{partition_key}` / `{partition.<name>}` / `{input}` and, when receipts are on, `{receipt_id}` (so downstream
+    feedback can carry the id back to receipt_outcome_ingestion). A receipt that could not be recorded renders as 'unrecorded'."""
+    out = _apply_ctx_substitutions(path, partition_key, partition_fields, _ctx_of(state).get("run_input"))
     rec = state.get("__receipts__")
     if rec is not None and isinstance(out, str) and "{receipt_id}" in out:
         out = out.replace("{receipt_id}", rec["receipt_id"] or "unrecorded")
@@ -8869,6 +8983,13 @@ class FilterStep(_StepBase):
     negate: bool = Field(default=False, description="Invert the match: keep rows that do NOT satisfy condition.")
 
 
+class GroupStep(_StepBase):
+    """Deterministic grouping over the upstream step's list of records -- no LLM, no asset/lineage node. Groups by one field's value into {key, records: [...]} shapes, one per distinct value -- unlike a groupby+list-aggregation, each group's records stay as a list of whole items, not parallel same-length lists."""
+    op: Literal["group"]
+    key: str = Field(description="Field name to group records by. Records missing this field are dropped (n_missing_key), not put in their own null group.")
+    sort: Literal["none", "key"] = Field(default="none", description="'none' (default): groups appear in first-seen order. 'key': sorted ascending by key value.")
+
+
 class VerifyStep(_StepBase):
     """Checks an answer against evidence -- a grounding/hallucination check."""
     op: Literal["verify"]
@@ -8967,8 +9088,8 @@ _STEP_MODELS: Dict[str, type] = {
     "mcp_call": McpCallStep, "tool_use_loop": ToolUseLoopStep, "handoff": HandoffStep,
     "map": MapStep, "extract": ExtractStep, "classify": ClassifyStep, "reduce": ReduceStep,
     "self_reflect": SelfReflectStep, "sub_pipeline": SubPipelineStep, "agent_call": AgentCallStep,
-    "delegate": DelegateStep, "invoke_component": InvokeComponentStep, "filter": FilterStep, "verify": VerifyStep,
-    "eval": EvalStep, "best_of_n": BestOfNStep, "cascade": CascadeStep, "plan": PlanStep,
+    "delegate": DelegateStep, "invoke_component": InvokeComponentStep, "filter": FilterStep, "group": GroupStep,
+    "verify": VerifyStep, "eval": EvalStep, "best_of_n": BestOfNStep, "cascade": CascadeStep, "plan": PlanStep,
     "decide": DecideStep, "approve": ApproveStep,
 }
 assert set(_STEP_MODELS) == set(_OPS), f"_STEP_MODELS is missing/has extra ops vs _OPS: {set(_OPS) ^ set(_STEP_MODELS)}"
@@ -9334,6 +9455,22 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "config-driven-partition pattern."
         ),
     )
+    run_input_tag: Optional[str] = Field(
+        default="agentic/input",
+        description=(
+            "Run tag name carrying a per-run input value for this pipeline's prompts -- a `{input}` "
+            "placeholder (usable anywhere {partition_key} is: prompt_template, system_prompt, tool_args, "
+            "source.text/path/url, sink paths, ...) substitutes with `context.run.tags[run_input_tag]` when "
+            "that tag is set on the run, else `{input}` is left unsubstituted. This is the first-class way "
+            "to give an agent a different question each run WITHOUT the dynamic-partition-per-question "
+            "workaround (no partition-key sanitization of commas/brackets, no ~200-char cap, no id suffix "
+            "to avoid collisions on a repeated question) -- launch the run with this tag set (Launchpad "
+            "tags, `dg launch --tags`, or a sensor/job that sets it) instead of creating a partition. "
+            "`{partition_key}` keeps working exactly as it does today; the two are independent and may "
+            "both be used in the same pipeline. Set to null to disable (frees `{input}` to mean nothing "
+            "special, e.g. for a pipeline that gets real per-run data some other way)."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -9370,6 +9507,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         text_sinks: List[Dict[str, Any]] = list(outputs.get("text_sinks", []) or [])
         json_sinks: List[Dict[str, Any]] = list(outputs.get("json_sinks", []) or [])
         partition_key_parser = self.partition_key_parser
+        run_input_tag = self.run_input_tag
 
         # `delegate` steps need AgentCardComponent siblings discovered once,
         # here, at build time -- context.build_defs() only exists on this
@@ -9633,6 +9771,9 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             partition_key = context.partition_key if context.has_partition_key else None
             if partition_key:
                 context.log.info(f"partition-aware materialization: partition_key={partition_key!r}")
+            run_input = (context.run.tags or {}).get(run_input_tag) if run_input_tag else None
+            if run_input:
+                context.log.info(f"run_input set via tag {run_input_tag!r} ({len(run_input)} chars)")
 
             # can_subset: figure out which asset outputs were requested. When
             # the caller selects a strict subset, we run only the steps
@@ -9687,6 +9828,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     partition_key=partition_key,
                     partition_fields=partition_fields,
                     partitions_def=_partitions_def,
+                    run_input=run_input,
                 )
                 context.log.info(
                     f"ingested {len(initial_entry.get('text', ''))} chars via {source_config.get('kind', 'literal')}"
@@ -9701,6 +9843,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "__ctx__": {
                         "partition_key": partition_key,
                         "partition_fields": partition_fields,
+                        "run_input": run_input,
                     },
                     **_base_state,
                     "__t0__": _t0,
@@ -10045,6 +10188,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 _require_one_partition(context, partitions_def is not None)
                 partition_key = context.partition_key if context.has_partition_key else None
                 partition_fields = _parse_partition_key(partition_key, partition_key_parser)
+                run_input = (context.run.tags or {}).get(_self.run_input_tag) if _self.run_input_tag else None
                 _resumed = _maybe_resume(context, partition_key)
                 if _resumed is not None:
                     return _resumed
@@ -10059,6 +10203,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "__ctx__": {
                         "partition_key": partition_key,
                         "partition_fields": partition_fields,
+                        "run_input": run_input,
                     },
                     **_base_state(),
                     "__t0__": time.time(),
@@ -10074,6 +10219,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 _require_one_partition(context, partitions_def is not None)
                 partition_key = context.partition_key if context.has_partition_key else None
                 partition_fields = _parse_partition_key(partition_key, partition_key_parser)
+                run_input = (context.run.tags or {}).get(_self.run_input_tag) if _self.run_input_tag else None
                 _resumed = _maybe_resume(context, partition_key)
                 if _resumed is not None:
                     return _resumed
@@ -10082,7 +10228,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     initial_entry = _ingest(
                         source_config, context,
                         partition_key=partition_key, partition_fields=partition_fields,
-                        partitions_def=partitions_def,
+                        partitions_def=partitions_def, run_input=run_input,
                     )
                 context.log.info(
                     f"[{prefix}_ingest] {len(initial_entry.get('text', ''))} chars "
@@ -10093,6 +10239,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "__ctx__": {
                         "partition_key": partition_key,
                         "partition_fields": partition_fields,
+                        "run_input": run_input,
                     },
                     **_base_state(),
                     "__policy_usage__": _usage,

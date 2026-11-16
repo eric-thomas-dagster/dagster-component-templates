@@ -107,6 +107,27 @@ steps:
 outputs: {assets: [items, topic]}
 """
 
+MAP_WRONG_PLACEHOLDER_YAML = """
+asset_name_prefix: demo
+source: {kind: literal, text: hello}
+steps:
+  - id: filter_step
+    op: map
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    prompt_template: '{item}'
+    output_schema: {type: object, properties: {keep: {type: boolean}}, required: [keep]}
+    output_join: records
+    on_missing_field: default
+  - id: write_replies
+    op: map
+    source: filter_step
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    prompt_template: 'Write a reply to: {text}'
+outputs: {assets: [filter_step, write_replies]}
+"""
+
 ROUTE_ON_LIST_SOURCE_YAML = """
 asset_name_prefix: demo
 source: {kind: literal, text: hello}
@@ -152,10 +173,10 @@ outputs: {assets: [draft, tools]}
 """
 
 
-def test_list_ops_covers_all_26_ops_with_real_summaries(tools):
+def test_list_ops_covers_all_27_ops_with_real_summaries(tools):
     result = tools.call("list_ops")
     ops = result["ops"]
-    assert len(ops) == 26
+    assert len(ops) == 27
     assert {o["op"] for o in ops} >= {"llm_call", "approve", "delegate", "tool_use_loop", "verify"}
     assert all(o["summary"] for o in ops), "every op must have a non-empty one-line summary (from its model's docstring)"
 
@@ -252,6 +273,13 @@ def test_validate_pipeline_catches_route_reading_a_map_jsonl_list_as_one_batch(t
     assert result["valid"] is False
     msg = result["errors"][0]["message"]
     assert "triage" in msg and "route" in msg and "batch-level" in msg
+
+
+def test_validate_pipeline_catches_a_map_step_reading_text_instead_of_item(tools):
+    result = tools.call("validate_pipeline", {"yaml": MAP_WRONG_PLACEHOLDER_YAML})
+    assert result["valid"] is False
+    msg = result["errors"][0]["message"]
+    assert "write_replies" in msg and "{text}" in msg and "{item}" in msg
 
 
 def test_preview_pipeline_reports_assets_edges_and_needs(tools):

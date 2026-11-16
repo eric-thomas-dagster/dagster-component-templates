@@ -84,6 +84,41 @@ def test_get_run_summary(mod, world):
     assert r["duration_s"] is not None and r["started_at"] and r["ended_at"]
 
 
+def test_failed_steps_prefer_the_failure_observation_root_cause_over_the_step_wrapper(mod, tmp_path):
+    """A component that follows the failure-observation contract (docs/failure_observation_contract.md)
+    logs the REAL cause it caught (e.g. a request TimeoutError) before re-raising a differently-worded
+    exception for its own step. list_recent_failures/get_run_summary must report that real cause, not
+    just whatever the STEP_FAILURE event's own error chain happens to contain."""
+    @dg.asset
+    def flaky(context):
+        context.log_event(dg.AssetObservation(
+            asset_key="flaky",
+            metadata={
+                "failure_status": dg.MetadataValue.text("failed"),
+                "error_class": dg.MetadataValue.text("TimeoutError"),
+                "error_message": dg.MetadataValue.text("payments API read timed out after 30s"),
+                "failed_step": dg.MetadataValue.text("flaky"),
+            },
+        ))
+        raise RuntimeError("step wrapper raised a differently-worded exception")
+
+    (tmp_path / "home").mkdir()
+    inst = dg.DagsterInstance.local_temp(str(tmp_path / "home"))
+    r = dg.materialize([flaky], instance=inst, raise_on_error=False)
+    assert not r.success
+    t = mod.DagsterInstanceTools(inst, audit=lambda s: None)
+
+    summary = t.call("get_run_summary", {"run_id": r.run_id})
+    [step] = summary["failed_steps"]
+    assert step["error_class"] == "TimeoutError"
+    assert step["error_message"] == "payments API read timed out after 30s"
+
+    listed = t.call("list_recent_failures", {"hours": 1})
+    run = next(x for x in listed["runs"] if x["run_id"] == r.run_id)
+    assert run["failed_steps"][0]["error_class"] == "TimeoutError"
+    assert run["failed_steps"][0]["error_message"] == "payments API read timed out after 30s"
+
+
 def test_get_run_logs_redacts_and_filters(mod, world):
     t = tools(mod, world)
     r = t.call("get_run_logs", {"run_id": world["bad_run"], "level": "INFO", "max_lines": 500})
@@ -183,6 +218,9 @@ def test_lineage_event_log_fallback_upstream_only(mod, world):
 def test_stale_assets_age_based_without_defs(mod, world, monkeypatch):
     r = tools(mod, world).call("stale_assets", {"limit": 10, "max_age_hours": 24})
     assert r["source"] == "age_based"
+    assert r["data_version_staleness_available"] is False
+    assert "definitions_module" in r["note"] and "data-version" in r["note"]
+    assert list(r.keys())[:2] == ["data_version_staleness_available", "note"]  # first fields a model reads
     # nothing is older than 24h, but `bad` (never succeeded) and `part` (partition b failed after a) have later failed runs
     assert {a["asset_key"] for a in r["assets"]} == {"bad", "part"}  # failed runs after their last good materialization
     assert all(a["reason"] == "latest run failed after last materialization" for a in r["assets"])

@@ -1157,9 +1157,7 @@ steps:
     source: categorized_tickets                     # a prior step whose text is a JSON list
     component_type: dagster_community_components.FilterComponent
     attributes:
-      asset_name: placeholder                       # required by FilterComponent's own schema; unused here
-      upstream_asset_key: placeholder/upstream       # ditto -- no real asset graph gets built
-      condition: 'category == "severe"'
+      condition: 'category == "severe"'             # asset_name/upstream_asset_key filled in automatically below
   - id: triaged
     op: delegate
     source: filter_severe
@@ -1171,7 +1169,7 @@ steps:
 | Field | Required | Default | Description |
 |---|---|---|---|
 | `component_type` | ✅ | — | Dotted path, e.g. `dagster_community_components.FilterComponent`. |
-| `attributes` | ✅ | — | Dict passed to the target component's constructor — same shape as its own YAML `attributes:` block. **Important:** most components' own Pydantic model requires asset-graph-specific fields (an `asset_name`, an `upstream_asset_key` or `source`) even though this op bypasses the graph entirely. Their *values* don't matter here (no real asset gets registered) — only that they satisfy that component's own validation. Pass placeholders for those. |
+| `attributes` | ✅ | — | Dict passed to the target component's constructor — same shape as its own YAML `attributes:` block. `asset_name` and (exactly one of) `upstream_asset_key`/`source` are filled in automatically with a harmless placeholder whenever the target component declares them and `attributes` leaves them unset — their *value* never matters here (no real asset gets registered). Set them explicitly only to override the placeholder. A target with some OTHER required, asset-graph-unrelated field still needs that one passed by hand (the error names it). |
 | `input_kwarg` |  | auto-detected | Which of the target asset's input names receives this step's data. Auto-detected when the target declares exactly one input (the common case for a single-upstream transform); required if it declares more than one. |
 | `asset_name` |  | — | If the target's `build_defs()` returns more than one asset, which one (by Dagster asset name) to invoke. |
 | `resources` |  | — | Forwarded to `build_asset_context(resources=...)`, for a target that needs a real Dagster resource (e.g. a warehouse client) to run. |
@@ -1203,6 +1201,31 @@ steps:
 | `negate` |  | `false` | Invert the match — keep rows that do **not** satisfy `condition`. |
 
 Metadata: `condition`, `negate`, `n_input_rows`, `n_items`, `latency_ms`. Output is always real, plain JSON (built via pandas' own `to_json`, which correctly converts numpy/pandas scalar types) — composes freely with a later `approve: {mode: park}` gate.
+
+### `op: group`
+
+Deterministic grouping — no LLM, no `invoke_component` overhead. Groups the source's list items by one field's value into `{key, records: [...]}` shapes, one per distinct value, so a downstream step sees a group's full records together as a list of whole items — unlike `invoke_component` + `SummarizeComponent`'s groupby + list-aggregation, which produces parallel same-length lists (`times`, `amounts`, `countries`, ...) a model then has to zip back together itself. A group's `records` is itself a list of items, so it composes directly with `map`'s own `{item}` handling (map a prompt over each group) or a `synthesize`/`llm_call` reading the whole group as one unit.
+
+```yaml
+steps:
+  - id: by_account
+    op: group
+    source: transactions          # a prior step whose text is a JSON list
+    key: account_number
+  - id: flag_patterns
+    op: map
+    source: by_account
+    model: gpt-4o-mini
+    api_key_env_var: OPENAI_API_KEY
+    prompt_template: "Does this account show card-testing or duplicate-charge patterns? {item}"
+```
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `key` | ✅ | — | Field name to group records by. Records missing this field are dropped (counted in `n_missing_key`), not put in their own null group. |
+| `sort` |  | `"none"` | `'none'`: groups appear in first-seen order. `'key'`: sorted ascending by key value. |
+
+Metadata: `key_field`, `n_input_rows`, `n_items` (groups), `n_missing_key`, `latency_ms`. Downstream `classify`/`extract` reading a `group` step's output directly (without `map`/`per_item: true`) is caught by `validate_pipeline`'s static checks — same as a `map` step's `output_join: jsonl`/`records` list.
 
 ## Reasoning & governance ops
 
@@ -1436,6 +1459,27 @@ The `outputs:` block has three keys — `assets:` (required), and optional `text
 | `from` | ✅ | Step id whose output to write. |
 | `path` | ✅ | Filesystem path. `{partition_key}` templated. Relative paths resolve against the code-location's working directory. |
 
+## Per-run input, without a partition
+
+A different question every run (one-off "ask the agent X") doesn't need a dynamic partition per question. `{input}` substitutes anywhere `{partition_key}` does (`prompt_template`, `system_prompt`, `tool_args`, `source.text`/`path`/`url`, sink paths) from a run tag — `run_input_tag`, default `agentic/input`:
+
+```yaml
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: ask
+  source: {kind: literal, text: "n/a"}
+  steps:
+    - id: answer
+      op: llm_call
+      prompt_template: "{input}"
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+  outputs:
+    assets: [answer]
+```
+
+Launch with the tag set (Launchpad's tags field, `dg launch --tags 'agentic/input=What shipped this week?'`, or a sensor/job that sets it) and `{input}` substitutes to that value. Unlike the partition-key workaround this replaces, there's no sanitization (commas/brackets), no ~200-char cap (the key names a partition's output file), and no id suffix needed to avoid two runs of the same question colliding — a run tag isn't a filename. `{partition_key}` keeps working unchanged and the two compose freely (a partitioned pipeline can still read `{input}` per run). Set `run_input_tag: null` to free `{input}` from any special meaning.
+
 ## Partitioning
 
 `AgenticPipelineComponent` is fully partition-aware. `{partition_key}` templates in source text / URL / path get substituted at compute time; sinks get the same treatment.
@@ -1574,5 +1618,6 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. Must be unset or 1: a run with several partitions has no single partition_key. |
 | `park_warn_after_hours` | `float` | `0.0` | The `pending_approvals` WARN asset check (generated when an approve step has `mode: park`) fails once a parked run has waited this many hours. 0 (default) = any parked run warns. |
 | `park_sensor_interval_seconds` | `int` | `30` | How often the generated `<asset>_approval_resume_sensor` looks for approvals of parked pipelines (only generated when an approve step has `mode: park`). |
+| `run_input_tag` | `str` | `"agentic/input"` | Run tag name carrying a per-run input value for this pipeline's prompts -- a `{input}` placeholder (usable anywhere {partition_key} is: prompt_template, system_prompt, tool_args, source.text/path/url, sink paths, ...) su… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

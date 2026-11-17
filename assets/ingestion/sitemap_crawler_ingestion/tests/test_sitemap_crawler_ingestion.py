@@ -13,6 +13,7 @@ import pathlib
 import dagster as dg
 import pydantic
 import pytest
+import requests
 
 from .conftest import FakeResponse, install_fake_dlt, install_fake_requests, load_component_module, requires_duckdb
 
@@ -401,6 +402,149 @@ def test_plain_crawl_respects_max_depth(mod, monkeypatch):
     assert result.success
     rows = list(fake_pipeline.run_calls[-1][0])
     assert {r["url"] for r in rows} == {"https://example.com/", "https://example.com/depth1"}
+
+
+# --- 403 handling: friendly message + stop-after-first-start-url-fails ------------------
+
+def _raised(resp: FakeResponse) -> requests.HTTPError:
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError as e:
+        return e
+    raise AssertionError("expected raise_for_status to raise")
+
+
+def test_raise_friendly_http_error_on_403_names_the_cause_and_remedy(mod):
+    with pytest.raises(
+        requests.HTTPError,
+        match=r"HTTP 403 fetching https://example\.com/x: the site blocks automated clients\. "
+        r"Check robots\.txt and ask the site owner for access\.",
+    ):
+        mod._raise_friendly_http_error(_raised(FakeResponse(status_code=403)), "https://example.com/x")
+
+
+def test_raise_friendly_http_error_on_other_status_is_unchanged(mod):
+    with pytest.raises(requests.HTTPError, match=r"^500 error$"):
+        mod._raise_friendly_http_error(_raised(FakeResponse(status_code=500)), "https://example.com/x")
+
+
+def test_parse_sitemap_403_on_the_sitemap_itself_gives_a_friendly_message(mod, monkeypatch):
+    def fake_get(url, headers=None, timeout=None):
+        return FakeResponse(status_code=403)
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    with pytest.raises(requests.HTTPError, match=r"HTTP 403 fetching https://example\.com/sitemap\.xml"):
+        mod._parse_sitemap("https://example.com/sitemap.xml", {}, context=None)
+
+
+def test_parse_sitemap_403_on_a_sitemapindex_child_gives_a_friendly_message(mod, monkeypatch):
+    def fake_get(url, headers=None, timeout=None):
+        if url == "https://example.com/sitemap-index.xml":
+            return FakeResponse(content=INDEX_SITEMAP.encode("utf-8"))
+        if url == "https://example.com/sitemap-1.xml":
+            return FakeResponse(status_code=403)
+        raise AssertionError(f"unexpected url: {url}")
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+
+    class _Ctx:
+        class log:
+            info = staticmethod(lambda *a, **k: None)
+            warning = staticmethod(lambda *a, **k: None)
+
+    with pytest.raises(requests.HTTPError, match=r"HTTP 403 fetching https://example\.com/sitemap-1\.xml"):
+        mod._parse_sitemap("https://example.com/sitemap-index.xml", {}, context=_Ctx())
+
+
+def test_plain_crawl_stops_without_trying_the_second_seed_when_the_first_403s(mod, monkeypatch):
+    def fake_get(url, headers=None, timeout=None):
+        if url.endswith("/robots.txt"):
+            return _robots_allow_all(url)
+        if url == "https://example.com/a":
+            return FakeResponse(status_code=403)
+        raise AssertionError(f"unexpected URL fetched: {url} (crawl should stop after the first seed's 403)")
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = mod.SitemapCrawlerIngestionComponent(
+        asset_name="test_asset", sitemap_url=None,
+        start_urls="https://example.com/a,https://example.com/b",
+        max_pages=10, max_depth=3, include_preview_metadata=False, request_delay_seconds=0,
+    )
+    result = _materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("test_asset")[0].metadata
+    assert md["crawl_stopped_early"].value is True
+    assert list(fake_pipeline.run_calls[-1][0]) == []
+
+
+def test_plain_crawl_keeps_pages_already_fetched_before_a_later_seed_fails(mod, monkeypatch):
+    def fake_get(url, headers=None, timeout=None):
+        if url.endswith("/robots.txt"):
+            return _robots_allow_all(url)
+        if url == "https://example.com/a":
+            return FakeResponse(text=_page_html("A"))
+        if url == "https://example.com/b":
+            return FakeResponse(status_code=403)
+        raise AssertionError(f"unexpected URL: {url}")
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = mod.SitemapCrawlerIngestionComponent(
+        asset_name="test_asset", sitemap_url=None,
+        start_urls="https://example.com/a,https://example.com/b",
+        max_pages=10, max_depth=3, include_preview_metadata=False, request_delay_seconds=0,
+    )
+    result = _materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("test_asset")[0].metadata
+    assert md["crawl_stopped_early"].value is True
+    rows = list(fake_pipeline.run_calls[-1][0])
+    assert {r["url"] for r in rows} == {"https://example.com/a"}
+
+
+def test_plain_crawl_does_not_stop_when_a_discovered_link_fails_only_a_seed_stops_it(mod, monkeypatch):
+    def fake_get(url, headers=None, timeout=None):
+        if url.endswith("/robots.txt"):
+            return _robots_allow_all(url)
+        if url == "https://example.com/":
+            return FakeResponse(text=_page_html("Home", links=["/broken", "/ok"]))
+        if url == "https://example.com/broken":
+            return FakeResponse(status_code=403)
+        if url == "https://example.com/ok":
+            return FakeResponse(text=_page_html("OK"))
+        raise AssertionError(f"unexpected URL: {url}")
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = mod.SitemapCrawlerIngestionComponent(
+        asset_name="test_asset", sitemap_url=None, start_urls="https://example.com/",
+        max_pages=10, max_depth=3, include_preview_metadata=False, request_delay_seconds=0,
+    )
+    result = _materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("test_asset")[0].metadata
+    assert md["crawl_stopped_early"].value is False
+    rows = list(fake_pipeline.run_calls[-1][0])
+    assert {r["url"] for r in rows} == {"https://example.com/", "https://example.com/ok"}
+
+
+def test_plain_crawl_crawl_stopped_early_is_false_on_a_clean_run(mod, monkeypatch):
+    def fake_get(url, headers=None, timeout=None):
+        if url.endswith("/robots.txt"):
+            return _robots_allow_all(url)
+        return FakeResponse(text=_page_html("Home"))
+
+    install_fake_requests(monkeypatch, mod, get=fake_get)
+    install_fake_dlt(monkeypatch, mod)
+    component = mod.SitemapCrawlerIngestionComponent(
+        asset_name="test_asset", sitemap_url=None, start_urls="https://example.com/",
+        max_pages=10, max_depth=3, include_preview_metadata=False, request_delay_seconds=0,
+    )
+    result = _materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("test_asset")[0].metadata
+    assert md["crawl_stopped_early"].value is False
 
 
 # --- include/exclude pattern filtering (substring match, both modes) --------------------

@@ -65,7 +65,10 @@ class FakeResponse:
         if self.status_code >= 400:
             import requests
 
-            raise requests.HTTPError(f"{self.status_code} error")
+            # response=self matches the real requests.Response.raise_for_status(), which
+            # always attaches itself -- component code reads e.response.status_code to
+            # recognize a 403 specifically, same as it would against the real library.
+            raise requests.HTTPError(f"{self.status_code} error", response=self)
 
 
 def install_fake_requests(monkeypatch, mod, get=None):

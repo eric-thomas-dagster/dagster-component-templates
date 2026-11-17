@@ -11,6 +11,8 @@ Two discovery modes (exactly one required):
 
 `respect_robots_txt` (default `true`) checks each domain's `robots.txt` via the standard library's `urllib.robotparser.RobotFileParser` before fetching any page; a missing or unreachable `robots.txt` is treated as allow-all with a logged warning. `request_delay_seconds` sleeps between fetches for politeness, and `user_agent` defaults to a string identifying this project rather than impersonating a browser.
 
+A `403` response (the common case: the site blocks automated clients by user-agent/IP) is reported as `"HTTP 403 fetching <url>: the site blocks automated clients. Check robots.txt and ask the site owner for access."` instead of requests' terse `"403 Client Error: ..."` text -- for both `sitemap_url` (where it fails the run, since there's only one sitemap to fetch) and `start_urls`. In `start_urls` mode, if one of the **seed URLs themselves** fails (403 or otherwise), the crawl stops there rather than trying the remaining seeds or already-queued pages -- a seed failing almost always means the whole domain is unreachable or blocking this client, so continuing would just burn more requests on the same failure. A page *discovered* while crawling (not a seed) failing does not stop the crawl; it's counted and skipped like any other failed fetch. Run metadata reports `crawl_stopped_early` (`start_urls` mode only) so you can tell the two cases apart.
+
 Every fetched page's content is extracted the same way `document_corpus`'s own `.html` branch does: `<script>`/`<style>` tags are stripped, then BeautifulSoup's `.get_text()` extracts the body text and `<title>` the page title.
 
 `strip_boilerplate` (default `true`) additionally drops page chrome before it reaches

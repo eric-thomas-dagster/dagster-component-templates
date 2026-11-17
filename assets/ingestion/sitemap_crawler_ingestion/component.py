@@ -353,6 +353,20 @@ _DEFAULT_MAX_DEPTH = 3
 _DEFAULT_USER_AGENT = "dagster-community-components-sitemap-crawler/1.0"
 
 
+def _raise_friendly_http_error(e: "requests.HTTPError", url: str) -> None:
+    """Re-raises `e`. A 403 almost always means the site is blocking automated clients
+    (user-agent/IP based), not a transient problem -- say that plainly, with the two real
+    remedies, instead of surfacing requests' terse "403 Client Error: ..." text. Any other
+    status re-raises completely unchanged."""
+    status = getattr(getattr(e, "response", None), "status_code", None)
+    if status == 403:
+        raise requests.HTTPError(
+            f"HTTP 403 fetching {url}: the site blocks automated clients. "
+            "Check robots.txt and ask the site owner for access."
+        ) from e
+    raise e
+
+
 # --- Sitemap XML parsing (stdlib xml.etree.ElementTree) ---------------------------------
 
 def _entries_from_urlset(root) -> List[Tuple[str, Optional[str]]]:
@@ -380,7 +394,10 @@ def _parse_sitemap(sitemap_url: str, headers: Dict[str, str], context) -> List[T
     import xml.etree.ElementTree as ET
 
     resp = requests.get(sitemap_url, headers=headers, timeout=30)
-    resp.raise_for_status()
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError as e:
+        _raise_friendly_http_error(e, sitemap_url)
     root = ET.fromstring(resp.content)
     local_tag = root.tag.rsplit("}", 1)[-1].lower()
 
@@ -400,7 +417,10 @@ def _parse_sitemap(sitemap_url: str, headers: Dict[str, str], context) -> List[T
         entries: List[Tuple[str, Optional[str]]] = []
         for child_url in child_urls:
             child_resp = requests.get(child_url, headers=headers, timeout=30)
-            child_resp.raise_for_status()
+            try:
+                child_resp.raise_for_status()
+            except requests.HTTPError as e:
+                _raise_friendly_http_error(e, child_url)
             child_root = ET.fromstring(child_resp.content)
             child_tag = child_root.tag.rsplit("}", 1)[-1].lower()
             if child_tag == "urlset":
@@ -1153,14 +1173,22 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                     context.log.warning(f"skip_unchanged: could not read state_path={state_path!r}, starting fresh: {e}")
                     fingerprints = {}
 
-            def _fetch_one(url: str, lastmod: Optional[str]) -> Optional[str]:
+            crawl_stopped = False
+
+            def _fetch_one(url: str, lastmod: Optional[str], is_seed: bool = False) -> Optional[str]:
                 """Fetches `url`, appends its row to `rows`, sleeps request_delay_seconds,
                 and returns the raw HTML (for link discovery in plain-crawl mode) or None
                 if the fetch was skipped/failed. With skip_unchanged, sends If-None-Match/
                 If-Modified-Since from the prior run's fingerprint and reuses the cached row
                 on a 304 (or an unchanged content_hash after a real fetch) instead of
-                reparsing -- the output still covers every page every run."""
-                nonlocal pages_fetched, pages_skipped, pages_failed
+                reparsing -- the output still covers every page every run.
+
+                `is_seed=True` (a start_urls seed, not a page discovered by crawling) sets
+                `crawl_stopped` on failure instead of just counting it: a seed URL failing
+                (403 especially) means the whole domain is unreachable or blocking this
+                client, so trying the remaining seeds/queued pages would just waste more
+                requests on the same failure."""
+                nonlocal pages_fetched, pages_skipped, pages_failed, crawl_stopped
                 if not _matches_patterns(url, include_list, exclude_list):
                     context.log.info(f"Skipping {url} (does not match include/exclude patterns)")
                     return None
@@ -1185,7 +1213,22 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                     resp.raise_for_status()
                 except Exception as e:
                     pages_failed += 1
-                    context.log.warning(f"Failed to fetch {url}: {e}")
+                    status = getattr(getattr(e, "response", None), "status_code", None)
+                    if status == 403:
+                        msg = (
+                            f"HTTP 403 fetching {url}: the site blocks automated clients. "
+                            "Check robots.txt and ask the site owner for access."
+                        )
+                    else:
+                        msg = str(e)
+                    if is_seed:
+                        crawl_stopped = True
+                        context.log.error(
+                            f"Start URL {url} failed, stopping the crawl rather than trying "
+                            f"further seed/queued URLs: {msg}"
+                        )
+                    else:
+                        context.log.warning(f"Failed to fetch {url}: {msg}")
                     return None
                 title, content = _extract_page_content(resp.text, strip_boilerplate=strip_boilerplate)
                 row = _row_from_page(url, title, content, lastmod=lastmod)
@@ -1231,7 +1274,9 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                     if page_url in visited:
                         continue
                     visited.add(page_url)
-                    html_text = _fetch_one(page_url, None)
+                    html_text = _fetch_one(page_url, None, is_seed=(depth == 0))
+                    if crawl_stopped:
+                        break
                     if html_text is None:
                         continue
                     if depth < max_depth:
@@ -1332,6 +1377,8 @@ class SitemapCrawlerIngestionComponent(Component, Model, Resolvable):
                 base_metadata["pages_fetched"] = MetadataValue.int(pages_fetched)
                 base_metadata["pages_skipped"] = MetadataValue.int(pages_skipped)
                 base_metadata["pages_failed"] = MetadataValue.int(pages_failed)
+            if start_urls:
+                base_metadata["crawl_stopped_early"] = MetadataValue.bool(crawl_stopped)
 
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations

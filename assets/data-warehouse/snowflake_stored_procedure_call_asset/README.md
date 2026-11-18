@@ -53,6 +53,7 @@ Materializes by calling `CALL <db>.<schema>.<proc>(args)` on a named existing Sn
 | `pat_env_var` | `str` | — | Env var with Snowflake PAT. |
 | `private_key_path_env_var` | `str` | — | Env var with RSA private key path. |
 | `private_key_passphrase_env_var` | `str` | — | Env var with private-key passphrase. |
+| `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 
@@ -91,6 +92,18 @@ Same as `snowflake_task_execute_asset` — password / PAT / keypair via `*_env_v
 Alternatively, set `resource_key` to the key of a registered `SnowflakeResourceComponent`
 (`resources/snowflake_resource`) and skip the inline `*_env_var` fields entirely — useful
 when another component already registers the same Snowflake credentials.
+
+## `pool` — Dagster's native concurrency pool (Airflow's `pool`)
+
+Set `pool: <name>` to share a fixed number of concurrent slots (e.g. warehouse concurrency
+limits) across every asset/op using the same pool name — the direct analog of Airflow's `pool`.
+The slot count itself is configured at the deployment level (`dagster.yaml`'s
+`concurrency: pools:`, or the Dagster+ UI), not on this component.
+
+For an Airflow trigger-rule equivalent (`automation_condition`) instead of a slot limit, see
+[`automation_condition_applicator`](https://dagster-component-ui.vercel.app/c/automation_condition_applicator)
+— it attaches a named preset to any asset by selection, so there's no separate
+`automation_condition` field needed here.
 
 ## Requirements
 

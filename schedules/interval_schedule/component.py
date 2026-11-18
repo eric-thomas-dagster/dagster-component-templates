@@ -350,6 +350,15 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
             "cadence='scheduled'."
         ),
     )
+    add_interval_tags: bool = Field(
+        default=False,
+        description=(
+            "If true, also tags each run with 'data_interval_start' / "
+            "'data_interval_end' (ISO8601) -- the window of data this run "
+            "covers. Only meaningful for a partitioned schedule; requires "
+            "partition_type/partition_dimensions to be set."
+        ),
+    )
 
     partition_type: Optional[str] = Field(
         default=None,
@@ -422,8 +431,12 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError("cadence='once' has no recurring ticks to stop -- unset end_date.")
             if self.add_logical_date_tag:
                 raise ValueError("cadence='once' has no scheduled trigger time or partition window to tag -- unset add_logical_date_tag.")
+            if self.add_interval_tags:
+                raise ValueError("cadence='once' has no interval to tag -- unset add_interval_tags.")
         elif not self.every:
             raise ValueError("every is required when cadence='scheduled' (the default).")
+        if self.add_interval_tags and not (self.partition_type or self.partition_dimensions):
+            raise ValueError("add_interval_tags requires partition_type/partition_dimensions -- the un-partitioned path has no interval, only a single trigger instant.")
         return self
 
     @classmethod
@@ -478,7 +491,7 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
             return Definitions(sensors=[sensor], jobs=[job])
 
         _end_dt = _parse_iso_datetime(self.end_date) if self.end_date else None
-        _advanced = bool(_end_dt or self.add_logical_date_tag)
+        _advanced = bool(_end_dt or self.add_logical_date_tag or self.add_interval_tags)
 
         unit, cron = _parse_every_to_cadence(self.every)
         _is_partitioned = bool(self.partition_type or self.partition_dimensions)
@@ -530,9 +543,9 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 # neither hook, so this path resolves the partition window
                 # itself instead. Same mechanism as cron_schedule's advanced
                 # partitioned path, verified live there.
-                _pd, _end, _tag, _tags = partitions_def, _end_dt, self.add_logical_date_tag, self.tags
+                _pd, _end, _tag, _interval_tag, _tags = partitions_def, _end_dt, self.add_logical_date_tag, self.add_interval_tags, self.tags
 
-                def _execution_fn(sched_context, _pd=_pd, _end=_end, _tag=_tag, _tags=_tags):
+                def _execution_fn(sched_context, _pd=_pd, _end=_end, _tag=_tag, _interval_tag=_interval_tag, _tags=_tags):
                     if _end and sched_context.scheduled_execution_time >= _end:
                         return dg.SkipReason(f"past end_date {_end.isoformat()}")
                     window = _pd.get_last_partition_window()
@@ -544,6 +557,9 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                     merged_tags = dict(_tags or {})
                     if _tag:
                         merged_tags["logical_date"] = window.start.isoformat()
+                    if _interval_tag:
+                        merged_tags["data_interval_start"] = window.start.isoformat()
+                        merged_tags["data_interval_end"] = window.end.isoformat()
                     return dg.RunRequest(partition_key=keys[-1], tags=merged_tags)
 
                 sched = ScheduleDefinition(

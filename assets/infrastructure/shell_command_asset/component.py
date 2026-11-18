@@ -220,6 +220,15 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Kill the command and fail the run if it runs longer than this many seconds. Unset: no timeout.",
     )
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name). The "
+            "pool's own slot count is configured at the deployment level (dagster.yaml's "
+            "concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
     group_name: str = Field(default="shell", description="Asset group.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys for lineage (in addition to command_asset_key, which is added automatically).")
@@ -317,6 +326,7 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=self.owners or [],
             tags=self.asset_tags or None,
             kinds=set(self.kinds) if self.kinds else None,
+            pool=self.pool,
         )
         def _shell_asset(context: dg.AssetExecutionContext, **upstream_kwargs) -> dg.MaterializeResult:
             import os

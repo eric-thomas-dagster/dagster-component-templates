@@ -139,6 +139,12 @@
       "label": "Add Logical Date Tag",
       "description": "If true, tags each run with 'logical_date' -- Airflow's run-identifying timestamp. Partitioned: the partition window's start. Un-partitioned: the scheduled trigger time. Only valid with cadence='scheduled'.",
       "required": false
+    },
+    "add_interval_tags": {
+      "type": "boolean",
+      "label": "Add Interval Tags",
+      "description": "If true, also tags each run with 'data_interval_start' / 'data_interval_end' (ISO8601) -- the window of data this run covers. Only meaningful for a partitioned schedule; requires partition_type/partition_dimensions to be set.",
+      "required": false
     }
   },
   "tags": [

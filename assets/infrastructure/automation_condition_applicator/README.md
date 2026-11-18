@@ -237,9 +237,9 @@ Timeline:
 
 Works for any framework that stamps `code_version` on assets (dbt, custom `@asset(code_version=...)` decorators, notebook checksums, etc.), but dbt is the case customers ask about the most.
 
-#### Airflow-trigger-rule presets — `all_upstream_done`, `any_upstream_failed`, `none_failed_min_one_success`, `any_of_updated`
+#### Airflow-trigger-rule presets — `all_upstream_done`, `any_upstream_failed`, `none_failed_min_one_success`, `any_of_updated`, `all_of_updated_since_last_run`
 
-Four more synthetic presets, for migrating Airflow DAGs that use a trigger rule other than the default `all_success` (Dagster's own deps-based scheduling already covers `all_success`):
+Five synthetic presets, for migrating Airflow DAGs that use a trigger rule other than the default `all_success` (Dagster's own deps-based scheduling already covers `all_success`):
 
 | Preset | Airflow trigger rule | Fires when |
 |---|---|---|
@@ -247,6 +247,7 @@ Four more synthetic presets, for migrating Airflow DAGs that use a trigger rule 
 | `any_upstream_failed` | `one_failed` | Any dependency's latest execution failed. |
 | `none_failed_min_one_success` | `none_failed_min_one_success` | A dependency updates, provided none is currently in a failed state. |
 | `any_of_updated` | — | Any dependency updates (an alias for Dagster's own `any_deps_updated()`). |
+| `all_of_updated_since_last_run` | implicit all-deps join | **Every** listed dependency has updated since this asset last ran — not necessarily in the same tick. |
 
 ```yaml
 - selection: "tag:cleanup_task"
@@ -254,6 +255,22 @@ Four more synthetic presets, for migrating Airflow DAGs that use a trigger rule 
 ```
 
 Each fires **once per event**, not on every subsequent tick. `AutomationCondition.execution_failed()` is sticky — it stays true until that dependency succeeds again — so `all_upstream_done` and `any_upstream_failed` wrap it in `.newly_true()` (fires only on the tick the underlying state actually changes). `none_failed_min_one_success` and `any_of_updated` lean on `any_deps_updated()`, which Dagster already defines as edge-triggered ("true since the previous tick"), so no extra wrapping is needed there.
+
+**`all_of_updated_since_last_run` needs a specific, non-obvious construction** — verified live before shipping. A single `.since_last_handled()` wrapped around the whole AND of per-upstream `newly_updated()` checks gives the WRONG result (confirmed: it never fires once the upstreams update on different ticks, which is the normal case):
+
+```python
+# WRONG — never fires once A and B update at different times
+(A.newly_updated() & B.newly_updated()).since_last_handled()
+
+# Also WRONG — all_deps_match's inner condition isn't tracked per-dependency
+dg.AutomationCondition.all_deps_match(dg.AutomationCondition.newly_updated()).since_last_handled()
+
+# RIGHT — since_last_handled() applied to each per-asset term individually, so a term
+# that became true on an earlier tick stays true (sticky) until this asset actually runs
+A.newly_updated().since_last_handled() & B.newly_updated().since_last_handled()
+```
+
+This preset (and `strategy: all_deps_updated` under Shape 3 below) build the RIGHT form, requiring the asset's own dependency keys explicitly — which is also why both raise a clear error if the asset has no dependencies at all.
 
 ### Shape 3 — Derive from upstreams
 
@@ -328,7 +345,8 @@ Generates: `in_latest_time_window & any_deps_updated().since_last_handled() & ~a
 
 No cron — wait until **all** upstreams have updated since last fire. Strict join semantics; useful for stitched analytics where partial results are wrong.
 
-Generates: `in_latest_time_window & all_deps_match(newly_updated).since_last_handled() & ~any_deps_in_progress()`.
+Generates, per upstream dependency key: `in_latest_time_window & (dep1.newly_updated().since_last_handled() & dep2.newly_updated().since_last_handled() & ...) & ~any_deps_in_progress()`.
+Not `all_deps_match(newly_updated()).since_last_handled()` — verified live that form never fires once dependencies update on different ticks (same issue documented under the `all_of_updated_since_last_run` preset above). Raises a clear error if the asset has no dependencies.
 
 ### Shape 4 — Python escape hatch
 

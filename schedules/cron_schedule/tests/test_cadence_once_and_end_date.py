@@ -189,3 +189,37 @@ def test_partitioned_add_logical_date_tag_resolves_window_start(asset_def):
             [orders2], instance=instance, partition_key=rr.partition_key, tags=rr.tags,
         )
         assert result.success
+
+
+def test_add_interval_tags_requires_partitioning():
+    with pytest.raises(ValueError, match="add_interval_tags requires partition_type"):
+        _comp(cron_expression="0 9 * * *", add_interval_tags=True)
+
+
+def test_cadence_once_rejects_add_interval_tags():
+    with pytest.raises(ValueError, match="add_interval_tags"):
+        _comp(cadence="once", add_interval_tags=True)
+
+
+def test_partitioned_add_interval_tags_resolves_window_bounds(asset_def):
+    @dg.asset(name="orders3", partitions_def=dg.DailyPartitionsDefinition(start_date="2020-01-01"))
+    def orders3(context):
+        return context.partition_key
+
+    comp = _comp(
+        asset_keys=["orders3"], partition_type="daily", partition_start="2020-01-01",
+        add_interval_tags=True, cron_expression="0 0 * * *",
+    )
+    defs = comp.build_defs(None)
+    sched = list(defs.schedules)[0]
+    job = list(defs.jobs)[0]
+    full_defs = dg.Definitions(assets=[orders3], jobs=[job], schedules=[sched])
+
+    with dg.instance_for_test() as instance:
+        repo_def = full_defs.get_repository_def()
+        ctx = dg.build_schedule_context(instance=instance, repository_def=repo_def)
+        data = sched.evaluate_tick(ctx)
+        rr = data.run_requests[0]
+        assert "data_interval_start" in rr.tags
+        assert "data_interval_end" in rr.tags
+        assert rr.tags["data_interval_start"] < rr.tags["data_interval_end"]

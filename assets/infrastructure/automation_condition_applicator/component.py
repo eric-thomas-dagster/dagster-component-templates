@@ -211,6 +211,44 @@ def _build_condition_for_rule(
             # Name alias for Dagster's own any_deps_updated() -- already edge-triggered,
             # the extra guard just matches the other trigger-rule presets' shape.
             condition = dg.AutomationCondition.any_deps_updated() & ~dg.AutomationCondition.in_progress()
+        elif preset == "all_of_updated_since_last_run":
+            # "Run when every listed upstream asset has updated since this asset last
+            # ran" -- Airflow's implicit all-deps-updated join. VERIFIED LIVE that a
+            # single since_last_handled() wrapped around the whole AND gives WRONG
+            # results (never fires once upstreams update at different ticks, since the
+            # AND-as-a-whole almost never becomes newly true in one single tick):
+            #   (A.newly_updated() & B.newly_updated()).since_last_handled()  # WRONG
+            # The correct construction applies since_last_handled() to EACH per-asset
+            # term individually, then ANDs the already-sticky terms together, so a term
+            # that became true on an earlier tick stays true until this asset actually
+            # runs:
+            #   A.newly_updated().since_last_handled() & B.newly_updated().since_last_handled()  # RIGHT
+            # dg.AutomationCondition.all_deps_match(newly_updated().since_last_handled())
+            # does NOT give the same result either (verified live: never fires) --
+            # all_deps_match's inner condition isn't tracked independently per
+            # dependency the way an explicit per-key asset_matches() term is. Needs the
+            # asset's own dependency keys, not a deps-generic combinator.
+            dep_keys: List[dg.AssetKey] = []
+            for dep in (spec.deps or []):
+                if isinstance(dep, dg.AssetKey):
+                    dep_keys.append(dep)
+                else:
+                    ak = getattr(dep, "asset_key", None)
+                    if isinstance(ak, dg.AssetKey):
+                        dep_keys.append(ak)
+            if not dep_keys:
+                raise ValueError(
+                    "preset='all_of_updated_since_last_run' requires at least one "
+                    "upstream dependency on this asset."
+                )
+            per_dep_terms = [
+                dg.AutomationCondition.asset_matches(k, dg.AutomationCondition.newly_updated()).since_last_handled()
+                for k in dep_keys
+            ]
+            all_updated = per_dep_terms[0]
+            for term in per_dep_terms[1:]:
+                all_updated = all_updated & term
+            condition = all_updated & ~dg.AutomationCondition.in_progress()
         else:
             method = getattr(dg.AutomationCondition, preset, None)
             if method is None or not callable(method):
@@ -545,11 +583,33 @@ def _derive_condition_from_upstreams(
         return cond.with_label("any_dep_updated")  # type: ignore[attr-defined]
 
     if strategy == "all_deps_updated":
+        # VERIFIED LIVE: all_deps_match(newly_updated()).since_last_handled() never
+        # fires once upstreams update on different ticks -- since_last_handled()
+        # wrapped around the combinator doesn't track each dependency independently.
+        # Same fix as preset='all_of_updated_since_last_run' above: build the
+        # per-dependency since_last_handled() term explicitly for each upstream key
+        # and AND those together, which stays correct regardless of when each
+        # upstream updates.
+        dep_keys: List[dg.AssetKey] = []
+        for dep in (spec.deps or []):
+            if isinstance(dep, dg.AssetKey):
+                dep_keys.append(dep)
+            else:
+                ak = getattr(dep, "asset_key", None)
+                if isinstance(ak, dg.AssetKey):
+                    dep_keys.append(ak)
+        if not dep_keys:
+            raise ValueError("strategy='all_deps_updated' requires at least one upstream dependency.")
+        per_dep_terms = [
+            dg.AutomationCondition.asset_matches(k, dg.AutomationCondition.newly_updated()).since_last_handled()
+            for k in dep_keys
+        ]
+        all_updated = per_dep_terms[0]
+        for term in per_dep_terms[1:]:
+            all_updated = all_updated & term
         cond = (
             dg.AutomationCondition.in_latest_time_window()
-            & dg.AutomationCondition.all_deps_match(
-                dg.AutomationCondition.newly_updated()
-            ).since_last_handled()
+            & all_updated
             & ~dg.AutomationCondition.any_deps_in_progress()
         )
         return cond.with_label("all_deps_updated")  # type: ignore[attr-defined]

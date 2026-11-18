@@ -132,6 +132,7 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 | `cadence` | `str` | `"scheduled"` | 'scheduled' (default): normal fixed-interval schedule, as below. 'once': mirrors Airflow's @once -- fires a single run the first time this component's sensor evaluates while RUNNING, then never fires again. Builds a sens… _(full docs in schema.json + component README)_ |
 | `end_date` | `str` | — | ISO date or datetime (e.g. '2026-06-01'; a value with no timezone is assumed UTC) after which this schedule stops firing -- mirrors Airflow's DAG end_date. Un-partitioned: each tick is skipped once scheduled_execution_ti… _(full docs in schema.json + component README)_ |
 | `add_logical_date_tag` | `bool` | `false` | If true, tags each run with 'logical_date' -- Airflow's run-identifying timestamp. Partitioned: the partition window's start. Un-partitioned: the scheduled trigger time. Only valid with cadence='scheduled'. |
+| `add_interval_tags` | `bool` | `false` | If true, also tags each run with 'data_interval_start' / 'data_interval_end' (ISO8601) -- the window of data this run covers. Only meaningful for a partitioned schedule; requires partition_type/partition_dimensions to be set. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (rejected by this schedule — declared for parity with cron_schedule). |
 
 [//]: # (FIELDS:END)

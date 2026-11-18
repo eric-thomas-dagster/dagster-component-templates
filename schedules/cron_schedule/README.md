@@ -86,6 +86,7 @@ attributes:
 | `cadence` | `str` | `"scheduled"` | 'scheduled' (default): normal cron/partitioned schedule, as below. 'once': mirrors Airflow's @once -- fires a single run the first time this component's sensor evaluates while RUNNING, then never fires again. Builds a se… _(full docs in schema.json + component README)_ |
 | `end_date` | `str` | — | ISO date or datetime (e.g. '2026-06-01'; a value with no timezone is assumed UTC) after which this schedule stops firing -- mirrors Airflow's DAG end_date. Un-partitioned: each tick is skipped once scheduled_execution_ti… _(full docs in schema.json + component README)_ |
 | `add_logical_date_tag` | `bool` | `false` | If true, tags each run with 'logical_date' -- Airflow's run-identifying timestamp. Partitioned: the partition window's start (Airflow's own definition: logical_date = start of the data interval). Un-partitioned: the sche… _(full docs in schema.json + component README)_ |
+| `add_interval_tags` | `bool` | `false` | If true, also tags each run with 'data_interval_start' / 'data_interval_end' (ISO8601) -- the window of data this run covers, for pipelines that process 'the interval that just ended' rather than a single point in time… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). NOTE: the schedule rejects dynamic-only partitions. |
 
 [//]: # (FIELDS:END)

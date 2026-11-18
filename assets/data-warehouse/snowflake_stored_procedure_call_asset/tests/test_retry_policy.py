@@ -51,3 +51,13 @@ def test_retry_policy_default_backoff_is_exponential(mod, sf):
     asset_def = _comp(mod, retry_policy_max_retries=2).build_defs(None).assets[0]
     from dagster import Backoff
     assert asset_def.op.retry_policy.backoff == Backoff.EXPONENTIAL
+
+
+def test_no_pool_by_default(mod, sf):
+    asset_def = _comp(mod).build_defs(None).assets[0]
+    assert asset_def.op.pool is None
+
+
+def test_pool_wires_through(mod, sf):
+    asset_def = _comp(mod, pool="snowflake_warehouse_slots").build_defs(None).assets[0]
+    assert asset_def.op.pool == "snowflake_warehouse_slots"

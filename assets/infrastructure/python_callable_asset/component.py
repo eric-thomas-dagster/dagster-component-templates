@@ -279,8 +279,15 @@ def _validate_jinja_identifiers(value: Any, *, field_name: str) -> None:
 
 def _jinja_env():
     import jinja2
+    from jinja2.sandbox import SandboxedEnvironment
 
-    env = jinja2.Environment(undefined=jinja2.StrictUndefined)
+    # Sandboxed, not jinja2.Environment: the whitelist above only checks the
+    # top-level identifier (`{{ ds }}`), not what a template does with it once
+    # bound -- e.g. `{{ params.__class__.__mro__ }}` or `{{ ds.__init__ }}`
+    # would still pass _validate_jinja_identifiers but reach into Python
+    # internals a plain Environment happily renders. SandboxedEnvironment
+    # blocks attribute/method access to unsafe internals at render time.
+    env = SandboxedEnvironment(undefined=jinja2.StrictUndefined)
     env.filters["ds"] = lambda dt: dt.strftime("%Y-%m-%d")
     env.filters["ds_nodash"] = lambda dt: dt.strftime("%Y%m%d")
     return env
@@ -372,6 +379,18 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "3 = partition interval end (approximates Airflow 3's CronTriggerTimetable aligning "
             "logical_date with run_after; not a full timetable port). `data_interval_start`/"
             "`data_interval_end` are always the true interval regardless of this setting."
+        ),
+    )
+    on_missing_date: Literal["warn", "fail"] = Field(
+        default="warn",
+        description=(
+            "Only matters for context_mode='airflow' on an UN-PARTITIONED asset with no "
+            "logical_date/data_interval_* run tags available (neither cron_schedule's/"
+            "interval_schedule's add_logical_date_tag/add_interval_tags nor a partition window). "
+            "'warn' (default, preserves old behavior): logs a clear warning and falls back to "
+            "datetime.now(utc) -- was previously SILENT, which is the bug this field fixes. "
+            "'fail': raises instead, for pipelines where a wrong date silently flowing into a "
+            "query/filename would be worse than not running at all."
         ),
     )
 
@@ -483,11 +502,55 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 logical_date = None
                 data_interval_start = None
                 data_interval_end = None
-                if context.has_partition_key or context.has_partition_key_range:
+
+                # Priority 1: run tags set by cron_schedule's/interval_schedule's own
+                # add_logical_date_tag / add_interval_tags -- the schedule component
+                # already resolved the real date for this run; trust it over anything
+                # this asset could re-derive itself.
+                run_tags = context.run.tags or {}
+                tagged_logical_date = run_tags.get("logical_date")
+                tagged_start = run_tags.get("data_interval_start")
+                tagged_end = run_tags.get("data_interval_end")
+                if tagged_logical_date or tagged_start or tagged_end:
+                    if tagged_start:
+                        data_interval_start = datetime.fromisoformat(tagged_start)
+                    if tagged_end:
+                        data_interval_end = datetime.fromisoformat(tagged_end)
+                    if tagged_logical_date:
+                        logical_date = datetime.fromisoformat(tagged_logical_date)
+                    elif data_interval_start is not None or data_interval_end is not None:
+                        logical_date = data_interval_start if component.airflow_version == 2 else data_interval_end
+                    if data_interval_start is None:
+                        data_interval_start = logical_date
+                    if data_interval_end is None:
+                        data_interval_end = logical_date
+
+                # Priority 2: a real partition window (existing behavior).
+                elif context.has_partition_key or context.has_partition_key_range:
                     window = context.partition_time_window
                     data_interval_start, data_interval_end = window.start, window.end
                     logical_date = data_interval_start if component.airflow_version == 2 else data_interval_end
+
+                # Priority 3: neither is available -- this used to SILENTLY fall back
+                # to now(), changing behavior with no trace. Loud by default now;
+                # on_missing_date='fail' refuses outright instead.
                 else:
+                    if component.on_missing_date == "fail":
+                        raise dg.Failure(
+                            description=(
+                                "context_mode='airflow' needs a date, but this run has no "
+                                "logical_date/data_interval_* tag and no partition window. "
+                                "Set the schedule's add_logical_date_tag (or add_interval_tags), "
+                                "partition this asset, or set on_missing_date='warn' to fall "
+                                "back to now() instead."
+                            ),
+                        )
+                    context.log.warning(
+                        "context_mode='airflow': no logical_date/data_interval_* run tag and "
+                        "no partition window -- falling back to datetime.now(utc). Set the "
+                        "schedule's add_logical_date_tag/add_interval_tags, partition this "
+                        "asset, or set on_missing_date='fail' to refuse instead of guessing."
+                    )
                     logical_date = datetime.now(timezone.utc)
                     data_interval_start = data_interval_end = logical_date
 

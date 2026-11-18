@@ -15,7 +15,7 @@ Run an arbitrary Python callable as a Dagster asset — the Airflow `PythonOpera
 | `ds_nodash` | `logical_date.strftime("%Y%m%d")` |
 | `ts` | `logical_date.isoformat()` |
 | `logical_date` | see below |
-| `data_interval_start` / `data_interval_end` | the asset's `context.partition_time_window.start`/`.end` (unpartitioned: both equal the run's start time) |
+| `data_interval_start` / `data_interval_end` | see below — run tags, then the partition window, then a loud fallback |
 | `run_id` | `context.run.run_id` |
 | `params` | the component's static `params` field |
 | `dag_run` | object with `.conf` — JSON-decoded from the `dag_run_conf_tag` run tag, or `{}` |
@@ -23,7 +23,18 @@ Run an arbitrary Python callable as a Dagster asset — the Airflow `PythonOpera
 | `Variable` | `Variable.get(key, default_var=None)` reads env var `AIRFLOW_VAR_<KEY upper>` — Airflow's own real, documented env-var-backing convention |
 | `S3Hook` | a small, **explicitly partial** shim over boto3: `get_key`, `check_for_key`, `load_string`, `read_key` only |
 
-**`logical_date`** comes from the asset's own partition, via Dagster's native `context.partition_time_window` — no custom run tag needed. `airflow_version: 2` (default) sets `logical_date` to the interval **start** (Airflow 2's `execution_date` semantics — the common case for already-written DAGs); `airflow_version: 3` sets it to the interval **end** (approximates Airflow 3's `CronTriggerTimetable` aligning `logical_date` with `run_after` — not a full timetable port). `data_interval_start`/`data_interval_end` are always the true interval either way. An unpartitioned asset falls back to the run's start time for all three.
+**Where `logical_date`/`data_interval_start`/`data_interval_end` come from — in this priority order:**
+
+1. **Run tags**, if the triggering schedule set them: `logical_date` / `data_interval_start` / `data_interval_end` (ISO8601) — exactly the tags `cron_schedule`'s/`interval_schedule`'s own `add_logical_date_tag`/`add_interval_tags` produce. Trusted over everything else, since the schedule component already resolved the real date for this run.
+2. **The asset's own partition window**, via Dagster's native `context.partition_time_window`, if no run tags are present. `airflow_version: 2` (default) sets `logical_date` to the interval **start** (Airflow 2's `execution_date` semantics); `airflow_version: 3` sets it to the interval **end** (approximates Airflow 3's `CronTriggerTimetable`, not a full timetable port).
+3. **`on_missing_date`**, if neither is available (an un-partitioned asset with no date-tagging schedule): `"warn"` (default) logs a clear warning and falls back to `datetime.now(utc)` — this used to happen **silently**, which was a real bug; `"fail"` raises instead, for pipelines where a wrong date silently flowing into a query or filename is worse than not running.
+
+```yaml
+# Paired with a schedule's add_logical_date_tag/add_interval_tags — no partition needed
+attributes:
+  context_mode: airflow
+  on_missing_date: fail   # refuse rather than silently use now() if the tag is somehow missing
+```
 
 ## `inputs` — replacing XCom
 
@@ -36,7 +47,7 @@ Each entry's value is loaded via the IO manager. `name` doubles as the Airflow t
 
 ## Jinja templates in `args`/`kwargs`
 
-`context_mode: "airflow"` only. String values in `args`/`kwargs` containing `{{ }}` are rendered with exactly these variables — anything else **raises at component-construction time**, not at run time:
+`context_mode: "airflow"` only. String values in `args`/`kwargs` containing `{{ }}` are rendered with exactly these variables — anything else **raises at component-construction time**, not at run time. Rendered through Jinja's `SandboxedEnvironment`, not a plain `Environment`: the identifier whitelist only checks the top-level name (`{{ ds }}`), not what a template does with it once bound, so the sandbox is what actually stops something like `{{ params.__class__.__mro__ }}` from reaching into Python internals at render time.
 
 - `{{ ds }}`, `{{ ds_nodash }}`
 - `{{ logical_date }}`, and `{{ logical_date | ds }}` / `{{ logical_date | ds_nodash }}` (custom filters)
@@ -118,6 +129,7 @@ Each entry's value is loaded via the IO manager. `name` doubles as the Airflow t
 | `context_mode` | `Literal['none', 'airflow']` | `"none"` | 'airflow' injects the Airflow-compatible context described above; 'none' calls the callable with just `args`/`kwargs`. |
 | `dag_run_conf_tag` | `str` | `"airflow/dag_run_conf"` | Run tag name carrying a JSON-encoded `dag_run.conf` dict -- set `dg launch --tags 'airflow/dag_run_conf={"key": "value"}'` (or your own tag name). Absent tag -> `{}`. Set to None/null to disable. |
 | `airflow_version` | `Literal[2, 3]` | `2` | Controls only `logical_date`: 2 (default) = partition interval start (Airflow 2's execution_date semantics -- the overwhelmingly common case for already-written DAGs). 3 = partition interval end (approximates Airflow 3's… _(full docs in schema.json + component README)_ |
+| `on_missing_date` | `Literal['warn', 'fail']` | `"warn"` | Only matters for context_mode='airflow' on an UN-PARTITIONED asset with no logical_date/data_interval_* run tags available (neither cron_schedule's/interval_schedule's add_logical_date_tag/add_interval_tags nor a partiti… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (partition_type='dynamic'). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. |
 

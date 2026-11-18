@@ -103,6 +103,7 @@ partition_start: "2024-01-01"
 | `cwd` | `str` | — | Working directory for the command. |
 | `env_vars` | `Dict[str, str]` | — | Additional env vars to pass to the shell (merged with the parent process's own environment). |
 | `skip_on_exit_code` | `int` | — | Exit code treated as a no-op success instead of a failure (Airflow's BashOperator default is 99 -- not defaulted here since this component predates this field and existing YAML may rely on every nonzero exit code failing… _(full docs in schema.json + component README)_ |
+| `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (partition_type='dynamic'). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. |
 
@@ -125,6 +126,18 @@ attributes:
   deps:
     - raw/orders
 ```
+
+## `pool` — Dagster's native concurrency pool (Airflow's `pool`)
+
+Set `pool: <name>` to share a fixed number of concurrent slots across every asset/op using the
+same pool name — the direct analog of Airflow's `pool`. The slot count itself is configured at
+the deployment level (`dagster.yaml`'s `concurrency: pools:`, or the Dagster+ UI), not on this
+component.
+
+For an Airflow trigger-rule equivalent (`automation_condition`) instead of a slot limit, see
+[`automation_condition_applicator`](https://dagster-component-ui.vercel.app/c/automation_condition_applicator)
+— it attaches a named preset to any asset by selection, so there's no separate
+`automation_condition` field needed here.
 
 ## Requirements
 

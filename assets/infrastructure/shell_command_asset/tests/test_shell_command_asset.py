@@ -10,6 +10,18 @@ import pytest
 from .conftest import materialize
 
 
+def test_no_pool_by_default(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="echo hello")
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool is None
+
+
+def test_pool_wires_through(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="echo hello", pool="rpa_bots")
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool == "rpa_bots"
+
+
 def test_basic_command_succeeds_with_exit_code_and_stdout_metadata(mod):
     component = mod.ShellCommandAssetComponent(asset_name="t", command="echo hello")
     result = materialize(component)

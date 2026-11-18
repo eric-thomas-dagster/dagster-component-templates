@@ -162,6 +162,15 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
     retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient connection failures, warehouse resume delays, etc.")
     retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
     retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name). The "
+            "pool's own slot count is configured at the deployment level (dagster.yaml's "
+            "concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -239,6 +248,7 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             required_resource_keys=({resource_key} if resource_key else None),
             retry_policy=_retry_policy,
+            pool=self.pool,
         )
         def snowflake_stored_procedure_call_asset(context: AssetExecutionContext) -> MaterializeResult:
             try:

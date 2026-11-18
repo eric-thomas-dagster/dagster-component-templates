@@ -1111,6 +1111,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PySparkFeedOrchestratorComponent": "assets/transforms/pyspark_feed_orchestrator/component.py",
     "PySparkPipelineComponent": "assets/transforms/pyspark_pipeline/component.py",
     "PySparkResourceComponent": "resources/pyspark_resource/component.py",
+    "PythonCallableAssetComponent": "assets/infrastructure/python_callable_asset/component.py",
     "PythonCallableJobComponent": "jobs/python_callable_job/component.py",
     "QdrantResourceComponent": "resources/qdrant_resource/component.py",
     "QlikCloudAppReloadComponent": "integrations/qlik_cloud_app_reload/component.py",

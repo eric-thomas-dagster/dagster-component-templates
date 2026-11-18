@@ -1,0 +1,15 @@
+type: dagster_community_components.PythonCallableAssetComponent
+attributes:
+  asset_key: mydag/transform
+  callable_path: myproject.tasks:transform
+  context_mode: airflow
+  inputs:
+    upstream_a: mydag/extract
+  params:
+    threshold: 10
+  partition_type: daily
+  partition_start: "2024-01-01"
+  kwargs:
+    output_prefix: "{{ ds }}"
+  group_name: infrastructure
+  description: "Converted Airflow PythonOperator task -- runs the original callable unmodified via the Airflow context shim."

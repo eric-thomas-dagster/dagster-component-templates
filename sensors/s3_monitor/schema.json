@@ -120,6 +120,18 @@
       "label": "Emit Materialization",
       "required": false,
       "type": "boolean"
+    },
+    "dynamic_partition_keep_days": {
+      "type": "integer",
+      "label": "Dynamic Partition Keep Days",
+      "description": "When set (partition_mode='dynamic_partition' or 'both'), partitions this sensor registered are deleted once older than this many days -- dynamic partitions otherwise accumulate forever. Tracked via a small local JSON state file (dynamic_partition_state_path), independent of the sensor's own cursor. Unset (default): no pruning.",
+      "required": false
+    },
+    "dynamic_partition_state_path": {
+      "type": "string",
+      "label": "Dynamic Partition State Path",
+      "description": "Where dynamic_partition_keep_days persists its {partition_key: first_seen} state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored when dynamic_partition_keep_days is unset.",
+      "required": false
     }
   },
   "tags": [

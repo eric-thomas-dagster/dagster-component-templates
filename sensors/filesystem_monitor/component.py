@@ -4,7 +4,9 @@ Monitors a local filesystem directory for new files and triggers jobs when files
 Passes file information via run_config to downstream assets.
 """
 
+import json
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 import re
@@ -23,6 +25,40 @@ from dagster import (
 )
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import Field
+
+
+# BEGIN dynamic-partition pruning (inlined per component; keep copies identical — see tests/test_dynamic_partition_pruning.py)
+def _prune_stale_dynamic_partitions(state_path, keep_days, now, newly_added_keys):
+    """Tracks {partition_key: first_seen_iso} in a local JSON file (independent of the
+    sensor's own cursor) and returns (stale_keys, updated_state) -- the caller issues a
+    DeleteDynamicPartitionsRequest for stale_keys and persists updated_state. Dynamic
+    partitions otherwise accumulate forever. Returns ([], {}) immediately (no file I/O) when
+    keep_days is falsy -- pruning is opt-in."""
+    if not keep_days:
+        return [], {}
+    state = {}
+    if os.path.exists(state_path):
+        try:
+            with open(state_path) as f:
+                state = json.load(f)
+        except Exception:  # noqa: BLE001
+            state = {}
+    for k in newly_added_keys:
+        state.setdefault(k, now.isoformat())
+    cutoff = now - timedelta(days=keep_days)
+    stale = [k for k, seen in state.items() if datetime.fromisoformat(seen) < cutoff]
+    for k in stale:
+        state.pop(k, None)
+    return stale, state
+
+
+def _write_prune_state(state_path, state):
+    try:
+        with open(state_path, "w") as f:
+            json.dump(state, f)
+    except Exception:  # noqa: BLE001
+        pass
+# END dynamic-partition pruning
 
 
 class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
@@ -101,6 +137,24 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
             "downstream asset's `dynamic_partition_name:` field."
         ),
     )
+    dynamic_partition_keep_days: Optional[int] = Field(
+        default=None,
+        description=(
+            "When set (partition_mode='dynamic_partition'), partitions this sensor "
+            "registered are deleted once older than this many days -- dynamic partitions "
+            "otherwise accumulate forever. Tracked via a small local JSON state file "
+            "(dynamic_partition_state_path), independent of the sensor's own cursor. Unset "
+            "(default): no pruning."
+        ),
+    )
+    dynamic_partition_state_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where dynamic_partition_keep_days persists its {partition_key: first_seen} "
+            "state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored "
+            "when dynamic_partition_keep_days is unset."
+        ),
+    )
 
     batch_into_one_run: bool = Field(
         default=False,
@@ -131,6 +185,8 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
         partition_mode = self.partition_mode
         partition_key_template = self.partition_key_template
         dynamic_partitions_name = self.dynamic_partitions_name
+        dynamic_partition_keep_days = self.dynamic_partition_keep_days
+        dynamic_partition_state_path = self.dynamic_partition_state_path or f"./{sensor_name}_dynamic_partition_state.json"
         batch_into_one_run = self.batch_into_one_run
 
         if batch_into_one_run and partition_mode != "run_config":
@@ -270,22 +326,43 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
                     context.log.error(f"Error processing file {file_path}: {e}")
                     continue
 
+            dynamic_partitions_requests = (
+                [AddDynamicPartitionsRequest(
+                    partitions_def_name=dynamic_partitions_name or "",
+                    partition_keys=new_partition_keys,
+                )]
+                if new_partition_keys and dynamic_partitions_name else []
+            )
+
+            # Pruning runs every tick (not just when new files are found) -- stale
+            # partitions must age out even on a quiet tick.
+            if dynamic_partition_keep_days and dynamic_partitions_name:
+                stale_keys, pruned_state = _prune_stale_dynamic_partitions(
+                    dynamic_partition_state_path, dynamic_partition_keep_days,
+                    datetime.now(timezone.utc), new_partition_keys,
+                )
+                if stale_keys:
+                    from dagster import DeleteDynamicPartitionsRequest
+                    dynamic_partitions_requests.append(
+                        DeleteDynamicPartitionsRequest(
+                            partitions_def_name=dynamic_partitions_name, partition_keys=stale_keys,
+                        )
+                    )
+                    context.log.info(f"Pruned {len(stale_keys)} dynamic partition(s) older than {dynamic_partition_keep_days}d")
+                _write_prune_state(dynamic_partition_state_path, pruned_state)
+
             if run_requests:
                 context.log.info(f"Found {len(run_requests)} new file(s) matching pattern")
                 if batch_into_one_run:
                     run_requests = [RunRequest(run_key=f"batch-{latest_mtime}-{len(run_requests)}")]
-                dynamic_partitions_requests = (
-                    [AddDynamicPartitionsRequest(
-                        partitions_def_name=dynamic_partitions_name or "",
-                        partition_keys=new_partition_keys,
-                    )]
-                    if new_partition_keys and dynamic_partitions_name else []
-                )
                 return SensorResult(
                     run_requests=run_requests,
                     cursor=str(latest_mtime),
                     dynamic_partitions_requests=dynamic_partitions_requests,
                 )
+
+            if dynamic_partitions_requests:
+                return SensorResult(dynamic_partitions_requests=dynamic_partitions_requests)
 
             return SensorResult(skip_reason="No new files found")
 

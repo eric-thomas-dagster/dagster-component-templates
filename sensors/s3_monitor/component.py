@@ -4,8 +4,10 @@ Monitors an Amazon S3 bucket prefix for new objects and triggers jobs when objec
 Passes object information via run_config to downstream assets.
 """
 
+import json
+import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from dagster import (
@@ -24,6 +26,40 @@ from dagster import (
 )
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import Field
+
+
+# BEGIN dynamic-partition pruning (inlined per component; keep copies identical — see tests/test_dynamic_partition_pruning.py)
+def _prune_stale_dynamic_partitions(state_path, keep_days, now, newly_added_keys):
+    """Tracks {partition_key: first_seen_iso} in a local JSON file (independent of the
+    sensor's own cursor) and returns (stale_keys, updated_state) -- the caller issues a
+    DeleteDynamicPartitionsRequest for stale_keys and persists updated_state. Dynamic
+    partitions otherwise accumulate forever. Returns ([], {}) immediately (no file I/O) when
+    keep_days is falsy -- pruning is opt-in."""
+    if not keep_days:
+        return [], {}
+    state = {}
+    if os.path.exists(state_path):
+        try:
+            with open(state_path) as f:
+                state = json.load(f)
+        except Exception:  # noqa: BLE001
+            state = {}
+    for k in newly_added_keys:
+        state.setdefault(k, now.isoformat())
+    cutoff = now - timedelta(days=keep_days)
+    stale = [k for k, seen in state.items() if datetime.fromisoformat(seen) < cutoff]
+    for k in stale:
+        state.pop(k, None)
+    return stale, state
+
+
+def _write_prune_state(state_path, state):
+    try:
+        with open(state_path, "w") as f:
+            json.dump(state, f)
+    except Exception:  # noqa: BLE001
+        pass
+# END dynamic-partition pruning
 
 
 class S3MonitorSensorComponent(Component, Model, Resolvable):
@@ -115,6 +151,24 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
             "Must match the asset's `dynamic_partition_name:` field."
         ),
     )
+    dynamic_partition_keep_days: Optional[int] = Field(
+        default=None,
+        description=(
+            "When set (partition_mode='dynamic_partition' or 'both'), partitions this sensor "
+            "registered are deleted once older than this many days -- dynamic partitions "
+            "otherwise accumulate forever. Tracked via a small local JSON state file "
+            "(dynamic_partition_state_path), independent of the sensor's own cursor. Unset "
+            "(default): no pruning."
+        ),
+    )
+    dynamic_partition_state_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where dynamic_partition_keep_days persists its {partition_key: first_seen} "
+            "state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored "
+            "when dynamic_partition_keep_days is unset."
+        ),
+    )
     partition_key_template: str = Field(
         default="{key}",
         description=(
@@ -186,6 +240,8 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         default_status_str = self.default_status
         partition_mode = (self.partition_mode or "run_config").lower()
         dynamic_partitions_name = self.dynamic_partitions_name
+        dynamic_partition_keep_days = self.dynamic_partition_keep_days
+        dynamic_partition_state_path = self.dynamic_partition_state_path or f"./{sensor_name}_dynamic_partition_state.json"
         partition_key_template = self.partition_key_template or "{key}"
         op_name = self.op_name or "config"
         source_asset_key = self.source_asset_key
@@ -323,17 +379,35 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                 context.log.error(f"Error listing S3 objects in {bucket_name}/{prefix}: {e}")
                 return SensorResult(skip_reason=f"Error listing S3 objects: {e}")
 
+            dynamic_partitions_requests = (
+                [AddDynamicPartitionsRequest(
+                    partitions_def_name=dynamic_partitions_name or "",
+                    partition_keys=new_partition_keys,
+                )]
+                if new_partition_keys and dynamic_partitions_name else []
+            )
+
+            # Pruning runs every tick (not just when new objects are found) -- stale
+            # partitions must age out even on a quiet tick.
+            if dynamic_partition_keep_days and dynamic_partitions_name:
+                stale_keys, pruned_state = _prune_stale_dynamic_partitions(
+                    dynamic_partition_state_path, dynamic_partition_keep_days,
+                    datetime.now(timezone.utc), new_partition_keys,
+                )
+                if stale_keys:
+                    from dagster import DeleteDynamicPartitionsRequest
+                    dynamic_partitions_requests.append(
+                        DeleteDynamicPartitionsRequest(
+                            partitions_def_name=dynamic_partitions_name, partition_keys=stale_keys,
+                        )
+                    )
+                    context.log.info(f"Pruned {len(stale_keys)} dynamic partition(s) older than {dynamic_partition_keep_days}d")
+                _write_prune_state(dynamic_partition_state_path, pruned_state)
+
             if run_requests:
                 context.log.info(
                     f"Found {len(run_requests)} new S3 object(s) in {bucket_name}/{prefix} "
                     f"(partition_mode={partition_mode})"
-                )
-                dynamic_partitions_requests = (
-                    [AddDynamicPartitionsRequest(
-                        partitions_def_name=dynamic_partitions_name or "",
-                        partition_keys=new_partition_keys,
-                    )]
-                    if new_partition_keys and dynamic_partitions_name else []
                 )
                 asset_events = (
                     [_event_cls(
@@ -354,6 +428,9 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                     cursor=latest_time.isoformat(),
                     asset_events=asset_events,
                 )
+
+            if dynamic_partitions_requests:
+                return SensorResult(dynamic_partitions_requests=dynamic_partitions_requests)
 
             return SensorResult(skip_reason="No new S3 objects found")
 

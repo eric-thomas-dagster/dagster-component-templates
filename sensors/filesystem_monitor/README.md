@@ -45,6 +45,8 @@ Perfect for:
 | `file_pattern` | `str` | `".*"` | Regex pattern to match files (e.g., '.*\.csv$' for CSV files) |
 | `recursive` | `bool` | `false` | Whether to recursively search subdirectories |
 | `dynamic_partitions_name` | `str` | — | Required when partition_mode='dynamic_partition'. Must match the downstream asset's `dynamic_partition_name:` field. |
+| `dynamic_partition_keep_days` | `int` | — | When set (partition_mode='dynamic_partition'), partitions this sensor registered are deleted once older than this many days -- dynamic partitions otherwise accumulate forever. Tracked via a small local JSON state file (d… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_state_path` | `str` | — | Where dynamic_partition_keep_days persists its {partition_key: first_seen} state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored when dynamic_partition_keep_days is unset. |
 | `batch_into_one_run` | `bool` | `false` | Launch ONE run per check that found new files, instead of one per file -- for a job that processes the whole folder each time (e.g. an extractor listing a directory), where a run per file would repeat the same work. Whil… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
@@ -383,6 +385,18 @@ Access this information in:
 4. **Archive Processed Files**: Move files after processing to keep directory clean
 5. **Monitor Disk Space**: Ensure adequate space for incoming files
 6. **Use Subdirectories**: Organize files by date or type for better management
+
+## Pruning registered partitions (`dynamic_partition_keep_days`)
+
+With `partition_mode: dynamic_partition`, registered partitions otherwise accumulate forever -- every file this sensor ever saw stays a registered partition. Set `dynamic_partition_keep_days` to delete partitions once they're older than that many days:
+
+```yaml
+partition_mode: dynamic_partition
+dynamic_partitions_name: "files"
+dynamic_partition_keep_days: 30   # delete partitions registered more than 30 days ago
+```
+
+Tracked via a small local JSON state file (`dynamic_partition_state_path`, defaults to `./{sensor_name}_dynamic_partition_state.json`) mapping `{partition_key: first_seen}`, independent of the sensor's own cursor. Pruning runs every tick, even one that finds no new files. Keep this state file outside the watched directory -- otherwise the sensor will pick it up as a file to process.
 
 ## Requirements
 

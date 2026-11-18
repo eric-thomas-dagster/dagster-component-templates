@@ -58,6 +58,8 @@ Perfect for:
 | `key_pattern` | `str` | `".*"` | Regex pattern to match object keys (e.g., '.*\.parquet$' for Parquet files) |
 | `region_name` | `str` | — | AWS region name (e.g., 'us-east-1'). Uses default boto3 region if not set. |
 | `dynamic_partitions_name` | `str` | — | Required when partition_mode is 'dynamic_partition' or 'both'. Must match the asset's `dynamic_partition_name:` field. |
+| `dynamic_partition_keep_days` | `int` | — | When set (partition_mode='dynamic_partition' or 'both'), partitions this sensor registered are deleted once older than this many days -- dynamic partitions otherwise accumulate forever. Tracked via a small local JSON sta… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_state_path` | `str` | — | Where dynamic_partition_keep_days persists its {partition_key: first_seen} state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored when dynamic_partition_keep_days is unset. |
 | `op_name` | `str` | `"config"` | Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat, but if the target job's op is not named 'config' (e.g. an @asset or @multi_asset with a c… _(full docs in schema.json + component README)_ |
 | `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit… _(full docs in schema.json + component README)_ |
 
@@ -371,6 +373,18 @@ partition_key_template: "{key}"               # default — bare S3 key as parti
 ```
 
 See `examples/setup_s3_pipeline_demo.sh` + `examples/s3_pipeline.md` in `dagster-community-components-cli` for an end-to-end Minio-backed demo.
+
+### Pruning registered partitions (`dynamic_partition_keep_days`)
+
+Dynamic partitions otherwise accumulate forever -- every S3 object this sensor ever saw stays a registered partition. Set `dynamic_partition_keep_days` to delete partitions once they're older than that many days:
+
+```yaml
+partition_mode: dynamic_partition
+dynamic_partitions_name: "s3_keys"
+dynamic_partition_keep_days: 30   # delete partitions registered more than 30 days ago
+```
+
+Tracked via a small local JSON state file (`dynamic_partition_state_path`, defaults to `./{sensor_name}_dynamic_partition_state.json`) mapping `{partition_key: first_seen}`, independent of the sensor's own cursor. Pruning runs every tick, even one that finds no new objects.
 
 ## Requirements
 

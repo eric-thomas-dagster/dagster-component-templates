@@ -12,7 +12,7 @@ Apply Dagster `AutomationCondition`s **broadly** to many assets at once via decl
 - [Mental model — how it runs](#mental-model--how-it-runs)
 - [Rule shapes](#rule-shapes) — pick one per rule
   - [`cron`](#shape-1-explicit-cron) — explicit
-  - [`preset`](#shape-2-preset) — named factory, incl. `eager_fill_missing`
+  - [`preset`](#shape-2-preset) — named factory, incl. `eager_fill_missing` and the Airflow-trigger-rule presets
   - [`derive_from_upstreams`](#shape-3-derive-from-upstreams) — 6 strategies
   - [`python`](#shape-4-python-escape-hatch) — universal escape
   - [`all_deps_updated_since_cron`](#shape-5-wait-for-dependencies-since-a-cron-tick) — wait for external work
@@ -236,6 +236,24 @@ Timeline:
 3. **Every subsequent tick** *(no deploy)*: `code_version` unchanged → all idle.
 
 Works for any framework that stamps `code_version` on assets (dbt, custom `@asset(code_version=...)` decorators, notebook checksums, etc.), but dbt is the case customers ask about the most.
+
+#### Airflow-trigger-rule presets — `all_upstream_done`, `any_upstream_failed`, `none_failed_min_one_success`, `any_of_updated`
+
+Four more synthetic presets, for migrating Airflow DAGs that use a trigger rule other than the default `all_success` (Dagster's own deps-based scheduling already covers `all_success`):
+
+| Preset | Airflow trigger rule | Fires when |
+|---|---|---|
+| `all_upstream_done` | `all_done` | Every dependency has finished — success or failure, don't care which. |
+| `any_upstream_failed` | `one_failed` | Any dependency's latest execution failed. |
+| `none_failed_min_one_success` | `none_failed_min_one_success` | A dependency updates, provided none is currently in a failed state. |
+| `any_of_updated` | — | Any dependency updates (an alias for Dagster's own `any_deps_updated()`). |
+
+```yaml
+- selection: "tag:cleanup_task"
+  preset: all_upstream_done
+```
+
+Each fires **once per event**, not on every subsequent tick. `AutomationCondition.execution_failed()` is sticky — it stays true until that dependency succeeds again — so `all_upstream_done` and `any_upstream_failed` wrap it in `.newly_true()` (fires only on the tick the underlying state actually changes). `none_failed_min_one_success` and `any_of_updated` lean on `any_deps_updated()`, which Dagster already defines as edge-triggered ("true since the previous tick"), so no extra wrapping is needed there.
 
 ### Shape 3 — Derive from upstreams
 
@@ -788,7 +806,7 @@ If a rule isn't applying:
 
 | Field | Type | Description |
 |---|---|---|
-| `rules` | `List[Dict[str, Any]]` | Ordered list of rules. First selection-match wins (fall-through). Each rule has 'selection' + one of: 'cron' (with optional 'ignore_selection'/'allow_selection'), 'preset' (incl. 'eager_fill_missing'), 'all_deps_updated_… _(full docs in schema.json + component README)_ |
+| `rules` | `List[Dict[str, Any]]` | Ordered list of rules. First selection-match wins (fall-through). Each rule has 'selection' + one of: 'cron' (with optional 'ignore_selection'/'allow_selection'), 'preset' (incl. 'eager_fill_missing', and the Airflow-tri… _(full docs in schema.json + component README)_ |
 
 ### Other
 

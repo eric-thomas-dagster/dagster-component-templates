@@ -21,7 +21,7 @@ Five rule shapes supported:
 
 2. **Preset** — `preset: eager` / `any_downstream_conditions` / `on_missing` /
    `on_deploy_if_code_changed` / `eager_fill_missing` — the named
-   AutomationCondition factory methods, plus two synthetic composites:
+   AutomationCondition factory methods, plus six synthetic composites:
    `on_deploy_if_code_changed` fires exactly once per deploy for assets whose
    `code_version` changed (great for "run changed dbt models immediately
    after deploy"); `eager_fill_missing` is `eager()` plus a safe one-time
@@ -29,6 +29,15 @@ Five rule shapes supported:
    graph that already has its upstream data (bare `eager()` only reacts to
    changes AFTER its first evaluation, so it would otherwise leave an
    already-fed graph unbuilt until the next new event).
+
+   Four more synthetic presets mirror Airflow trigger rules (dependency-completion-based,
+   not cron-based): `all_upstream_done` (Airflow's `all_done` — run once every dependency
+   finishes, success or failure, don't care which); `any_upstream_failed` (Airflow's
+   `one_failed` — run once any dependency's latest execution failed); `none_failed_min_one_success`
+   (run when a dependency updates, provided none is currently in a failed state);
+   `any_of_updated` (an alias for Dagster's own `any_deps_updated()`). Each fires once per
+   event via `.newly_true()` rather than re-requesting on every tick while the underlying
+   state stays true.
 
 3. **Wait for dependencies since a cron tick** —
    `all_deps_updated_since_cron: "0 9 * * *"` → `all_deps_updated_since_cron(cron)
@@ -170,6 +179,38 @@ def _build_condition_for_rule(
                 & ~dg.AutomationCondition.execution_failed()
             )
             condition = dg.AutomationCondition.eager() | fill_missing
+        elif preset == "all_upstream_done":
+            # Airflow's `all_done` trigger rule: run once every dependency has finished --
+            # regardless of whether it succeeded or failed. `.newly_true()` fires exactly
+            # once on the tick this becomes true, instead of re-requesting every
+            # subsequent tick while it stays true (no deps ever start again).
+            condition = (
+                (~dg.AutomationCondition.any_deps_in_progress()).newly_true()
+                & ~dg.AutomationCondition.in_progress()
+            )
+        elif preset == "any_upstream_failed":
+            # Airflow's `one_failed` trigger rule: run once any dependency's latest
+            # execution failed. execution_failed() is sticky (stays true until that
+            # dependency succeeds again) -- .newly_true() turns it into a one-shot fire
+            # on the failure itself, not every tick afterward.
+            condition = (
+                dg.AutomationCondition.any_deps_match(dg.AutomationCondition.execution_failed()).newly_true()
+                & ~dg.AutomationCondition.in_progress()
+            )
+        elif preset == "none_failed_min_one_success":
+            # Airflow's `none_failed_min_one_success` trigger rule: run when a
+            # dependency updates (any_deps_updated() is itself already edge-triggered --
+            # true only since the previous tick), provided no dependency is currently in
+            # a failed state.
+            condition = (
+                dg.AutomationCondition.any_deps_updated()
+                & ~dg.AutomationCondition.any_deps_match(dg.AutomationCondition.execution_failed())
+                & ~dg.AutomationCondition.in_progress()
+            )
+        elif preset == "any_of_updated":
+            # Name alias for Dagster's own any_deps_updated() -- already edge-triggered,
+            # the extra guard just matches the other trigger-rule presets' shape.
+            condition = dg.AutomationCondition.any_deps_updated() & ~dg.AutomationCondition.in_progress()
         else:
             method = getattr(dg.AutomationCondition, preset, None)
             if method is None or not callable(method):
@@ -940,7 +981,9 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
         description=(
             "Ordered list of rules. First selection-match wins (fall-through). "
             "Each rule has 'selection' + one of: 'cron' (with optional "
-            "'ignore_selection'/'allow_selection'), 'preset' (incl. 'eager_fill_missing'), "
+            "'ignore_selection'/'allow_selection'), 'preset' (incl. 'eager_fill_missing', and the "
+            "Airflow-trigger-rule presets 'all_upstream_done', 'any_upstream_failed', "
+            "'none_failed_min_one_success', 'any_of_updated'), "
             "'all_deps_updated_since_cron' (wait for every dependency since a cron tick, "
             "then run once), 'derive_from_upstreams: true' (+ optional 'strategy'), or "
             "'python' (escape hatch). Any rule can also set "

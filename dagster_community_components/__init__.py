@@ -258,6 +258,7 @@ _CLASS_PATHS: dict[str, str] = {
     "CommunityComponentInstallerComponent": "assets/infrastructure/community_component_installer/component.py",
     "ComposerAirflowAuthBackendResourceComponent": "resources/composer_airflow_auth_backend/component.py",
     "ConcurIngestionComponent": "assets/ingestion/concur_ingestion/component.py",
+    "ConditionalAssetComponent": "assets/infrastructure/conditional_asset/component.py",
     "ConfluenceDocumentsComponent": "assets/ingestion/confluence_documents/component.py",
     "ConfluenceIngestionComponent": "assets/ingestion/confluence_ingestion/component.py",
     "ConfluencePageUpsertComponent": "assets/reverse_etl/confluence_page_upsert/component.py",

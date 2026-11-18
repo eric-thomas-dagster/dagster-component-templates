@@ -1,0 +1,11 @@
+type: dagster_community_components.ConditionalAssetComponent
+attributes:
+  mode: branch
+  callable_path: myproject.routing:choose_region
+  inputs:
+    order_data: raw/orders
+  branches:
+    us: regions/us_processing
+    eu: regions/eu_processing
+  group_name: infrastructure
+  description: "Routes orders to the correct region-specific processing pipeline."

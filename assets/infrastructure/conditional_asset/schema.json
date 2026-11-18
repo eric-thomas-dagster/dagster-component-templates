@@ -1,0 +1,114 @@
+{
+  "component_type": "dagster_community_components.ConditionalAssetComponent",
+  "description": "Branch / short-circuit as a Dagster asset -- the Airflow ShortCircuitOperator / BranchPythonOperator equivalent.",
+  "category": "infrastructure",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "Any",
+      "description": "Whatever the callable returns (short_circuit) or the chosen branch's payload (branch)."
+    }
+  },
+  "attributes": {
+    "mode": {
+      "type": "string",
+      "enum": ["short_circuit", "branch"],
+      "label": "Mode",
+      "description": "'short_circuit': one asset, materializes or not. 'branch': pick exactly one of several statically-declared branches.",
+      "required": true,
+      "ui:widget": "select"
+    },
+    "callable_path": {
+      "type": "string",
+      "label": "Callable Path",
+      "description": "'module.path:function_name'. short_circuit: returns a truthy/falsy value. branch: returns a branch name (str), or (branch_name, payload) for an explicit payload.",
+      "required": true
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "mode='short_circuit' only (required then): the single gate asset key, slash-delimited.",
+      "required": false
+    },
+    "branches": {
+      "type": "object",
+      "label": "Branches",
+      "description": "mode='branch' only (required then): {branch_name: asset_key}. asset_key is slash-delimited. The callable must return one of these branch_name values.",
+      "required": false
+    },
+    "args": {
+      "type": "array",
+      "label": "Args",
+      "description": "Static positional arguments passed to the callable.",
+      "required": false
+    },
+    "kwargs": {
+      "type": "object",
+      "label": "Kwargs",
+      "description": "Static keyword arguments passed to the callable.",
+      "required": false
+    },
+    "inputs": {
+      "type": "object",
+      "label": "Inputs",
+      "description": "{name: upstream_asset_key}. Each entry's value is loaded via the IO manager and bound to a parameter of that name if the callable's signature declares one (TaskFlow-style) -- same shape as python_callable_asset's `inputs`.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name (applied to every branch uniformly in branch mode).",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "airflow",
+    "branch",
+    "short-circuit",
+    "official"
+  ],
+  "name": "ConditionalAsset"
+}

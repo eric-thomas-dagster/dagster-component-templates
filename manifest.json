@@ -59746,6 +59746,53 @@
       "icon": "Function"
     },
     {
+      "id": "conditional_asset",
+      "name": "ConditionalAsset",
+      "category": "infrastructure",
+      "description": "Branch / short-circuit as a Dagster asset -- the Airflow ShortCircuitOperator / BranchPythonOperator equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/conditional_asset",
+      "tags": [
+        "infrastructure",
+        "airflow",
+        "branch",
+        "short-circuit",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Whatever the callable returns (short_circuit) or the chosen branch's payload (branch).",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "branch",
+        "short-circuit",
+        "conditional",
+        "migration"
+      ],
+      "icon": "GitBranch"
+    },
+    {
       "id": "shell_command_job",
       "name": "shell_command_job",
       "category": "jobs",

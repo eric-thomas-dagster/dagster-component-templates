@@ -62171,6 +62171,54 @@
       "featured": true
     },
     {
+      "id": "scoped_setup_teardown",
+      "name": "ScopedSetupTeardown",
+      "category": "resource",
+      "description": "Registers a Dagster resource with real setup/teardown lifecycle hooks -- the Airflow setup/teardown task pattern equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/scoped_setup_teardown",
+      "tags": [
+        "resource",
+        "airflow",
+        "setup-teardown",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/requirements.txt",
+      "icon": "Sliders",
+      "x-dagster-provides": [
+        "scoped_setup_teardown"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Registers a Dagster resource with real setup/teardown lifecycle hooks -- the Airflow setup/teardown task pattern equivalent.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "setup",
+        "teardown",
+        "migration"
+      ]
+    },
+    {
       "id": "snowflake_snowpipe",
       "name": "snowflake_snowpipe",
       "category": "integration",

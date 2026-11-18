@@ -1,0 +1,58 @@
+{
+  "component_type": "dagster_community_components.ScopedSetupTeardownComponent",
+  "description": "Registers a Dagster resource with real setup/teardown lifecycle hooks -- the Airflow setup/teardown task pattern equivalent.",
+  "category": "resource",
+  "icon": "Sliders",
+  "x-dagster-io": {},
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Any asset/op declaring required_resource_keys={resource_key} participates in this setup/teardown scope.",
+      "required": true
+    },
+    "setup_callable_path": {
+      "type": "string",
+      "label": "Setup Callable Path",
+      "description": "'module.path:function_name' to call for setup. Its return value (if any) is passed to teardown_callable_path's callable, if that callable declares a parameter for it. Set at most one of setup_callable_path/setup_command.",
+      "required": false
+    },
+    "setup_command": {
+      "type": "string",
+      "label": "Setup Command",
+      "description": "Shell command to run for setup, via bash -c. Set at most one of setup_callable_path/setup_command.",
+      "required": false
+    },
+    "teardown_callable_path": {
+      "type": "string",
+      "label": "Teardown Callable Path",
+      "description": "'module.path:function_name' to call for teardown. Called with setup's return value as its one argument if it declares a parameter, else called with no arguments. Set at most one of teardown_callable_path/teardown_command.",
+      "required": false
+    },
+    "teardown_command": {
+      "type": "string",
+      "label": "Teardown Command",
+      "description": "Shell command to run for teardown, via bash -c. Runs independently of setup's return value (a shell command can't receive a Python object). Set at most one of teardown_callable_path/teardown_command.",
+      "required": false
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Env vars for setup_command/teardown_command's subprocess (merged with the parent process's own environment).",
+      "required": false
+    },
+    "cwd": {
+      "type": "string",
+      "label": "Cwd",
+      "description": "Working directory for setup_command/teardown_command.",
+      "required": false
+    }
+  },
+  "tags": [
+    "resource",
+    "airflow",
+    "setup-teardown",
+    "official"
+  ],
+  "name": "ScopedSetupTeardown"
+}

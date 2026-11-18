@@ -1229,6 +1229,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SchemaFitComponent": "assets/ai/schema_fit/component.py",
     "SchemaValidatorComponent": "assets/transforms/schema_validator/component.py",
     "ScientificPaperExtractorComponent": "assets/ai/scientific_paper_extractor/component.py",
+    "ScopedSetupTeardownComponent": "resources/scoped_setup_teardown/component.py",
     "SegmentIngestionComponent": "assets/ingestion/segment_ingestion/component.py",
     "SegmentResource": "resources/segment_resource/component.py",
     "SegmentResourceComponent": "resources/segment_resource/component.py",

@@ -1,0 +1,5 @@
+type: dagster_community_components.ScopedSetupTeardownComponent
+attributes:
+  resource_key: db_tunnel
+  setup_command: "./scripts/open_ssh_tunnel.sh"
+  teardown_command: "./scripts/close_ssh_tunnel.sh"

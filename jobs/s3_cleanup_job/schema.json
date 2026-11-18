@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.S3CleanupJobComponent",
-  "description": "Delete S3 objects older than N days under a prefix \u2014 cost control + compliance retention.",
+  "description": "Delete S3 objects by age, by an explicit key list, or both \u2014 cost control + compliance retention.",
   "category": "jobs",
   "icon": "Cog",
   "attributes": {
@@ -51,8 +51,15 @@
     "older_than_days": {
       "type": "integer",
       "label": "Older Than Days",
-      "description": "Delete objects older than this many days",
-      "required": true
+      "description": "Delete objects older than this many days. Combines with `keys` (both apply) if both are set. At least one of older_than_days / keys / a per-run `keys` run-config override should be set for a run to delete anything.",
+      "required": false
+    },
+    "keys": {
+      "type": "array",
+      "label": "Keys",
+      "description": "Static list of specific S3 keys to delete explicitly, regardless of age. Combines with older_than_days (both apply) if both are set.",
+      "required": false,
+      "items": {"type": "string"}
     },
     "region_name": {
       "type": "string",

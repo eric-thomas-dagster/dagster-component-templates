@@ -1,6 +1,6 @@
 """S3CleanupJobComponent.
 
-Delete S3 objects older than N days under a prefix — cost control + compliance retention.
+Delete S3 objects by age, by an explicit key list, or both — cost control + compliance retention.
 """
 
 import os
@@ -42,7 +42,7 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 
 class S3CleanupJobComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Delete S3 objects older than N days under a prefix — cost control + compliance retention."""
+    """Delete S3 objects by age, by an explicit key list, or both — cost control + compliance retention."""
 
     job_name: str = Field(description="Dagster job name")
     schedule: Optional[str] = Field(default=None, description="Cron schedule (None = no schedule)")
@@ -51,7 +51,14 @@ class S3CleanupJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
     bucket: str = Field(description="S3 bucket name")
     prefix: str = Field(default="", description="Object prefix to scope cleanup")
-    older_than_days: int = Field(description="Delete objects older than this many days")
+    older_than_days: Optional[int] = Field(
+        default=None,
+        description="Delete objects older than this many days. Combines with `keys` (both apply) if both are set. At least one of older_than_days / keys / a per-run `keys` run-config override should be set for a run to delete anything.",
+    )
+    keys: Optional[List[str]] = Field(
+        default=None,
+        description="Static list of specific S3 keys to delete explicitly, regardless of age. Combines with older_than_days (both apply) if both are set.",
+    )
     region_name: str = Field(default="us-east-1")
     aws_profile: Optional[str] = Field(default=None)
     dry_run: bool = Field(default=False, description="Report what would be deleted without deleting")
@@ -59,7 +66,7 @@ class S3CleanupJobComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=(), csv=(), tags=('tags',))
+        return coerce_field_shapes(data, lists=('keys',), csv=(), tags=('tags',))
 
 
     @classmethod
@@ -70,31 +77,50 @@ class S3CleanupJobComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
-        @dg.op(name=f"{self.job_name}_op")
+        @dg.op(
+            name=f"{self.job_name}_op",
+            config_schema={
+                "keys": dg.Field(
+                    [str], is_required=False, default_value=[],
+                    description=(
+                        "Per-run explicit S3 keys to delete, in ADDITION to the component's own "
+                        "static `keys` field -- the mechanism for upstream-asset-driven deletion: "
+                        "a sensor that reads an upstream asset's materialized output (e.g. a list "
+                        "of file keys an ingestion asset just wrote) can launch this job with "
+                        "run_config={'ops': {'<op_name>': {'config': {'keys': [...]}}}}."
+                    ),
+                ),
+            },
+        )
         def _the_op(context: dg.OpExecutionContext):
             self = _self  # so body can use `self.<field>`
             import boto3, datetime as dt
             session = boto3.Session(profile_name=self.aws_profile, region_name=self.region_name)
             s3 = session.client("s3")
-            cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=self.older_than_days)
-            deleted, scanned = 0, 0
-            paginator = s3.get_paginator("list_objects_v2")
-            batch = []
-            for page in paginator.paginate(Bucket=self.bucket, Prefix=self.prefix):
-                for obj in page.get("Contents", []):
-                    scanned += 1
-                    if obj["LastModified"] < cutoff:
-                        batch.append({"Key": obj["Key"]})
-                        if len(batch) >= 1000:
-                            if not self.dry_run:
-                                s3.delete_objects(Bucket=self.bucket, Delete={"Objects": batch})
-                            deleted += len(batch)
-                            batch = []
-            if batch:
+
+            explicit_keys = set(self.keys or []) | set(context.op_config.get("keys") or [])
+            batch = [{"Key": k} for k in explicit_keys]
+            scanned = 0
+
+            if self.older_than_days is not None:
+                cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=self.older_than_days)
+                paginator = s3.get_paginator("list_objects_v2")
+                for page in paginator.paginate(Bucket=self.bucket, Prefix=self.prefix):
+                    for obj in page.get("Contents", []):
+                        scanned += 1
+                        if obj["LastModified"] < cutoff and obj["Key"] not in explicit_keys:
+                            batch.append({"Key": obj["Key"]})
+
+            deleted = 0
+            for i in range(0, len(batch), 1000):
+                chunk = batch[i:i + 1000]
                 if not self.dry_run:
-                    s3.delete_objects(Bucket=self.bucket, Delete={"Objects": batch})
-                deleted += len(batch)
-            context.log.info(f"scanned {scanned}, {'would delete' if self.dry_run else 'deleted'} {deleted}")
+                    s3.delete_objects(Bucket=self.bucket, Delete={"Objects": chunk})
+                deleted += len(chunk)
+            context.log.info(
+                f"scanned {scanned} (age-based), {len(explicit_keys)} explicit key(s), "
+                f"{'would delete' if self.dry_run else 'deleted'} {deleted} total"
+            )
 
         @dg.job(name=self.job_name, tags=self.tags or None)
         def _the_job():

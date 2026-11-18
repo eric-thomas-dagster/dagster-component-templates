@@ -56770,7 +56770,7 @@
       "id": "s3_cleanup_job",
       "name": "s3_cleanup_job",
       "category": "jobs",
-      "description": "Delete S3 objects older than N days under a prefix — cost control + compliance retention.",
+      "description": "Delete S3 objects by age, by an explicit key list, or both -- cost control + compliance retention.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "jobs/s3_cleanup_job",
@@ -56795,7 +56795,7 @@
         "schedule"
       ],
       "agent_hints": {
-        "outputs": "Delete S3 objects older than N days under a prefix — cost control + compliance retention.",
+        "outputs": "Delete S3 objects by age, by an explicit key list, or both -- cost control + compliance retention.",
         "requires_pip": [
           "boto3"
         ]

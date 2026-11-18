@@ -159,6 +159,10 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (auto-includes 'snowflake').")
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys.")
 
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient connection failures, warehouse resume delays, etc.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -213,6 +217,15 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
 
         resource_key = self.resource_key
 
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
         @asset(
             key=dg.AssetKey(self.asset_key.split("/")),
             description=self.description or (
@@ -225,6 +238,7 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
             tags=self.asset_tags,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             required_resource_keys=({resource_key} if resource_key else None),
+            retry_policy=_retry_policy,
         )
         def snowflake_stored_procedure_call_asset(context: AssetExecutionContext) -> MaterializeResult:
             try:

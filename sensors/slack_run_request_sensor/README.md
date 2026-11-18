@@ -90,15 +90,22 @@ persist between polls.
 1. Create a Slack app at https://api.slack.com/apps (or reuse the one `slack_approval_gate`
    / `slack_message_send` already use in this workspace -- they share nothing in code, but
    can share the same installed app and token).
-2. Under OAuth & Permissions, add Bot Token Scopes:
-   - `channels:history` (public channel) or `groups:history` (private channel).
+2. In the app's settings, under **"What it can do in Slack?"** (OAuth & Permissions → Bot
+   Token Scopes), add:
+   - `channels:history` (public channel) or `groups:history` (private channel) -- lets the
+     bot read the channel's messages at all.
    - `chat:write` -- unless `post_acknowledgement: false`.
    - `users:read.email` -- unless `resolve_requester_email: false`. This is what turns a
      message sender's Slack user id into the email address your `owners:` lists actually
      use.
-3. Install the app to the workspace, then **invite the bot to the target channel** -- a
-   bot token can only read conversations it's a member of.
-4. Export:
+3. Under **"What it can respond to in Slack?"** (Event Subscriptions): leave this **off**.
+   This sensor polls on a timer -- it never subscribes to live Slack events, so there is
+   nothing to turn on here (and nothing to point at a public HTTPS endpoint, which this
+   design doesn't have or need).
+4. **Install the app to the workspace** (reinstall any time you add a scope -- it doesn't
+   take effect otherwise), then **invite the bot to the target channel** -- a bot token can
+   only read conversations it's a member of, even a public one.
+5. Export:
 
 ```bash
 export SLACK_BOT_TOKEN=xoxb-...

@@ -1,0 +1,14 @@
+type: dagster_community_components.TriggerJobAssetComponent
+attributes:
+  asset_key: pipeline/trigger_downstream_job
+  definitions_module: my_project.definitions:defs
+  job_name: nightly_rollup_job
+  run_config:
+    ops:
+      rollup:
+        config:
+          mode: full
+  tags:
+    triggered_from: pipeline
+  group_name: infrastructure
+  description: "Launches the nightly_rollup_job and waits for it to finish."

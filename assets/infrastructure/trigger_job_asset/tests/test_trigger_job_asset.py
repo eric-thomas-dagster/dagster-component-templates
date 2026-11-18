@@ -1,0 +1,88 @@
+"""TriggerJobAssetComponent: a REAL, synchronous dagster.execute_job run against a real on-disk
+DagsterInstance (dagster.execute_job itself is not mocked -- only run_config forces in-process
+execution, a test-only accommodation; see conftest.py).
+"""
+import dagster as dg
+import pytest
+
+from .conftest import IN_PROCESS_RUN_CONFIG
+
+
+def _materialize_trigger(mod, instance, **attrs):
+    component = mod.TriggerJobAssetComponent(asset_key="d/trigger", **attrs)
+    asset_def = component.build_defs(context=None).assets[0]
+    return dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()}, instance=instance)
+
+
+def test_run_job_by_name_real_run(mod, instance, defs_module_spec):
+    result = _materialize_trigger(
+        mod, instance, definitions_module=defs_module_spec, job_name="named_job",
+        run_config=IN_PROCESS_RUN_CONFIG,
+    )
+    assert result.success
+    md = result.asset_materializations_for_node("d__trigger")[0].metadata
+    assert md["success"].value is True
+    assert md["triggered_job_name"].value == "named_job"
+    triggered_run_id = md["triggered_run_id"].value
+    triggered_run = instance.get_run_by_id(triggered_run_id)
+    assert triggered_run is not None
+    assert triggered_run.job_name == "named_job"
+    assert triggered_run.tags.get("dagster-community/triggered-by")
+
+
+def test_run_ad_hoc_asset_selection_real_run(mod, instance, defs_module_spec):
+    result = _materialize_trigger(
+        mod, instance, definitions_module=defs_module_spec, asset_keys=["a", "b"],
+        run_config=IN_PROCESS_RUN_CONFIG,
+    )
+    assert result.success
+    md = result.asset_materializations_for_node("d__trigger")[0].metadata
+    assert md["success"].value is True
+    triggered_run_id = md["triggered_run_id"].value
+    triggered_run = instance.get_run_by_id(triggered_run_id)
+    assert triggered_run is not None
+
+
+def test_triggered_job_failure_fails_the_trigger_asset(mod, instance, defs_module_spec):
+    component = mod.TriggerJobAssetComponent(
+        asset_key="d/trigger", definitions_module=defs_module_spec, asset_keys=["boom"],
+        run_config=IN_PROCESS_RUN_CONFIG,
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize(
+        [asset_def], resources={"io_manager": dg.InMemoryIOManager()}, instance=instance, raise_on_error=False,
+    )
+    assert not result.success
+
+
+def test_extra_tags_land_on_the_triggered_run(mod, instance, defs_module_spec):
+    result = _materialize_trigger(
+        mod, instance, definitions_module=defs_module_spec, job_name="named_job",
+        run_config=IN_PROCESS_RUN_CONFIG, tags={"team": "support"},
+    )
+    md = result.asset_materializations_for_node("d__trigger")[0].metadata
+    triggered_run = instance.get_run_by_id(md["triggered_run_id"].value)
+    assert triggered_run.tags.get("team") == "support"
+
+
+def test_partition_key_lands_as_a_run_tag(mod, instance, defs_module_spec):
+    result = _materialize_trigger(
+        mod, instance, definitions_module=defs_module_spec, job_name="named_job",
+        run_config=IN_PROCESS_RUN_CONFIG, partition_key="2024-01-01",
+    )
+    md = result.asset_materializations_for_node("d__trigger")[0].metadata
+    triggered_run = instance.get_run_by_id(md["triggered_run_id"].value)
+    assert triggered_run.tags.get("dagster/partition") == "2024-01-01"
+
+
+def test_requires_exactly_one_of_job_name_or_asset_keys(mod):
+    with pytest.raises(Exception, match="exactly one"):
+        mod.TriggerJobAssetComponent(asset_key="d/trigger", definitions_module="fixture_defs:defs")
+
+
+def test_rejects_both_job_name_and_asset_keys(mod):
+    with pytest.raises(Exception, match="exactly one"):
+        mod.TriggerJobAssetComponent(
+            asset_key="d/trigger", definitions_module="fixture_defs:defs",
+            job_name="named_job", asset_keys=["a"],
+        )

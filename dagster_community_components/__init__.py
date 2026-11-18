@@ -1430,6 +1430,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TrelloCardUpsertComponent": "assets/reverse_etl/trello_card_upsert/component.py",
     "TrelloIngestionComponent": "assets/ingestion/trello_ingestion/component.py",
     "TrelloResourceComponent": "resources/trello_resource/component.py",
+    "TriggerJobAssetComponent": "assets/infrastructure/trigger_job_asset/component.py",
     "TrinoIOManagerComponent": "io_managers/trino_io_manager/component.py",
     "TrinoQueryComponent": "assets/sources/trino_query/component.py",
     "TrinoResource": "resources/trino_resource/component.py",

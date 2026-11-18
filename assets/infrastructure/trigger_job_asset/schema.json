@@ -1,0 +1,113 @@
+{
+  "component_type": "dagster_community_components.TriggerJobAssetComponent",
+  "description": "An asset that synchronously launches another Dagster job with config and waits for it to finish -- the Airflow TriggerDagRunOperator equivalent, Dagster-to-Dagster.",
+  "category": "infrastructure",
+  "icon": "Play",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Metadata about the triggered run: triggered_run_id, triggered_job_name, success."
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key for this trigger asset, slash-delimited (e.g. 'pipeline/trigger_downstream').",
+      "required": true
+    },
+    "definitions_module": {
+      "type": "string",
+      "label": "Definitions Module",
+      "description": "'pkg.module' or 'pkg.module:attr' (default attr 'defs') pointing at the target Definitions containing the job/assets to run.",
+      "required": true
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Name of an existing job in definitions_module to run. Set this or asset_keys, not both.",
+      "required": false
+    },
+    "asset_keys": {
+      "type": "array",
+      "label": "Asset Keys",
+      "description": "Asset keys in definitions_module to run as an ad-hoc selection job. Set this or job_name, not both.",
+      "required": false,
+      "items": {"type": "string"}
+    },
+    "run_config": {
+      "type": "object",
+      "label": "Run Config",
+      "description": "Run config passed to the triggered run.",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Extra tags on the triggered run (in addition to dagster-community/triggered-by).",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "partition_key": {
+      "type": "string",
+      "label": "Partition Key",
+      "description": "Partition key for the triggered run, if the target job/assets are partitioned.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "airflow",
+    "trigger",
+    "official"
+  ],
+  "name": "TriggerJobAsset"
+}

@@ -1,0 +1,10 @@
+type: dagster_community_components.PythonSensorComponent
+attributes:
+  sensor_name: pending_exports_sensor
+  callable_path: my_project.sensors:list_pending_exports
+  job_name: export_job
+  mode: discover_partitions
+  dynamic_partitions_name: export_ids
+  dynamic_partition_keep_days: 14
+  minimum_interval_seconds: 60
+  default_status: running

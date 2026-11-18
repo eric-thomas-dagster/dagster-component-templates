@@ -7,6 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 COMPONENTS = [
     "sensors/s3_monitor",
     "sensors/filesystem_monitor",
+    "sensors/sql_monitor",
 ]
 BEGIN = "# BEGIN dynamic-partition pruning"
 END = "# END dynamic-partition pruning"

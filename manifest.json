@@ -63683,7 +63683,7 @@
       "id": "sql_monitor",
       "name": "SQL Monitor",
       "category": "sensor",
-      "description": "Component for monitoring a SQL database table for new or updated rows.",
+      "description": "Component for monitoring a SQL database table for new or updated rows. partition_mode='dynamic_partition' registers each new row as a dynamic partition (Airflow .expand()-over-a-query equivalent), with pruning.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/sql_monitor",
@@ -63722,6 +63722,48 @@
         "polling sensor",
         "arrival sensor",
         "trigger",
+        "watcher"
+      ]
+    },
+    {
+      "id": "python_sensor",
+      "name": "Python Sensor",
+      "category": "sensor",
+      "description": "Wraps an arbitrary Python callable in a Dagster sensor -- mirrors Airflow's PythonSensor (mode=trigger) and serves as the generic 'discover items via a function' dynamic-task-mapping source (mode=discover_partitions) for anything the *_monitor components don't already cover.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/python_sensor",
+      "tags": [
+        "sensor",
+        "python",
+        "airflow-migration",
+        "dynamic-partitions"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/requirements.txt",
+      "icon": "python",
+      "validation": {
+        "level": "unit",
+        "evidence": "sensors/python_sensor/tests/test_python_sensor.py",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Fires a RunRequest (trigger mode) or registers dynamic partitions (discover_partitions mode) based on an arbitrary callable.",
+        "requires_resources": []
+      },
+      "keywords": [
+        "pythonsensor",
+        "dynamic-task-mapping",
+        "expand",
         "watcher"
       ]
     },

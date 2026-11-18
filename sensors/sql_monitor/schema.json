@@ -101,6 +101,36 @@
       "label": "Emit Materialization",
       "required": false,
       "type": "boolean"
+    },
+    "partition_mode": {
+      "type": "string",
+      "label": "Partition Mode",
+      "description": "How the sensor surfaces detected rows to downstream assets: 'run_config' (default) — yields RunRequest with the row's data in run_config, same as today. 'dynamic_partition' — registers each new row as a dynamic partition via context.instance.add_dynamic_partitions(), then yields RunRequest(partition_key=...). Lets you track every processed row and re-run any specific one on demand from the UI -- the dynamic-task-mapping-by-items pattern (Airflow's `.expand()` over a SQL query). 'both' — does both: registers a dynamic partition AND embeds the row's data in run_config.",
+      "required": false
+    },
+    "dynamic_partitions_name": {
+      "type": "string",
+      "label": "Dynamic Partitions Name",
+      "description": "Required when partition_mode is 'dynamic_partition' or 'both'. Must match the downstream asset's `dynamic_partition_name:` field.",
+      "required": false
+    },
+    "dynamic_partition_keep_days": {
+      "type": "integer",
+      "label": "Dynamic Partition Keep Days",
+      "description": "When set (partition_mode='dynamic_partition' or 'both'), partitions this sensor registered are deleted once older than this many days -- dynamic partitions otherwise accumulate forever. Tracked via a small local JSON state file (dynamic_partition_state_path), independent of the sensor's own cursor. Unset (default): no pruning.",
+      "required": false
+    },
+    "dynamic_partition_state_path": {
+      "type": "string",
+      "label": "Dynamic Partition State Path",
+      "description": "Where dynamic_partition_keep_days persists its {partition_key: first_seen} state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored when dynamic_partition_keep_days is unset.",
+      "required": false
+    },
+    "partition_key_template": {
+      "type": "string",
+      "label": "Partition Key Template",
+      "description": "Template for the partition key registered per detected row. Available fields: `{table_name}`, `{row_id}`, `{watermark}`. Default `{row_id}` matches the id_column value used as the run_key today.",
+      "required": false
     }
   },
   "tags": [

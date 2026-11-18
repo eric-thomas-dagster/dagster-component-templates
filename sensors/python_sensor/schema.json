@@ -1,0 +1,86 @@
+{
+  "component_type": "dagster_community_components.PythonSensorComponent",
+  "description": "Wraps an arbitrary Python callable in a Dagster sensor -- mirrors Airflow's PythonSensor (trigger mode) and serves as the generic 'discover items via a callable' dynamic-task-mapping source (discover_partitions mode).",
+  "category": "sensor",
+  "icon": "python",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "SensorResult",
+      "description": "RunRequest(s) and/or dynamic partition requests"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "description": "Unique sensor name.",
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "callable_path": {
+      "description": "'module.path:function_name'. Called as fn(context, *args, **kwargs) every tick.",
+      "type": "string",
+      "label": "Callable Path",
+      "required": true
+    },
+    "job_name": {
+      "description": "Name of the job to trigger.",
+      "type": "string",
+      "label": "Job Name",
+      "required": true
+    },
+    "mode": {
+      "description": "'trigger' (default, mirrors Airflow's PythonSensor): the callable returns a bool, dict, or (bool, dict) tuple. 'discover_partitions': the callable returns a list of items, each becoming a dynamic partition.",
+      "type": "string",
+      "label": "Mode",
+      "required": false
+    },
+    "dynamic_partitions_name": {
+      "description": "Required when mode='discover_partitions'.",
+      "type": "string",
+      "label": "Dynamic Partitions Name",
+      "required": false
+    },
+    "fire_mode": {
+      "type": "string",
+      "label": "Fire Mode",
+      "description": "Only used in mode='trigger'. 'every_true_tick' (default): fire a new run every tick the callable returns truthy. 'edge_rising': fire only on the transition from falsy to truthy (tracked in the sensor's own cursor) -- avoids re-firing every tick while a condition stays true. 'once': fire exactly one time ever (cursor-gated), then never again, regardless of how many more times the callable returns truthy -- closest to Airflow's PythonSensor, whose task instance is terminal once it succeeds.",
+      "required": false
+    },
+    "kwargs": {
+      "type": "object",
+      "label": "Kwargs",
+      "description": "Static keyword args passed to the callable.",
+      "required": false
+    },
+    "dynamic_partition_keep_days": {
+      "type": "integer",
+      "label": "Dynamic Partition Keep Days",
+      "description": "Only used in mode='discover_partitions'. When set, partitions older than this many days are deleted. Unset: no pruning (the dedup state file is still kept regardless, to avoid re-firing on already-seen items).",
+      "required": false
+    },
+    "dynamic_partition_state_path": {
+      "type": "string",
+      "label": "Dynamic Partition State Path",
+      "description": "Only used in mode='discover_partitions'. Where {partition_key: first_seen} state (dedup + optional pruning) is persisted. Defaults to './{sensor_name}_dynamic_partition_state.json'.",
+      "required": false
+    },
+    "op_name": {
+      "type": "string",
+      "label": "Op Name",
+      "description": "Op name to key run_config under, as `{'ops': {op_name: {'config': {...}}}}`.",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "'running' or 'stopped'.",
+      "required": false
+    }
+  }
+}

@@ -7,6 +7,8 @@ to downstream assets.
 """
 
 import json
+import os
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Union
 
 from dagster import (
@@ -25,6 +27,40 @@ from dagster import (
 )
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import Field
+
+
+# BEGIN dynamic-partition pruning (inlined per component; keep copies identical — see tests/test_dynamic_partition_pruning.py)
+def _prune_stale_dynamic_partitions(state_path, keep_days, now, newly_added_keys):
+    """Tracks {partition_key: first_seen_iso} in a local JSON file (independent of the
+    sensor's own cursor) and returns (stale_keys, updated_state) -- the caller issues a
+    DeleteDynamicPartitionsRequest for stale_keys and persists updated_state. Dynamic
+    partitions otherwise accumulate forever. Returns ([], {}) immediately (no file I/O) when
+    keep_days is falsy -- pruning is opt-in."""
+    if not keep_days:
+        return [], {}
+    state = {}
+    if os.path.exists(state_path):
+        try:
+            with open(state_path) as f:
+                state = json.load(f)
+        except Exception:  # noqa: BLE001
+            state = {}
+    for k in newly_added_keys:
+        state.setdefault(k, now.isoformat())
+    cutoff = now - timedelta(days=keep_days)
+    stale = [k for k, seen in state.items() if datetime.fromisoformat(seen) < cutoff]
+    for k in stale:
+        state.pop(k, None)
+    return stale, state
+
+
+def _write_prune_state(state_path, state):
+    try:
+        with open(state_path, "w") as f:
+            json.dump(state, f)
+    except Exception:  # noqa: BLE001
+        pass
+# END dynamic-partition pruning
 
 
 class SQLMonitorSensorComponent(Component, Model, Resolvable):
@@ -123,6 +159,57 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
         description="Default status of the sensor (running or stopped)"
     )
 
+    partition_mode: str = Field(
+        default="run_config",
+        description=(
+            "How the sensor surfaces detected rows to downstream assets:\n"
+            "  'run_config' (default) — yields RunRequest with the row's data "
+            "in run_config, same as today.\n"
+            "  'dynamic_partition' — registers each new row as a dynamic "
+            "partition via context.instance.add_dynamic_partitions(), then "
+            "yields RunRequest(partition_key=...). Lets you track every "
+            "processed row and re-run any specific one on demand from the UI "
+            "-- the dynamic-task-mapping-by-items pattern (Airflow's "
+            "`.expand()` over a SQL query).\n"
+            "  'both' — does both: registers a dynamic partition AND embeds "
+            "the row's data in run_config."
+        ),
+    )
+    dynamic_partitions_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_mode is 'dynamic_partition' or 'both'. "
+            "Must match the downstream asset's `dynamic_partition_name:` field."
+        ),
+    )
+    dynamic_partition_keep_days: Optional[int] = Field(
+        default=None,
+        description=(
+            "When set (partition_mode='dynamic_partition' or 'both'), partitions this sensor "
+            "registered are deleted once older than this many days -- dynamic partitions "
+            "otherwise accumulate forever. Tracked via a small local JSON state file "
+            "(dynamic_partition_state_path), independent of the sensor's own cursor. Unset "
+            "(default): no pruning."
+        ),
+    )
+    dynamic_partition_state_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where dynamic_partition_keep_days persists its {partition_key: first_seen} "
+            "state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored "
+            "when dynamic_partition_keep_days is unset."
+        ),
+    )
+    partition_key_template: str = Field(
+        default="{row_id}",
+        description=(
+            "Template for the partition key registered per detected row. "
+            "Available fields: `{table_name}`, `{row_id}`, `{watermark}`. "
+            "Default `{row_id}` matches the id_column value used as the "
+            "run_key today."
+        ),
+    )
+
     emit_materialization: bool = Field(
         default=True,
         description=(
@@ -156,6 +243,22 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
         resource_key = self.resource_key
         op_name = self.op_name or "config"
         source_asset_key = self.source_asset_key
+        partition_mode = (self.partition_mode or "run_config").lower()
+        dynamic_partitions_name = self.dynamic_partitions_name
+        dynamic_partition_keep_days = self.dynamic_partition_keep_days
+        dynamic_partition_state_path = self.dynamic_partition_state_path or f"./{sensor_name}_dynamic_partition_state.json"
+        partition_key_template = self.partition_key_template or "{row_id}"
+
+        if partition_mode not in ("run_config", "dynamic_partition", "both"):
+            raise ValueError(
+                f"partition_mode must be 'run_config' | 'dynamic_partition' | "
+                f"'both', got {partition_mode!r}"
+            )
+        if partition_mode in ("dynamic_partition", "both") and not dynamic_partitions_name:
+            raise ValueError(
+                f"partition_mode={partition_mode!r} requires dynamic_partitions_name "
+                "to match the downstream asset's dynamic_partition_name field."
+            )
 
         default_status = (
             DefaultSensorStatus.RUNNING
@@ -164,6 +267,44 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
         )
 
         required_resource_keys = {resource_key} if resource_key else set()
+
+        def _build_run_request(run_key: str, row_id: str, watermark_str: str, config_block: dict):
+            """Shared across both execution paths: either embeds config_block in
+            run_config (default), registers a dynamic partition, or both."""
+            if partition_mode in ("dynamic_partition", "both"):
+                partition_key = partition_key_template.format(
+                    table_name=table_name, row_id=row_id, watermark=watermark_str,
+                )
+                return partition_key, RunRequest(
+                    run_key=run_key,
+                    partition_key=partition_key,
+                    run_config={"ops": {op_name: {"config": config_block}}} if partition_mode == "both" else None,
+                )
+            return None, RunRequest(run_key=run_key, run_config={"ops": {op_name: {"config": config_block}}})
+
+        def _dynamic_partitions_requests(new_partition_keys: list) -> list:
+            """Builds the Add/Delete dynamic-partition requests for this tick: an Add for
+            every newly-seen key, plus a Delete for anything pruning found stale. Pruning
+            runs every tick (not just when new rows are found) -- stale partitions must
+            age out even on a quiet tick."""
+            requests = []
+            if new_partition_keys and dynamic_partitions_name:
+                from dagster import AddDynamicPartitionsRequest
+                requests.append(AddDynamicPartitionsRequest(
+                    partitions_def_name=dynamic_partitions_name, partition_keys=new_partition_keys,
+                ))
+            if dynamic_partition_keep_days and dynamic_partitions_name:
+                stale_keys, pruned_state = _prune_stale_dynamic_partitions(
+                    dynamic_partition_state_path, dynamic_partition_keep_days,
+                    datetime.now(timezone.utc), new_partition_keys,
+                )
+                if stale_keys:
+                    from dagster import DeleteDynamicPartitionsRequest
+                    requests.append(DeleteDynamicPartitionsRequest(
+                        partitions_def_name=dynamic_partitions_name, partition_keys=stale_keys,
+                    ))
+                _write_prune_state(dynamic_partition_state_path, pruned_state)
+            return requests
 
         _event_cls = AssetMaterialization if self.emit_materialization else AssetObservation
 
@@ -191,8 +332,6 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
         )
         def sql_sensor(context: SensorEvaluationContext, **_resources):
             """Sensor that monitors a SQL table for new or updated rows."""
-            import os
-
             # ── Resource-backed path (demo-mode seam or shared client) ──────
             if resource_key:
                 client = getattr(context.resources, resource_key, None)
@@ -205,6 +344,7 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                     return SensorResult(skip_reason=f"resource poll failed: {e}")
 
                 run_requests = []
+                new_partition_keys = []
                 last_id = context.cursor
                 last_ts = None
                 for event in events or []:
@@ -218,31 +358,28 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                     )
                     columns_json = json.dumps(list(payload_dict.keys()))
                     watermark_str = str(ets) if ets is not None else ""
-                    run_requests.append(
-                        RunRequest(
-                            run_key=f"{table_name}-{eid}",
-                            run_config={
-                                "ops": {
-                                    op_name: {
-                                        "config": {
-                                            # Native SQL shape (backward compat)
-                                            "table_name": table_name,
-                                            "watermark_column": str(watermark_column),
-                                            "watermark_value": watermark_str,
-                                            "row_id_column": str(id_column),
-                                            "row_id": eid,
-                                            "row": serialized,
-                                            "columns": columns_json,
-                                            # Resource-contract shape
-                                            "source": src,
-                                        }
-                                    }
-                                }
-                            },
-                        )
+                    config_block = {
+                        # Native SQL shape (backward compat)
+                        "table_name": table_name,
+                        "watermark_column": str(watermark_column),
+                        "watermark_value": watermark_str,
+                        "row_id_column": str(id_column),
+                        "row_id": eid,
+                        "row": serialized,
+                        "columns": columns_json,
+                        # Resource-contract shape
+                        "source": src,
+                    }
+                    partition_key, run_request = _build_run_request(
+                        f"{table_name}-{eid}", eid, watermark_str, config_block,
                     )
+                    if partition_key:
+                        new_partition_keys.append(partition_key)
+                    run_requests.append(run_request)
                     last_id = eid
                     last_ts = ets
+
+                dynamic_partitions_requests = _dynamic_partitions_requests(new_partition_keys)
 
                 if run_requests:
                     context.log.info(
@@ -250,9 +387,12 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                     )
                     return SensorResult(
                         run_requests=run_requests,
+                        dynamic_partitions_requests=dynamic_partitions_requests,
                         cursor=last_id,
                         asset_events=_observation(len(run_requests), last_id, last_ts),
                     )
+                if dynamic_partitions_requests:
+                    return SensorResult(dynamic_partitions_requests=dynamic_partitions_requests)
                 return SensorResult(skip_reason=f"No new rows in '{table_name}' (via resource '{resource_key}')")
 
             # ── SQLAlchemy native path ──────────────────────────────────────
@@ -279,6 +419,7 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                 return SensorResult(skip_reason=f"Failed to create database engine: {e}")
 
             run_requests = []
+            new_partition_keys = []
             new_watermark = last_watermark
             last_row_id: Optional[str] = None
 
@@ -321,38 +462,36 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
 
                         # Serialize all values to strings for run_config transport
                         serializable_row = {k: str(v) for k, v in row_dict.items()}
+                        watermark_str = str(watermark_val)
 
-                        run_requests.append(
-                            RunRequest(
-                                run_key=f"{table_name}-{id_column}-{row_id}",
-                                run_config={
-                                    "ops": {
-                                        op_name: {
-                                            "config": {
-                                                # Native SQL shape (backward compat)
-                                                "table_name": table_name,
-                                                "watermark_column": str(watermark_column),
-                                                "watermark_value": str(watermark_val),
-                                                "row_id_column": str(id_column),
-                                                "row_id": row_id,
-                                                "row": json.dumps(serializable_row),
-                                                "columns": json.dumps(list(row_dict.keys())),
-                                                # Resource-contract shape (parity w/ demo-mode)
-                                                "source": table_name,
-                                            }
-                                        }
-                                    }
-                                },
-                            )
+                        config_block = {
+                            # Native SQL shape (backward compat)
+                            "table_name": table_name,
+                            "watermark_column": str(watermark_column),
+                            "watermark_value": watermark_str,
+                            "row_id_column": str(id_column),
+                            "row_id": row_id,
+                            "row": json.dumps(serializable_row),
+                            "columns": json.dumps(list(row_dict.keys())),
+                            # Resource-contract shape (parity w/ demo-mode)
+                            "source": table_name,
+                        }
+                        partition_key, run_request = _build_run_request(
+                            f"{table_name}-{id_column}-{row_id}", row_id, watermark_str, config_block,
                         )
+                        if partition_key:
+                            new_partition_keys.append(partition_key)
+                        run_requests.append(run_request)
 
-                        if new_watermark is None or str(watermark_val) > new_watermark:
-                            new_watermark = str(watermark_val)
+                        if new_watermark is None or watermark_str > new_watermark:
+                            new_watermark = watermark_str
                         last_row_id = row_id
 
             except Exception as e:
                 context.log.error(f"Error querying table '{table_name}': {e}")
                 return SensorResult(skip_reason=f"Error querying database: {e}")
+
+            dynamic_partitions_requests = _dynamic_partitions_requests(new_partition_keys)
 
             if run_requests:
                 context.log.info(
@@ -361,9 +500,13 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
                 )
                 return SensorResult(
                     run_requests=run_requests,
+                    dynamic_partitions_requests=dynamic_partitions_requests,
                     cursor=new_watermark,
                     asset_events=_observation(len(run_requests), last_row_id, new_watermark),
                 )
+
+            if dynamic_partitions_requests:
+                return SensorResult(dynamic_partitions_requests=dynamic_partitions_requests, cursor=new_watermark)
 
             return SensorResult(
                 skip_reason=f"No new rows in '{table_name}' since watermark {last_watermark}",

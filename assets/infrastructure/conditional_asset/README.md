@@ -62,6 +62,28 @@ If `choose_region` picks `"eu"`, `regions/us_processing` never materializes that
 
 Same shape as `python_callable_asset`'s `inputs`: `{name: upstream_asset_key}`. Each entry's value is loaded via the IO manager and bound to a matching parameter name if the callable's signature declares one (TaskFlow-style) — only the names the callable's own signature declares are injected (or everything, if it declares `**kwargs`).
 
+## Downstream propagation (verified, not assumed)
+
+When a branch/gate output isn't yielded, every downstream asset that depends on it is
+`STEP_SKIPPED` — not materialized, no asset check runs on it, the run still succeeds overall.
+Confirmed live via `dg.materialize()`:
+
+- **Cascades transitively** through arbitrarily long chains.
+- **Applies to `deps=` (lineage-only) the same as a bound `AssetIn`** — there's no "soft"
+  dependency that escapes skip propagation. A downstream asset wired via `deps=["gate"]` alone
+  skips exactly like one that actually consumes the gate's value.
+- **No selective rejoin.** If a downstream asset depends on *several* upstream branches and
+  even one of them was skipped, the whole downstream step is skipped too — Dagster's skip
+  propagation is structural (decided at execution-plan time from the dependency graph), not
+  "proceed if at least one upstream succeeded." A Python-side default parameter on the skipped
+  input doesn't change this (verified — the step never runs at all, so the default is never
+  reached). There is no `none_failed_min_one_success`-style trigger rule for *intra-run* skip
+  propagation the way there is for schedule-triggered automation conditions
+  (`automation_condition_applicator` has that preset, but it's a different mechanism for a
+  different trigger). If your conversion needs a rejoin that proceeds when only one of several
+  branches ran, restructure so the rejoin asset depends on the branches' *shared successor*
+  instead of on the branches directly, or accept that the rejoin step also skips.
+
 ## What this does NOT do
 
 - No partitioning, freshness, retry policy, or backfill policy in this version — partitioning a conditionally-yielded multi-output asset is a materially more complex combination (which partition's key applies to which branch's skip decision?) than a quick field addition; a real follow-up, not silently dropped.

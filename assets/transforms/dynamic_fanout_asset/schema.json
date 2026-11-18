@@ -79,14 +79,22 @@
     "discover_callable_path": {
       "type": "string",
       "label": "Discover Callable Path",
-      "required": true,
-      "description": "'module:function' that returns an iterable of items. Signature: discover(upstream=<loaded>, **discover_kwargs) → List[item]. The upstream kwarg is only passed when upstream_asset_key is set."
+      "required": false,
+      "description": "'module:function' that returns an iterable of items. Signature: discover(upstream=<loaded>, **discover_kwargs) → List[item]. The upstream kwarg is only passed when upstream_asset_key is set. Set this OR `items_from`, not both.",
+      "default": null
     },
     "discover_kwargs": {
       "type": "object",
       "label": "Discover Kwargs",
       "required": false,
       "description": "Static kwargs passed to discover.",
+      "default": null
+    },
+    "items_from": {
+      "type": "string",
+      "label": "Items From",
+      "required": false,
+      "description": "Alternative to discover_callable_path when there's no custom discovery logic: either a literal list of items (used verbatim), or an upstream Dagster asset key (slash-delimited) whose materialized value IS the items list. A string here is ALWAYS treated as an asset key, never a single literal item -- wrap a one-item case in a list. Mutually exclusive with `upstream_asset_key`.",
       "default": null
     },
     "process_callable_path": {

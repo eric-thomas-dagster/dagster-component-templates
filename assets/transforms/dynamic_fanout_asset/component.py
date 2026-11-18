@@ -169,15 +169,28 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
-    discover_callable_path: str = Field(
+    discover_callable_path: Optional[str] = Field(
+        default=None,
         description=(
             "'module:function' that returns an iterable of items. Signature: "
             "discover(upstream=<loaded>, **discover_kwargs) → List[item]. "
-            "The upstream kwarg is only passed when upstream_asset_key is set."
+            "The upstream kwarg is only passed when upstream_asset_key is set. "
+            "Set this OR `items_from`, not both."
         ),
     )
     discover_kwargs: Optional[Dict[str, Any]] = Field(
         default=None, description="Static kwargs passed to discover."
+    )
+    items_from: Optional[Union[List[Any], str]] = Field(
+        default=None,
+        description=(
+            "Alternative to discover_callable_path when there's no custom discovery logic: "
+            "either a literal list of items (used verbatim, known at YAML-authoring time), or "
+            "an upstream Dagster asset key (slash-delimited) whose materialized value IS the "
+            "items list. A string here is ALWAYS treated as an asset key, never a single "
+            "literal item -- wrap a one-item case in a list. Mutually exclusive with "
+            "`upstream_asset_key` (set `deps` instead for lineage-only ordering alongside it)."
+        ),
     )
 
     process_callable_path: str = Field(
@@ -232,6 +245,22 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
+    @model_validator(mode="after")
+    def _validate_items_source(self):
+        has_discover = bool(self.discover_callable_path)
+        has_items = self.items_from is not None
+        if has_discover and has_items:
+            raise ValueError("DynamicFanoutAssetComponent: set discover_callable_path OR items_from, not both.")
+        if not has_discover and not has_items:
+            raise ValueError("DynamicFanoutAssetComponent: set discover_callable_path or items_from.")
+        if isinstance(self.items_from, str) and self.upstream_asset_key:
+            raise ValueError(
+                "DynamicFanoutAssetComponent: items_from (asset key) and upstream_asset_key are "
+                "both set -- redundant/ambiguous. Use `deps` for lineage-only ordering alongside "
+                "items_from instead."
+            )
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -255,47 +284,45 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         #     via load_asset_value; the input itself is Nothing for ordering.
         #   - `_dep_N` for each lineage-only dep (deps field) — pure ordering.
         _upstream_key = self.upstream_asset_key
+        _items_literal = self.items_from if isinstance(self.items_from, list) else None
+        _items_asset_key = self.items_from if isinstance(self.items_from, str) else None
+        # Whichever of upstream_asset_key / items_from(asset key) is in play (mutually
+        # exclusive per _validate_items_source) -- the single source the graph_asset's
+        # `upstream` @ins loads and `_discover` reads via load_asset_value.
+        _upstream_source_key = _upstream_key or _items_asset_key
         _dep_names: List[str] = [f"_dep_{i}" for i, _ in enumerate(self.deps or [])]
 
         _discover_ins: Dict[str, Any] = {}
-        if _upstream_key:
+        if _upstream_source_key:
             _discover_ins["upstream"] = dg.In(dg.Nothing)
         for n in _dep_names:
             _discover_ins[n] = dg.In(dg.Nothing)
 
-        if _upstream_key:
-            @dg.op(out=dg.DynamicOut(), ins=_discover_ins)
-            def _discover(context, **_ignored):
-                fn = _resolve(_self.discover_callable_path)
-                upstream_val = context.op_execution_context.load_asset_value(
-                    dg.AssetKey.from_user_string(_upstream_key)
-                )
-                items = fn(upstream=upstream_val, **(_self.discover_kwargs or {}))
-                items = list(items)
-                context.log.info(f"discovered {len(items)} item(s) via {_self.discover_callable_path}")
-                if not items and _self.fail_on_empty:
-                    raise Exception("discover returned no items and fail_on_empty=True")
-                for i, item in enumerate(items):
-                    if _self.mapping_key_field and isinstance(item, dict) and _self.mapping_key_field in item:
-                        key = str(item[_self.mapping_key_field])
-                    else:
-                        key = str(i)
-                    yield dg.DynamicOutput(item, mapping_key=key)
-        else:
-            @dg.op(out=dg.DynamicOut(), ins=_discover_ins)
-            def _discover(context, **_ignored):
-                fn = _resolve(_self.discover_callable_path)
-                items = fn(**(_self.discover_kwargs or {}))
-                items = list(items)
-                context.log.info(f"discovered {len(items)} item(s) via {_self.discover_callable_path}")
-                if not items and _self.fail_on_empty:
-                    raise Exception("discover returned no items and fail_on_empty=True")
-                for i, item in enumerate(items):
-                    if _self.mapping_key_field and isinstance(item, dict) and _self.mapping_key_field in item:
-                        key = str(item[_self.mapping_key_field])
-                    else:
-                        key = str(i)
-                    yield dg.DynamicOutput(item, mapping_key=key)
+        def _get_items(context) -> list:
+            if _items_literal is not None:
+                return list(_items_literal)
+            if _items_asset_key is not None:
+                val = context.op_execution_context.load_asset_value(dg.AssetKey.from_user_string(_items_asset_key))
+                return list(val)
+            fn = _resolve(_self.discover_callable_path)
+            if _upstream_key:
+                upstream_val = context.op_execution_context.load_asset_value(dg.AssetKey.from_user_string(_upstream_key))
+                return list(fn(upstream=upstream_val, **(_self.discover_kwargs or {})))
+            return list(fn(**(_self.discover_kwargs or {})))
+
+        @dg.op(out=dg.DynamicOut(), ins=_discover_ins)
+        def _discover(context, **_ignored):
+            items = _get_items(context)
+            source = "items_from" if (_items_literal is not None or _items_asset_key is not None) else _self.discover_callable_path
+            context.log.info(f"discovered {len(items)} item(s) via {source}")
+            if not items and _self.fail_on_empty:
+                raise Exception("discover returned no items and fail_on_empty=True")
+            for i, item in enumerate(items):
+                if _self.mapping_key_field and isinstance(item, dict) and _self.mapping_key_field in item:
+                    key = str(item[_self.mapping_key_field])
+                else:
+                    key = str(i)
+                yield dg.DynamicOutput(item, mapping_key=key)
 
         @dg.op(retry_policy=retry, tags=op_tags, name="process")
         def _process(context, item):
@@ -329,8 +356,8 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=_tags,
         )
         _ins: Dict[str, Any] = {}
-        if _upstream_key:
-            _ins["upstream"] = dg.AssetIn(key=dg.AssetKey.from_user_string(_upstream_key))
+        if _upstream_source_key:
+            _ins["upstream"] = dg.AssetIn(key=dg.AssetKey.from_user_string(_upstream_source_key))
         # Lineage-only deps: declared as Nothing-typed AssetIns so Dagster wires
         # the graph edge but the IO manager is never asked to load a value.
         # Used when the upstream asset writes to an external store (dbt models
@@ -346,7 +373,7 @@ class DynamicFanoutAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         # Build graph function whose signature matches @graph_asset's declared
         # ins (upstream first if set, then one param per Nothing-typed dep).
         # Each parameter is routed into _discover as its Nothing-typed input.
-        params = (["upstream"] if _upstream_key else []) + _dep_names
+        params = (["upstream"] if _upstream_source_key else []) + _dep_names
         if params:
             arglist = ", ".join(params)
             discover_kwargs_pass = ", ".join(f"{n}={n}" for n in params)

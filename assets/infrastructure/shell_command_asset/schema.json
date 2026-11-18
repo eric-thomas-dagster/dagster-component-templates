@@ -232,6 +232,18 @@
       "label": "Pool",
       "description": "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
       "required": false
+    },
+    "return_last_stdout_line": {
+      "type": "boolean",
+      "label": "Return Last Stdout Line",
+      "description": "Return the command's last non-empty stdout line as this asset's materialized value (via the IO manager), not just metadata, so a downstream asset can take it as an input the usual way. Mirrors what a source system's last line of output is read as by its own downstream steps. Off by default.",
+      "required": false
+    },
+    "parse_json_output": {
+      "type": "boolean",
+      "label": "Parse Json Output",
+      "description": "Only with return_last_stdout_line: if that last line parses as valid JSON, return the parsed value instead of the raw string. Falls back to the raw string when it isn't valid JSON.",
+      "required": false
     }
   },
   "tags": [

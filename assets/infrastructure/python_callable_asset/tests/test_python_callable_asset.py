@@ -32,6 +32,13 @@ def _upstream_asset(mod, key: str, value):
     return _a
 
 
+def _upstream_asset_with_metadata(key: str, metadata: dict):
+    @dg.asset(key=dg.AssetKey.from_user_string(key))
+    def _a():
+        return dg.MaterializeResult(metadata=metadata)
+    return _a
+
+
 # --- static call: args/kwargs, no context ------------------------------------------------
 
 def test_static_call_passes_args_and_kwargs(mod, fx):
@@ -57,6 +64,53 @@ def test_inputs_binds_taskflow_style_param_and_loads_value(mod, fx):
     result = dg.materialize([upstream, asset_def], resources={"io_manager": dg.InMemoryIOManager()})
     assert result.success
     assert fx.CALLS["upstream_a"] == 42
+
+
+# --- inputs: metadata-lookup form ('asset_key.metadata_key') ---------------------------
+
+def test_inputs_metadata_lookup_reads_named_metadata_from_this_run(mod, fx):
+    upstream = _upstream_asset_with_metadata("up/a", {"row_count": dg.MetadataValue.int(42)})
+    component = mod.PythonCallableAssetComponent(
+        asset_key="d/t", callable_path=f"{FIXTURES_PATH}:taskflow_style",
+        inputs={"upstream_a": "up/a.row_count"},
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([upstream, asset_def], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    assert fx.CALLS["upstream_a"] == 42
+
+
+def test_inputs_metadata_lookup_missing_key_uses_input_defaults(mod, fx):
+    upstream = _upstream_asset_with_metadata("up/a", {"other_key": dg.MetadataValue.int(1)})
+    component = mod.PythonCallableAssetComponent(
+        asset_key="d/t", callable_path=f"{FIXTURES_PATH}:taskflow_style",
+        inputs={"upstream_a": "up/a.row_count"}, input_defaults={"upstream_a": 0},
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([upstream, asset_def], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    assert fx.CALLS["upstream_a"] == 0
+
+
+def test_inputs_metadata_lookup_missing_key_no_default_fails(mod, fx):
+    upstream = _upstream_asset_with_metadata("up/a", {"other_key": dg.MetadataValue.int(1)})
+    component = mod.PythonCallableAssetComponent(
+        asset_key="d/t", callable_path=f"{FIXTURES_PATH}:taskflow_style",
+        inputs={"upstream_a": "up/a.row_count"},
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize(
+        [upstream, asset_def], resources={"io_manager": dg.InMemoryIOManager()}, raise_on_error=False,
+    )
+    assert not result.success
+
+
+def test_inputs_metadata_lookup_spec_requires_both_sides(mod):
+    with pytest.raises(Exception, match="metadata lookup"):
+        mod.PythonCallableAssetComponent(
+            asset_key="d/t", callable_path=f"{FIXTURES_PATH}:taskflow_style",
+            inputs={"upstream_a": "up/a."},
+        )
 
 
 def test_inputs_key_must_be_a_valid_identifier(mod):

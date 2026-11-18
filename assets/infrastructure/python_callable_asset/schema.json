@@ -262,6 +262,12 @@
       "label": "On Missing Date",
       "description": "Only matters for context_mode='airflow' on an UN-PARTITIONED asset with no logical_date/data_interval_* run tags available (neither cron_schedule's/interval_schedule's add_logical_date_tag/add_interval_tags nor a partition window). 'warn' (default, preserves old behavior): logs a clear warning and falls back to datetime.now(utc) -- was previously SILENT, which is the bug this field fixes. 'fail': raises instead, for pipelines where a wrong date silently flowing into a query/filename would be worse than not running at all.",
       "required": false
+    },
+    "input_defaults": {
+      "type": "object",
+      "label": "Input Defaults",
+      "description": "Default value for an `inputs` metadata-lookup entry ('asset_key.metadata_key') whose metadata key is missing from the upstream's materialization in this run. Entries with no default raise instead of silently passing None.",
+      "required": false
     }
   },
   "tags": [

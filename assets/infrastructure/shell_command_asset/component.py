@@ -229,6 +229,14 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "concurrency: pools:, or the Dagster+ UI), not here."
         ),
     )
+    return_last_stdout_line: bool = Field(
+        default=False,
+        description="Return the command's last non-empty stdout line as this asset's materialized value (via the IO manager), not just metadata, so a downstream asset can take it as an input the usual way. Mirrors what a source system's last line of output is read as by its own downstream steps. Off by default.",
+    )
+    parse_json_output: bool = Field(
+        default=False,
+        description="Only with return_last_stdout_line: if that last line parses as valid JSON, return the parsed value instead of the raw string. Falls back to the raw string when it isn't valid JSON.",
+    )
     group_name: str = Field(default="shell", description="Asset group.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys for lineage (in addition to command_asset_key, which is added automatically).")
@@ -278,6 +286,8 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         env_vars = self.env_vars or {}
         skip_on_exit_code = self.skip_on_exit_code
         timeout_seconds = self.timeout_seconds
+        return_last_stdout_line = self.return_last_stdout_line
+        parse_json_output = self.parse_json_output
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (self.deps or [])]
 
         ins = None
@@ -328,7 +338,8 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds=set(self.kinds) if self.kinds else None,
             pool=self.pool,
         )
-        def _shell_asset(context: dg.AssetExecutionContext, **upstream_kwargs) -> dg.MaterializeResult:
+        def _shell_asset(context: dg.AssetExecutionContext, **upstream_kwargs):
+            import json
             import os
             import subprocess
             import sys
@@ -390,19 +401,36 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     description=f"Shell command timed out after {timeout_seconds}s and was killed.",
                     metadata={"stderr": dg.MetadataValue.text(stderr_data[:2000])},
                 )
+            def _last_line_value():
+                last_line = next((l.rstrip("\n") for l in reversed(stdout_lines) if l.strip()), None)
+                if last_line is None:
+                    return None
+                if parse_json_output:
+                    try:
+                        return json.loads(last_line)
+                    except (TypeError, ValueError):
+                        pass
+                return last_line
+
             if skip_on_exit_code is not None and proc.returncode == skip_on_exit_code:
-                return dg.MaterializeResult(metadata={
+                metadata = {
                     "exit_code": dg.MetadataValue.int(proc.returncode),
                     "skipped": dg.MetadataValue.bool(True),
                     "stdout_preview": dg.MetadataValue.text("".join(stdout_lines)[:2000]),
-                })
+                }
+                if return_last_stdout_line:
+                    return dg.Output(_last_line_value(), metadata=metadata)
+                return dg.MaterializeResult(metadata=metadata)
             if proc.returncode != 0:
                 raise dg.Failure(
                     description=f"Shell command exited {proc.returncode}",
                     metadata={"stderr": dg.MetadataValue.text(stderr_data[:2000])},
                 )
-            return dg.MaterializeResult(metadata={
+            metadata = {
                 "exit_code": dg.MetadataValue.int(proc.returncode),
                 "stdout_preview": dg.MetadataValue.text("".join(stdout_lines)[:2000]),
-            })
+            }
+            if return_last_stdout_line:
+                return dg.Output(_last_line_value(), metadata=metadata)
+            return dg.MaterializeResult(metadata=metadata)
         return dg.Definitions(assets=[_shell_asset])

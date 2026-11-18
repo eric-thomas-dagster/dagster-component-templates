@@ -45,6 +45,24 @@ inputs:
 
 Each entry's value is loaded via the IO manager. `name` doubles as the Airflow task_id for `ti.xcom_pull(task_ids=name)`, and — if the callable's signature declares a parameter called `name` — is bound directly to it (TaskFlow-style), on top of (or instead of) using `ti.xcom_pull` inside the function body. `ti.xcom_pull` on a `name` not declared in `inputs` raises a clear error at run time naming the fix. Use `deps` instead of `inputs` for a lineage-only upstream with no value needed.
 
+### Reading one named value instead of the whole upstream value
+
+A `.` in the value switches to a metadata lookup instead of an IO-manager value load — the
+multi-value XCom pattern, where a task pushes several named values (as metadata on its own
+materialization) and a later task reads one of them by name:
+
+```yaml
+inputs:
+  row_count: mydag/extract.row_count   # {name: 'upstream_asset_key.metadata_key'}
+input_defaults:
+  row_count: 0   # used if `extract`'s materialization THIS RUN has no 'row_count' metadata
+```
+
+The lookup only sees the upstream's materialization event from the **current run** (not any
+earlier run) — if the upstream hasn't actually run yet in this run, or didn't set that metadata
+key, the entry falls back to `input_defaults[name]` if set, else fails loudly rather than
+silently passing `None`.
+
 ## Jinja templates in `args`/`kwargs`
 
 `context_mode: "airflow"` only. String values in `args`/`kwargs` containing `{{ }}` are rendered with exactly these variables — anything else **raises at component-construction time**, not at run time. Rendered through Jinja's `SandboxedEnvironment`, not a plain `Environment`: the identifier whitelist only checks the top-level name (`{{ ds }}`), not what a template does with it once bound, so the sandbox is what actually stops something like `{{ params.__class__.__mro__ }}` from reaching into Python internals at render time.
@@ -119,13 +137,19 @@ Each entry's value is loaded via the IO manager. `name` doubles as the Airflow t
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `input_defaults` | `Dict[str, Any]` | — | Default value for an `inputs` metadata-lookup entry ('asset_key.metadata_key') whose metadata key is missing from the upstream's materialization in this run. Entries with no default raise instead of silently passing None. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `args` | `List[Any]` | — | Static positional arguments passed to the callable. |
 | `kwargs` | `Dict[str, Any]` | — | Static keyword arguments passed to the callable. |
-| `inputs` | `Dict[str, str]` | — | {name: upstream_asset_key}. Each entry's value is loaded via the IO manager. `name` doubles as the Airflow task_id for `ti.xcom_pull(task_ids=name)`, and -- if the callable's signature declares a parameter called `name`… _(full docs in schema.json + component README)_ |
+| `inputs` | `Dict[str, str]` | — | {name: upstream_asset_key} loads the whole value via the IO manager. {name: 'upstream_asset_key.metadata_key'} (a '.' in the value) instead reads just that named metadata entry off the upstream asset's materialization ev… _(full docs in schema.json + component README)_ |
 | `context_mode` | `Literal['none', 'airflow']` | `"none"` | 'airflow' injects the Airflow-compatible context described above; 'none' calls the callable with just `args`/`kwargs`. |
 | `dag_run_conf_tag` | `str` | `"airflow/dag_run_conf"` | Run tag name carrying a JSON-encoded `dag_run.conf` dict -- set `dg launch --tags 'airflow/dag_run_conf={"key": "value"}'` (or your own tag name). Absent tag -> `{}`. Set to None/null to disable. |
 | `airflow_version` | `Literal[2, 3]` | `2` | Controls only `logical_date`: 2 (default) = partition interval start (Airflow 2's execution_date semantics -- the overwhelmingly common case for already-written DAGs). 3 = partition interval end (approximates Airflow 3's… _(full docs in schema.json + component README)_ |

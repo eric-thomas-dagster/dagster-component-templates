@@ -23,6 +23,19 @@ skip_on_exit_code: 99
 
 The asset still materializes successfully (Dagster has no native "skipped" status for a single-asset op); metadata records `skipped: true` and the real exit code so you can tell a real no-op apart from a plain success.
 
+## `return_last_stdout_line` — feed a downstream asset the command's output
+
+A source system's shell step is often read by its downstream steps as its last line of output.
+Set `return_last_stdout_line: true` to return that line as this asset's materialized value (off
+by default — the existing metadata-only behavior is unchanged). Add `parse_json_output: true` to
+parse that line as JSON when it is valid JSON (falls back to the raw string otherwise):
+
+```yaml
+command: ./scripts/compute_row_count.sh
+return_last_stdout_line: true
+parse_json_output: true
+```
+
 ## `timeout_seconds`
 
 Kills the process and fails the run if it runs longer than this many seconds. Unset (default): no timeout.
@@ -104,6 +117,8 @@ partition_start: "2024-01-01"
 | `env_vars` | `Dict[str, str]` | — | Additional env vars to pass to the shell (merged with the parent process's own environment). |
 | `skip_on_exit_code` | `int` | — | Exit code treated as a no-op success instead of a failure (Airflow's BashOperator default is 99 -- not defaulted here since this component predates this field and existing YAML may rely on every nonzero exit code failing… _(full docs in schema.json + component README)_ |
 | `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
+| `return_last_stdout_line` | `bool` | `false` | Return the command's last non-empty stdout line as this asset's materialized value (via the IO manager), not just metadata, so a downstream asset can take it as an input the usual way. Mirrors what a source system's last… _(full docs in schema.json + component README)_ |
+| `parse_json_output` | `bool` | `false` | Only with return_last_stdout_line: if that last line parses as valid JSON, return the parsed value instead of the raw string. Falls back to the raw string when it isn't valid JSON. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (partition_type='dynamic'). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. |
 

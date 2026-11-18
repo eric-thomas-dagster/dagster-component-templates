@@ -22,6 +22,51 @@ def test_pool_wires_through(mod):
     assert asset_def.op.pool == "rpa_bots"
 
 
+def test_return_last_stdout_line_off_by_default(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="printf 'a\\nb\\n'")
+    result = materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert "b" in md["stdout_preview"].value
+
+
+def test_return_last_stdout_line_returns_the_last_nonempty_line_as_value(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="printf 'first\\nsecond\\n\\n'", return_last_stdout_line=True,
+    )
+    result = materialize(component)
+    assert result.success
+    assert result.output_for_node("t") == "second"
+
+
+def test_parse_json_output_returns_parsed_value_when_valid_json(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command='echo \'{"a": 1}\'', return_last_stdout_line=True, parse_json_output=True,
+    )
+    result = materialize(component)
+    assert result.success
+    assert result.output_for_node("t") == {"a": 1}
+
+
+def test_parse_json_output_falls_back_to_raw_string_when_not_json(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="echo not-json", return_last_stdout_line=True, parse_json_output=True,
+    )
+    result = materialize(component)
+    assert result.success
+    assert result.output_for_node("t") == "not-json"
+
+
+def test_return_last_stdout_line_with_skip_on_exit_code(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="echo value-before-skip; exit 99",
+        skip_on_exit_code=99, return_last_stdout_line=True,
+    )
+    result = materialize(component)
+    assert result.success
+    assert result.output_for_node("t") == "value-before-skip"
+
+
 def test_basic_command_succeeds_with_exit_code_and_stdout_metadata(mod):
     component = mod.ShellCommandAssetComponent(asset_name="t", command="echo hello")
     result = materialize(component)

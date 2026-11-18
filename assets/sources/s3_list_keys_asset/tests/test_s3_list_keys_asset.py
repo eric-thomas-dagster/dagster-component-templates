@@ -52,6 +52,24 @@ def test_empty_bucket_returns_empty_lists(mod, monkeypatch):
     assert md["count"].value == 0
 
 
+def test_return_keys_as_value_off_by_default_still_succeeds(mod, monkeypatch):
+    component, _ = _component(mod, monkeypatch, [{"Contents": [{"Key": "a"}]}])
+    result = materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert md["keys"].value == ["a"]
+
+
+def test_return_keys_as_value_makes_keys_the_materialized_value(mod, monkeypatch):
+    pages = [{"Contents": [{"Key": "a/1.txt"}, {"Key": "a/2.txt"}]}]
+    component, _ = _component(mod, monkeypatch, pages, prefix="a/", return_keys_as_value=True)
+    result = materialize(component)
+    assert result.success
+    assert result.output_for_node("t") == ["a/1.txt", "a/2.txt"]
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert md["keys"].value == ["a/1.txt", "a/2.txt"]
+
+
 def test_resource_key_uses_the_registered_resource(mod, monkeypatch):
     pages = [{"Contents": [{"Key": "x"}]}]
     client = FakeS3Client(pages)

@@ -53,6 +53,10 @@ class S3ListKeysAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     region_name: Optional[str] = Field(default=None, description="AWS region.")
     resource_key: Optional[str] = Field(default=None, description="Optional key of a registered aws_s3_resource (resources/aws_s3_resource). When set, credentials/session come from that resource instead of a bare boto3.client('s3', region_name=...).")
+    return_keys_as_value: bool = Field(
+        default=False,
+        description="Also return `keys` as this asset's materialized value (via the IO manager), not just as metadata, so a downstream asset can take it as an input via AssetIn/`inputs` the usual way.",
+    )
 
     group_name: str = Field(default="infrastructure", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -86,7 +90,7 @@ class S3ListKeysAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds=set(component.kinds) if component.kinds else None,
             required_resource_keys=required_resource_keys,
         )
-        def _s3_list_keys(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+        def _s3_list_keys(context: dg.AssetExecutionContext):
             if component.resource_key:
                 s3 = getattr(context.resources, component.resource_key).get_client()
             else:
@@ -107,10 +111,13 @@ class S3ListKeysAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     common_prefixes.append(cp["Prefix"])
 
             context.log.info(f"Listed {len(keys)} key(s) under s3://{component.bucket}/{component.prefix}")
-            return dg.MaterializeResult(metadata={
+            metadata = {
                 "keys": dg.MetadataValue.json(keys),
                 "common_prefixes": dg.MetadataValue.json(common_prefixes),
                 "count": dg.MetadataValue.int(len(keys)),
-            })
+            }
+            if component.return_keys_as_value:
+                return dg.Output(keys, metadata=metadata)
+            return dg.MaterializeResult(metadata=metadata)
 
         return dg.Definitions(assets=[_s3_list_keys])

@@ -94,6 +94,12 @@
       "required": false,
       "type": "array",
       "ui:widget": "list"
+    },
+    "return_keys_as_value": {
+      "type": "boolean",
+      "label": "Return Keys As Value",
+      "description": "Also return `keys` as this asset's materialized value (via the IO manager), not just as metadata, so a downstream asset can take it as an input via AssetIn/`inputs` the usual way.",
+      "required": false
     }
   },
   "tags": [

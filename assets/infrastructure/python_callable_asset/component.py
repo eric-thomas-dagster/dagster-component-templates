@@ -348,11 +348,19 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     inputs: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
-            "{name: upstream_asset_key}. Each entry's value is loaded via the IO manager. `name` doubles as the "
-            "Airflow task_id for `ti.xcom_pull(task_ids=name)`, and -- if the callable's signature declares a "
-            "parameter called `name` -- is bound directly to it (TaskFlow-style). Keys must be valid Python "
-            "identifiers."
+            "{name: upstream_asset_key} loads the whole value via the IO manager. {name: "
+            "'upstream_asset_key.metadata_key'} (a '.' in the value) instead reads just that named metadata "
+            "entry off the upstream asset's materialization event FROM THIS RUN -- Airflow's multi-value "
+            "xcom_push/xcom_pull-by-key pattern, where a task pushes several named values and a later task "
+            "reads one by name. Missing metadata (upstream didn't set it, or didn't run in this run) falls "
+            "back to `input_defaults[name]` if set, else fails loudly. `name` doubles as the Airflow task_id "
+            "for `ti.xcom_pull(task_ids=name)`, and -- if the callable's signature declares a parameter called "
+            "`name` -- is bound directly to it (TaskFlow-style). Keys must be valid Python identifiers."
         ),
+    )
+    input_defaults: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Default value for an `inputs` metadata-lookup entry ('asset_key.metadata_key') whose metadata key is missing from the upstream's materialization in this run. Entries with no default raise instead of silently passing None.",
     )
     deps: Optional[List[str]] = Field(
         default=None,
@@ -428,9 +436,16 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     @model_validator(mode="after")
     def _validate_inputs_and_jinja(self):
-        for name in (self.inputs or {}):
+        for name, spec in (self.inputs or {}).items():
             if not name.isidentifier():
                 raise ValueError(f"PythonCallableAssetComponent: inputs key {name!r} must be a valid Python identifier.")
+            if "." in spec:
+                asset_key_part, metadata_key = spec.rsplit(".", 1)
+                if not asset_key_part or not metadata_key:
+                    raise ValueError(
+                        f"PythonCallableAssetComponent: inputs[{name!r}] = {spec!r} looks like a metadata "
+                        "lookup ('asset_key.metadata_key') but is missing one side."
+                    )
         if self.context_mode == "airflow":
             _validate_jinja_identifiers(self.args, field_name="args")
             _validate_jinja_identifiers(self.kwargs, field_name="kwargs")
@@ -445,7 +460,17 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         component = self
 
         asset_deps = [dg.AssetKey(d.split("/")) for d in (component.deps or [])]
-        ins = {name: dg.AssetIn(key=dg.AssetKey.from_user_string(key)) for name, key in (component.inputs or {}).items()}
+        ins: Dict[str, dg.AssetIn] = {}
+        metadata_inputs: Dict[str, tuple] = {}  # name -> (AssetKey, metadata_key)
+        metadata_input_deps: List[dg.AssetKey] = []
+        for name, spec in (component.inputs or {}).items():
+            if "." in spec:
+                asset_key_part, metadata_key = spec.rsplit(".", 1)
+                akey = dg.AssetKey.from_user_string(asset_key_part)
+                metadata_inputs[name] = (akey, metadata_key)
+                metadata_input_deps.append(akey)
+            else:
+                ins[name] = dg.AssetIn(key=dg.AssetKey.from_user_string(spec))
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
@@ -476,10 +501,13 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
+        ins_keys = {ai.key for ai in ins.values()}
+        all_deps = asset_deps + [k for k in metadata_input_deps if k not in ins_keys and k not in asset_deps]
+
         @dg.asset(
             key=dg.AssetKey(component.asset_key.split("/")),
             ins=ins or None,
-            deps=asset_deps,
+            deps=all_deps,
             group_name=component.group_name,
             description=component.description,
             partitions_def=partitions_def,
@@ -494,6 +522,25 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             fn = _resolve_callable(component.callable_path)
             sig_params = inspect.signature(fn).parameters
             has_var_kw = any(p.kind is inspect.Parameter.VAR_KEYWORD for p in sig_params.values())
+
+            for name, (akey, metadata_key) in metadata_inputs.items():
+                record = context.instance.get_latest_materialization_event(akey)
+                entry = None
+                if record is not None and record.run_id == context.run.run_id:
+                    mat = record.asset_materialization
+                    entry = mat.metadata.get(metadata_key) if mat else None
+                if entry is not None:
+                    upstream_kwargs[name] = entry.value
+                elif name in (component.input_defaults or {}):
+                    upstream_kwargs[name] = component.input_defaults[name]
+                else:
+                    raise dg.Failure(
+                        description=(
+                            f"inputs[{name!r}] = '{akey.to_user_string()}.{metadata_key}': metadata key "
+                            f"{metadata_key!r} not found on {akey.to_user_string()}'s materialization in "
+                            "this run, and no default set in input_defaults."
+                        ),
+                    )
 
             call_kwargs: Dict[str, Any] = dict(component.kwargs or {})
             call_args: List[Any] = list(component.args or [])

@@ -90,9 +90,10 @@ def test_group_end_to_end_through_a_real_materialization(mod, monkeypatch):
     ]
 
 
-def test_group_output_composes_with_a_downstream_map_over_each_group(mod, ctx, fake_litellm):
+def test_group_output_composes_with_a_downstream_map_over_each_group(mod, ctx, fake_litellm, monkeypatch):
     """The headline use case: a group's records list reads directly via map's {item}."""
     from .conftest import tool_call
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
     state = new_state(text="hello")
     state["source"]["text"] = json.dumps([
         {"account": "A1", "amount": 10}, {"account": "A1", "amount": 30}, {"account": "A2", "amount": 20},

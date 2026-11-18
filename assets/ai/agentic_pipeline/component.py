@@ -2840,7 +2840,10 @@ def _static_pipeline_checks(steps: List[Dict[str, Any]], source_config: Dict[str
     root_is_json_list = (
         source_config.get("kind") == "file"
         and isinstance(source_config.get("path"), str)
-        and source_config["path"].rstrip().lower().endswith((".json", ".jsonl"))
+        # ".json" alone is ambiguous -- it's just as often a single object (e.g. one run's
+        # evidence dict) as a list, so only ".jsonl" (JSON Lines, inherently one-record-per-line)
+        # is a reliable static signal that the root source is a list of items.
+        and source_config["path"].rstrip().lower().endswith(".jsonl")
     )
 
     for step in steps or []:

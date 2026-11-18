@@ -372,29 +372,38 @@ def timeout(
                     context, derive_timeout_from_history, asset_key_obj, effective_timeout,
                 )
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(fn, *args, **kwargs)
-                t0 = time.time()
-                try:
-                    result = future.result(timeout=effective_timeout)
-                    elapsed = time.time() - t0
-                    _emit_timeout_actual_observation(context, _state_key, elapsed, effective_timeout)
-                    return result
-                except concurrent.futures.TimeoutError:
-                    future.cancel()
-                    _emit_timeout_observation(context, _state_key, effective_timeout)
-                    context.log.error(
-                        f"[timeout] {_state_key} exceeded {effective_timeout}s — compute cancelled"
-                    )
-                    if on_timeout == "fail":
-                        raise dg.Failure(
-                            description=f"@timeout exceeded: {_state_key} > {effective_timeout}s",
-                            metadata={
-                                "timeout_key": dg.MetadataValue.text(_state_key),
-                                "timeout_seconds": dg.MetadataValue.float(effective_timeout),
-                            },
-                        ) from None
-                    return None
+            # Deliberately NOT `with ThreadPoolExecutor() as executor:` -- that form's
+            # __exit__ calls shutdown(wait=True), which blocks until the background call
+            # finishes anyway, silently defeating the timeout for a call that hangs
+            # indefinitely (confirmed live: a 0.05s timeout took >1s to actually return
+            # when the wrapped compute slept 1s). shutdown(wait=False) lets this function
+            # return at the real deadline; the leaked thread finishes on its own, matching
+            # the "can't be forcibly killed" trade-off already documented below.
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(fn, *args, **kwargs)
+            t0 = time.time()
+            try:
+                result = future.result(timeout=effective_timeout)
+            except concurrent.futures.TimeoutError:
+                executor.shutdown(wait=False)
+                _emit_timeout_observation(context, _state_key, effective_timeout)
+                context.log.error(
+                    f"[timeout] {_state_key} exceeded {effective_timeout}s — compute cancelled"
+                )
+                if on_timeout == "fail":
+                    raise dg.Failure(
+                        description=f"@timeout exceeded: {_state_key} > {effective_timeout}s",
+                        metadata={
+                            "timeout_key": dg.MetadataValue.text(_state_key),
+                            "timeout_seconds": dg.MetadataValue.float(effective_timeout),
+                        },
+                    ) from None
+                return None
+            else:
+                executor.shutdown(wait=False)
+                elapsed = time.time() - t0
+                _emit_timeout_actual_observation(context, _state_key, elapsed, effective_timeout)
+                return result
 
         return _wrapped
 

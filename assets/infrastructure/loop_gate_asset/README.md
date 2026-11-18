@@ -24,9 +24,11 @@ def refine_once(raw_text, previous_score=None):
 | Attribute | Meaning |
 |---|---|
 | `loop.result` | This iteration's body return value. |
-| `loop.previous` | A list of every **prior** iteration's return value, oldest first (this iteration's own result is not included). |
-| `loop.index` | 0-based iteration number. |
+| `loop.previous` | The **immediately preceding** iteration's return value — a single value, not a list of every prior result — or `None` on iteration 1. |
+| `loop.index` | **1-based** iteration number: the first iteration is `1`, not `0`. |
 | `loop.max_iterations` | The configured `max_iterations`. |
+
+(Matches Airflow 3.4's own `loop` object exactly, including the 1-based `index` and single-value `previous` — verified against Airflow's own docs, not assumed.)
 
 Must return `bool`, or a `(stop: bool, reason: str)` tuple. Any other return value — **including `None`** — fails the run immediately, matching Airflow's own real behavior for a careless `until` function.
 
@@ -42,7 +44,8 @@ def accurate_enough(loop):
 
 ## What this does NOT do
 
-A real Airflow gate's `retries` stay within the **same iteration** — only that one bad `until` call is retried; the body's prior iterations are untouched. This component's `retry_policy_max_retries` instead retries the **whole asset from iteration 0**, because the entire loop is one Dagster step. If per-iteration retry/idempotency matters to your pipeline, handle it inside the body callable itself (e.g. make each iteration safe to re-run from scratch) rather than relying on `retry_policy_max_retries` for that guarantee.
+- **Repeat a whole multi-task group.** Airflow's `.loop()` repeats an entire `@task_group` — potentially many tasks wired together. This component repeats **one callable**. If the thing that needs to repeat is itself a multi-step pipeline, write it as one function that internally calls several others, or compose several `loop_gate_asset`s if the steps need to be independently observable/retryable.
+- **Preserve per-iteration retry.** A real Airflow gate's `retries` stay within the **same iteration** — only that one bad `until` call is retried; the body's prior iterations are untouched. This component's `retry_policy_max_retries` instead retries the **whole loop from its first iteration**, because the entire loop is one Dagster step. If per-iteration retry/idempotency matters to your pipeline, handle it inside the body callable itself (e.g. make each iteration safe to re-run from scratch) rather than relying on `retry_policy_max_retries` for that guarantee.
 
 ## Concurrency, retries, and timeouts
 

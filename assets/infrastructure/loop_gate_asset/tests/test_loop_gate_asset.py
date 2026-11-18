@@ -102,17 +102,20 @@ def test_until_callable_bad_return_value_fails(mod, fx):
     assert fx.CALLS["n"] == 1  # failed on the very first iteration's bad until return
 
 
-# --- LoopState.previous/.index are correctly threaded through -------------------------------
+# --- LoopState.previous/.index match Airflow 3.4's real contract ---------------------------
+# (loop.index is 1-based -- the first iteration is 1, not 0 -- and loop.previous is the single
+# immediately-preceding iteration's result, None on iteration 1, NOT a list of every prior
+# result. Verified against Airflow's own 3.4.0 docs, not assumed.)
 
-def test_loop_state_previous_and_index_are_correct(mod, fx):
+def test_loop_state_previous_and_index_match_airflow_contract(mod, fx):
     component = mod.LoopGateAssetComponent(
         asset_key="d/loop", callable_path=f"{FIXTURES_PATH}:increment",
-        until_callable_path=f"{FIXTURES_PATH}:uses_previous", max_iterations=10,
+        until_callable_path=f"{FIXTURES_PATH}:previous_matches_prior_result", max_iterations=10,
     )
     asset_def = component.build_defs(context=None).assets[0]
     result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
-    assert result.success
-    assert result.output_for_node("d__loop") == 3  # loop.index==2 (3rd iter) is first time len(previous)==index
+    assert result.success  # the until_callable's own assertion would have failed the run otherwise
+    assert result.output_for_node("d__loop") == 3
 
 
 # --- inputs (TaskFlow-style upstream binding) -------------------------------------------------

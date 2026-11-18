@@ -37,8 +37,10 @@ def returns_none(loop):
     pass
 
 
-def uses_previous(loop):
-    return len(loop.previous) == loop.index and loop.index >= 2
+def previous_matches_prior_result(loop):
+    expected = None if loop.index == 1 else loop.index - 1
+    assert loop.previous == expected, f"loop.previous={loop.previous!r} expected={expected!r} at index={loop.index}"
+    return loop.index >= 3
 
 
 def slow_increment():

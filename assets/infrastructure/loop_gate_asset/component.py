@@ -11,18 +11,23 @@ The real, user-facing mechanism is: a task group runs its body, then a gate task
 `(stop, reason)` pair -- any other return value fails the gate, even `None`. No `until` ->
 a fixed-count loop that always succeeds after `max_iterations` runs.
 
-This component models that same shape as ONE Dagster asset: the body callable runs in a plain
-Python loop inside the asset's own compute (not separate ops per iteration -- Dagster has no
-primitive for "re-run this op N more times within one step" the way Airflow's scheduler does
-across task instances), and the `until` callable is consulted the same way after each
-iteration.
+This component models that same shape as ONE Dagster asset and ONE callable, not a whole task
+GROUP: the body callable runs in a plain Python loop inside the asset's own compute (not
+separate ops per iteration -- Dagster has no primitive for "re-run this op N more times within
+one step" the way Airflow's scheduler does across task instances), and the `until` callable is
+consulted the same way after each iteration.
 
-What this does NOT do: a real Airflow gate's retry (`retries` on the gate task) stays within
-the SAME iteration -- only that one bad `until` call is retried, body state and prior
-iterations untouched. Dagster's own `RetryPolicy` instead retries the WHOLE step from
-iteration 0, because the whole loop is one step here. If that distinction matters to your
-pipeline, add your own retry/idempotency handling inside the body callable instead of relying
-on `retry_policy_max_retries`.
+What this does NOT do:
+- Repeat a whole multi-task GROUP the way Airflow's `.loop()` does -- only a single callable's
+  body. If the thing that needs to repeat is itself a multi-step pipeline, call it as one
+  function from `callable_path` (it can internally invoke several other functions), or compose
+  several `loop_gate_asset`s if the steps need to be independently observable/retryable.
+- Preserve a real Airflow gate's per-iteration retry: a real gate's `retries` stay within the
+  SAME iteration -- only that one bad `until` call is retried, body state and prior iterations
+  untouched. Dagster's own `RetryPolicy` instead retries the WHOLE loop from its first
+  iteration, because the whole loop is one step here. If that distinction matters to your
+  pipeline, add your own retry/idempotency handling inside the body callable instead of relying
+  on `retry_policy_max_retries`.
 """
 import inspect
 from typing import Any, Dict, List, Optional, Union
@@ -107,13 +112,14 @@ def _bind_call(fn, args, kwargs, upstream_kwargs):
 
 class LoopState:
     """Passed as `loop=` to the `until_callable` -- mirrors the real Airflow 3.4 gate's own
-    `loop` object: `.result` (this iteration's body return value), `.previous` (a list of
-    every PRIOR iteration's return value, oldest first -- this iteration's own result is NOT
-    included), `.index` (0-based iteration number), `.max_iterations`."""
+    `loop` object (verified against Airflow's own 3.4.0 docs, not guessed): `.result` (this
+    iteration's body return value), `.previous` (the IMMEDIATELY PRECEDING iteration's result
+    -- a single value, not a list of every prior result -- or `None` on iteration 1),
+    `.index` (1-based iteration number -- the first iteration is 1, not 0), `.max_iterations`."""
 
-    def __init__(self, result: Any, previous: List[Any], index: int, max_iterations: int):
+    def __init__(self, result: Any, previous: Any, index: int, max_iterations: int):
         self.result = result
-        self.previous = list(previous)
+        self.previous = previous
         self.index = index
         self.max_iterations = max_iterations
 
@@ -238,19 +244,19 @@ class LoopGateAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             until_fn = _resolve_callable(component.until_callable_path) if component.until_callable_path else None
 
             def _run_loop():
-                previous: List[Any] = []
+                previous: Any = None  # Airflow 3.4: the PRECEDING iteration's result, None on iteration 1
                 final: Any = None
-                for i in range(component.max_iterations):
+                for i in range(1, component.max_iterations + 1):  # Airflow 3.4: loop.index starts at one
                     final = _bind_call(body_fn, component.args, component.kwargs, upstream_kwargs)
-                    previous.append(final)
                     if until_fn is not None:
-                        decision = until_fn(loop=LoopState(final, previous[:-1], i, component.max_iterations))
+                        decision = until_fn(loop=LoopState(final, previous, i, component.max_iterations))
                         stop, reason = _normalize_until_decision(decision)
                         context.log.info(
                             f"loop_gate: iteration {i} until_callable -> stop={stop}" + (f" ({reason})" if reason else "")
                         )
                         if stop:
-                            return final, i + 1, True
+                            return final, i, True
+                    previous = final
                 if until_fn is not None:
                     raise dg.Failure(
                         description=(

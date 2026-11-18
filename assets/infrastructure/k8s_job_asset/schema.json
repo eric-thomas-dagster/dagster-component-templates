@@ -264,6 +264,18 @@
       "required": false,
       "type": "string",
       "x-dagster-widget": "cron"
+    },
+    "use_pipes": {
+      "type": "boolean",
+      "label": "Use Pipes",
+      "description": "Use dagster-k8s's PipesK8sClient instead of execute_k8s_job -- the Airflow KubernetesPodOperator equivalent WITH the Dagster Pipes protocol: the pod streams logs AND structured messages (custom metadata, asset checks, a real materialized value) back live, instead of execute_k8s_job's plain log tailing + a fixed metadata dict after the fact. Requires the container's entrypoint to use the `dagster-pipes` package itself (`with dagster_pipes.open_dagster_pipes() as context: ...`) -- a plain, Pipes-unaware image works with execute_k8s_job (use_pipes=False, the default) but not here.",
+      "required": false
+    },
+    "pipes_extras": {
+      "type": "object",
+      "label": "Pipes Extras",
+      "description": "use_pipes=True only: extra key-value data passed to the pod's PipesContext (read inside the container via `context.get_extra(key)`).",
+      "required": false
     }
   },
   "tags": [

@@ -101,6 +101,99 @@ def test_retry_policy_wires_through(mod, monkeypatch):
     assert rp is not None and rp.max_retries == 2 and rp.delay == 5
 
 
+# --- use_pipes: PipesK8sClient variant --------------------------------------------------
+
+def _patch_pipes_client(monkeypatch, mod, materialize_result):
+    calls = []
+
+    class FakeInvocation:
+        def get_materialize_result(self):
+            return materialize_result
+
+    class FakePipesK8sClient:
+        def __init__(self, *a, **k):
+            pass
+
+        def run(self, **kwargs):
+            calls.append(kwargs)
+            return FakeInvocation()
+
+    import dagster_k8s
+    monkeypatch.setattr(dagster_k8s, "PipesK8sClient", FakePipesK8sClient)
+    return calls
+
+
+def test_use_pipes_false_by_default_calls_execute_k8s_job_not_pipes(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    pipes_calls = _patch_pipes_client(monkeypatch, mod, materialize_result=None)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
+    materialize(component)
+    assert len(calls) == 1
+    assert len(pipes_calls) == 0
+
+
+def test_use_pipes_true_calls_pipes_client_not_execute_k8s_job(mod, monkeypatch):
+    import dagster as dg
+    execute_calls = _patch_execute(monkeypatch, mod)
+    pipes_calls = _patch_pipes_client(
+        monkeypatch, mod, materialize_result=dg.MaterializeResult(metadata={"ok": dg.MetadataValue.bool(True)}),
+    )
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", use_pipes=True)
+    result = materialize(component)
+    assert result.success
+    assert len(execute_calls) == 0
+    assert len(pipes_calls) == 1
+    assert pipes_calls[0]["image"] == "img:v1"
+
+
+def test_use_pipes_passes_extras_and_env(mod, monkeypatch):
+    import dagster as dg
+    pipes_calls = _patch_pipes_client(monkeypatch, mod, materialize_result=dg.MaterializeResult())
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", use_pipes=True,
+        pipes_extras={"region": "us-east-1"}, env_vars={"FOO": "bar"},
+    )
+    materialize(component)
+    assert pipes_calls[0]["extras"] == {"region": "us-east-1"}
+    assert pipes_calls[0]["env"] == {"FOO": "bar"}
+
+
+def test_use_pipes_builds_base_pod_spec_from_resources_volumes_and_service_account(mod, monkeypatch):
+    import dagster as dg
+    pipes_calls = _patch_pipes_client(monkeypatch, mod, materialize_result=dg.MaterializeResult())
+    volumes = [{"name": "data", "emptyDir": {}}]
+    volume_mounts = [{"name": "data", "mountPath": "/data"}]
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", use_pipes=True,
+        cpu_limit="500m", memory_limit="1Gi", volumes=volumes, volume_mounts=volume_mounts,
+        service_account_name="ml-runner", image_pull_secrets=["my-secret"], image_pull_policy="Always",
+    )
+    materialize(component)
+    spec = pipes_calls[0]["base_pod_spec"]
+    assert spec["containers"][0]["resources"] == {"limits": {"cpu": "500m", "memory": "1Gi"}}
+    assert spec["containers"][0]["volume_mounts"] == volume_mounts
+    assert spec["containers"][0]["image_pull_policy"] == "Always"
+    assert spec["volumes"] == volumes
+    assert spec["service_account_name"] == "ml-runner"
+    assert spec["image_pull_secrets"] == [{"name": "my-secret"}]
+
+
+def test_use_pipes_with_no_overrides_passes_no_base_pod_spec(mod, monkeypatch):
+    import dagster as dg
+    pipes_calls = _patch_pipes_client(monkeypatch, mod, materialize_result=dg.MaterializeResult())
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", use_pipes=True)
+    materialize(component)
+    assert pipes_calls[0]["base_pod_spec"] is None
+
+
+def test_use_pipes_timeout_maps_to_pod_wait_timeout(mod, monkeypatch):
+    import dagster as dg
+    pipes_calls = _patch_pipes_client(monkeypatch, mod, materialize_result=dg.MaterializeResult())
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", use_pipes=True, timeout_seconds=90)
+    materialize(component)
+    assert pipes_calls[0]["pod_wait_timeout"] == 90.0
+
+
 def test_static_partition_type_wires_through(mod, monkeypatch):
     import dagster as dg
     _patch_execute(monkeypatch, mod)

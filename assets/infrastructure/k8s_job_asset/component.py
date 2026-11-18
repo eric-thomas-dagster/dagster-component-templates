@@ -209,7 +209,24 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     timeout_seconds: Optional[int] = Field(
         default=None,
-        description="Raise if the Job takes longer than this many seconds -- enforced natively by dagster-k8s's execute_k8s_job (timeout=), not a client-side watchdog.",
+        description="Raise if the Job takes longer than this many seconds -- enforced natively by dagster-k8s's execute_k8s_job (timeout=) or PipesK8sClient (pod_wait_timeout=, use_pipes=True), not a client-side watchdog.",
+    )
+    use_pipes: bool = Field(
+        default=False,
+        description=(
+            "Use dagster-k8s's PipesK8sClient instead of execute_k8s_job -- the Airflow "
+            "KubernetesPodOperator equivalent WITH the Dagster Pipes protocol: the pod streams "
+            "logs AND structured messages (custom metadata, asset checks, a real materialized "
+            "value) back live, instead of execute_k8s_job's plain log tailing + a fixed "
+            "metadata dict after the fact. Requires the container's entrypoint to use the "
+            "`dagster-pipes` package itself (`with dagster_pipes.open_dagster_pipes() as "
+            "context: ...`) -- a plain, Pipes-unaware image works with execute_k8s_job "
+            "(use_pipes=False, the default) but not here."
+        ),
+    )
+    pipes_extras: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="use_pipes=True only: extra key-value data passed to the pod's PipesContext (read inside the container via `context.get_extra(key)`).",
     )
     group_name: str = Field(default="k8s", description="Asset group.")
     deps: Optional[List[str]] = Field(default=None, description="Upstream asset keys.")
@@ -260,6 +277,8 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         volumes = self.volumes
         volume_mounts = self.volume_mounts
         timeout_seconds = self.timeout_seconds
+        use_pipes = self.use_pipes
+        pipes_extras = self.pipes_extras
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
@@ -303,12 +322,49 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=self.asset_tags or None,
             kinds=set(self.kinds) if self.kinds else None,
         )
-        def _k8s_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            from dagster_k8s import execute_k8s_job
-
+        def _k8s_asset(context: dg.AssetExecutionContext):
             resources = None
             if cpu or mem:
                 resources = {"limits": {k: v for k, v in {"cpu": cpu, "memory": mem}.items() if v}}
+
+            if use_pipes:
+                from dagster_k8s import PipesK8sClient
+
+                # PipesK8sClient has no dedicated resources/volumes/service_account/
+                # image_pull_policy kwargs (unlike execute_k8s_job) -- those go through the raw
+                # base_pod_spec dict instead (container[0] overrides + pod-level fields).
+                container_overrides: Dict[str, Any] = {}
+                if resources:
+                    container_overrides["resources"] = resources
+                if volume_mounts:
+                    container_overrides["volume_mounts"] = volume_mounts
+                if image_pull_policy:
+                    container_overrides["image_pull_policy"] = image_pull_policy
+
+                base_pod_spec: Dict[str, Any] = {}
+                if container_overrides:
+                    base_pod_spec["containers"] = [container_overrides]
+                if volumes:
+                    base_pod_spec["volumes"] = volumes
+                if service_account_name:
+                    base_pod_spec["service_account_name"] = service_account_name
+                if image_pull_secrets:
+                    base_pod_spec["image_pull_secrets"] = image_pull_secrets
+
+                client = PipesK8sClient()
+                return client.run(
+                    context=context,
+                    image=image,
+                    command=cmd,
+                    namespace=ns,
+                    env=env_vars or None,
+                    extras=pipes_extras,
+                    base_pod_spec=base_pod_spec or None,
+                    pod_wait_timeout=float(timeout_seconds) if timeout_seconds else 86400.0,
+                ).get_materialize_result()
+
+            from dagster_k8s import execute_k8s_job
+
             # execute_k8s_job's `env_vars` is a List[str] of "KEY=value" (parsed via
             # dagster._core.utils.parse_env_var) -- NOT a dict. Passing a dict here (as this
             # component did before) iterates its KEYS only, each treated as a bare var name to

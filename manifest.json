@@ -66756,6 +66756,56 @@
       "icon": "si:microsoftteams"
     },
     {
+      "id": "teams_run_request_sensor",
+      "name": "teams_run_request_sensor",
+      "component_type": "dagster_community_components.TeamsRunRequestSensorComponent",
+      "path": "sensors/teams_run_request_sensor",
+      "category": "sensors",
+      "icon": "si:microsoftteams",
+      "description": "Polls a Microsoft Teams channel for chat-requested job/asset runs (\"can you run X\") and launches the matching RunRequest -- replacing the person who reads the channel and runs it by hand. Matches plain-text trigger phrases (deterministic substring match, not an LLM) against each new message. Every match is authorized before launching: an asset_selection trigger's owners are read LIVE from the matched asset(s)' own `owners` catalog metadata; a bare job_name trigger has no asset metadata, so it requires an explicit owners list instead -- there is no implicit \"anyone can run this\" default for either shape. `team:`-prefixed owners never authorize a chat-triggered run (no Azure AD group-membership check). Uses MS Graph API with a DELEGATED OAuth token (app-only/client-credentials does not work for sending a channel message, and the application form of ChannelMessage.Read.All requires Microsoft's separate Protected-API approval beyond admin consent) -- a one-time interactive consent captures a refresh token, refreshed (and persisted if Microsoft rotates it) on every poll. The first-ever tick seeds its cursor to \"now\" by default, so activating this sensor never replays a channel's past run requests.",
+      "tags": [],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-18"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "run_requests"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "when_to_use": "An MS-shop customer's team members ask a human in Teams to run a job, and that person just reads the message and launches it -- automate that hand-off. Requires an Azure AD app registration with DELEGATED permissions ChannelMessage.Read.All (or ChannelMessage.Read.Group), ChannelMessage.Send, User.Read.All, offline_access, and a one-time interactive consent for a dedicated bot account. Authorization is enforced by default against the target's real owners metadata -- do not set require_owner_authorization: false outside a fully-trusted channel.",
+        "chains_with": [
+          "teams_approval_gate",
+          "msteams_resource",
+          "asset_to_job_trigger_sensor"
+        ]
+      },
+      "produces": [
+        "sensor"
+      ],
+      "keywords": [
+        "teams",
+        "chatops",
+        "run_request",
+        "automation",
+        "authorization"
+      ]
+    },
+    {
       "id": "tecton_asset",
       "name": "Tecton Feature Store Asset",
       "category": "analytics",

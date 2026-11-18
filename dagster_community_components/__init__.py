@@ -1406,6 +1406,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TealiumIngestionComponent": "assets/ingestion/tealium_ingestion/component.py",
     "TeamsApprovalGateComponent": "assets/ai/teams_approval_gate/component.py",
     "TeamsNotificationJobComponent": "jobs/teams_notification_job/component.py",
+    "TeamsRunRequestSensorComponent": "sensors/teams_run_request_sensor/component.py",
     "TectonAssetComponent": "assets/analytics/tecton_asset/component.py",
     "TemporalQueryAssetComponent": "assets/infrastructure/temporal_query_asset/component.py",
     "TemporalSignalAssetComponent": "assets/infrastructure/temporal_signal_asset/component.py",

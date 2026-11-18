@@ -62,10 +62,12 @@ def _require_env(name: str) -> str:
 
 
 def _format_option_value(v: Any) -> str:
-    """Render a FILE_FORMAT / copy-option value using Snowflake's own grammar: bare TRUE/FALSE
-    for booleans, bare numbers, single-quoted (escaped) strings for everything else -- Snowflake
-    accepts a quoted string for keyword-valued options too (e.g. TYPE = 'CSV' alongside
-    TYPE = CSV), so always quoting strings is a safe, unambiguous choice."""
+    """Render a FILE_FORMAT option (or a non-enum COPY option like PURGE/FORCE/SIZE_LIMIT)
+    value using Snowflake's own grammar: bare TRUE/FALSE for booleans, bare numbers,
+    single-quoted (escaped) strings for everything else -- Snowflake's CREATE FILE FORMAT docs
+    document FILE_FORMAT's own TYPE as accepting a quoted string (TYPE = 'CSV'). NOT used for
+    ON_ERROR/MATCH_BY_COLUMN_NAME/VALIDATION_MODE, whose keyword-enum values COPY INTO's own
+    docs show unquoted -- those are rendered directly in _build_copy_sql instead."""
     if isinstance(v, bool):
         return "TRUE" if v else "FALSE"
     if isinstance(v, (int, float)):
@@ -178,21 +180,28 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         elif self.file_format_options:
             parts.append(f"FILE_FORMAT = ({_render_options(self.file_format_options)})")
 
-        copy_opts: Dict[str, Any] = {}
+        # ON_ERROR and MATCH_BY_COLUMN_NAME (like VALIDATION_MODE below) are rendered UNQUOTED,
+        # not through _render_options -- Snowflake's own reference docs show these keyword-enum
+        # options' values bare (ON_ERROR = CONTINUE, not ON_ERROR = 'CONTINUE'; the one quoted
+        # ON_ERROR form, 'SKIP_FILE_<num>%', is a string literal because of the trailing '%', not
+        # evidence that quoting is a general alternative syntax here). Quoting them anyway isn't
+        # a hard SQL error, but it's not the documented form either, so this avoids depending on
+        # Snowflake's parser being lenient about it.
         if self.on_error is not None:
-            copy_opts["ON_ERROR"] = self.on_error
+            parts.append(f"ON_ERROR = {self.on_error}")
+        copy_opts: Dict[str, Any] = {}
         if self.purge is not None:
             copy_opts["PURGE"] = self.purge
         if self.force is not None:
             copy_opts["FORCE"] = self.force
-        if self.match_by_column_name is not None:
-            copy_opts["MATCH_BY_COLUMN_NAME"] = self.match_by_column_name
         if self.size_limit is not None:
             copy_opts["SIZE_LIMIT"] = self.size_limit
         if self.truncatecolumns is not None:
             copy_opts["TRUNCATECOLUMNS"] = self.truncatecolumns
         if copy_opts:
             parts.append(_render_options(copy_opts))
+        if self.match_by_column_name is not None:
+            parts.append(f"MATCH_BY_COLUMN_NAME = {self.match_by_column_name}")
         if self.validation_mode:
             parts.append(f"VALIDATION_MODE = {self.validation_mode}")
 

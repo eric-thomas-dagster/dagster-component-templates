@@ -119,10 +119,18 @@ def test_file_format_options_rendered_with_quoting_rules(mod):
 def test_copy_options_rendered(mod):
     comp = _comp(mod, on_error="CONTINUE", purge=True, force=False, size_limit=1000)
     sql = comp._build_copy_sql()
-    assert "ON_ERROR = 'CONTINUE'" in sql
+    # Unquoted -- matches Snowflake's own COPY INTO reference docs for ON_ERROR's keyword-enum
+    # values (ON_ERROR = CONTINUE), not quoted like a generic string option.
+    assert "ON_ERROR = CONTINUE" in sql
     assert "PURGE = TRUE" in sql
     assert "FORCE = FALSE" in sql
     assert "SIZE_LIMIT = 1000" in sql
+
+
+def test_match_by_column_name_rendered_unquoted(mod):
+    comp = _comp(mod, match_by_column_name="CASE_INSENSITIVE")
+    sql = comp._build_copy_sql()
+    assert "MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE" in sql
 
 
 def test_files_and_pattern_rendered(mod):

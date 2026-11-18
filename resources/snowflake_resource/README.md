@@ -10,19 +10,16 @@ Register a dagster-snowflake SnowflakeResource for use by other components
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `account` | `str` | Snowflake account identifier, e.g. 'xy12345.us-east-1' |
-| `user` | `str` | Snowflake username |
-| `password_env_var` | `str` | Environment variable holding the Snowflake password |
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"snowflake_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+| `account` | `str` | — | Snowflake account identifier, e.g. 'xy12345.us-east-1'. Set this or account_env_var. |
+| `account_env_var` | `str` | — | Environment variable holding the Snowflake account identifier (secret-hygiene alternative to the plain `account` field -- account identifiers differ per environment, so teams often keep this out of checked-in YAML too). |
+| `user` | `str` | — | Snowflake username. Set this or user_env_var. |
+| `user_env_var` | `str` | — | Environment variable holding the Snowflake username. |
+| `password_env_var` | `str` | — | Environment variable holding the Snowflake password. Set exactly one of password_env_var / pat_env_var / private_key_path_env_var. |
 | `database` | `str` | — | Default database |
 | `warehouse` | `str` | — | Default warehouse |
 | `role` | `str` | — | Default role |
@@ -31,6 +28,9 @@ Register a dagster-snowflake SnowflakeResource for use by other components
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `pat_env_var` | `str` | — | Environment variable holding a Snowflake Programmatic Access Token (passed as the connector's password field -- same convention as snowflake_stored_procedure_call_asset). |
+| `private_key_path_env_var` | `str` | — | Environment variable holding the path to an RSA private key file, for key-pair authentication. |
+| `private_key_passphrase_env_var` | `str` | — | Environment variable holding the private key file's passphrase, if it's encrypted. Only used with private_key_path_env_var. |
 | `schema_name` | `str` | — | Default schema |
 
 [//]: # (FIELDS:END)
@@ -41,11 +41,9 @@ Register a dagster-snowflake SnowflakeResource for use by other components
 type: dagster_community_components.SnowflakeResourceComponent
 attributes:
   resource_key: snowflake_resource  # key other components use
-  # Required
-  account: <account>
-  user: <user>
-  password_env_var: MY_PASSWORD_ENV_VAR  # env var name
-  # Optional
+  account: xy12345.us-east-1    # or account_env_var
+  user: dagster_service_user    # or user_env_var
+  password_env_var: MY_PASSWORD_ENV_VAR  # or pat_env_var / private_key_path_env_var
 ```
 
 ## Usage in other components
@@ -65,3 +63,13 @@ Set the corresponding environment variable before running Dagster:
 ```bash
 export PASSWORD_ENV_VAR_VALUE="your-secret-here"
 ```
+
+`account`/`user` each take either the plain value or an env-var alternative (`account_env_var`/`user_env_var`) — account identifiers differ per environment, so some teams keep them out of checked-in YAML too.
+
+Exactly one of three auth methods is required:
+
+| Field | Method |
+|---|---|
+| `password_env_var` | Plain password. |
+| `pat_env_var` | A Snowflake Programmatic Access Token, passed as the connector's password field — same convention as `snowflake_stored_procedure_call_asset` in this repo. |
+| `private_key_path_env_var` (+ optional `private_key_passphrase_env_var`) | Key-pair authentication via an RSA private key file. |

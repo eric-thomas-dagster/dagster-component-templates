@@ -18,20 +18,20 @@
     "account": {
       "type": "string",
       "label": "Account",
-      "description": "Snowflake account identifier, e.g. 'xy12345.us-east-1'",
-      "required": true
+      "description": "Snowflake account identifier, e.g. 'xy12345.us-east-1'. Set this or account_env_var.",
+      "required": false
     },
     "user": {
       "type": "string",
       "label": "User",
-      "description": "Snowflake username",
-      "required": true
+      "description": "Snowflake username. Set this or user_env_var.",
+      "required": false
     },
     "password_env_var": {
       "type": "string",
       "label": "Password Env Var",
-      "description": "Environment variable holding the Snowflake password",
-      "required": true,
+      "description": "Environment variable holding the Snowflake password. Set exactly one of password_env_var / pat_env_var / private_key_path_env_var.",
+      "required": false,
       "ui:widget": "env_var"
     },
     "database": {
@@ -61,6 +61,36 @@
       "description": "Default schema",
       "required": false,
       "default": null
+    },
+    "account_env_var": {
+      "type": "string",
+      "label": "Account Env Var",
+      "description": "Environment variable holding the Snowflake account identifier (secret-hygiene alternative to the plain `account` field -- account identifiers differ per environment, so teams often keep this out of checked-in YAML too).",
+      "required": false
+    },
+    "user_env_var": {
+      "type": "string",
+      "label": "User Env Var",
+      "description": "Environment variable holding the Snowflake username.",
+      "required": false
+    },
+    "pat_env_var": {
+      "type": "string",
+      "label": "Pat Env Var",
+      "description": "Environment variable holding a Snowflake Programmatic Access Token (passed as the connector's password field -- same convention as snowflake_stored_procedure_call_asset).",
+      "required": false
+    },
+    "private_key_path_env_var": {
+      "type": "string",
+      "label": "Private Key Path Env Var",
+      "description": "Environment variable holding the path to an RSA private key file, for key-pair authentication.",
+      "required": false
+    },
+    "private_key_passphrase_env_var": {
+      "type": "string",
+      "label": "Private Key Passphrase Env Var",
+      "description": "Environment variable holding the private key file's passphrase, if it's encrypted. Only used with private_key_path_env_var.",
+      "required": false
     }
   },
   "tags": [

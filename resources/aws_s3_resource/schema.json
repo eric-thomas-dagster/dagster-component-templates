@@ -43,6 +43,42 @@
       "description": "Custom endpoint URL for MinIO or LocalStack, e.g. 'http://localhost:9000'",
       "required": false,
       "default": null
+    },
+    "profile_name": {
+      "type": "string",
+      "label": "Profile Name",
+      "description": "Named AWS CLI/SDK profile (from ~/.aws/credentials) to source credentials from. Mutually exclusive in practice with the access-key-id/secret env vars and role_arn -- whichever credential source is set, boto3's own resolution order applies.",
+      "required": false
+    },
+    "aws_session_token_env_var": {
+      "type": "string",
+      "label": "Aws Session Token Env Var",
+      "description": "Environment variable holding a temporary AWS session token (paired with the access key/secret above for STS-issued temporary credentials you already have -- for assuming a role yourself, use role_arn instead).",
+      "required": false
+    },
+    "role_arn": {
+      "type": "string",
+      "label": "Role Arn",
+      "description": "ARN of an IAM role to assume via STS (dagster-aws's S3Resource has no native assume-role support -- this component calls sts:AssumeRole itself and passes the resulting temporary credentials to S3Resource). IMPORTANT: the role is assumed ONCE, when this code location loads, not per-materialization -- the temporary credentials are good for role_duration_seconds (default 3600s/1h). A long-lived code server process may need to reload before they expire. Not a continuously-refreshing credential provider; for that, assume the role outside Dagster and set the access key/secret/session-token env vars above instead.",
+      "required": false
+    },
+    "role_session_name": {
+      "type": "string",
+      "label": "Role Session Name",
+      "description": "RoleSessionName for the assumed-role session. Only used when role_arn is set.",
+      "required": false
+    },
+    "role_external_id": {
+      "type": "string",
+      "label": "Role External Id",
+      "description": "ExternalId for the assumed-role call, if the role's trust policy requires one. Only used when role_arn is set.",
+      "required": false
+    },
+    "role_duration_seconds": {
+      "type": "integer",
+      "label": "Role Duration Seconds",
+      "description": "Requested STS session duration in seconds for role_arn (default 3600/1h; up to 43200/12h if the role's maximum session duration allows it).",
+      "required": false
     }
   },
   "tags": [

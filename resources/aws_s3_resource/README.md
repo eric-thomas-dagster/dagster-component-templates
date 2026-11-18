@@ -21,8 +21,14 @@ Register a dagster-aws S3Resource for use by other components
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `region_name` | `str` | — | AWS region, e.g. 'us-east-1' |
+| `profile_name` | `str` | — | Named AWS CLI/SDK profile (from ~/.aws/credentials) to source credentials from. Mutually exclusive in practice with the access-key-id/secret env vars and role_arn -- whichever credential source is set, boto3's own resolution order applies. |
 | `aws_access_key_id_env_var` | `str` | — | Environment variable holding the AWS access key ID |
 | `aws_secret_access_key_env_var` | `str` | — | Environment variable holding the AWS secret access key |
+| `aws_session_token_env_var` | `str` | — | Environment variable holding a temporary AWS session token (paired with the access key/secret above for STS-issued temporary credentials you already have -- for assuming a role yourself, use role_arn instead). |
+| `role_arn` | `str` | — | ARN of an IAM role to assume via STS (dagster-aws's S3Resource has no native assume-role support -- this component calls sts:AssumeRole itself and passes the resulting temporary credentials to S3Resource). IMPORTANT: the… _(full docs in schema.json + component README)_ |
+| `role_session_name` | `str` | `"dagster-community-components"` | RoleSessionName for the assumed-role session. Only used when role_arn is set. |
+| `role_external_id` | `str` | — | ExternalId for the assumed-role call, if the role's trust policy requires one. Only used when role_arn is set. |
+| `role_duration_seconds` | `int` | `3600` | Requested STS session duration in seconds for role_arn (default 3600/1h; up to 43200/12h if the role's maximum session duration allows it). |
 | `endpoint_url` | `str` | — | Custom endpoint URL for MinIO or LocalStack, e.g. 'http://localhost:9000' |
 
 [//]: # (FIELDS:END)
@@ -53,3 +59,32 @@ Set the corresponding environment variable before running Dagster:
 ```bash
 export AWS_SECRET_ACCESS_KEY_ENV_VAR_VALUE="your-secret-here"
 ```
+
+### Named profile
+
+```yaml
+profile_name: my-aws-profile
+```
+
+Sources credentials from `~/.aws/credentials`/`~/.aws/config`.
+
+### Assuming a role (`role_arn`)
+
+`dagster-aws`'s `S3Resource` has no native assume-role support, so this component calls `sts:AssumeRole` itself and passes the resulting temporary credentials to `S3Resource`:
+
+```yaml
+role_arn: "arn:aws:iam::123456789012:role/my-s3-role"
+role_session_name: dagster-community-components  # default
+role_external_id: null                            # set if the role's trust policy requires one
+role_duration_seconds: 3600                       # default 1h, up to 12h if the role allows it
+```
+
+**Important**: the role is assumed **once, when this code location loads** — not per materialization. The temporary credentials are good for `role_duration_seconds`. A long-lived code server process will need to reload (or the credentials will expire mid-deployment) before that window closes. This is not a continuously-refreshing credential provider. If you need credentials that auto-refresh for the life of a long-running deployment, assume the role outside Dagster (e.g. via your own STS automation) and feed the resulting temporary access key/secret/session token into the env-var fields above instead.
+
+### Session token
+
+```yaml
+aws_session_token_env_var: MY_SESSION_TOKEN
+```
+
+Pairs with the access-key/secret env vars for STS-issued temporary credentials you already have in hand (as opposed to `role_arn`, where this component does the assuming for you).

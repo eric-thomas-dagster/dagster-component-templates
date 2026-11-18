@@ -33,6 +33,7 @@ MCP_COMPONENTS = {
     "assets/ai/hybrid_knowledge_search_server": "server",
     "resources/mcp_server_resource": "client (tool-listing inspection asset)",
     "assets/ai/agentic_pipeline_authoring_tools": "server",
+    "assets/ai/slack_chat_tools": "server",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

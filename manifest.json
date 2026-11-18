@@ -60879,6 +60879,60 @@
       ]
     },
     {
+      "id": "slack_agent_request_sensor",
+      "name": "slack_agent_request_sensor",
+      "component_type": "dagster_community_components.SlackAgentRequestSensorComponent",
+      "path": "sensors/slack_agent_request_sensor",
+      "category": "sensors",
+      "icon": "si:slack",
+      "description": "Polls a Slack channel and launches a chat-agent asset for a mention, a DM, or a reply in an already-answered thread -- free-form questions, not fixed phrases (see slack_run_request_sensor for that). Identifiers only in run tags (channel/thread/message/user), never the message text; the agent reads the conversation live via slack_chat_tools. No owners check here -- that's dagster_workflow_tools' launch_job's job, for writes specifically.",
+      "tags": [],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/schema.json",
+      "dependencies": {
+        "pip": [
+          "slack_sdk"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-18"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "run_requests"
+        ],
+        "requires_pip": [
+          "slack_sdk"
+        ],
+        "when_to_use": "A Slack channel where people ask a human free-form questions ('what jobs failed today?', 'run xyz') instead of a fixed command -- automate the hand-off with a chat agent (anthropic_agent/openai_agent/litellm_agent) instead of a human. Pair with slack_chat_tools (so the agent can read the thread) and dagster_workflow_tools' launch_job (for the actual write-authorization check) and slack_reply (to post the answer).",
+        "chains_with": [
+          "slack_chat_tools",
+          "anthropic_agent",
+          "openai_agent",
+          "litellm_agent",
+          "dagster_workflow_tools",
+          "dagster_instance_tools",
+          "slack_run_request_sensor"
+        ]
+      },
+      "produces": [
+        "sensor"
+      ],
+      "keywords": [
+        "slack",
+        "chatops",
+        "chat_agent",
+        "automation",
+        "mention"
+      ]
+    },
+    {
       "id": "slack_approval_gate",
       "name": "Slack Approval Gate",
       "category": "ai",
@@ -60986,6 +61040,58 @@
       ],
       "icon": "si:slack",
       "vertical": "security"
+    },
+    {
+      "id": "slack_chat_tools",
+      "name": "slack_chat_tools",
+      "component_type": "dagster_community_components.SlackChatToolsComponent",
+      "path": "assets/ai/slack_chat_tools",
+      "category": "ai",
+      "icon": "si:slack",
+      "description": "MCP server exposing get_thread() -- the live Slack conversation a chat-triggered agent run is answering, fetched fresh every call from the channel/thread identifiers this run's own tags name (never a model-settable tool argument). Pairs with slack_agent_request_sensor and the agent components' {tag.<key>} substitution.",
+      "tags": [],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/schema.json",
+      "dependencies": {
+        "pip": [
+          "slack_sdk"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-18"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "mcp_resource"
+        ],
+        "requires_pip": [
+          "slack_sdk"
+        ],
+        "when_to_use": "A chat agent (see slack_agent_request_sensor) needs to read the Slack conversation it's answering. get_thread() takes no arguments -- it always reads the calling run's own channel/thread, resolved server-side via {tag.*} substitution, so the model can never point it at a different conversation.",
+        "chains_with": [
+          "slack_agent_request_sensor",
+          "anthropic_agent",
+          "openai_agent",
+          "litellm_agent",
+          "dagster_workflow_tools"
+        ]
+      },
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "slack",
+        "chatops",
+        "mcp",
+        "chat_agent",
+        "thread"
+      ]
     },
     {
       "id": "slack_ingestion",
@@ -61189,6 +61295,59 @@
         "materialize batch"
       ],
       "icon": "si:slack"
+    },
+    {
+      "id": "slack_reply",
+      "name": "slack_reply",
+      "component_type": "dagster_community_components.SlackReplyComponent",
+      "path": "assets/sinks/slack_reply",
+      "category": "sinks",
+      "icon": "si:slack",
+      "description": "Posts a chat agent's answer into the Slack thread named by the run's own tags, deterministically -- plus a run-status sensor so a crashed run (not just a wrong answer) still gets a reply instead of silence. Splits or truncates long answers; redacts secrets.",
+      "tags": [],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/schema.json",
+      "dependencies": {
+        "pip": [
+          "slack_sdk"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-18"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "asset",
+          "sensor"
+        ],
+        "requires_pip": [
+          "slack_sdk"
+        ],
+        "when_to_use": "The reply step of a Slack chat-agent chain (see slack_agent_request_sensor) -- posts the agent asset's final_answer into the thread named by the run's slack/channel + slack/thread_ts tags, and separately watches for ANY failed run carrying those tags to post an error instead of leaving the human with silence.",
+        "chains_with": [
+          "slack_agent_request_sensor",
+          "anthropic_agent",
+          "openai_agent",
+          "litellm_agent"
+        ]
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "keywords": [
+        "slack",
+        "chatops",
+        "chat_agent",
+        "reply",
+        "notification"
+      ]
     },
     {
       "id": "slack_resource",

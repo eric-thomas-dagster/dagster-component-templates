@@ -10,6 +10,7 @@ silently change that guarantee for every existing user.
 |---|---|
 | `materialize_assets(asset_keys, run_config?, tags?, partition_key?)` | Triggers a real, synchronous materialization of the given asset keys. Blocks until the run finishes. Returns `{success, run_id, asset_keys}`. |
 | `run_job(job_name, run_config?, tags?, partition_key?)` | Triggers a real, synchronous run of an existing named job from `definitions_module`. Blocks until the run finishes. Returns `{success, run_id, job_name}`. |
+| `launch_job(job_name, run_config?, tags?)` | Launches a named job via the GraphQL `launchRun` mutation and returns `{success, run_id, job_name, url}` **immediately** -- does not wait for the run to finish. Requires the requester (never a tool argument -- see below) to be a listed owner of the job. See "launch_job" below. |
 
 Every result is a compact dict; failures come back as `{"error": "..."}` (bad job name, disallowed
 asset/job, run failure), never as an exception. Every triggered run is tagged
@@ -126,14 +127,78 @@ known at call time). For `materialize_assets`, the ad-hoc job is built with
 Confirmed working end-to-end against a real two-asset `Definitions` and a real on-disk
 `DagsterInstance`: real `ASSET_MATERIALIZATION` events, real `RUN_SUCCESS`.
 
-## Known limitation
+## Known limitation (`materialize_assets` / `run_job`)
 
 `execute_job` blocks synchronously for the whole run's duration -- there is no built-in timeout, so
-a long-running job holds the tool call open for just as long. An async "submit and poll" mode would
-need `instance.submit_run`, which needs a live workspace connection this script does not have; that
-is a real architectural gap, not something this component papers over. If your workflow needs
-fire-and-forget triggering with separate status polling, you'll need a different mechanism (e.g. a
-real Dagster+ GraphQL `launchRun` call against a running deployment) -- not implemented here.
+a long-running job holds the tool call open for just as long. This isn't "fixed" by making these
+two tools non-blocking too: `instance.submit_run` (the obvious async alternative) needs a live
+`BaseWorkspaceRequestContext` this bare script does not have, confirmed via that method's own
+signature -- a real architectural gap, not something this component papers over. If your workflow
+needs fire-and-forget triggering, use `launch_job` instead (below) -- a separate tool with its own
+config and its own, stricter authorization, not a mode switch on these two.
+
+## `launch_job` (non-blocking, for chat agents)
+
+Unlike `materialize_assets`/`run_job`, `launch_job` returns `{success, run_id, job_name, url}`
+**immediately** via the real GraphQL `launchRun` mutation (`dagster-graphql`'s
+`GrapheneLaunchRunMutation` -- confirmed directly against the installed package's own schema, the
+same mutation in OSS and Dagster+) instead of `execute_job`. This is the tool a chat agent
+(`slack_agent_request_sensor`, `anthropic_agent`/`openai_agent`/`litellm_agent`) should use to
+launch something without holding the conversation open for the run's whole duration.
+
+**Setup** -- three fields, all required to enable it (leave any unset and `launch_job` refuses
+clearly; `materialize_assets`/`run_job` are unaffected either way):
+
+```yaml
+type: dagster_community_components.DagsterWorkflowToolsComponent
+attributes:
+  definitions_module: my_project.definitions
+  graphql_url: http://localhost:3000/graphql        # or your Dagster+ deployment's GraphQL URL
+  repository_location_name: my_project               # the code location's own name
+  # repository_name: "__repository__"                # default -- only override for a named @repository
+  graphql_api_token_env_var: DAGSTER_CLOUD_API_TOKEN  # Dagster+ only; omit for a local OSS webserver
+```
+
+**Authorization happens in code, never in the prompt.** `launch_job` needs a `requester` --
+the identity of whoever asked -- and refuses outright if none is set (it will NOT silently allow
+an anonymous launch). The requester must be a listed owner of the job:
+
+- **Asset job**: owners are read **live** from the union of its own assets' `owners` catalog
+  metadata (the same field every asset in this repo already declares) -- nothing to configure here.
+- **Non-asset job** (or one you want to authorize separately from its assets): add it to
+  `job_owners: {job_name: [owners]}`. Same email / `team:<name>` convention as every `owners:`
+  field in this repo -- `team:` entries never authorize (no group-membership check; a real
+  requester identity is an email or platform user id, which can never equal that literal string).
+- A job with **neither** source fails closed -- `launch_job` refuses it outright, there is no
+  implicit "anyone can launch this" default.
+
+**Getting the real requester in**: `requester` is set once per spawned MCP server process via the
+`DAGSTER_WORKFLOW_TOOLS_REQUESTER` env var -- never a tool argument the model could set itself.
+The calling agent component's own `{tag.<key>}` substitution (see `anthropic_agent`/`openai_agent`/
+`litellm_agent`'s README) resolves it from a real Dagster run tag right before spawning the
+subprocess, so the identity always traces back to whatever set that tag (e.g.
+`slack_agent_request_sensor` setting `slack/user` to the message sender's resolved email).
+
+- **Inline `mcp_servers` entry** (not sharing this component's `mcp_server_resource_key`): set the
+  placeholder directly in the agent's own YAML:
+  ```yaml
+  mcp_servers:
+    - name: workflow
+      type: stdio
+      command: [python, -m, dagster_community_components.assets.ai.dagster_workflow_tools.component]
+      env:
+        DAGSTER_WORKFLOW_TOOLS_REQUESTER: "{tag.slack/user}"
+  ```
+- **Shared `mcp_server_resource_key`**: set `requester_template` on `DagsterWorkflowToolsComponent`
+  itself to the same `"{tag.<key>}"` string -- this component passes it through verbatim (it never
+  resolves `{tag.*}` itself); the calling agent's substitution still does the real work.
+
+## What `launch_job` does NOT do
+
+- Accept a `partition_key` the way `materialize_assets`/`run_job` do -- out of scope for v1, noted
+  rather than silently dropped.
+- Resolve a requester's *group* membership for a `team:`-prefixed owner -- see above.
+- Fall back to any default identity when `requester` is unset -- it refuses instead.
 
 ## Listing its tools (`inspection_asset_name`)
 
@@ -145,6 +210,9 @@ them without spawning the MCP server to ask. `allowed_tools` matches against `<m
 
 - `allow` (tool names), `allow_assets`, `allow_jobs` are hard allow-lists -- anything outside them
   is refused with a clear error, never silently run.
+- `launch_job` additionally requires a per-requester owners check on top of `allow_jobs` -- see
+  "launch_job" above. This is the one tool here whose authorization depends on WHO is calling, not
+  just WHAT is being called.
 - Every triggered run is tagged `dagster-community/workflow-tool=true` plus `default_tags` plus
   caller-supplied `tags`, for audit/attribution.
 - Every call writes one audit log line (`dagster_workflow_tools call tool=... args=...`, on logger
@@ -181,5 +249,11 @@ them without spawning the MCP server to ask. `allowed_tools` matches against `<m
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with the DAGSTER_WORKFL… _(full docs in schema.json + component README)_ |
 | `mcp_extra_env_vars` | `List[str]` | — | mcp_server_resource_key only. Extra env var NAMES to copy (their current value, read fresh every time a consumer resolves the resource -- same run-time timing as DAGSTER_HOME) from this process into the spawned MCP serve… _(full docs in schema.json + component README)_ |
 | `inspection_asset_name` | `str` | — | If set, ALSO emits a declare-only asset by this name with the allowed tool names + descriptions as metadata (tool_names, tool_descriptions, tool_count) -- the toolset is fixed Python code, not a configurable server, so t… _(full docs in schema.json + component README)_ |
+| `graphql_url` | `str` | — | GraphQL endpoint for launch_job (e.g. 'http://localhost:3000/graphql' for a local OSS webserver, or your Dagster+ deployment's GraphQL URL). Required to enable launch_job -- there is no implicit default, since a Dagster+… _(full docs in schema.json + component README)_ |
+| `graphql_api_token_env_var` | `str` | — | Env var holding a Dagster+ user/API token, sent as the 'Dagster-Cloud-Api-Token' header on the launch_job GraphQL request. Leave unset for a local OSS webserver with no auth configured. |
+| `repository_location_name` | `str` | — | Code location name launch_job's GraphQL selector targets -- required to enable launch_job (the name this code location is loaded under: dagster_cloud.yaml's 'location_name', or the module/package name for a plain OSS workspace.yaml entry). |
+| `repository_name` | `str` | `"__repository__"` | Repository name within that code location, for launch_job's GraphQL selector. '__repository__' (the default) is Dagster's own name for the implicit single repository every plain `Definitions` object becomes (verified dir… _(full docs in schema.json + component README)_ |
+| `job_owners` | `Dict[str, List[str]]` | — | {job_name: [owners]} -- launch_job's authorization source for a job with no asset metadata to check (a non-asset job, or one you want to authorize separately from its assets' own owners). An asset job's owners are read L… _(full docs in schema.json + component README)_ |
+| `requester_template` | `str` | — | mcp_server_resource_key only. A template string -- typically '{tag.<key>}', e.g. '{tag.slack/user}' -- passed through VERBATIM as this spawned server's DAGSTER_WORKFLOW_TOOLS_REQUESTER env value. This component never res… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

@@ -17,6 +17,24 @@ Standard tool-calling loop, adapted to Anthropic's message shape:
 5. Tool results go back as a `role: user` message with `tool_result` content blocks (Anthropic's convention, *not* `role: tool`).
 6. Loop until the model returns text without any `tool_use`, or `max_iterations` is hit.
 
+## Prompt placeholders
+
+`prompt` / `system_prompt` (and every stdio `mcp_servers[].env` value) support these
+placeholders, substituted once per run:
+
+| Placeholder | Value |
+|---|---|
+| `{run_id}` | This run's id. |
+| `{partition_key}` | The run's partition key, if partitioned. |
+| `{partition_keys.<dim>}` | One dimension of a multi-partition key. |
+| `{tag.<key>}` | The Dagster run tag `<key>` -- any key, including slash-namespaced ones like `slack/thread_ts`. A tag that isn't set on the run leaves the placeholder untouched rather than substituting an empty string. |
+
+`{tag.<key>}` is how a chat-triggered run (e.g. `slack_agent_request_sensor`) hands its own
+identifiers into the prompt (`"Answer the Slack message {tag.slack/message_ts}..."`) **and** into
+a spawned MCP tool's environment -- e.g. `env: {REQUESTER: "{tag.slack/user}"}` on a
+`dagster_workflow_tools` server entry, so a write tool's authorization check gets the real
+requester identity from a trusted, server-side source instead of a model-settable tool argument.
+
 ## Output
 
 Identical shape across `litellm_agent` / `openai_agent` / `anthropic_agent` / `gemini_agent`:

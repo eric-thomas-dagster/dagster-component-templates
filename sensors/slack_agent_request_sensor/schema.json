@@ -1,0 +1,115 @@
+{
+  "component_type": "dagster_community_components.SlackAgentRequestSensorComponent",
+  "description": "Polls a Slack channel and launches a chat-agent asset for a mention, a DM, or a reply in an already-answered thread -- identifiers only in run tags, never the message text.",
+  "category": "sensors",
+  "icon": "si:slack",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true,
+      "description": "Unique sensor name."
+    },
+    "slack_channel_id": {
+      "type": "string",
+      "label": "Slack Channel Id",
+      "required": true,
+      "description": "Channel ID to poll (e.g. 'C0123ABCDEF' or a DM's 'D0123ABCDEF') -- NOT a '#channel-name'; conversations.history requires the real id."
+    },
+    "asset_selection": {
+      "type": "string",
+      "label": "Asset Selection",
+      "required": true,
+      "description": "The agent asset (and anything downstream, e.g. a slack_reply asset) to materialize when a message matches: explicit key list, the Dagster selection DSL (tag:/group:/kind:/boolean composition), '*', or a bare fnmatch glob -- resolved against sibling assets in the same defs folder."
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's 'xoxb-...' token. Needs channels:history (or groups:history) + chat:write + reactions:write + users:read.email scopes.",
+      "required": false
+    },
+    "bot_user_id": {
+      "type": "string",
+      "label": "Bot User Id",
+      "description": "This bot's own Slack user id, for mention-detection ('<@BOT_ID>' in a message) and self-exclusion. Auto-discovered via auth.test if unset -- set explicitly only to skip that one extra API call per tick.",
+      "required": false
+    },
+    "trigger_mode": {
+      "type": "string",
+      "enum": [
+        "mention",
+        "dm",
+        "all"
+      ],
+      "label": "Trigger Mode",
+      "description": "'mention' (default): only a message that @-mentions the bot starts a NEW conversation (a reply in an already-tracked thread still matches regardless of mode -- see follow_up_threads). 'dm' and 'all' both match every new root message unconditionally and are functionally identical; 'dm' exists as a separate name purely so a DM channel's config reads as a DM, not as 'answer literally everything' by accident. Never use 'all'/'dm' on a busy shared channel -- the bot would answer every single message in it.",
+      "required": false
+    },
+    "follow_up_threads": {
+      "type": "boolean",
+      "label": "Follow Up Threads",
+      "description": "Also launch a run for a NEW REPLY in a thread this sensor has already launched a run for -- not gated by trigger_mode, so once a thread is tracked, every new reply in it triggers another run, not just ones that re-mention the bot. Costs one extra conversations.replies call per tracked thread per tick (see known_threads_limit) -- set false for a channel with many concurrent long-lived threads.",
+      "required": false
+    },
+    "known_threads_limit": {
+      "type": "integer",
+      "label": "Known Threads Limit",
+      "description": "Most-recently-active threads to keep polling for follow-ups. Bounds both cursor size and the extra conversations.replies calls follow_up_threads costs per tick.",
+      "required": false
+    },
+    "resolve_requester_email": {
+      "type": "boolean",
+      "label": "Resolve Requester Email",
+      "description": "Resolve the message sender's Slack user id to an email address (needs users:read.email) before setting the slack/user tag -- most owners: checks downstream (e.g. dagster_workflow_tools' launch_job) use emails, not Slack user ids. When false, slack/user carries the raw Slack user id instead.",
+      "required": false
+    },
+    "messages_per_poll": {
+      "type": "integer",
+      "label": "Messages Per Poll",
+      "description": "Root messages to request per Slack page (Slack's own recommended max is 200).",
+      "required": false
+    },
+    "max_pages_per_poll": {
+      "type": "integer",
+      "label": "Max Pages Per Poll",
+      "description": "Follow at most this many pagination cursors per poll, for both new-root-message and (per-thread) new-reply polling.",
+      "required": false
+    },
+    "process_backlog_on_first_run": {
+      "type": "boolean",
+      "label": "Process Backlog On First Run",
+      "description": "If false (default), the first-ever tick seeds the cursor to 'now' and processes nothing -- activating this sensor never answers a channel's past history.",
+      "required": false
+    },
+    "post_acknowledgement": {
+      "type": "boolean",
+      "label": "Post Acknowledgement",
+      "description": "React to a matched message immediately (acknowledgement_reaction) so the sender sees it was received before the agent run even starts.",
+      "required": false
+    },
+    "acknowledgement_reaction": {
+      "type": "string",
+      "label": "Acknowledgement Reaction",
+      "description": "Reaction name for post_acknowledgement (one of Slack's built-in emoji names, e.g. 'eyes', 'thinking_face').",
+      "required": false
+    },
+    "set_isolation_disabled_tag": {
+      "type": "boolean",
+      "label": "Set Isolation Disabled Tag",
+      "description": "Tag every RunRequest dagster/isolation: disabled, so the run starts in-process on the code location server instead of spinning up an isolated container (which can take up to 3 minutes on Dagster+ -- far too slow for chat). Needs non_isolated_runs enabled on the deployment, and a sensible max_concurrent_non_isolated_runs (default 1 on Dagster+ -- a second concurrent question falls back to a slow isolated run, not a queue, if you don't raise it). See the README's 'Isolation' section -- Dagster's own docs are inconsistent about whether this is on by default.",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations. Chat latency is roughly this plus the run-queue dequeue time plus the LLM call -- keep this low.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED' -- initial status of the sensor.",
+      "required": false
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "component_type": "dagster_community_components.SlackReplyComponent",
+  "description": "Posts a chat agent's answer into the Slack thread named by the run's own tags -- deterministically, plus a run-failure sensor so a crashed run is never silent.",
+  "category": "sinks",
+  "icon": "si:slack",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "The chat agent asset to depend on and read the answer from (slash-delimited)."
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's 'xoxb-...' token. Needs chat:write.",
+      "required": false
+    },
+    "answer_field": {
+      "type": "string",
+      "label": "Answer Field",
+      "description": "Which key of the upstream asset's output dict holds the answer text. Defaults to 'final_answer' (the agent components' own documented output shape) when the upstream value is a dict; used verbatim (str()'d) otherwise.",
+      "required": false
+    },
+    "max_chars_per_message": {
+      "type": "integer",
+      "label": "Max Chars Per Message",
+      "description": "Split or truncate (see on_long_answer) an answer longer than this many characters.",
+      "required": false
+    },
+    "on_long_answer": {
+      "type": "string",
+      "enum": [
+        "split",
+        "truncate"
+      ],
+      "label": "On Long Answer",
+      "description": "'split' (default): post as multiple sequential thread replies, each <= max_chars_per_message. 'truncate': post one reply, cut short with an ellipsis.",
+      "required": false
+    },
+    "include_run_link": {
+      "type": "boolean",
+      "label": "Include Run Link",
+      "description": "Append a link to the Dagster run (requires webserver_base_url) to the last reply posted.",
+      "required": false
+    },
+    "run_link_label": {
+      "type": "string",
+      "label": "Run Link Label",
+      "description": "Link text for include_run_link.",
+      "required": false
+    },
+    "webserver_base_url": {
+      "type": "string",
+      "label": "Webserver Base Url",
+      "description": "Base URL of the Dagster webserver (e.g. 'http://localhost:3000' or your Dagster+ deployment URL) -- used to build the run link. Leave unset to omit the link entirely.",
+      "required": false
+    },
+    "monitor_failures": {
+      "type": "boolean",
+      "label": "Monitor Failures",
+      "description": "Also emit {asset_name}_failure_watcher, a run-status sensor that posts a short error reply for ANY failed run carrying slack/channel + slack/thread_ts tags -- so a crashed run is never silent in the channel. Set false to handle failure notification some other way.",
+      "required": false
+    },
+    "error_message_template": {
+      "type": "string",
+      "label": "Error Message Template",
+      "description": "Template for the failure-path reply. Placeholder: {error}.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  }
+}

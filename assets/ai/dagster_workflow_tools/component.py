@@ -19,12 +19,16 @@ http / sse / fastmcp). So this file is BOTH
      Reads DAGSTER_HOME.)
 See README.md for the exact agentic_pipeline YAML.
 
-Tools: materialize_assets, run_job. Both execute a REAL, synchronous Dagster run via
-`dagster.execute_job` (dagster's own documented out-of-process execution entrypoint -- it does
-NOT need a live code-server/workspace connection the way `instance.submit_run` does, which is why
-this works from a bare script the same way `dagster_instance_tools` already does for reads) and
-block until the run finishes. `allow_assets`/`allow_jobs` are hard allow-lists (materializing/
-running anything outside them is refused); every triggered run is tagged with
+Tools: materialize_assets, run_job, launch_job. The first two execute a REAL, synchronous
+Dagster run via `dagster.execute_job` (dagster's own documented out-of-process execution
+entrypoint -- it does NOT need a live code-server/workspace connection the way
+`instance.submit_run` does, which is why this works from a bare script the same way
+`dagster_instance_tools` already does for reads) and block until the run finishes. `launch_job`
+is the non-blocking alternative -- see its own docstring and the "launch_job" README section for
+why it needs a different mechanism (the GraphQL `launchRun` mutation) and a stricter,
+per-requester authorization check instead of just the static `allow_jobs` list.
+`allow_assets`/`allow_jobs` are hard allow-lists (materializing/running anything outside them is
+refused, for all three tools); every triggered run is tagged with
 `dagster-community/workflow-tool=true` plus any caller-supplied tags, for audit; every call writes
 one audit log line (tool + args, never results, same convention as dagster_instance_tools).
 
@@ -41,13 +45,15 @@ wrapped standalone for reconstruction ("Attempted to provide job called __ASSET_
 name"). Confirmed working end-to-end against a real two-asset Definitions object and a real
 DAGSTER_HOME instance (multiprocess executor, real ASSET_MATERIALIZATION events, RUN_SUCCESS).
 
-Not verified / deliberately out of scope for v1: `execute_job` blocks synchronously for the whole
-run's duration (steps run in subprocesses via the multiprocess executor, but the calling MCP tool
-call itself waits) -- there's no built-in timeout, so a long-running job will hold the tool call
-open for just as long. An async "submit and poll" mode would need `instance.submit_run`, which
-needs a live `BaseWorkspaceRequestContext` this script does not have (confirmed via `instance.
-submit_run`'s own signature) -- that's a real architectural gap, not something this file papers
-over; see the README's "Known limitation" section.
+`materialize_assets`/`run_job`: `execute_job` blocks synchronously for the whole run's duration
+(steps run in subprocesses via the multiprocess executor, but the calling MCP tool call itself
+waits) -- there's no built-in timeout, so a long-running job will hold the tool call open for
+just as long. This is deliberately NOT "fixed" by making those two non-blocking too -- `launch_job`
+is a separate tool, not a mode switch, because it needs its own GraphQL endpoint config and its
+own stricter per-requester authorization (see `t_launch_job`'s docstring); it doesn't just swap
+`execute_job` for `instance.submit_run` under the hood (confirmed via `instance.submit_run`'s own
+signature: it needs a live `BaseWorkspaceRequestContext` this bare script doesn't have -- a real
+architectural gap, not something this file papers over). See the README's "launch_job" section.
 """
 
 import json
@@ -134,7 +140,7 @@ def _first_line(s: Any, n: int = 300) -> str:
     return redact_text(line)[:n]
 
 
-ALL_TOOLS = ("materialize_assets", "run_job")
+ALL_TOOLS = ("materialize_assets", "run_job", "launch_job")
 
 
 def load_definitions(spec: str) -> "dg.Definitions":
@@ -182,6 +188,12 @@ class DagsterWorkflowTools:
         allow_jobs: Optional[List[str]] = None,
         default_tags: Optional[Dict[str, str]] = None,
         audit: Optional[Callable[[str], None]] = None,
+        graphql_url: Optional[str] = None,
+        graphql_api_token_env_var: Optional[str] = None,
+        repository_location_name: Optional[str] = None,
+        repository_name: str = "__repository__",
+        job_owners: Optional[Dict[str, List[str]]] = None,
+        requester: Optional[str] = None,
     ):
         self.instance = instance
         self.definitions_module = definitions_module
@@ -195,6 +207,13 @@ class DagsterWorkflowTools:
         self.allow_jobs = frozenset(allow_jobs) if allow_jobs is not None else None
         self.default_tags = dict(default_tags or {})
         self._audit = audit or (lambda line: _AUDIT.info(line))
+        # launch_job only -- see t_launch_job's own docstring for why each of these exists.
+        self.graphql_url = graphql_url
+        self.graphql_api_token_env_var = graphql_api_token_env_var
+        self.repository_location_name = repository_location_name
+        self.repository_name = repository_name
+        self.job_owners = {k: list(v) for k, v in (job_owners or {}).items()}
+        self.requester = requester
 
     def tool_names(self) -> List[str]:
         return [t for t in ALL_TOOLS if t in self.allow]
@@ -270,6 +289,123 @@ class DagsterWorkflowTools:
         if self.allow_jobs is not None and job_name not in self.allow_jobs:
             raise ToolError(f"job {job_name!r} is not in allow_jobs")
         return self._execute(job_name=job_name, asset_keys=None, run_config=run_config, tags=tags, partition_key=partition_key)
+
+    def _job_owners(self, job_name: str) -> Optional[List[str]]:
+        """Who's authorized to launch_job(job_name) -- an explicit `job_owners` entry wins if
+        set; otherwise, for a real asset job, the union of `owners` across every asset it
+        covers (read live from AssetSpec, same field every asset in this repo already
+        declares -- not duplicated into this tool's own config). None (not an empty list) means
+        NEITHER source applies -- the job isn't found, isn't asset-backed, and has no explicit
+        entry -- which the caller must treat as "cannot authorize," not "owned by no one but
+        otherwise fine." An empty list IS meaningful (asset-backed, but no asset in it declares
+        an owner, or an explicit job_owners entry of [] on purpose) and still fails closed."""
+        if job_name in self.job_owners:
+            return list(self.job_owners[job_name])
+        try:
+            defs = load_definitions(self.definitions_module)
+            job_def = defs.resolve_job_def(job_name)
+        except Exception:
+            return None
+        if not job_def.is_asset_job:
+            return None
+        graph = defs.resolve_asset_graph()
+        owners: List[str] = []
+        for key in job_def.asset_layer.selected_asset_keys:
+            if graph.has(key):
+                owners.extend(str(o) for o in (graph.get(key).owners or []))
+        return owners
+
+    def _run_url(self, run_id: str) -> Optional[str]:
+        if not self.graphql_url:
+            return None
+        base = self.graphql_url.rsplit("/graphql", 1)[0] if self.graphql_url.endswith("/graphql") else self.graphql_url
+        return f"{base.rstrip('/')}/runs/{run_id}"
+
+    def _graphql_launch_run(self, *, job_name: str, run_config: Optional[dict], tags: Optional[dict]) -> Dict[str, Any]:
+        """The real, confirmed-to-exist `launchRun` GraphQL mutation (dagster-graphql's
+        `GrapheneLaunchRunMutation`, same in OSS and Dagster+) -- chosen over
+        `instance.submit_run`/`launch_run` because those need a live
+        `BaseWorkspaceRequestContext` this bare MCP server process doesn't have (see this
+        component's module docstring); GraphQL just needs an HTTP endpoint."""
+        import requests
+
+        query = """
+        mutation LaunchRun($executionParams: ExecutionParams!) {
+          launchRun(executionParams: $executionParams) {
+            __typename
+            ... on LaunchRunSuccess { run { runId } }
+            ... on PipelineNotFoundError { message }
+            ... on InvalidStepError { invalidStepKey }
+            ... on InvalidOutputError { stepKey invalidOutputName }
+            ... on RunConfigValidationInvalid { errors { message } }
+            ... on PythonError { message }
+          }
+        }
+        """
+        variables = {
+            "executionParams": {
+                "selector": {
+                    "jobName": job_name,
+                    "repositoryName": self.repository_name,
+                    "repositoryLocationName": self.repository_location_name,
+                },
+                "runConfigData": run_config or {},
+                "executionMetadata": {"tags": [{"key": str(k), "value": str(v)} for k, v in self._run_tags(tags).items()]},
+            }
+        }
+        headers = {"Content-Type": "application/json"}
+        if self.graphql_api_token_env_var:
+            token = os.environ.get(self.graphql_api_token_env_var)
+            if token:
+                headers["Dagster-Cloud-Api-Token"] = token
+        resp = requests.post(self.graphql_url, json={"query": query, "variables": variables}, headers=headers, timeout=30)
+        resp.raise_for_status()
+        body = resp.json()
+        if body.get("errors"):
+            raise ToolError(f"launchRun GraphQL request error: {redact_text(str(body['errors']))[:500]}")
+        result = (body.get("data") or {}).get("launchRun") or {}
+        if result.get("__typename") != "LaunchRunSuccess":
+            raise ToolError(f"launchRun failed ({result.get('__typename')}): {redact_text(str(result))[:500]}")
+        run_id = result["run"]["runId"]
+        return {"success": True, "run_id": run_id, "job_name": job_name, "url": self._run_url(run_id)}
+
+    def t_launch_job(self, job_name: str, run_config: Optional[dict] = None, tags: Optional[dict] = None) -> Dict[str, Any]:
+        """Launch job_name via the GraphQL launchRun mutation and return {success, run_id,
+        job_name, url} IMMEDIATELY -- unlike run_job/materialize_assets, this does NOT wait for
+        the run to finish (a chat agent must not hold a tool call open for a long job's whole
+        duration). Requires graphql_url + repository_location_name to be configured.
+
+        Authorization happens here, in code, never in the prompt: `requester` is set once per
+        MCP server process (DAGSTER_WORKFLOW_TOOLS_REQUESTER env var -- normally populated via a
+        `{tag.<key>}` placeholder in the calling agent's own mcp_servers[].env, resolved from a
+        trusted run tag, NEVER a tool argument the model could set itself). The requester must
+        be a listed owner of job_name (see _job_owners) -- there is no implicit "anyone can
+        launch this" default; a job with no discoverable owners can never be launched this way.
+        `team:`-prefixed owners never authorize (no Azure AD/Slack/etc. group-membership check),
+        same rule as slack_run_request_sensor / teams_run_request_sensor."""
+        if not job_name:
+            raise ToolError("launch_job requires job_name")
+        if self.allow_jobs is not None and job_name not in self.allow_jobs:
+            raise ToolError(f"job {job_name!r} is not in allow_jobs")
+        if not self.graphql_url or not self.repository_location_name:
+            raise ToolError("launch_job requires graphql_url and repository_location_name to be configured on DagsterWorkflowToolsComponent")
+        if not self.requester:
+            raise ToolError(
+                "launch_job has no requester identity -- refusing to launch without knowing who "
+                "asked. Set DAGSTER_WORKFLOW_TOOLS_REQUESTER (normally via a '{tag.<key>}' "
+                "placeholder in the calling agent's mcp_servers[].env, resolved from a trusted "
+                "run tag -- see README)."
+            )
+        owners = self._job_owners(job_name)
+        if owners is None:
+            raise ToolError(
+                f"job {job_name!r} has no owners configured (not an asset job, and no job_owners "
+                f"entry) -- refusing to launch with no one authorized to."
+            )
+        requester_lower = self.requester.strip().lower()
+        if not any(requester_lower == o.lower() for o in owners):
+            raise ToolError(f"requester {self.requester!r} is not an owner of job {job_name!r} (owners: {sorted(owners)})")
+        return self._graphql_launch_run(job_name=job_name, run_config=run_config, tags=tags)
 
 
 def _this_module_name() -> str:
@@ -413,6 +549,55 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             "mcp_server_resource_key path, that name is whatever `mcp_server_resource_key` itself is set to."
         ),
     )
+    graphql_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "GraphQL endpoint for launch_job (e.g. 'http://localhost:3000/graphql' for a local "
+            "OSS webserver, or your Dagster+ deployment's GraphQL URL). Required to enable "
+            "launch_job -- there is no implicit default, since a Dagster+ URL is always "
+            "org/deployment-specific. Leave unset to skip launch_job entirely (materialize_assets/"
+            "run_job are unaffected)."
+        ),
+    )
+    graphql_api_token_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding a Dagster+ user/API token, sent as the 'Dagster-Cloud-Api-Token' header on the launch_job GraphQL request. Leave unset for a local OSS webserver with no auth configured.",
+    )
+    repository_location_name: Optional[str] = Field(
+        default=None,
+        description="Code location name launch_job's GraphQL selector targets -- required to enable launch_job (the name this code location is loaded under: dagster_cloud.yaml's 'location_name', or the module/package name for a plain OSS workspace.yaml entry).",
+    )
+    repository_name: str = Field(
+        default="__repository__",
+        description="Repository name within that code location, for launch_job's GraphQL selector. '__repository__' (the default) is Dagster's own name for the implicit single repository every plain `Definitions` object becomes (verified directly against dagster-webserver's own buildRepoPathForURL) -- only override if you explicitly built a named @repository.",
+    )
+    job_owners: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description=(
+            "{job_name: [owners]} -- launch_job's authorization source for a job with no asset "
+            "metadata to check (a non-asset job, or one you want to authorize separately from its "
+            "assets' own owners). An asset job's owners are read LIVE from its own assets' "
+            "`owners` catalog metadata instead and don't need an entry here. Same email / "
+            "'team:<name>' convention as every owners: field in this repo -- team: entries never "
+            "authorize a launch_job call (no group-membership check). A job with neither an "
+            "asset-owners source nor an entry here can never be launched via launch_job."
+        ),
+    )
+    requester_template: Optional[str] = Field(
+        default=None,
+        description=(
+            "mcp_server_resource_key only. A template string -- typically '{tag.<key>}', e.g. "
+            "'{tag.slack/user}' -- passed through VERBATIM as this spawned server's "
+            "DAGSTER_WORKFLOW_TOOLS_REQUESTER env value. This component never resolves the "
+            "placeholder itself; the CALLING agent component's own generic {tag.*} substitution "
+            "(applied to every mcp_servers[].env value at run time) resolves it from a real run "
+            "tag right before spawning the subprocess -- so launch_job's requester identity "
+            "always comes from a trusted, server-side source, never a model-settable tool "
+            "argument. For an inline (non-shared) mcp_servers entry instead, just set "
+            "env.DAGSTER_WORKFLOW_TOOLS_REQUESTER directly in the agent's own YAML -- this field "
+            "only matters when sharing this component's own mcp_server_resource_key."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -432,12 +617,22 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError(f"unknown tool(s) in allow: {bad}; valid: {list(ALL_TOOLS)}")
         definitions_module = self.definitions_module
         allow_assets, allow_jobs, default_tags = self.allow_assets, self.allow_jobs, self.default_tags
+        graphql_url, graphql_api_token_env_var = self.graphql_url, self.graphql_api_token_env_var
+        repository_location_name, repository_name, job_owners = self.repository_location_name, self.repository_name, self.job_owners
 
         def _init(init_context):
             instance = init_context.instance or dg.DagsterInstance.get()
             return DagsterWorkflowTools(
                 instance, definitions_module=definitions_module, allow=allow,
                 allow_assets=allow_assets, allow_jobs=allow_jobs, default_tags=default_tags,
+                graphql_url=graphql_url, graphql_api_token_env_var=graphql_api_token_env_var,
+                repository_location_name=repository_location_name, repository_name=repository_name,
+                job_owners=job_owners,
+                # No `requester` here -- the in-process resource_key path is for direct Python
+                # usage inside ops/assets, not a per-chat-message identity; launch_job via this
+                # path will always refuse (no requester) unless a caller constructs its own
+                # DagsterWorkflowTools directly with one. See requester_template for the
+                # per-run identity this is meant for instead (the mcp_server_resource_key path).
             )
 
         res = dg.ResourceDefinition(resource_fn=_init, description="WRITE-capable Dagster workflow tools for agents (materialize_assets/run_job).")
@@ -459,6 +654,20 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["DAGSTER_WORKFLOW_TOOLS_ALLOW_JOBS"] = ",".join(allow_jobs)
             if default_tags:
                 mcp_env["DAGSTER_WORKFLOW_TOOLS_DEFAULT_TAGS"] = json.dumps(default_tags)
+            if graphql_url:
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_GRAPHQL_URL"] = graphql_url
+            if graphql_api_token_env_var:
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_GRAPHQL_API_TOKEN_ENV_VAR"] = graphql_api_token_env_var
+            if repository_location_name:
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_REPOSITORY_LOCATION_NAME"] = repository_location_name
+            mcp_env["DAGSTER_WORKFLOW_TOOLS_REPOSITORY_NAME"] = repository_name
+            if job_owners:
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_JOB_OWNERS"] = json.dumps(job_owners)
+            if self.requester_template:
+                # Passed through VERBATIM -- the calling agent's own {tag.*} substitution
+                # resolves this placeholder at run time, right before spawning the subprocess
+                # (see requester_template's own field description for the full chain).
+                mcp_env["DAGSTER_WORKFLOW_TOOLS_REQUESTER"] = self.requester_template
             # sys.executable, not a bare "python" -- a bare "python" resolves via PATH at
             # spawn time, which can land on a different interpreter/virtualenv than the
             # one this code location is actually running under (confirmed by a real
@@ -471,7 +680,15 @@ class DagsterWorkflowToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 # DAGSTER_CLOUD_DEPLOYMENT_NAME: so main() can scope a Dagster+ agent's own
                 # (multi-deployment) instance down to the one deployment this server should
                 # launch runs through -- see main()'s ref_for_deployment call below.
-                live_env_passthrough=["DAGSTER_HOME", "DAGSTER_CLOUD_DEPLOYMENT_NAME", *(self.mcp_extra_env_vars or [])],
+                # graphql_api_token_env_var: the NAME is baked into mcp_env above, but the
+                # subprocess also needs the real token VALUE live at spawn time, same as
+                # DAGSTER_HOME -- this component only knows the token's env var name, never
+                # the token itself, so it must be read fresh, not captured at component-load.
+                live_env_passthrough=[
+                    "DAGSTER_HOME", "DAGSTER_CLOUD_DEPLOYMENT_NAME",
+                    *([graphql_api_token_env_var] if graphql_api_token_env_var else []),
+                    *(self.mcp_extra_env_vars or []),
+                ],
             )
 
         defs = dg.Definitions(resources=resources)
@@ -523,6 +740,11 @@ def build_mcp_server(tools: DagsterWorkflowTools):
         """Trigger a real, synchronous run of an existing named job (blocks until the run finishes). Returns {success, run_id, job_name}."""
         return tools.call("run_job", {"job_name": job_name, "run_config": run_config, "tags": tags, "partition_key": partition_key})
 
+    @_tool
+    def launch_job(job_name: str, run_config: Optional[dict] = None, tags: Optional[dict] = None) -> dict:
+        """Launch a named job and return {success, run_id, job_name, url} IMMEDIATELY -- does NOT wait for the run to finish. Requires the caller be a listed owner of the job (checked in code; see README)."""
+        return tools.call("launch_job", {"job_name": job_name, "run_config": run_config, "tags": tags})
+
     return mcp
 
 
@@ -533,7 +755,14 @@ def main(argv: Optional[List[str]] = None) -> None:
     this last one is what DagsterWorkflowToolsComponent's mcp_server_resource_key path sets so the
     MCP-server entrypoint has the same default_tags the in-process resource_key path gets.
     DAGSTER_CLOUD_DEPLOYMENT_NAME (optional) -- set this on a Dagster+ agent so runs launch
-    against the right deployment; see below."""
+    against the right deployment; see below.
+
+    launch_job only: DAGSTER_WORKFLOW_TOOLS_GRAPHQL_URL, _GRAPHQL_API_TOKEN_ENV_VAR (the NAME of
+    a separate env var holding the real token), _REPOSITORY_LOCATION_NAME, _REPOSITORY_NAME
+    (default '__repository__'), _JOB_OWNERS (JSON {job_name: [owners]}), and _REQUESTER -- the
+    per-run requester identity, normally set by the CALLING agent's own {tag.<key>} substitution
+    (see requester_template), not a static value for this process's whole lifetime in the way the
+    other env vars here are."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     if not os.environ.get("DAGSTER_HOME"):
         raise SystemExit("DAGSTER_HOME must point at the Dagster instance directory (the one with dagster.yaml)")
@@ -548,6 +777,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     allow_jobs = [t.strip() for t in allow_jobs_env.split(",") if t.strip()] if allow_jobs_env else None
     default_tags_env = os.environ.get("DAGSTER_WORKFLOW_TOOLS_DEFAULT_TAGS")
     default_tags = json.loads(default_tags_env) if default_tags_env else None
+    job_owners_env = os.environ.get("DAGSTER_WORKFLOW_TOOLS_JOB_OWNERS")
+    job_owners = json.loads(job_owners_env) if job_owners_env else None
 
     instance = dg.DagsterInstance.get()
     deployment_name = os.environ.get("DAGSTER_CLOUD_DEPLOYMENT_NAME")
@@ -563,6 +794,12 @@ def main(argv: Optional[List[str]] = None) -> None:
         instance,
         definitions_module=definitions_module,
         allow=allow, allow_assets=allow_assets, allow_jobs=allow_jobs, default_tags=default_tags,
+        graphql_url=os.environ.get("DAGSTER_WORKFLOW_TOOLS_GRAPHQL_URL"),
+        graphql_api_token_env_var=os.environ.get("DAGSTER_WORKFLOW_TOOLS_GRAPHQL_API_TOKEN_ENV_VAR"),
+        repository_location_name=os.environ.get("DAGSTER_WORKFLOW_TOOLS_REPOSITORY_LOCATION_NAME"),
+        repository_name=os.environ.get("DAGSTER_WORKFLOW_TOOLS_REPOSITORY_NAME", "__repository__"),
+        job_owners=job_owners,
+        requester=os.environ.get("DAGSTER_WORKFLOW_TOOLS_REQUESTER") or None,
     )
     build_mcp_server(tools).run(transport="stdio")
 

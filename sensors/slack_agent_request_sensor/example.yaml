@@ -1,0 +1,14 @@
+type: dagster_community_components.SlackAgentRequestSensorComponent
+attributes:
+  sensor_name: ask_dagster
+  slack_channel_id: "C0123ABCDEF"
+  # Uses an explicit key list here so this example is self-contained (no sibling assets
+  # required to resolve against). In a real project this is usually "group:chat_agent" or
+  # similar -- see the agent components' own READMEs for how chat_agent + chat_reply are wired.
+  asset_selection: [chat_agent, chat_reply]
+
+  trigger_mode: mention       # only answer messages that @-mention the bot
+  follow_up_threads: true     # keep answering replies in a thread it already joined
+
+  minimum_interval_seconds: 10
+  default_status: STOPPED     # flip to RUNNING once auth + asset_selection are verified

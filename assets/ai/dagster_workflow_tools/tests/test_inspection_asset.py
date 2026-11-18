@@ -11,8 +11,8 @@ def test_inspection_asset_lists_the_real_fixed_tool_set(mod):
     spec = specs[0]
     assert spec.key.to_user_string() == "wt_tools"
     md = {k: getattr(v, "value", v) for k, v in spec.metadata.items()}
-    assert md["tool_count"] == 2
-    assert set(md["tool_names"]) == {"materialize_assets", "run_job"}
+    assert md["tool_count"] == 3
+    assert set(md["tool_names"]) == {"materialize_assets", "run_job", "launch_job"}
     assert "materializ" in md["tool_descriptions"]["materialize_assets"].lower()
     assert "run" in md["tool_descriptions"]["run_job"].lower()
 

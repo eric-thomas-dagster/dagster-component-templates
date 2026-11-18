@@ -70,6 +70,42 @@
       "label": "Inspection Asset Name",
       "description": "If set, ALSO emits a declare-only asset by this name with the allowed tool names + descriptions as metadata (tool_names, tool_descriptions, tool_count) -- the toolset is fixed Python code, not a configurable server, so this never materializes; it just makes the tool list catalog-visible without a UI having to spawn the MCP server to ask. `allowed_tools` (on agentic_pipeline's tool_use_loop, and the agent components) matches against '<mcp_servers: entry name>__<tool>' -- for the mcp_server_resource_key path, that name is whatever `mcp_server_resource_key` itself is set to.",
       "required": false
+    },
+    "graphql_url": {
+      "type": "string",
+      "label": "Graphql Url",
+      "description": "GraphQL endpoint for launch_job (e.g. 'http://localhost:3000/graphql' for a local OSS webserver, or your Dagster+ deployment's GraphQL URL). Required to enable launch_job -- there is no implicit default, since a Dagster+ URL is always org/deployment-specific. Leave unset to skip launch_job entirely (materialize_assets/run_job are unaffected).",
+      "required": false
+    },
+    "graphql_api_token_env_var": {
+      "type": "string",
+      "label": "Graphql Api Token Env Var",
+      "description": "Env var holding a Dagster+ user/API token, sent as the 'Dagster-Cloud-Api-Token' header on the launch_job GraphQL request. Leave unset for a local OSS webserver with no auth configured.",
+      "required": false
+    },
+    "repository_location_name": {
+      "type": "string",
+      "label": "Repository Location Name",
+      "description": "Code location name launch_job's GraphQL selector targets -- required to enable launch_job (the name this code location is loaded under: dagster_cloud.yaml's 'location_name', or the module/package name for a plain OSS workspace.yaml entry).",
+      "required": false
+    },
+    "repository_name": {
+      "type": "string",
+      "label": "Repository Name",
+      "description": "Repository name within that code location, for launch_job's GraphQL selector. '__repository__' (the default) is Dagster's own name for the implicit single repository every plain `Definitions` object becomes (verified directly against dagster-webserver's own buildRepoPathForURL) -- only override if you explicitly built a named @repository.",
+      "required": false
+    },
+    "job_owners": {
+      "type": "object",
+      "label": "Job Owners",
+      "description": "{job_name: [owners]} -- launch_job's authorization source for a job with no asset metadata to check (a non-asset job, or one you want to authorize separately from its assets' own owners). An asset job's owners are read LIVE from its own assets' `owners` catalog metadata instead and don't need an entry here. Same email / 'team:<name>' convention as every owners: field in this repo -- team: entries never authorize a launch_job call (no group-membership check). A job with neither an asset-owners source nor an entry here can never be launched via launch_job.",
+      "required": false
+    },
+    "requester_template": {
+      "type": "string",
+      "label": "Requester Template",
+      "description": "mcp_server_resource_key only. A template string -- typically '{tag.<key>}', e.g. '{tag.slack/user}' -- passed through VERBATIM as this spawned server's DAGSTER_WORKFLOW_TOOLS_REQUESTER env value. This component never resolves the placeholder itself; the CALLING agent component's own generic {tag.*} substitution (applied to every mcp_servers[].env value at run time) resolves it from a real run tag right before spawning the subprocess -- so launch_job's requester identity always comes from a trusted, server-side source, never a model-settable tool argument. For an inline (non-shared) mcp_servers entry instead, just set env.DAGSTER_WORKFLOW_TOOLS_REQUESTER directly in the agent's own YAML -- this field only matters when sharing this component's own mcp_server_resource_key.",
+      "required": false
     }
   }
 }

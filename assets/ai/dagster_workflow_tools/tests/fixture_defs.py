@@ -1,7 +1,7 @@
 import dagster as dg
 
 
-@dg.asset
+@dg.asset(owners=["owner@co.com"])
 def a():
     return 1
 
@@ -17,5 +17,6 @@ def boom():
 
 
 named_job = dg.define_asset_job(name="named_job", selection=dg.AssetSelection.assets(a, b))
+unowned_job = dg.define_asset_job(name="unowned_job", selection=dg.AssetSelection.assets(boom))
 
-defs = dg.Definitions(assets=[a, b, boom], jobs=[named_job])
+defs = dg.Definitions(assets=[a, b, boom], jobs=[named_job, unowned_job])

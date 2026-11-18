@@ -13,7 +13,8 @@ is BOTH
 See README.md for the exact agentic_pipeline YAML.
 
 Tools (all return compact JSON-able dicts; errors come back as {"error": ...}, never exceptions):
-  list_recent_failures, get_run_summary, get_run_logs, asset_status, asset_lineage, stale_assets, receipt_stats.
+  list_recent_failures, get_run_summary, get_run_logs, asset_status, asset_lineage, stale_assets,
+  list_assets_owned_by, receipt_stats.
 
 Safety: tools only call read APIs on the instance. Log lines / error text / tag values pass through `redact_text`
 (tokens, passwords, Authorization headers, well-known key shapes, long base64/hex blobs). `allow` is a hard allow-list,
@@ -66,7 +67,8 @@ import re  # noqa: E402
 _AUDIT = logging.getLogger("dagster_instance_tools.audit")
 
 ALL_TOOLS = (
-    "list_recent_failures", "get_run_summary", "get_run_logs", "asset_status", "asset_lineage", "stale_assets", "receipt_stats",
+    "list_recent_failures", "get_run_summary", "get_run_logs", "asset_status", "asset_lineage", "stale_assets",
+    "list_assets_owned_by", "receipt_stats",
 )
 
 # ── redaction ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -789,6 +791,31 @@ class DagsterInstanceTools:
             "source": "age_based", "max_age_hours": age, "count": len(rows), "assets": rows[:n],
         }
 
+    def t_list_assets_owned_by(self, identity: Any = None) -> Dict[str, Any]:
+        """Which assets have `identity` in their own `owners` catalog metadata -- an exact,
+        case-insensitive match against each asset's AssetSpec.owners (team names like
+        'team:analytics' or email addresses, same convention every asset in this repo's
+        `owners:` field already uses). No fuzzy matching: pass the literal email or
+        'team:<name>' the caller actually has."""
+        if not isinstance(identity, str) or not identity.strip():
+            raise ToolError("identity is required: an email address or a literal 'team:<name>' entry.")
+        ident = identity.strip()
+        ident_lower = ident.lower()
+        g = self._graph()
+        if g is None:
+            raise ToolError(
+                "list_assets_owned_by requires definitions_module to be set on "
+                "DagsterInstanceToolsComponent -- owners metadata lives on AssetSpec, not the "
+                "event log, so there is no degraded fallback the way stale_assets/asset_lineage have."
+            )
+        rows = []
+        for k in sorted(g.get_all_asset_keys(), key=lambda x: x.path):
+            node = g.get(k)
+            owners = [str(o) for o in (getattr(node, "owners", None) or [])]
+            if any(o.lower() == ident_lower for o in owners):
+                rows.append({"asset_key": _key_str(k), "owners": owners, "group_name": getattr(node, "group_name", None)})
+        return {"identity": ident, "count": len(rows), "assets": rows}
+
     def t_receipt_stats(self, asset_key: Any = None, window_hours: Any = 168) -> Dict[str, Any]:
         if self.receipt_store is None:
             raise ToolError("receipt_stats is not configured (no receipt store)")
@@ -1055,6 +1082,11 @@ def build_mcp_server(tools: DagsterInstanceTools):
     def stale_assets(limit: int = 20, max_age_hours: float = 24) -> dict:
         """Assets that are stale (data-version staleness with definitions; else older than max_age_hours or with a later failed run)."""
         return tools.call("stale_assets", {"limit": limit, "max_age_hours": max_age_hours})
+
+    @_tool
+    def list_assets_owned_by(identity: str) -> dict:
+        """Assets whose own `owners` metadata contains `identity` exactly (an email address, or a literal 'team:<name>')."""
+        return tools.call("list_assets_owned_by", {"identity": identity})
 
     @_tool
     def receipt_stats(asset_key: str, window_hours: float = 168) -> dict:

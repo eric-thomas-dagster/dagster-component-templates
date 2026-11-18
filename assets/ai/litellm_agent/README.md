@@ -18,6 +18,24 @@ Different from the `litellm_inference_asset` / `openai_llm` / `anthropic_llm` fa
 4. If the model emits tool calls, dispatches each to the owning MCP session and feeds the result back as a `role: tool` message. Loops up to `max_iterations`.
 5. Stops when the model returns plain text (no tool calls) — that's the final answer.
 
+## Prompt placeholders
+
+`prompt` / `system_prompt` (and every stdio `mcp_servers[].env` value) support these
+placeholders, substituted once per run:
+
+| Placeholder | Value |
+|---|---|
+| `{run_id}` | This run's id. |
+| `{partition_key}` | The run's partition key, if partitioned. |
+| `{partition_keys.<dim>}` | One dimension of a multi-partition key. |
+| `{tag.<key>}` | The Dagster run tag `<key>` -- any key, including slash-namespaced ones like `slack/thread_ts`. A tag that isn't set on the run leaves the placeholder untouched rather than substituting an empty string. |
+
+`{tag.<key>}` is how a chat-triggered run (e.g. `slack_agent_request_sensor`) hands its own
+identifiers into the prompt (`"Answer the Slack message {tag.slack/message_ts}..."`) **and** into
+a spawned MCP tool's environment -- e.g. `env: {REQUESTER: "{tag.slack/user}"}` on a
+`dagster_workflow_tools` server entry, so a write tool's authorization check gets the real
+requester identity from a trusted, server-side source instead of a model-settable tool argument.
+
 ---
 
 ## Output

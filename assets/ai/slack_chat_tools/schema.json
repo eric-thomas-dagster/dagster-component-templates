@@ -1,0 +1,51 @@
+{
+  "component_type": "dagster_community_components.SlackChatToolsComponent",
+  "description": "MCP server exposing get_thread() -- the live Slack conversation a chat-triggered agent run is answering, fetched fresh every call from the channel/thread identifiers this run's own tags name.",
+  "category": "ai",
+  "icon": "si:slack",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "slack_chat_tools",
+      "description": "Resource key the toolset is registered under."
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's 'xoxb-...' token. Needs channels:history (or groups:history).",
+      "required": false
+    },
+    "channel_template": {
+      "type": "string",
+      "label": "Channel Template",
+      "description": "Template string for this spawned server's SLACK_CHAT_TOOLS_CHANNEL env value -- the calling agent's own {tag.<key>} substitution resolves it at run time (see README). Set to a literal channel id instead if every run should always read the same fixed channel.",
+      "required": false
+    },
+    "thread_ts_template": {
+      "type": "string",
+      "label": "Thread Ts Template",
+      "description": "Template string for this spawned server's SLACK_CHAT_TOOLS_THREAD_TS env value, same mechanism as channel_template.",
+      "required": false
+    },
+    "max_messages": {
+      "type": "integer",
+      "label": "Max Messages",
+      "description": "Most recent messages get_thread returns.",
+      "required": false
+    },
+    "max_result_chars": {
+      "type": "integer",
+      "label": "Max Result Chars",
+      "description": "Upper bound on the serialized size of any tool result.",
+      "required": false
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings. channel_template/thread_ts_template are passed through VERBATIM as env values -- resolved by the calling agent's own {tag.*} substitution at run time, not by this component. Any mcp_servers-aware component (the agent components, agentic_pipeline) can then reference it via server_resource_key instead of hand-writing an inline command+env entry. Leave unset to skip this -- existing resource_key-only behavior is unchanged.",
+      "required": false
+    }
+  }
+}

@@ -10,6 +10,7 @@
 | `asset_status(asset_key)` | last materialization (time/run/data+code version), later failed run, `last_failure` (reason, error class/message, run, partition; from a real failure event if the storage keeps one, else a failure observation logged by our components, else the failed run; see `docs/failure_observation_contract.md`), partition counts, latest check results |
 | `asset_lineage(asset_key, depth, direction)` | upstream/downstream assets |
 | `stale_assets(limit, max_age_hours)` | stale assets (data-version staleness, or age/failed-run based) |
+| `list_assets_owned_by(identity)` | which assets list `identity` (an email, or a literal `team:<name>`) in their own `owners` catalog metadata -- exact, case-insensitive match, no fuzzy matching. Requires `definitions_module` (owners live on AssetSpec, not the event log -- no degraded fallback). |
 | `receipt_stats(asset_key, window_hours)` | optional: how answers built from the asset turned out (ContextReceiptStore) |
 
 Every result is a compact dict; failures come back as `{"error": "..."}` (bad run id, unknown tool, disabled tool), never as an exception. `asset_key` is `a/b/c` (path joined by `/`).

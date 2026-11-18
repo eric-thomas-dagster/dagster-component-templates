@@ -356,7 +356,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                 for s in mcp_servers
             ]
 
-            substitutions = {"run_id": context.run_id}
+            substitutions = {"run_id": context.run_id, "tags": dict(context.run.tags or {})}
             if context.has_partition_key:
                 pk = context.partition_key
                 if hasattr(pk, "keys_by_dimension"):
@@ -367,6 +367,13 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                     substitutions["partition_keys"] = {}
             resolved_prompt = _substitute(prompt, substitutions)
             resolved_system = _substitute(system_prompt, substitutions) if system_prompt else None
+            # `{tag.<key>}` in a stdio server's own `env` -- e.g. env: {REQUESTER: "{tag.slack/user}"}
+            # -- is how a per-run identifier reaches a spawned MCP tool subprocess's environment
+            # WITHOUT the model ever supplying it as a tool argument (see slack_agent_request_sensor
+            # / dagster_workflow_tools' launch_job for why that distinction matters).
+            for _srv in resolved_mcp_servers:
+                if isinstance(_srv.get("env"), dict):
+                    _srv["env"] = {k: (_substitute(v, substitutions) if isinstance(v, str) else v) for k, v in _srv["env"].items()}
 
             result = asyncio.run(
                 _run_agent(
@@ -409,7 +416,13 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
 
 
 def _substitute(s: str, substitutions: Dict[str, Any]) -> str:
-    """Substitute `{partition_key}` / `{partition_keys.<dim>}` / `{run_id}` in a string."""
+    """Substitute `{partition_key}` / `{partition_keys.<dim>}` / `{run_id}` / `{tag.<key>}` in a
+    string. `{tag.<key>}` reads a Dagster run tag -- any key, including slash-namespaced ones
+    like `slack/thread_ts` -- so a chat-triggered run can hand its own identifiers (channel,
+    thread, requester) into a prompt or an MCP server's `env` without ever putting message text
+    in a tag. A tag that isn't set leaves the placeholder untouched (same graceful-fallback
+    shape as agentic_pipeline's `{input}`/run_input_tag), rather than silently substituting an
+    empty string."""
     if "{" not in s:
         return s
     out = s
@@ -417,6 +430,10 @@ def _substitute(s: str, substitutions: Dict[str, Any]) -> str:
     out = out.replace("{partition_key}", str(substitutions.get("partition_key", "")))
     for dim, val in (substitutions.get("partition_keys") or {}).items():
         out = out.replace("{partition_keys." + dim + "}", str(val))
+    tags = substitutions.get("tags") or {}
+    if tags and "{tag." in out:
+        import re
+        out = re.sub(r"\{tag\.([^{}]+)\}", lambda m: str(tags[m.group(1)]) if m.group(1) in tags else m.group(0), out)
     return out
 
 

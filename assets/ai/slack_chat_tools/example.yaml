@@ -1,0 +1,9 @@
+# Shared across every chat-agent run via mcp_server_resource_key -- see slack_agent_request_sensor
+# and the anthropic_agent/openai_agent/litellm_agent README for how channel_template/
+# thread_ts_template actually get resolved to a real channel/thread at run time.
+type: dagster_community_components.SlackChatToolsComponent
+attributes:
+  mcp_server_resource_key: slack_chat_mcp
+  max_messages: 20
+  # channel_template / thread_ts_template default to "{tag.slack/channel}" / "{tag.slack/thread_ts}"
+  # -- leave them unless your sensor sets the identifier tags under different names.

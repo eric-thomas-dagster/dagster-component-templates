@@ -364,3 +364,53 @@ def test_final_deep_redaction_is_defense_in_depth(mod, world):
     r = Leaky(world["instance"], audit=lambda s: None).call("asset_status", {"asset_key": "x"})
     assert "abcdefgh12345678" not in json.dumps(r) and r["password"] == "[REDACTED]"
     assert r["data_version"] == "a1" * 32  # identifiers survive
+
+
+# ---------- list_assets_owned_by ----------
+
+def _owners_defs():
+    @dg.asset(key=dg.AssetKey(["nightly", "etl"]), owners=["owner@co.com"], group_name="nightly")
+    def nightly_etl():
+        ...
+
+    @dg.asset(key=dg.AssetKey(["other"]), owners=["team:data-platform"])
+    def other():
+        ...
+
+    @dg.asset(key=dg.AssetKey(["unowned"]))
+    def unowned():
+        ...
+
+    return dg.Definitions(assets=[nightly_etl, other, unowned])
+
+
+def test_list_assets_owned_by_matches_exact_email(mod, world):
+    t = tools(mod, world, definitions=_owners_defs())
+    r = t.call("list_assets_owned_by", {"identity": "OWNER@CO.COM"})  # case-insensitive
+    assert r["count"] == 1
+    assert r["assets"][0]["asset_key"] == "nightly/etl"
+    assert r["assets"][0]["owners"] == ["owner@co.com"]
+    assert r["assets"][0]["group_name"] == "nightly"
+
+
+def test_list_assets_owned_by_matches_literal_team_entry(mod, world):
+    t = tools(mod, world, definitions=_owners_defs())
+    r = t.call("list_assets_owned_by", {"identity": "team:data-platform"})
+    assert [a["asset_key"] for a in r["assets"]] == ["other"]
+
+
+def test_list_assets_owned_by_no_match_returns_empty(mod, world):
+    t = tools(mod, world, definitions=_owners_defs())
+    r = t.call("list_assets_owned_by", {"identity": "nobody@co.com"})
+    assert r == {"identity": "nobody@co.com", "count": 0, "assets": []}
+
+
+def test_list_assets_owned_by_requires_identity(mod, world):
+    t = tools(mod, world, definitions=_owners_defs())
+    assert "identity is required" in t.call("list_assets_owned_by", {})["error"]
+
+
+def test_list_assets_owned_by_without_definitions_module_errors_clearly(mod, world):
+    t = tools(mod, world)  # no definitions= -- mirrors a DagsterInstanceToolsComponent with definitions_module unset
+    r = t.call("list_assets_owned_by", {"identity": "owner@co.com"})
+    assert "definitions_module" in r["error"]

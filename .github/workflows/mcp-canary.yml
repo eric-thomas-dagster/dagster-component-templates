@@ -31,6 +31,7 @@ on:
       - "assets/ai/hybrid_knowledge_search_server/**"
       - "resources/mcp_server_resource/**"
       - "assets/ai/agentic_pipeline_authoring_tools/**"
+      - "assets/ai/slack_chat_tools/**"
       - "tests/test_mcp_*.py"
       - ".github/workflows/mcp-canary.yml"
 
@@ -58,6 +59,7 @@ env:
     assets/ai/hybrid_knowledge_search_server/tests
     resources/mcp_server_resource/tests
     assets/ai/agentic_pipeline_authoring_tools/tests
+    assets/ai/slack_chat_tools/tests
 
 jobs:
   mcp:

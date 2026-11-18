@@ -18,6 +18,22 @@ Two modes — same field surface as [`cron_schedule`](../cron_schedule/README.md
 | `1w` | weekly (Sunday 00:00) | `0 0 * * 0` |
 | `1mo` | monthly (1st 00:00) | `0 0 1 * *` |
 
+## Airflow migration: `@once`, `end_date`, `logical_date`
+
+Same three additions as [`cron_schedule`](../cron_schedule/README.md#airflow-migration-once-end_date-logical_date):
+
+- **`cadence: once`** — builds a cursor-gated sensor instead of a schedule; fires exactly one run the first time it evaluates while `default_status: RUNNING`, then never again. Mutually exclusive with `every`, partitioning, `end_date`, `add_logical_date_tag`.
+- **`end_date`** — stops firing past this date (un-partitioned: a tick-level skip; partitioned: also passed through to the partitions_def's own `end_date`).
+- **`add_logical_date_tag`** — tags each run with `logical_date`: the partition window's start (partitioned) or the scheduled trigger time (un-partitioned).
+
+```yaml
+attributes:
+  schedule_name: run_dbt_models_once
+  asset_keys: ["dbt/models"]
+  cadence: once
+  default_status: RUNNING
+```
+
 ## Un-partitioned example
 
 ```yaml
@@ -78,7 +94,6 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 | Field | Type | Description |
 |---|---|---|
 | `schedule_name` | `str` | Unique schedule name. |
-| `every` | `str` | Interval value + unit, e.g. '15m', '2h', '1d', '1w', '1mo'. |
 
 ### Catalog metadata
 
@@ -110,9 +125,13 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `every` | `str` | — | Interval value + unit, e.g. '15m', '2h', '1d', '1w', '1mo'. Required when cadence='scheduled' (the default); must be unset when cadence='once'. |
 | `asset_keys` | `List[str]` | — | Slash-separated asset keys to materialize on each tick. Set this, asset_check_keys, or both. |
 | `asset_check_keys` | `List[str]` | — | Asset check keys to run on each tick, as '<asset_key>:<check_name>' (asset key segments slash-separated, e.g. 'marts/orders:row_count_check'). Runs just the check -- via Dagster's real AssetSelection.checks(...), confirm… _(full docs in schema.json + component README)_ |
 | `execution_timezone` | `str` | — | IANA timezone, e.g. 'America/New_York'. Applied in the un-partitioned path (Dagster falls back to UTC when None); silently IGNORED in the partitioned path — build_schedule_from_partitioned_job forbids execution_timezone… _(full docs in schema.json + component README)_ |
+| `cadence` | `str` | `"scheduled"` | 'scheduled' (default): normal fixed-interval schedule, as below. 'once': mirrors Airflow's @once -- fires a single run the first time this component's sensor evaluates while RUNNING, then never fires again. Builds a sens… _(full docs in schema.json + component README)_ |
+| `end_date` | `str` | — | ISO date or datetime (e.g. '2026-06-01'; a value with no timezone is assumed UTC) after which this schedule stops firing -- mirrors Airflow's DAG end_date. Un-partitioned: each tick is skipped once scheduled_execution_ti… _(full docs in schema.json + component README)_ |
+| `add_logical_date_tag` | `bool` | `false` | If true, tags each run with 'logical_date' -- Airflow's run-identifying timestamp. Partitioned: the partition window's start. Un-partitioned: the scheduled trigger time. Only valid with cadence='scheduled'. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (rejected by this schedule — declared for parity with cron_schedule). |
 
 [//]: # (FIELDS:END)

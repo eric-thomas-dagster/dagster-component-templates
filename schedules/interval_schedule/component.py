@@ -44,6 +44,7 @@ def _build_partitions_def(
     cron_fmt="%Y-%m-%d",
     end_offset=0,
     timezone=None,
+    end_date=None,
 ):
     """Construct a Dagster partitions_def from the canonical partition fields."""
     from dagster import (
@@ -111,20 +112,20 @@ def _build_partitions_def(
             f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
         )
     if partition_type == "daily":
-        return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+        return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone, end_date=end_date)
     if partition_type == "weekly":
-        return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+        return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone, end_date=end_date)
     if partition_type == "monthly":
-        return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+        return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone, end_date=end_date)
     if partition_type == "hourly":
-        return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+        return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone, end_date=end_date)
     if partition_type == "cron":
         from dagster import TimeWindowPartitionsDefinition
         if not cron_schedule:
             raise ValueError(
                 "partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only."
             )
-        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone)
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone, end=end_date)
     if partition_type == "static":
         if not _values:
             raise ValueError("partition_type='static' requires partition_values (comma-separated).")
@@ -204,6 +205,39 @@ def _validate_interval_matches_cadence(every: str, unit: str, cadence: str) -> N
         )
 
 
+def _parse_iso_datetime(value: str):
+    """Parse an end_date field value. Accepts a bare date ('2026-06-01') or a full
+    ISO datetime; a value with no timezone is assumed UTC, matching this component's
+    other timezone-less string fields."""
+    from datetime import datetime, timezone
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _build_once_sensor(schedule_name: str, job, default_status, tags):
+    """cadence='once': a sensor with a persistent cursor flag -- fires a single
+    RunRequest the first time it evaluates while RUNNING, then SkipReason forever
+    after. Verified live: tick 1 returns a RunRequest and sets the cursor; tick 2+
+    (even across a fresh SensorEvaluationContext given the same cursor) returns
+    SkipReason. This mirrors Airflow's @once schedule -- a one-time trigger, not a
+    recurring cadence -- so it builds a sensor, not a ScheduleDefinition."""
+    import dagster as dg
+
+    @dg.sensor(job=job, name=f"{schedule_name}_sensor", default_status=default_status)
+    def _once_sensor(context: dg.SensorEvaluationContext):
+        if context.cursor == "fired":
+            return dg.SkipReason(
+                "cadence='once': already fired its single run; this sensor never "
+                "fires again (mirrors Airflow's @once schedule)."
+            )
+        context.update_cursor("fired")
+        return dg.RunRequest(run_key=schedule_name, tags=tags or {})
+
+    return _once_sensor
+
+
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
 from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
@@ -247,7 +281,14 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     schedule_name: str = Field(description="Unique schedule name.")
-    every: str = Field(description="Interval value + unit, e.g. '15m', '2h', '1d', '1w', '1mo'.")
+    every: Optional[str] = Field(
+        default=None,
+        description=(
+            "Interval value + unit, e.g. '15m', '2h', '1d', '1w', '1mo'. "
+            "Required when cadence='scheduled' (the default); must be unset "
+            "when cadence='once'."
+        ),
+    )
     asset_keys: Optional[List[str]] = Field(
         default=None,
         description="Slash-separated asset keys to materialize on each tick. Set this, asset_check_keys, or both.",
@@ -277,6 +318,38 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     default_status: str = Field(default="STOPPED", description="'RUNNING' or 'STOPPED'.")
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Tags applied to runs created by this schedule.")
+
+    cadence: str = Field(
+        default="scheduled",
+        description=(
+            "'scheduled' (default): normal fixed-interval schedule, as below. "
+            "'once': mirrors Airflow's @once -- fires a single run the first "
+            "time this component's sensor evaluates while RUNNING, then never "
+            "fires again. Builds a sensor instead of a schedule, so it's "
+            "mutually exclusive with every, partition_type/partition_dimensions, "
+            "end_date, and add_logical_date_tag."
+        ),
+    )
+    end_date: Optional[str] = Field(
+        default=None,
+        description=(
+            "ISO date or datetime (e.g. '2026-06-01'; a value with no timezone "
+            "is assumed UTC) after which this schedule stops firing -- mirrors "
+            "Airflow's DAG end_date. Un-partitioned: each tick is skipped once "
+            "scheduled_execution_time reaches this date. Partitioned: ALSO "
+            "passed to the partitions_def's own end_date, in addition to the "
+            "same tick-level skip. Only valid with cadence='scheduled'."
+        ),
+    )
+    add_logical_date_tag: bool = Field(
+        default=False,
+        description=(
+            "If true, tags each run with 'logical_date' -- Airflow's run-"
+            "identifying timestamp. Partitioned: the partition window's start. "
+            "Un-partitioned: the scheduled trigger time. Only valid with "
+            "cadence='scheduled'."
+        ),
+    )
 
     partition_type: Optional[str] = Field(
         default=None,
@@ -336,6 +409,23 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=(), csv=('partition_values',), tags=('tags',))
 
+    @model_validator(mode="after")
+    def _validate_cadence(self):
+        if self.cadence not in ("scheduled", "once"):
+            raise ValueError(f"cadence must be 'scheduled' or 'once', got {self.cadence!r}.")
+        if self.cadence == "once":
+            if self.every:
+                raise ValueError("cadence='once' fires via a one-time sensor, not a recurring interval -- unset every.")
+            if self.partition_type or self.partition_dimensions:
+                raise ValueError("cadence='once' fires a single ad hoc run with no partition key -- unset partition_type/partition_dimensions.")
+            if self.end_date:
+                raise ValueError("cadence='once' has no recurring ticks to stop -- unset end_date.")
+            if self.add_logical_date_tag:
+                raise ValueError("cadence='once' has no scheduled trigger time or partition window to tag -- unset add_logical_date_tag.")
+        elif not self.every:
+            raise ValueError("every is required when cadence='scheduled' (the default).")
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -377,6 +467,19 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
             else DefaultScheduleStatus.STOPPED
         )
 
+        if self.cadence == "once":
+            job = define_asset_job(name=_job_name, selection=selection)
+            _default_sensor_status = (
+                dg.DefaultSensorStatus.RUNNING
+                if self.default_status.upper() == "RUNNING"
+                else dg.DefaultSensorStatus.STOPPED
+            )
+            sensor = _build_once_sensor(self.schedule_name, job, _default_sensor_status, self.tags)
+            return Definitions(sensors=[sensor], jobs=[job])
+
+        _end_dt = _parse_iso_datetime(self.end_date) if self.end_date else None
+        _advanced = bool(_end_dt or self.add_logical_date_tag)
+
         unit, cron = _parse_every_to_cadence(self.every)
         _is_partitioned = bool(self.partition_type or self.partition_dimensions)
 
@@ -395,9 +498,10 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 self.partition_values,
                 self.dynamic_partition_name,
                 self.partition_dimensions,
-            
+
     cron_schedule=self.partition_cron_schedule,
     cron_fmt=self.partition_cron_fmt or "%Y-%m-%d", end_offset=self.partition_end_offset, timezone=self.partition_timezone,
+    end_date=self.end_date,
 )
 
             _cadence = self.partition_type if self.partition_type in (
@@ -418,28 +522,81 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 selection=selection,
                 partitions_def=partitions_def,
             )
-            # build_schedule_from_partitioned_job REJECTS cron_schedule and
-            # execution_timezone for time-partitioned jobs. Cadence is inferred
-            # from partitions_def; we already validated that `every` matches
-            # that cadence, so the natural period boundary (fire at :00) is
-            # exactly what the user expects.
-            sched = build_schedule_from_partitioned_job(
-                job=job,
-                name=self.schedule_name,
-                default_status=_default_status,
-                tags=self.tags or {},
-            )
+
+            if _advanced:
+                # end_date / add_logical_date_tag need a per-tick execution_fn
+                # (to skip past end_date, and/or to tag the resolved window's
+                # start) -- build_schedule_from_partitioned_job below has
+                # neither hook, so this path resolves the partition window
+                # itself instead. Same mechanism as cron_schedule's advanced
+                # partitioned path, verified live there.
+                _pd, _end, _tag, _tags = partitions_def, _end_dt, self.add_logical_date_tag, self.tags
+
+                def _execution_fn(sched_context, _pd=_pd, _end=_end, _tag=_tag, _tags=_tags):
+                    if _end and sched_context.scheduled_execution_time >= _end:
+                        return dg.SkipReason(f"past end_date {_end.isoformat()}")
+                    window = _pd.get_last_partition_window()
+                    if window is None:
+                        return dg.SkipReason("no completed partition yet")
+                    keys = _pd.get_partition_keys_in_time_window(window)
+                    if not keys:
+                        return dg.SkipReason("no partition keys in the most recent completed window")
+                    merged_tags = dict(_tags or {})
+                    if _tag:
+                        merged_tags["logical_date"] = window.start.isoformat()
+                    return dg.RunRequest(partition_key=keys[-1], tags=merged_tags)
+
+                sched = ScheduleDefinition(
+                    name=self.schedule_name,
+                    cron_schedule=cron,
+                    job=job,
+                    execution_timezone=self.execution_timezone or "UTC",
+                    execution_fn=_execution_fn,
+                    default_status=_default_status,
+                )
+            else:
+                # build_schedule_from_partitioned_job REJECTS cron_schedule and
+                # execution_timezone for time-partitioned jobs. Cadence is inferred
+                # from partitions_def; we already validated that `every` matches
+                # that cadence, so the natural period boundary (fire at :00) is
+                # exactly what the user expects.
+                sched = build_schedule_from_partitioned_job(
+                    job=job,
+                    name=self.schedule_name,
+                    default_status=_default_status,
+                    tags=self.tags or {},
+                )
         else:
             job = define_asset_job(
                 name=_job_name,
                 selection=selection,
             )
-            sched = ScheduleDefinition(
-                name=self.schedule_name,
-                cron_schedule=cron,
-                job=job,
-                execution_timezone=self.execution_timezone or "UTC",
-                default_status=_default_status,
-                tags=self.tags or {},
-            )
+            if _advanced:
+                _end, _tag, _tags = _end_dt, self.add_logical_date_tag, self.tags
+
+                def _execution_fn(sched_context, _end=_end, _tag=_tag, _tags=_tags):
+                    if _end and sched_context.scheduled_execution_time >= _end:
+                        return dg.SkipReason(f"past end_date {_end.isoformat()}")
+                    merged_tags = dict(_tags or {})
+                    if _tag:
+                        merged_tags["logical_date"] = sched_context.scheduled_execution_time.isoformat()
+                    return dg.RunRequest(tags=merged_tags)
+
+                sched = ScheduleDefinition(
+                    name=self.schedule_name,
+                    cron_schedule=cron,
+                    job=job,
+                    execution_timezone=self.execution_timezone or "UTC",
+                    execution_fn=_execution_fn,
+                    default_status=_default_status,
+                )
+            else:
+                sched = ScheduleDefinition(
+                    name=self.schedule_name,
+                    cron_schedule=cron,
+                    job=job,
+                    execution_timezone=self.execution_timezone or "UTC",
+                    default_status=_default_status,
+                    tags=self.tags or {},
+                )
         return Definitions(schedules=[sched], jobs=[job])

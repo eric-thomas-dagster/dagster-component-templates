@@ -121,6 +121,24 @@
       "label": "Asset Check Keys",
       "description": "Asset check keys to run on each tick, as '<asset_key>:<check_name>' (asset key segments slash-separated, e.g. 'marts/orders:row_count_check'). Runs just the check -- via Dagster's real AssetSelection.checks(...), confirmed to execute with zero re-materialization of the parent asset -- for periodic re-validation without re-running the (possibly expensive) materialization. Combine with asset_keys to also materialize other assets in the same tick.",
       "required": false
+    },
+    "cadence": {
+      "type": "string",
+      "label": "Cadence",
+      "description": "'scheduled' (default): normal fixed-interval schedule, as below. 'once': mirrors Airflow's @once -- fires a single run the first time this component's sensor evaluates while RUNNING, then never fires again. Builds a sensor instead of a schedule, so it's mutually exclusive with every, partition_type/partition_dimensions, end_date, and add_logical_date_tag.",
+      "required": false
+    },
+    "end_date": {
+      "type": "string",
+      "label": "End Date",
+      "description": "ISO date or datetime (e.g. '2026-06-01'; a value with no timezone is assumed UTC) after which this schedule stops firing -- mirrors Airflow's DAG end_date. Un-partitioned: each tick is skipped once scheduled_execution_time reaches this date. Partitioned: ALSO passed to the partitions_def's own end_date, in addition to the same tick-level skip. Only valid with cadence='scheduled'.",
+      "required": false
+    },
+    "add_logical_date_tag": {
+      "type": "boolean",
+      "label": "Add Logical Date Tag",
+      "description": "If true, tags each run with 'logical_date' -- Airflow's run-identifying timestamp. Partitioned: the partition window's start. Un-partitioned: the scheduled trigger time. Only valid with cadence='scheduled'.",
+      "required": false
     }
   },
   "tags": [

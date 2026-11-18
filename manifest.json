@@ -59658,7 +59658,7 @@
       "id": "shell_command_asset",
       "name": "ShellCommandAsset",
       "category": "infrastructure",
-      "description": "Run a shell command as a Dagster asset via dagster-shell.",
+      "description": "Run a shell command as a Dagster asset via subprocess (bash -c) -- the Airflow BashOperator / @task.bash equivalent.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/infrastructure/shell_command_asset",
@@ -59687,7 +59687,7 @@
         "asset"
       ],
       "agent_hints": {
-        "outputs": "Run a shell command as a Dagster asset via dagster-shell.",
+        "outputs": "Run a shell command as a Dagster asset via subprocess (bash -c).",
         "requires_pip": [
           "dagster"
         ]

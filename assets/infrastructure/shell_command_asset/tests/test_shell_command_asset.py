@@ -1,0 +1,135 @@
+"""Real, committed tests for ShellCommandAssetComponent -- real dg.materialize() throughout,
+real subprocess calls (no mocking: this component's only "external" surface is the shell
+itself, which is free/local, matching this repo's "mock only the paid/external call" rule).
+"""
+import time
+
+import dagster as dg
+import pytest
+
+from .conftest import materialize
+
+
+def test_basic_command_succeeds_with_exit_code_and_stdout_metadata(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="echo hello")
+    result = materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert md["exit_code"].value == 0
+    assert "hello" in md["stdout_preview"].value
+
+
+def test_nonzero_exit_fails_the_run(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="exit 7")
+    result = materialize(component, raise_on_error=False)
+    assert not result.success
+
+
+def test_skip_on_exit_code_is_a_successful_materialization_not_a_failure(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="exit 99", skip_on_exit_code=99)
+    result = materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert md["skipped"].value is True
+    assert md["exit_code"].value == 99
+
+
+def test_skip_on_exit_code_unset_treats_the_same_exit_code_as_a_real_failure(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="exit 99")
+    result = materialize(component, raise_on_error=False)
+    assert not result.success
+
+
+def test_timeout_seconds_kills_a_long_running_command(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="sleep 30", timeout_seconds=1)
+    start = time.monotonic()
+    result = materialize(component, raise_on_error=False)
+    assert not result.success
+    assert time.monotonic() - start < 20  # killed well before the sleep would finish
+
+
+def test_bash_specific_syntax_works_not_just_posix_sh(mod):
+    """[[ ]] is a bashism -- dash (/bin/sh on many Linux distros) rejects it. Confirms
+    executable="/bin/bash" is actually wired in, not just shell=True's OS-default shell."""
+    component = mod.ShellCommandAssetComponent(asset_name="t", command='[[ "abc" == a* ]] && echo matched')
+    result = materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert "matched" in md["stdout_preview"].value
+
+
+def test_env_vars_are_merged_with_the_parent_environment(mod, monkeypatch):
+    monkeypatch.setenv("SHELL_ASSET_TEST_PARENT_VAR", "from-parent")
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="echo $SHELL_ASSET_TEST_PARENT_VAR $SHELL_ASSET_TEST_OWN_VAR",
+        env_vars={"SHELL_ASSET_TEST_OWN_VAR": "from-component"},
+    )
+    result = materialize(component)
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert "from-parent" in md["stdout_preview"].value
+    assert "from-component" in md["stdout_preview"].value
+
+
+def test_partition_key_is_substituted_into_command_and_cwd(mod, tmp_path):
+    (tmp_path / "2024-01-05").mkdir()
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="echo partition={partition_key}", cwd=str(tmp_path) + "/{partition_key}",
+        partition_type="daily", partition_start="2024-01-01",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize(
+        [asset_def], resources={"io_manager": dg.InMemoryIOManager()}, partition_key="2024-01-05",
+    )
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert "partition=2024-01-05" in md["stdout_preview"].value
+
+
+def test_command_asset_key_uses_the_upstream_value_as_the_command(mod):
+    @dg.asset(key=dg.AssetKey.from_user_string("cmd_source"))
+    def cmd_source():
+        return "echo from-upstream"
+
+    component = mod.ShellCommandAssetComponent(asset_name="t", command_asset_key="cmd_source")
+    result = materialize(component, assets_extra=[cmd_source])
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert "from-upstream" in md["stdout_preview"].value
+
+
+def test_command_asset_key_falls_back_to_static_command_when_upstream_value_is_falsy(mod):
+    @dg.asset(key=dg.AssetKey.from_user_string("cmd_source"))
+    def cmd_source():
+        return ""
+
+    component = mod.ShellCommandAssetComponent(asset_name="t", command_asset_key="cmd_source", command="echo fallback")
+    result = materialize(component, assets_extra=[cmd_source])
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert "fallback" in md["stdout_preview"].value
+
+
+def test_requires_command_or_command_asset_key(mod):
+    with pytest.raises(Exception, match="command"):
+        mod.ShellCommandAssetComponent(asset_name="t")
+
+
+def test_retry_policy_wires_through(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="echo hi",
+        retry_policy_max_retries=3, retry_policy_delay_seconds=2, retry_policy_backoff="linear",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    rp = asset_def.op.retry_policy
+    assert rp is not None and rp.max_retries == 3 and rp.delay == 2
+
+
+def test_static_partition_type_wires_through(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="echo {partition_key}", partition_type="static", partition_values="a,b,c",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize(
+        [asset_def], resources={"io_manager": dg.InMemoryIOManager()}, partition_key="b",
+    )
+    assert result.success

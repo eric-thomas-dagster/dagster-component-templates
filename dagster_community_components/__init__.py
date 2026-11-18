@@ -1291,6 +1291,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SlackNotificationJobComponent": "jobs/slack_notification_job/component.py",
     "SlackNotificationSensorComponent": "sensors/slack_notification/component.py",
     "SlackResourceComponent": "resources/slack_resource/component.py",
+    "SlackRunRequestSensorComponent": "sensors/slack_run_request_sensor/component.py",
     "SlingReplicationAssetComponent": "integrations/sling_replication_asset/component.py",
     "SmartRetryComponent": "assets/infrastructure/smart_retry/component.py",
     "SmartsheetIngestionComponent": "assets/ingestion/smartsheet_ingestion/component.py",

@@ -1,0 +1,26 @@
+type: dagster_community_components.SlackRunRequestSensorComponent
+attributes:
+  sensor_name: slack_run_requests
+  slack_channel_id: "C0123ABCDEF"
+
+  # SLACK_BOT_TOKEN env var must be set -- see the README's "Auth" section.
+
+  triggers:
+    # asset_selection mode: owners are read live from nightly/etl's own `owners:` metadata --
+    # whoever is already an owner of that asset can trigger it from chat, no separate list.
+    # Uses an explicit key list here so this example is self-contained (no sibling assets
+    # required to resolve against). In practice asset_selection is usually a selection
+    # string instead -- e.g. "group:nightly_etl" -- which resolves against whatever sibling
+    # assets actually exist in the real project. See README.md.
+    - phrases: ["run the nightly etl", "run nightly etl", "kick off nightly"]
+      asset_selection: [nightly/etl]
+
+    # job_name mode: a bare job has no asset metadata, so owners must be listed explicitly here.
+    - phrases: ["rerun the backfill job", "run backfill"]
+      job_name: nightly_backfill_job
+      owners:
+        - jane@example.com
+        - "team:data-platform"   # NOTE: team: owners never authorize a chat-triggered run -- see README
+
+  minimum_interval_seconds: 30
+  default_status: STOPPED   # flip to RUNNING once you've verified the auth + triggers are right

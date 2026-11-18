@@ -61241,6 +61241,56 @@
       ]
     },
     {
+      "id": "slack_run_request_sensor",
+      "name": "slack_run_request_sensor",
+      "component_type": "dagster_community_components.SlackRunRequestSensorComponent",
+      "path": "sensors/slack_run_request_sensor",
+      "category": "sensors",
+      "icon": "si:slack",
+      "description": "Polls a Slack channel for \"can you run X\" messages and launches the matching RunRequest -- but only for a requester already listed as an owner of the target. Matches plain-text phrases, not an LLM. Just a bot token (no OAuth refresh dance); first tick seeds its cursor to now, so activating it never replays channel history.",
+      "tags": [],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/schema.json",
+      "dependencies": {
+        "pip": [
+          "slack_sdk"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-18"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "run_requests"
+        ],
+        "requires_pip": [
+          "slack_sdk"
+        ],
+        "when_to_use": "Teams whose members ask a human in Slack to run a job instead of using Dagster directly. Needs a Slack bot token with channels:history (or groups:history), chat:write, and users:read.email scopes, invited to the target channel. Authorization defaults to the target's real owners metadata.",
+        "chains_with": [
+          "slack_approval_gate",
+          "slack_message_send",
+          "asset_to_job_trigger_sensor"
+        ]
+      },
+      "produces": [
+        "sensor"
+      ],
+      "keywords": [
+        "slack",
+        "chatops",
+        "run_request",
+        "automation",
+        "authorization"
+      ]
+    },
+    {
       "id": "sling_replication_asset",
       "name": "SlingReplicationAsset",
       "category": "ingestion",
@@ -66696,7 +66746,7 @@
         "requires_pip": [
           "requests"
         ],
-        "when_to_use": "MS-shop customers (or any org where approval workflows live in Teams). Requires an Azure AD app registration with app permissions ChannelMessage.Read.All + ChannelMessage.Send + tenant admin consent. Prefer `mode: reactions` for quick votes; `mode: reply` when approvers need to add context in the same message. Composes with HumanApprovalGate via shared approval_dir — drop-in swap of Slack for Teams.",
+        "when_to_use": "MS-shop customers (or any org where approval workflows live in Teams). Requires an Azure AD app registration with DELEGATED permissions ChannelMessage.Read.All + ChannelMessage.Send + offline_access -- app-only/client-credentials does not work for sending a channel message (confirmed against Microsoft's own docs) -- plus a one-time interactive OAuth consent for a dedicated approval-bot Teams account. Prefer `mode: reactions` for quick votes; `mode: reply` when approvers need to add context in the same message. Composes with HumanApprovalGate via shared approval_dir — drop-in swap of Slack for Teams.",
         "chains_with": [
           "human_approval_gate",
           "filesystem_monitor",
@@ -66762,7 +66812,7 @@
       "path": "sensors/teams_run_request_sensor",
       "category": "sensors",
       "icon": "si:microsoftteams",
-      "description": "Polls a Microsoft Teams channel for chat-requested job/asset runs (\"can you run X\") and launches the matching RunRequest -- replacing the person who reads the channel and runs it by hand. Matches plain-text trigger phrases (deterministic substring match, not an LLM) against each new message. Every match is authorized before launching: an asset_selection trigger's owners are read LIVE from the matched asset(s)' own `owners` catalog metadata; a bare job_name trigger has no asset metadata, so it requires an explicit owners list instead -- there is no implicit \"anyone can run this\" default for either shape. `team:`-prefixed owners never authorize a chat-triggered run (no Azure AD group-membership check). Uses MS Graph API with a DELEGATED OAuth token (app-only/client-credentials does not work for sending a channel message, and the application form of ChannelMessage.Read.All requires Microsoft's separate Protected-API approval beyond admin consent) -- a one-time interactive consent captures a refresh token, refreshed (and persisted if Microsoft rotates it) on every poll. The first-ever tick seeds its cursor to \"now\" by default, so activating this sensor never replays a channel's past run requests.",
+      "description": "Polls a Microsoft Teams channel for \"can you run X\" messages and launches the matching RunRequest -- but only for a requester already listed as an owner of the target. Matches plain-text phrases, not an LLM. Uses a delegated Teams OAuth token (app-only doesn't work for this); first tick seeds its cursor to now, so activating it never replays channel history.",
       "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/example.yaml",
@@ -66787,7 +66837,7 @@
         "requires_pip": [
           "requests"
         ],
-        "when_to_use": "An MS-shop customer's team members ask a human in Teams to run a job, and that person just reads the message and launches it -- automate that hand-off. Requires an Azure AD app registration with DELEGATED permissions ChannelMessage.Read.All (or ChannelMessage.Read.Group), ChannelMessage.Send, User.Read.All, offline_access, and a one-time interactive consent for a dedicated bot account. Authorization is enforced by default against the target's real owners metadata -- do not set require_owner_authorization: false outside a fully-trusted channel.",
+        "when_to_use": "MS-shop customers whose team asks a human in Teams to run a job instead of using Dagster directly. Needs a delegated Teams app registration (ChannelMessage.Read.All/Send, User.Read.All, offline_access) and a one-time bot-account consent. Authorization defaults to the target's real owners metadata.",
         "chains_with": [
           "teams_approval_gate",
           "msteams_resource",

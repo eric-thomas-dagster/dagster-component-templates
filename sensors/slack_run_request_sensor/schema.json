@@ -1,0 +1,138 @@
+{
+  "component_type": "dagster_community_components.SlackRunRequestSensorComponent",
+  "description": "Polls a Slack channel for chat-requested job/asset runs and launches them -- but only for a requester already listed as an owner of the target.",
+  "category": "sensors",
+  "icon": "si:slack",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true,
+      "description": "Unique sensor name."
+    },
+    "slack_channel_id": {
+      "type": "string",
+      "label": "Slack Channel Id",
+      "required": true,
+      "description": "Channel ID to poll (e.g. 'C0123ABCDEF') -- NOT a '#channel-name'; conversations.history requires the real id. Find it via the channel's 'View channel details' panel in Slack."
+    },
+    "triggers": {
+      "type": "array",
+      "label": "Triggers",
+      "required": true,
+      "description": "Phrase-to-target mappings this sensor recognizes. At least one required.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "phrases": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Case-insensitive substrings (unless case_sensitive_phrases=true) that identify this trigger in a message's text, e.g. ['run the nightly etl', 'kick off nightly']. The first trigger (in list order) with a phrase appearing anywhere in the message wins -- list more specific triggers first if phrases could overlap."
+          },
+          "asset_selection": {
+            "type": "string",
+            "description": "Materialize this asset selection when matched: explicit key list, the Dagster selection DSL (tag:/group:/kind:/boolean composition), '*', or a bare fnmatch glob -- resolved against sibling assets in the same defs folder. Owners are read LIVE from the matched assets' own `owners` catalog metadata; do not also set `owners` on this trigger."
+          },
+          "job_name": {
+            "type": "string",
+            "description": "Run this named job when matched, instead of an asset_selection -- for job-shaped targets with no asset metadata of their own. Requires `owners` below: a bare job has no Dagster metadata to authorize against."
+          },
+          "owners": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Email addresses (or literal Slack user ids, e.g. 'U0123ABCD') allowed to trigger `job_name` from chat. Required when job_name is set -- there is no implicit default. Ignored for asset_selection triggers, whose owners come from the matched assets' own catalog metadata instead."
+          }
+        },
+        "required": ["phrases"]
+      }
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's 'xoxb-...' token. Needs channels:history (or groups:history) + chat:write + users:read.email scopes -- see this file's module docstring, 'Auth'.",
+      "required": false
+    },
+    "require_owner_authorization": {
+      "type": "boolean",
+      "label": "Require Owner Authorization",
+      "description": "Require the message sender to be a listed owner of the matched target before launching it. THIS IS THE SAFETY CHECK THIS COMPONENT EXISTS TO ENFORCE -- setting it to false means ANY channel member can launch ANY configured trigger's target. Only disable it for a channel where every member is already trusted with every configured target.",
+      "required": false
+    },
+    "resolve_requester_email": {
+      "type": "boolean",
+      "label": "Resolve Requester Email",
+      "description": "Resolve the message sender's Slack user id to an email address via users.info (needs users:read.email) before checking owners -- most owners: lists use emails, not Slack user ids. When false, only a literal Slack user id in an owners list can ever match.",
+      "required": false
+    },
+    "require_all_owners": {
+      "type": "boolean",
+      "label": "Require All Owners",
+      "description": "For an asset_selection trigger matching MULTIPLE assets with different owners: false (default) authorizes the requester if they own ANY matched asset; true requires them to own EVERY matched asset. Ignored for job_name triggers.",
+      "required": false
+    },
+    "case_sensitive_phrases": {
+      "type": "boolean",
+      "label": "Case Sensitive Phrases",
+      "description": "Match trigger phrases case-sensitively. Default: case-insensitive.",
+      "required": false
+    },
+    "messages_per_poll": {
+      "type": "integer",
+      "label": "Messages Per Poll",
+      "description": "Messages to request per Slack page (Slack's own recommended max is 200).",
+      "required": false
+    },
+    "max_pages_per_poll": {
+      "type": "integer",
+      "label": "Max Pages Per Poll",
+      "description": "Follow at most this many pagination cursors per poll -- bounds how far back a single tick can catch up after an outage.",
+      "required": false
+    },
+    "process_backlog_on_first_run": {
+      "type": "boolean",
+      "label": "Process Backlog On First Run",
+      "description": "If false (default), the first-ever tick seeds the cursor to 'now' and processes nothing -- activating this sensor never replays a channel's past run requests. Set true only if that replay is actually wanted.",
+      "required": false
+    },
+    "post_acknowledgement": {
+      "type": "boolean",
+      "label": "Post Acknowledgement",
+      "description": "Reply in-thread when a match is authorized and launched, and (per on_unauthorized) when it's rejected. Needs chat:write.",
+      "required": false
+    },
+    "on_unauthorized": {
+      "type": "string",
+      "enum": [
+        "skip",
+        "reply"
+      ],
+      "label": "On Unauthorized",
+      "description": "'reply' (default) posts unauthorized_message_template as a threaded reply; 'skip' just logs it. Ignored when post_acknowledgement is false.",
+      "required": false
+    },
+    "ack_message_template": {
+      "type": "string",
+      "label": "Ack Message Template",
+      "description": "Threaded reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}.",
+      "required": false
+    },
+    "unauthorized_message_template": {
+      "type": "string",
+      "label": "Unauthorized Message Template",
+      "description": "Threaded reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}.",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED' -- initial status of the sensor.",
+      "required": false
+    }
+  }
+}

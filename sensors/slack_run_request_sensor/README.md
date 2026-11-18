@@ -1,0 +1,149 @@
+# slack_run_request_sensor
+
+Replaces the person who reads a Slack channel for "can you run X" messages and manually
+launches the job. Slack analog of `teams_run_request_sensor` -- no shared code (per this
+repo's convention), but the same design: this sensor polls the channel, matches the
+message text against configured trigger phrases, and launches a `RunRequest` for the
+matching target -- but **only** when the requester is already an authorized owner of
+that target.
+
+## Type
+
+```
+dagster_community_components.SlackRunRequestSensorComponent
+```
+
+## Why authorization is load-bearing, not optional
+
+Anyone can post to a Slack channel. Without a real check, this component would let any
+channel member launch production jobs by typing a sentence. So every match is checked
+against the target's own catalog metadata first:
+
+- **`asset_selection` triggers** (the common case): owners are read **live** from the
+  matched asset(s)' own `owners:` field -- the same catalog metadata every asset in this
+  repo already declares (team names or email addresses). Nothing is duplicated into this
+  sensor's own config.
+- **`job_name` triggers**: a bare Dagster job has no asset metadata to check, so the
+  trigger must list `owners:` explicitly. This is required, not optional -- a `job_name`
+  trigger with no `owners:` fails validation at config time rather than silently
+  authorizing everyone.
+
+`require_owner_authorization: false` turns this off entirely. Read its field description
+before setting it -- it means any channel member can launch any configured trigger's
+target.
+
+## Command matching is deterministic, not an LLM
+
+Each trigger lists plain-text `phrases`. A message matches when any of its trigger's
+phrases appears (case-insensitively, by default) anywhere in the message text -- first
+matching trigger (in config order) wins. There is no intent-classification model here on
+purpose: a sentence that can silently launch a job either matches a phrase you wrote down
+or it doesn't.
+
+## Auth -- a bot token, much simpler than the Teams version
+
+Unlike Microsoft Graph (see `teams_run_request_sensor` / `teams_approval_gate` -- sending
+or reading a channel message there has no working app-only permission and needs a
+one-time delegated OAuth consent), Slack's bot-token model just works: install an app to
+the workspace, grant it scopes, export its `xoxb-...` token. No refresh dance, nothing to
+persist between polls.
+
+**One-time setup:**
+
+1. Create a Slack app at https://api.slack.com/apps (or reuse the one `slack_approval_gate`
+   / `slack_message_send` already use in this workspace -- they share nothing in code, but
+   can share the same installed app and token).
+2. Under OAuth & Permissions, add Bot Token Scopes:
+   - `channels:history` (public channel) or `groups:history` (private channel).
+   - `chat:write` -- unless `post_acknowledgement: false`.
+   - `users:read.email` -- unless `resolve_requester_email: false`. This is what turns a
+     message sender's Slack user id into the email address your `owners:` lists actually
+     use.
+3. Install the app to the workspace, then **invite the bot to the target channel** -- a
+   bot token can only read conversations it's a member of.
+4. Export:
+
+```bash
+export SLACK_BOT_TOKEN=xoxb-...
+```
+
+## What this does NOT do
+
+- **Verify `team:`-prefixed owners.** An asset's (or trigger's) `owners:` may list
+  `"team:analytics"`. There is no Slack-side group-membership check here, so a `team:`
+  entry never matches a message sender -- it fails closed. Only an exact email or literal
+  Slack user id (`U0123ABCD`) can authorize a chat-triggered run.
+- **Replay channel history.** `process_backlog_on_first_run: false` (the default) seeds
+  the cursor to "now" the first time this sensor ever ticks, so turning it on doesn't
+  suddenly launch every job anyone has ever asked for in that channel's history.
+- **React to thread replies or bot/system messages.** `conversations.history` returns
+  channel root messages only, so this sensor's own acknowledgement replies (always posted
+  in-thread) are never re-read as new candidates. Any message carrying a `subtype` or a
+  `bot_id` is skipped too, as an extra guard against ever matching a bot- or
+  integration-posted message.
+- **Classify intent beyond a plain substring match.** See "Command matching" above --
+  deliberate, not a missing feature.
+
+## Minimal example
+
+```yaml
+type: dagster_community_components.SlackRunRequestSensorComponent
+attributes:
+  sensor_name: slack_run_requests
+  slack_channel_id: "C0123ABCDEF"
+
+  triggers:
+    - phrases: ["run the nightly etl", "kick off nightly"]
+      asset_selection: "group:nightly_etl"   # owners come from nightly_etl's own metadata
+
+  default_status: STOPPED
+```
+
+## Full example
+
+See `example.yaml` (also shows a `job_name` trigger with an explicit `owners:` list).
+
+[//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
+
+## Fields
+
+### Required
+
+| Field | Type | Description |
+|---|---|---|
+| `sensor_name` | `str` | Unique sensor name. |
+| `slack_channel_id` | `str` | Channel ID to poll (e.g. 'C0123ABCDEF') -- NOT a '#channel-name'; conversations.history requires the real id. Find it via the channel's 'View channel details' panel in Slack. |
+| `triggers` | `List[TriggerSpec]` | Phrase-to-target mappings this sensor recognizes. At least one required. |
+
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `minimum_interval_seconds` | `int` | `30` | Minimum seconds between sensor evaluations. |
+| `default_status` | `str` | `"STOPPED"` | 'RUNNING' or 'STOPPED' -- initial status of the sensor. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's 'xoxb-...' token. Needs channels:history (or groups:history) + chat:write + users:read.email scopes -- see this file's module docstring, 'Auth'. |
+| `require_owner_authorization` | `bool` | `true` | Require the message sender to be a listed owner of the matched target before launching it. THIS IS THE SAFETY CHECK THIS COMPONENT EXISTS TO ENFORCE -- setting it to false means ANY channel member can launch ANY configur… _(full docs in schema.json + component README)_ |
+| `resolve_requester_email` | `bool` | `true` | Resolve the message sender's Slack user id to an email address via users.info (needs users:read.email) before checking owners -- most owners: lists use emails, not Slack user ids. When false, only a literal Slack user id… _(full docs in schema.json + component README)_ |
+| `require_all_owners` | `bool` | `false` | For an asset_selection trigger matching MULTIPLE assets with different owners: false (default) authorizes the requester if they own ANY matched asset; true requires them to own EVERY matched asset. Ignored for job_name triggers. |
+| `case_sensitive_phrases` | `bool` | `false` | Match trigger phrases case-sensitively. Default: case-insensitive. |
+| `messages_per_poll` | `int` | `200` | Messages to request per Slack page (Slack's own recommended max is 200). |
+| `max_pages_per_poll` | `int` | `3` | Follow at most this many pagination cursors per poll -- bounds how far back a single tick can catch up after an outage. |
+| `process_backlog_on_first_run` | `bool` | `false` | If false (default), the first-ever tick seeds the cursor to 'now' and processes nothing -- activating this sensor never replays a channel's past run requests. Set true only if that replay is actually wanted. |
+| `post_acknowledgement` | `bool` | `true` | Reply in-thread when a match is authorized and launched, and (per on_unauthorized) when it's rejected. Needs chat:write. |
+| `on_unauthorized` | `Literal['skip', 'reply']` | `"reply"` | 'reply' (default) posts unauthorized_message_template as a threaded reply; 'skip' just logs it. Ignored when post_acknowledgement is false. |
+| `ack_message_template` | `str` | `"✅ Got it — launching *{target}* for you."` | Threaded reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}. |
+| `unauthorized_message_template` | `str` | `"⚠️ Sorry, you're not listed as an owner of *{target}*, so I can't launch it from chat. Ask an owner to run it, or ask to be added as one."` | Threaded reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}. |
+
+[//]: # (FIELDS:END)
+
+## Requirements
+
+```
+dagster
+slack_sdk>=3.0
+```

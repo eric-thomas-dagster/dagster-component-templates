@@ -43,6 +43,29 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
+
+
 class S3DeleteObjectsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Delete a list of S3 objects as a Dagster asset -- mirrors Airflow's
     `S3DeleteObjectsOperator`."""
@@ -60,6 +83,23 @@ class S3DeleteObjectsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     owners: Optional[List[str]] = Field(default=None, description="Asset owners -- team names ('team:analytics') or email addresses.")
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional key-value tags applied to the asset in the Dagster catalog.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the catalog.")
+
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient S3/network errors.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name). The "
+            "pool's own slot count is configured at the deployment level (dagster.yaml's "
+            "concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Kill the wait and fail the run if the deletes haven't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying boto3 call(s) may continue running past the deadline (Python threads can't be forcibly killed); this bounds the step's wait, not the call itself.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -86,6 +126,15 @@ class S3DeleteObjectsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         if component.keys_asset_key:
             ins = {"_keys_upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(component.keys_asset_key))}
 
+        _retry_policy = None
+        if component.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=component.retry_policy_max_retries,
+                delay=component.retry_policy_delay_seconds or 1,
+                backoff=Backoff[component.retry_policy_backoff.upper()],
+            )
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(component.asset_name),
             ins=ins,
@@ -96,6 +145,8 @@ class S3DeleteObjectsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=component.asset_tags or None,
             kinds=set(component.kinds) if component.kinds else None,
             required_resource_keys=required_resource_keys,
+            retry_policy=_retry_policy,
+            pool=component.pool,
         )
         def _s3_delete_objects(context: dg.AssetExecutionContext, **upstream_kwargs) -> dg.MaterializeResult:
             keys_to_delete: List[str] = component.keys or list(upstream_kwargs.get("_keys_upstream") or [])
@@ -105,13 +156,17 @@ class S3DeleteObjectsAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 import boto3
                 s3 = boto3.client("s3", region_name=component.region_name)
 
-            deleted: List[str] = []
-            errors: List[Dict[str, Any]] = []
-            for i in range(0, len(keys_to_delete), 1000):  # real S3 DeleteObjects limit: 1000 keys/call
-                chunk = keys_to_delete[i:i + 1000]
-                response = s3.delete_objects(Bucket=component.bucket, Delete={"Objects": [{"Key": k} for k in chunk]})
-                deleted.extend(d["Key"] for d in response.get("Deleted", []))
-                errors.extend(response.get("Errors", []))
+            def _do_delete():
+                deleted: List[str] = []
+                errors: List[Dict[str, Any]] = []
+                for i in range(0, len(keys_to_delete), 1000):  # real S3 DeleteObjects limit: 1000 keys/call
+                    chunk = keys_to_delete[i:i + 1000]
+                    response = s3.delete_objects(Bucket=component.bucket, Delete={"Objects": [{"Key": k} for k in chunk]})
+                    deleted.extend(d["Key"] for d in response.get("Deleted", []))
+                    errors.extend(response.get("Errors", []))
+                return deleted, errors
+
+            deleted, errors = _run_with_timeout(_do_delete, component.timeout_seconds)
 
             if errors:
                 raise dg.Failure(

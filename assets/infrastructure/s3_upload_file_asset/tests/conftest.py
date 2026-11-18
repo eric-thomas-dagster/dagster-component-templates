@@ -22,9 +22,10 @@ def mod():
 
 
 class FakeS3Client:
-    def __init__(self, existing_keys=None):
+    def __init__(self, existing_keys=None, upload_delay_seconds=0):
         self.existing_keys = set(existing_keys or [])
         self.upload_calls = []
+        self.upload_delay_seconds = upload_delay_seconds
 
     def head_object(self, Bucket, Key):
         from botocore.exceptions import ClientError
@@ -33,4 +34,7 @@ class FakeS3Client:
         raise ClientError({"Error": {"Code": "404", "Message": "Not Found"}}, "HeadObject")
 
     def upload_file(self, Filename, Bucket, Key, **kwargs):
+        if self.upload_delay_seconds:
+            import time
+            time.sleep(self.upload_delay_seconds)
         self.upload_calls.append({"Filename": Filename, "Bucket": Bucket, "Key": Key, **kwargs})

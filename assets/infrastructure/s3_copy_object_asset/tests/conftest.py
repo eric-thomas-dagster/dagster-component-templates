@@ -21,14 +21,18 @@ def mod():
     return load_component_module()
 
 
-def materialize(component):
+def materialize(component, **kwargs):
     asset_def = component.build_defs(context=None).assets[0]
-    return dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
+    return dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()}, **kwargs)
 
 
 class FakeS3Client:
     def __init__(self):
         self.copy_calls = []
+        self.copy_delay_seconds = 0
 
     def copy_object(self, **kwargs):
+        if self.copy_delay_seconds:
+            import time
+            time.sleep(self.copy_delay_seconds)
         self.copy_calls.append(kwargs)

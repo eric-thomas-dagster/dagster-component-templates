@@ -22,11 +22,15 @@ def mod():
 
 
 class FakeS3Client:
-    def __init__(self, errors_on_chunk=None):
+    def __init__(self, errors_on_chunk=None, delay_seconds=0):
         self.delete_calls = []
         self.errors_on_chunk = errors_on_chunk or {}
+        self.delay_seconds = delay_seconds
 
     def delete_objects(self, Bucket, Delete):
+        if self.delay_seconds:
+            import time
+            time.sleep(self.delay_seconds)
         idx = len(self.delete_calls)
         self.delete_calls.append(Delete)
         keys = [o["Key"] for o in Delete["Objects"]]

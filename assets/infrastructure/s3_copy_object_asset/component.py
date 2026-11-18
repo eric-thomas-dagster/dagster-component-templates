@@ -43,6 +43,29 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
+
+
 def _parse_s3_url(url: str) -> "tuple[str, str]":
     if not url.startswith("s3://"):
         raise ValueError(f"expected an 's3://bucket/key' URL, got {url!r}")
@@ -79,6 +102,23 @@ class S3CopyObjectAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional key-value tags applied to the asset in the Dagster catalog.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the catalog.")
 
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient S3/network errors.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name). The "
+            "pool's own slot count is configured at the deployment level (dagster.yaml's "
+            "concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Kill the wait and fail the run if the copy hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying boto3 call may continue running past the deadline (Python threads can't be forcibly killed); this bounds the step's wait, not the call itself.",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -109,6 +149,15 @@ class S3CopyObjectAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         src_bucket, src_key = (_parse_s3_url(component.source_s3_url) if component.source_s3_url else (component.source_bucket, component.source_key))
         dst_bucket, dst_key = (_parse_s3_url(component.dest_s3_url) if component.dest_s3_url else (component.dest_bucket, component.dest_key))
 
+        _retry_policy = None
+        if component.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=component.retry_policy_max_retries,
+                delay=component.retry_policy_delay_seconds or 1,
+                backoff=Backoff[component.retry_policy_backoff.upper()],
+            )
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(component.asset_name),
             description=component.description or f"Copy s3://{src_bucket}/{src_key} -> s3://{dst_bucket}/{dst_key}",
@@ -118,25 +167,30 @@ class S3CopyObjectAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=component.asset_tags or None,
             kinds=set(component.kinds) if component.kinds else None,
             required_resource_keys=required_resource_keys,
+            retry_policy=_retry_policy,
+            pool=component.pool,
         )
         def _s3_copy_object(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            if component.resource_key:
-                s3 = getattr(context.resources, component.resource_key).get_client()
-            else:
-                import boto3
-                s3 = boto3.client("s3", region_name=component.region_name)
+            def _do_copy():
+                if component.resource_key:
+                    s3 = getattr(context.resources, component.resource_key).get_client()
+                else:
+                    import boto3
+                    s3 = boto3.client("s3", region_name=component.region_name)
 
-            kwargs: Dict[str, Any] = {
-                "Bucket": dst_bucket,
-                "Key": dst_key,
-                "CopySource": {"Bucket": src_bucket, "Key": src_key},
-                "ACL": component.acl,
-            }
-            if component.metadata_directive:
-                kwargs["MetadataDirective"] = component.metadata_directive
+                kwargs: Dict[str, Any] = {
+                    "Bucket": dst_bucket,
+                    "Key": dst_key,
+                    "CopySource": {"Bucket": src_bucket, "Key": src_key},
+                    "ACL": component.acl,
+                }
+                if component.metadata_directive:
+                    kwargs["MetadataDirective"] = component.metadata_directive
 
-            s3.copy_object(**kwargs)
-            context.log.info(f"Copied s3://{src_bucket}/{src_key} -> s3://{dst_bucket}/{dst_key}")
+                s3.copy_object(**kwargs)
+                context.log.info(f"Copied s3://{src_bucket}/{src_key} -> s3://{dst_bucket}/{dst_key}")
+
+            _run_with_timeout(_do_copy, component.timeout_seconds)
             return dg.MaterializeResult(metadata={
                 "source": dg.MetadataValue.text(f"s3://{src_bucket}/{src_key}"),
                 "destination": dg.MetadataValue.text(f"s3://{dst_bucket}/{dst_key}"),

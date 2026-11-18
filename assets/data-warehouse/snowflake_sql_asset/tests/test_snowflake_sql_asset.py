@@ -17,6 +17,9 @@ class FakeCursor:
         self.rowcount = 7
 
     def execute(self, sql, parameters=None, num_statements=None):
+        if self.conn.delay_seconds:
+            import time
+            time.sleep(self.conn.delay_seconds)
         self.conn.executed.append({"sql": sql, "parameters": parameters, "num_statements": num_statements})
 
     def close(self):
@@ -24,11 +27,12 @@ class FakeCursor:
 
 
 class FakeConn:
-    def __init__(self, kwargs):
+    def __init__(self, kwargs, delay_seconds=0):
         self.kwargs = kwargs
         self.executed = []
         self.commit_calls = 0
         self.close_calls = 0
+        self.delay_seconds = delay_seconds
 
     def cursor(self):
         return FakeCursor(self)
@@ -43,6 +47,7 @@ class FakeConn:
 class Recorder:
     def __init__(self):
         self.conns = []
+        self.delay_seconds = 0
 
 
 @pytest.fixture()
@@ -55,7 +60,7 @@ def sf(monkeypatch):
     rec = Recorder()
 
     def fake_connect(**kwargs):
-        c = FakeConn(kwargs)
+        c = FakeConn(kwargs, delay_seconds=rec.delay_seconds)
         rec.conns.append(c)
         return c
 
@@ -143,6 +148,34 @@ def test_rowcount_and_statement_count_in_metadata(mod, sf):
     mats = result.asset_materializations_for_node("snowflake__transforms__rollup")
     metadata = mats[0].metadata
     assert metadata["statement_count"].value == 2
+
+
+def test_no_pool_by_default(mod, sf):
+    asset_def = _comp(mod, sql="SELECT 1").build_defs(None).assets[0]
+    assert asset_def.op.pool is None
+
+
+def test_pool_wires_through(mod, sf):
+    asset_def = _comp(mod, sql="SELECT 1", pool="warehouse_slots").build_defs(None).assets[0]
+    assert asset_def.op.pool == "warehouse_slots"
+
+
+def test_retry_policy_wires_through(mod, sf):
+    asset_def = _comp(
+        mod, sql="SELECT 1", retry_policy_max_retries=3, retry_policy_delay_seconds=2, retry_policy_backoff="linear",
+    ).build_defs(None).assets[0]
+    rp = asset_def.op.retry_policy
+    assert rp is not None and rp.max_retries == 3 and rp.delay == 2
+
+
+def test_timeout_seconds_fails_a_slow_query(mod, sf):
+    import time
+    sf.delay_seconds = 1
+    asset_def = _comp(mod, sql="SELECT 1", timeout_seconds=0.05).build_defs(None).assets[0]
+    start = time.monotonic()
+    result = dg.materialize([asset_def], raise_on_error=False)
+    assert not result.success
+    assert time.monotonic() - start < 1
 
 
 def test_resource_path_uses_real_snowflake_resource(mod, sf, monkeypatch):

@@ -42,3 +42,9 @@ def choose_undeclared_branch():
 def wants_nothing():
     CALLS["called"] = True
     return True
+
+
+def slow_true():
+    import time
+    time.sleep(1)
+    return True

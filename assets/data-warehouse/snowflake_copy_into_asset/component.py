@@ -48,6 +48,29 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
+
+
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset. Same
     helper as snowflake_sql_asset / snowflake_stored_procedure_call_asset (duplicated, not
@@ -128,6 +151,23 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     owners: Optional[List[str]] = Field(default=None, description="Asset owners -- team names ('team:analytics') or email addresses.")
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional key-value tags applied to the asset in the Dagster catalog.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (auto-includes 'snowflake').")
+
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient connection failures, warehouse resume delays, etc.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name, e.g. "
+            "warehouse concurrency limits). The pool's own slot count is configured at the "
+            "deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Kill the wait and fail the run if the COPY INTO hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying Snowflake call may continue running past the deadline (Python threads can't be forcibly killed, and this does not cancel the query server-side); this bounds the step's wait, not the call itself.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -219,6 +259,15 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         resource_key = component.resource_key
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (component.deps or [])]
 
+        _retry_policy = None
+        if component.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=component.retry_policy_max_retries,
+                delay=component.retry_policy_delay_seconds or 1,
+                backoff=Backoff[component.retry_policy_backoff.upper()],
+            )
+
         @dg.asset(
             key=dg.AssetKey(component.asset_key.split("/")),
             description=component.description or f"Snowflake COPY INTO: {component.database}.{component.schema_name}.{component.table}",
@@ -228,42 +277,48 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=component.asset_tags,
             deps=deps_keys,
             required_resource_keys=({resource_key} if resource_key else None),
+            retry_policy=_retry_policy,
+            pool=component.pool,
         )
         def _snowflake_copy_into(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            import contextlib
-            import snowflake.connector
+            def _do_copy_into():
+                import contextlib
+                import snowflake.connector
 
-            copy_sql = component._build_copy_sql()
+                copy_sql = component._build_copy_sql()
 
-            stack = contextlib.ExitStack()
-            if resource_key:
-                conn = stack.enter_context(getattr(context.resources, resource_key).get_connection())
-            else:
-                conn = snowflake.connector.connect(**component._connection_kwargs())
-            cursor = conn.cursor()
-            try:
-                context.log.info(copy_sql)
-                cursor.execute(copy_sql)
-                columns = [c[0].lower() for c in (cursor.description or [])]
-                rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
-                conn.commit()
+                stack = contextlib.ExitStack()
+                if resource_key:
+                    conn = stack.enter_context(getattr(context.resources, resource_key).get_connection())
+                else:
+                    conn = snowflake.connector.connect(**component._connection_kwargs())
+                cursor = conn.cursor()
+                try:
+                    context.log.info(copy_sql)
+                    cursor.execute(copy_sql)
+                    columns = [c[0].lower() for c in (cursor.description or [])]
+                    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                    conn.commit()
+                    return copy_sql, rows
+                finally:
+                    cursor.close()
+                    if not resource_key:
+                        conn.close()
+                    stack.close()
 
-                rows_loaded = sum(int(r.get("rows_loaded") or 0) for r in rows)
-                rows_parsed = sum(int(r.get("rows_parsed") or 0) for r in rows)
-                errors_seen = sum(int(r.get("errors_seen") or 0) for r in rows)
+            copy_sql, rows = _run_with_timeout(_do_copy_into, component.timeout_seconds)
 
-                return dg.MaterializeResult(metadata={
-                    "copy_sql": dg.MetadataValue.text(copy_sql),
-                    "file_count": dg.MetadataValue.int(len(rows)),
-                    "rows_loaded": dg.MetadataValue.int(rows_loaded),
-                    "rows_parsed": dg.MetadataValue.int(rows_parsed),
-                    "errors_seen": dg.MetadataValue.int(errors_seen),
-                    "files": dg.MetadataValue.json(rows),
-                })
-            finally:
-                cursor.close()
-                if not resource_key:
-                    conn.close()
-                stack.close()
+            rows_loaded = sum(int(r.get("rows_loaded") or 0) for r in rows)
+            rows_parsed = sum(int(r.get("rows_parsed") or 0) for r in rows)
+            errors_seen = sum(int(r.get("errors_seen") or 0) for r in rows)
+
+            return dg.MaterializeResult(metadata={
+                "copy_sql": dg.MetadataValue.text(copy_sql),
+                "file_count": dg.MetadataValue.int(len(rows)),
+                "rows_loaded": dg.MetadataValue.int(rows_loaded),
+                "rows_parsed": dg.MetadataValue.int(rows_parsed),
+                "errors_seen": dg.MetadataValue.int(errors_seen),
+                "files": dg.MetadataValue.json(rows),
+            })
 
         return dg.Definitions(assets=[_snowflake_copy_into])

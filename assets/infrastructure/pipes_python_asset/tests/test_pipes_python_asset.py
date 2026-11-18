@@ -14,7 +14,7 @@ import sys
 import dagster as dg
 import pytest
 
-from .conftest import FIXTURE_SCRIPT
+from .conftest import FIXTURE_SCRIPT, FIXTURE_SLOW_SCRIPT
 
 
 def _materialize(mod, **attrs):
@@ -41,6 +41,46 @@ def test_external_python_passes_args_and_extras(mod):
     md = result.asset_materializations_for_node("t")[0].metadata
     assert md["args"].value == ["--flag", "value"]
     assert md["extras_echo"].value == "hello-extras"
+
+
+def test_no_pool_by_default(mod):
+    component = mod.PipesPythonAssetComponent(
+        asset_name="t", script_path=FIXTURE_SCRIPT, mode="external_python", python_executable=sys.executable,
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool is None
+
+
+def test_pool_wires_through(mod):
+    component = mod.PipesPythonAssetComponent(
+        asset_name="t", script_path=FIXTURE_SCRIPT, mode="external_python", python_executable=sys.executable,
+        pool="pipes_slots",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool == "pipes_slots"
+
+
+def test_retry_policy_wires_through(mod):
+    component = mod.PipesPythonAssetComponent(
+        asset_name="t", script_path=FIXTURE_SCRIPT, mode="external_python", python_executable=sys.executable,
+        retry_policy_max_retries=3, retry_policy_delay_seconds=2, retry_policy_backoff="linear",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    rp = asset_def.op.retry_policy
+    assert rp is not None and rp.max_retries == 3 and rp.delay == 2
+
+
+def test_timeout_seconds_fails_a_slow_script(mod):
+    import time
+    component = mod.PipesPythonAssetComponent(
+        asset_name="t", script_path=FIXTURE_SLOW_SCRIPT, mode="external_python",
+        python_executable=sys.executable, timeout_seconds=0.1,
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    start = time.monotonic()
+    result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()}, raise_on_error=False)
+    assert not result.success
+    assert time.monotonic() - start < 1
 
 
 def test_external_python_requires_python_executable(mod):

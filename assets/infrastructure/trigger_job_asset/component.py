@@ -22,6 +22,29 @@ import dagster as dg
 from pydantic import Field, model_validator
 
 
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
+
+
 def load_definitions(spec: str) -> "dg.Definitions":
     """'pkg.module' or 'pkg.module:attr' (default attr 'defs'; a callable is called). Same
     convention as dagster_workflow_tools' own load_definitions (duplicated, not imported --
@@ -89,6 +112,23 @@ class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional key-value tags applied to the asset in the Dagster catalog (distinct from `tags`, which land on the triggered RUN).")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the catalog.")
 
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on THIS trigger asset's own step if it fails. Defines a RetryPolicy -- re-triggers the downstream job again on retry (dagster.execute_job has no built-in retry of its own).")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name). The "
+            "pool's own slot count is configured at the deployment level (dagster.yaml's "
+            "concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Fail this trigger asset if the triggered job hasn't finished after this many seconds. Enforced via a background-thread wrapper -- dagster.execute_job has no native timeout, and the triggered run is NOT terminated on timeout (Python threads can't be forcibly killed, and execute_job gives no run_id back until it returns); this only bounds how long the TRIGGERING step waits.",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -120,6 +160,15 @@ class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         component = self
         deps_keys = [dg.AssetKey(d.split("/")) for d in (component.deps or [])]
 
+        _retry_policy = None
+        if component.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=component.retry_policy_max_retries,
+                delay=component.retry_policy_delay_seconds or 1,
+                backoff=Backoff[component.retry_policy_backoff.upper()],
+            )
+
         @dg.asset(
             key=dg.AssetKey(component.asset_key.split("/")),
             deps=deps_keys,
@@ -128,6 +177,8 @@ class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=component.owners or [],
             tags=component.asset_tags or None,
             kinds=set(component.kinds) if component.kinds else None,
+            retry_policy=_retry_policy,
+            pool=component.pool,
         )
         def _trigger(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             from dagster._core.definitions.reconstruct import build_reconstructable_job
@@ -148,7 +199,11 @@ class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"Triggering {'job ' + component.job_name if component.job_name else 'asset selection ' + str(component.asset_keys)} "
                 f"from {component.definitions_module!r}..."
             )
-            result = dg.execute_job(reconstructable_job, instance=context.instance, run_config=component.run_config, tags=run_tags)
+
+            def _do_trigger():
+                return dg.execute_job(reconstructable_job, instance=context.instance, run_config=component.run_config, tags=run_tags)
+
+            result = _run_with_timeout(_do_trigger, component.timeout_seconds)
             if not result.success:
                 raise dg.Failure(
                     description=f"Triggered job failed (run_id={result.run_id}).",

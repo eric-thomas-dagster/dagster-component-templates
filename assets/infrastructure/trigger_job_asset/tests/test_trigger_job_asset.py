@@ -75,6 +75,45 @@ def test_partition_key_lands_as_a_run_tag(mod, instance, defs_module_spec):
     assert triggered_run.tags.get("dagster/partition") == "2024-01-01"
 
 
+def test_no_pool_by_default(mod, instance, defs_module_spec):
+    component = mod.TriggerJobAssetComponent(asset_key="d/trigger", definitions_module=defs_module_spec, job_name="named_job")
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool is None
+
+
+def test_pool_wires_through(mod, instance, defs_module_spec):
+    component = mod.TriggerJobAssetComponent(
+        asset_key="d/trigger", definitions_module=defs_module_spec, job_name="named_job", pool="trigger_slots",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool == "trigger_slots"
+
+
+def test_retry_policy_wires_through(mod, instance, defs_module_spec):
+    component = mod.TriggerJobAssetComponent(
+        asset_key="d/trigger", definitions_module=defs_module_spec, job_name="named_job",
+        retry_policy_max_retries=3, retry_policy_delay_seconds=2, retry_policy_backoff="linear",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    rp = asset_def.op.retry_policy
+    assert rp is not None and rp.max_retries == 3 and rp.delay == 2
+
+
+def test_timeout_seconds_fails_a_slow_triggered_job(mod, instance, defs_module_spec):
+    import time
+    component = mod.TriggerJobAssetComponent(
+        asset_key="d/trigger", definitions_module=defs_module_spec, job_name="slow_job",
+        run_config=IN_PROCESS_RUN_CONFIG, timeout_seconds=0.05,
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    start = time.monotonic()
+    result = dg.materialize(
+        [asset_def], resources={"io_manager": dg.InMemoryIOManager()}, instance=instance, raise_on_error=False,
+    )
+    assert not result.success
+    assert time.monotonic() - start < 1
+
+
 def test_requires_exactly_one_of_job_name_or_asset_keys(mod):
     with pytest.raises(Exception, match="exactly one"):
         mod.TriggerJobAssetComponent(asset_key="d/trigger", definitions_module="fixture_defs:defs")

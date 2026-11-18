@@ -21,3 +21,4 @@ def mod():
 
 
 FIXTURE_SCRIPT = str(pathlib.Path(__file__).resolve().parent / "fixture_script.py")
+FIXTURE_SLOW_SCRIPT = str(pathlib.Path(__file__).resolve().parent / "fixture_slow_script.py")

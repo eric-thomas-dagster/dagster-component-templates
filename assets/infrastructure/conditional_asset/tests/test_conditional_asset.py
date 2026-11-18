@@ -176,3 +176,43 @@ def test_short_circuit_rejects_branches_field(mod):
             mode="short_circuit", callable_path=f"{FIXTURES_PATH}:returns_true",
             asset_key="d/gate", branches={"a": "d/a"},
         )
+
+
+# --- pool / retry_policy / timeout_seconds ------------------------------------------------
+
+def test_no_pool_by_default(mod):
+    component = mod.ConditionalAssetComponent(
+        mode="short_circuit", callable_path=f"{FIXTURES_PATH}:returns_true", asset_key="d/gate",
+    )
+    gate_def = component.build_defs(context=None).assets[0]
+    assert gate_def.op.pool is None
+
+
+def test_pool_wires_through(mod):
+    component = mod.ConditionalAssetComponent(
+        mode="short_circuit", callable_path=f"{FIXTURES_PATH}:returns_true", asset_key="d/gate", pool="decision_slots",
+    )
+    gate_def = component.build_defs(context=None).assets[0]
+    assert gate_def.op.pool == "decision_slots"
+
+
+def test_retry_policy_wires_through(mod):
+    component = mod.ConditionalAssetComponent(
+        mode="branch", callable_path=f"{FIXTURES_PATH}:choose_a", branches={"a": "d/a", "b": "d/b"},
+        retry_policy_max_retries=3, retry_policy_delay_seconds=2, retry_policy_backoff="linear",
+    )
+    branch_def = component.build_defs(context=None).assets[0]
+    rp = branch_def.op.retry_policy
+    assert rp is not None and rp.max_retries == 3 and rp.delay == 2
+
+
+def test_timeout_seconds_fails_a_slow_short_circuit_callable(mod):
+    import time
+    component = mod.ConditionalAssetComponent(
+        mode="short_circuit", callable_path=f"{FIXTURES_PATH}:slow_true", asset_key="d/gate", timeout_seconds=0.1,
+    )
+    gate_def = component.build_defs(context=None).assets[0]
+    start = time.monotonic()
+    result = dg.materialize([gate_def], resources={"io_manager": dg.InMemoryIOManager()}, raise_on_error=False)
+    assert not result.success
+    assert time.monotonic() - start < 1

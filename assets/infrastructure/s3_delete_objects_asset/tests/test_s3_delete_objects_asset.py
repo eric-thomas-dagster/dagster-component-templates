@@ -13,6 +13,39 @@ def _materialize(mod, monkeypatch, client, **attrs):
     return dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
 
 
+def test_pool_wires_through(mod, monkeypatch):
+    import boto3
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: FakeS3Client())
+    component = mod.S3DeleteObjectsAssetComponent(asset_name="t", bucket="my-bucket", keys=["a"], pool="s3_bots")
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool == "s3_bots"
+
+
+def test_retry_policy_wires_through(mod, monkeypatch):
+    import boto3
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: FakeS3Client())
+    component = mod.S3DeleteObjectsAssetComponent(
+        asset_name="t", bucket="my-bucket", keys=["a"],
+        retry_policy_max_retries=3, retry_policy_delay_seconds=2, retry_policy_backoff="linear",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    rp = asset_def.op.retry_policy
+    assert rp is not None and rp.max_retries == 3 and rp.delay == 2
+
+
+def test_timeout_seconds_fails_a_slow_delete(mod, monkeypatch):
+    import time
+    import boto3
+    client = FakeS3Client(delay_seconds=1)
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: client)
+    component = mod.S3DeleteObjectsAssetComponent(asset_name="t", bucket="my-bucket", keys=["a"], timeout_seconds=0.05)
+    asset_def = component.build_defs(context=None).assets[0]
+    start = time.monotonic()
+    result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()}, raise_on_error=False)
+    assert not result.success
+    assert time.monotonic() - start < 1
+
+
 def test_deletes_a_static_key_list(mod, monkeypatch):
     client = FakeS3Client()
     result = _materialize(mod, monkeypatch, client, keys=["a.txt", "b.txt"])

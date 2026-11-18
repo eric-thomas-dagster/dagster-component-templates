@@ -51,6 +51,29 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
+
+
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset. Same
     helper as snowflake_stored_procedure_call_asset (duplicated, not imported -- components are
@@ -105,6 +128,23 @@ class SnowflakeSqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional key-value tags applied to the asset in the Dagster catalog.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (auto-includes 'snowflake').")
 
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient connection failures, warehouse resume delays, etc.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name, e.g. "
+            "warehouse concurrency limits). The pool's own slot count is configured at the "
+            "deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Kill the wait and fail the run if the SQL hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying Snowflake call may continue running past the deadline (Python threads can't be forcibly killed, and this does not cancel the query server-side); this bounds the step's wait, not the call itself.",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -152,6 +192,15 @@ class SnowflakeSqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         resource_key = component.resource_key
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (component.deps or [])]
 
+        _retry_policy = None
+        if component.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=component.retry_policy_max_retries,
+                delay=component.retry_policy_delay_seconds or 1,
+                backoff=Backoff[component.retry_policy_backoff.upper()],
+            )
+
         @dg.asset(
             key=dg.AssetKey(component.asset_key.split("/")),
             description=component.description or "Snowflake SQL statement(s)",
@@ -161,51 +210,56 @@ class SnowflakeSqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=component.asset_tags,
             deps=deps_keys,
             required_resource_keys=({resource_key} if resource_key else None),
+            retry_policy=_retry_policy,
+            pool=component.pool,
         )
         def _snowflake_sql(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            import contextlib
-            import snowflake.connector
+            def _do_execute():
+                import contextlib
+                import snowflake.connector
 
-            stack = contextlib.ExitStack()
-            if resource_key:
-                conn = stack.enter_context(getattr(context.resources, resource_key).get_connection())
-            else:
-                conn = snowflake.connector.connect(**component._connection_kwargs())
-            cursor = conn.cursor()
-            try:
-                for override_sql in (
-                    (f"USE WAREHOUSE {component.session_warehouse}" if component.session_warehouse else None),
-                    (f"USE DATABASE {component.session_database}" if component.session_database else None),
-                    (f"USE SCHEMA {component.session_schema}" if component.session_schema else None),
-                    (f"USE ROLE {component.session_role}" if component.session_role else None),
-                ):
-                    if override_sql:
-                        context.log.info(override_sql)
-                        cursor.execute(override_sql)
-
-                results: List[Dict[str, Any]] = []
-                if component.sql_statements:
-                    for stmt in component.sql_statements:
-                        context.log.info(stmt)
-                        cursor.execute(stmt, component.parameters) if component.parameters else cursor.execute(stmt)
-                        results.append({"statement": stmt, "rowcount": cursor.rowcount})
+                stack = contextlib.ExitStack()
+                if resource_key:
+                    conn = stack.enter_context(getattr(context.resources, resource_key).get_connection())
                 else:
-                    sql_text = component.sql if component.sql else open(component.sql_file).read()
-                    context.log.info(sql_text)
-                    # num_statements=0: let the Snowflake connector itself detect and run every
-                    # ;-separated statement in sql_text -- the real, documented Snowflake
-                    # mechanism for multi-statement text, not naive string splitting (which
-                    # breaks on semicolons inside quoted literals or comments).
-                    cursor.execute(sql_text, component.parameters, num_statements=0) if component.parameters else cursor.execute(sql_text, num_statements=0)
-                    results.append({"statement": sql_text, "rowcount": cursor.rowcount})
+                    conn = snowflake.connector.connect(**component._connection_kwargs())
+                cursor = conn.cursor()
+                try:
+                    for override_sql in (
+                        (f"USE WAREHOUSE {component.session_warehouse}" if component.session_warehouse else None),
+                        (f"USE DATABASE {component.session_database}" if component.session_database else None),
+                        (f"USE SCHEMA {component.session_schema}" if component.session_schema else None),
+                        (f"USE ROLE {component.session_role}" if component.session_role else None),
+                    ):
+                        if override_sql:
+                            context.log.info(override_sql)
+                            cursor.execute(override_sql)
 
-                conn.commit()
-            finally:
-                cursor.close()
-                if not resource_key:
-                    conn.close()
-                stack.close()
+                    results: List[Dict[str, Any]] = []
+                    if component.sql_statements:
+                        for stmt in component.sql_statements:
+                            context.log.info(stmt)
+                            cursor.execute(stmt, component.parameters) if component.parameters else cursor.execute(stmt)
+                            results.append({"statement": stmt, "rowcount": cursor.rowcount})
+                    else:
+                        sql_text = component.sql if component.sql else open(component.sql_file).read()
+                        context.log.info(sql_text)
+                        # num_statements=0: let the Snowflake connector itself detect and run every
+                        # ;-separated statement in sql_text -- the real, documented Snowflake
+                        # mechanism for multi-statement text, not naive string splitting (which
+                        # breaks on semicolons inside quoted literals or comments).
+                        cursor.execute(sql_text, component.parameters, num_statements=0) if component.parameters else cursor.execute(sql_text, num_statements=0)
+                        results.append({"statement": sql_text, "rowcount": cursor.rowcount})
 
+                    conn.commit()
+                finally:
+                    cursor.close()
+                    if not resource_key:
+                        conn.close()
+                    stack.close()
+                return results
+
+            results = _run_with_timeout(_do_execute, component.timeout_seconds)
             return dg.MaterializeResult(metadata={
                 "statement_count": dg.MetadataValue.int(len(results)),
                 "results": dg.MetadataValue.json(results),

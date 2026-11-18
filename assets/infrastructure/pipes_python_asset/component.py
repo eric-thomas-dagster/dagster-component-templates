@@ -25,6 +25,29 @@ import dagster as dg
 from pydantic import Field, model_validator
 
 
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
+
+
 def _venv_python_path(venv_path: str) -> str:
     if os.name == "nt":
         return os.path.join(venv_path, "Scripts", "python.exe")
@@ -87,6 +110,23 @@ class PipesPythonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional key-value tags applied to the asset in the Dagster catalog.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the catalog.")
 
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. A retry re-runs the script (and, in mode='virtualenv', may rebuild the venv if reuse_venv=False).")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name). The "
+            "pool's own slot count is configured at the deployment level (dagster.yaml's "
+            "concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Fail this asset if the script hasn't finished after this many seconds. Enforced via a background-thread wrapper -- PipesSubprocessClient.run() has no native timeout, and on timeout the spawned child process is NOT terminated (Python threads can't be forcibly killed, and this component has no handle on the Popen object PipesSubprocessClient creates internally); this only bounds how long the asset step waits, leaving an orphaned process running until it exits on its own.",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -124,6 +164,15 @@ class PipesPythonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (component.deps or [])]
         venv_path = component.venv_path or os.path.join(".pipes_venvs", component.asset_name)
 
+        _retry_policy = None
+        if component.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=component.retry_policy_max_retries,
+                delay=component.retry_policy_delay_seconds or 1,
+                backoff=Backoff[component.retry_policy_backoff.upper()],
+            )
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(component.asset_name),
             description=component.description,
@@ -132,6 +181,8 @@ class PipesPythonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=component.owners or [],
             tags=component.asset_tags or None,
             kinds=set(component.kinds) if component.kinds else None,
+            retry_policy=_retry_policy,
+            pool=component.pool,
         )
         def _pipes_asset(context: dg.AssetExecutionContext):
             if component.mode == "virtualenv":
@@ -141,7 +192,11 @@ class PipesPythonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             command = [python_bin, component.script_path, *(component.args or [])]
             client = dg.PipesSubprocessClient(env=component.env_vars or None, cwd=component.cwd)
-            invocation = client.run(context=context, command=command, extras=component.extras)
-            return invocation.get_materialize_result()
+
+            def _do_run():
+                invocation = client.run(context=context, command=command, extras=component.extras)
+                return invocation.get_materialize_result()
+
+            return _run_with_timeout(_do_run, component.timeout_seconds)
 
         return dg.Definitions(assets=[_pipes_asset])

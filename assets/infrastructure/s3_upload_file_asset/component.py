@@ -53,6 +53,29 @@ def _parse_s3_url(url: str) -> "tuple[str, str]":
     return bucket, key
 
 
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
+
+
 def _object_exists(s3, bucket: str, key: str) -> bool:
     from botocore.exceptions import ClientError
     try:
@@ -87,6 +110,23 @@ class S3UploadFileAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional key-value tags applied to the asset in the Dagster catalog.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the catalog.")
 
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient S3/network errors.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name). The "
+            "pool's own slot count is configured at the deployment level (dagster.yaml's "
+            "concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description="Kill the wait and fail the run if the upload hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying boto3 call may continue running past the deadline (Python threads can't be forcibly killed); this bounds the step's wait, not the call itself.",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -111,6 +151,15 @@ class S3UploadFileAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         required_resource_keys = {component.resource_key} if component.resource_key else set()
         dst_bucket, dst_key = (_parse_s3_url(component.dest_s3_url) if component.dest_s3_url else (component.bucket, component.key))
 
+        _retry_policy = None
+        if component.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=component.retry_policy_max_retries,
+                delay=component.retry_policy_delay_seconds or 1,
+                backoff=Backoff[component.retry_policy_backoff.upper()],
+            )
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(component.asset_name),
             description=component.description or f"Upload {component.local_path} -> s3://{dst_bucket}/{dst_key}",
@@ -120,6 +169,8 @@ class S3UploadFileAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=component.asset_tags or None,
             kinds=set(component.kinds) if component.kinds else None,
             required_resource_keys=required_resource_keys,
+            retry_policy=_retry_policy,
+            pool=component.pool,
         )
         def _s3_upload_file(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             if component.resource_key:
@@ -128,16 +179,18 @@ class S3UploadFileAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 import boto3
                 s3 = boto3.client("s3", region_name=component.region_name)
 
-            if not component.replace and _object_exists(s3, dst_bucket, dst_key):
-                raise dg.Failure(
-                    description=f"s3://{dst_bucket}/{dst_key} already exists and replace=False.",
-                )
+            def _do_upload():
+                if not component.replace and _object_exists(s3, dst_bucket, dst_key):
+                    raise dg.Failure(
+                        description=f"s3://{dst_bucket}/{dst_key} already exists and replace=False.",
+                    )
 
-            upload_kwargs: Dict[str, Any] = {}
-            if component.extra_args:
-                upload_kwargs["ExtraArgs"] = component.extra_args
-            s3.upload_file(component.local_path, dst_bucket, dst_key, **upload_kwargs)
+                upload_kwargs: Dict[str, Any] = {}
+                if component.extra_args:
+                    upload_kwargs["ExtraArgs"] = component.extra_args
+                s3.upload_file(component.local_path, dst_bucket, dst_key, **upload_kwargs)
 
+            _run_with_timeout(_do_upload, component.timeout_seconds)
             context.log.info(f"Uploaded {component.local_path} -> s3://{dst_bucket}/{dst_key}")
             return dg.MaterializeResult(metadata={
                 "local_path": dg.MetadataValue.path(component.local_path),

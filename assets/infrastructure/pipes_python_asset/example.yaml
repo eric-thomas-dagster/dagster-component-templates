@@ -1,0 +1,14 @@
+type: dagster_community_components.PipesPythonAssetComponent
+attributes:
+  asset_name: feature_extraction
+  script_path: scripts/extract_features.py
+  mode: virtualenv
+  requirements:
+    - pandas==2.2.2
+    - scikit-learn==1.5.0
+  args:
+    - "--window=30d"
+  extras:
+    model_version: v3
+  group_name: ml
+  description: "Runs feature extraction in an isolated venv with pinned ML library versions."

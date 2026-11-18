@@ -1059,6 +1059,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PipedrivePersonUpsertComponent": "assets/reverse_etl/pipedrive_person_upsert/component.py",
     "PipedriveResource": "resources/pipedrive_resource/component.py",
     "PipedriveResourceComponent": "resources/pipedrive_resource/component.py",
+    "PipesPythonAssetComponent": "assets/infrastructure/pipes_python_asset/component.py",
     "PivotComponent": "transforms/pivot/component.py",
     "PlaidResource": "resources/plaid_resource/component.py",
     "PlaidResourceComponent": "resources/plaid_resource/component.py",

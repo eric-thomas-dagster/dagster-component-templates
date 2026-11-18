@@ -1,0 +1,145 @@
+{
+  "component_type": "dagster_community_components.PipesPythonAssetComponent",
+  "description": "Run a Python script in a fresh virtualenv or a given external interpreter, through Dagster Pipes -- the Airflow @task.virtualenv / @task.external_python equivalent.",
+  "category": "infrastructure",
+  "icon": "Terminal",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Whatever the script reports via the Pipes context (report_asset_materialization)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key emitted by this component. The script may also report additional asset materializations via the Pipes context.",
+      "required": true
+    },
+    "script_path": {
+      "type": "string",
+      "label": "Script Path",
+      "description": "Path (relative to the Dagster process working directory) to the Python script to run. Must call dagster_pipes.open_dagster_pipes() itself.",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["virtualenv", "external_python"],
+      "label": "Mode",
+      "description": "'virtualenv': build/reuse a fresh venv from requirements. 'external_python': run against an existing interpreter at python_executable, no venv created.",
+      "required": false,
+      "default": "virtualenv",
+      "ui:widget": "select"
+    },
+    "python_executable": {
+      "type": "string",
+      "label": "Python Executable",
+      "description": "mode='external_python' only (required then): path to an existing Python interpreter to run the script with.",
+      "required": false
+    },
+    "venv_path": {
+      "type": "string",
+      "label": "Venv Path",
+      "description": "mode='virtualenv' only: where to build/cache the venv. Defaults to './.pipes_venvs/{asset_name}'.",
+      "required": false
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Requirements",
+      "description": "mode='virtualenv' only: pip package specs to install into the venv, alongside dagster-pipes (always installed).",
+      "required": false
+    },
+    "reuse_venv": {
+      "type": "boolean",
+      "label": "Reuse Venv",
+      "description": "mode='virtualenv' only: reuse the existing venv at venv_path if its installed requirements already match (tracked via a hash file). False always rebuilds.",
+      "required": false
+    },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Args",
+      "description": "Extra command-line arguments appended after the script path.",
+      "required": false
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Additional env vars for the script's process (merged with the parent process's own environment).",
+      "required": false
+    },
+    "cwd": {
+      "type": "string",
+      "label": "Cwd",
+      "description": "Working directory for the script.",
+      "required": false
+    },
+    "extras": {
+      "type": "object",
+      "label": "Extras",
+      "description": "Arbitrary extra data passed through to the script via the Pipes context (PipesSubprocessClient.run(extras=...)).",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "airflow",
+    "pipes",
+    "virtualenv",
+    "official"
+  ],
+  "name": "PipesPythonAsset"
+}

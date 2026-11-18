@@ -650,3 +650,82 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             return result
 
         return dg.Definitions(assets=[_the_asset])
+
+
+# --------------------------------------------------------------------------
+# get_upstream_value -- read a named value from ANY asset, not just a declared dependency
+# --------------------------------------------------------------------------
+
+_NO_DEFAULT = object()
+
+
+def get_upstream_value(
+    context: "dg.AssetExecutionContext",
+    asset_key: str,
+    metadata_key: Optional[str] = None,
+    scope: Literal["this_run", "latest"] = "this_run",
+    default: Any = _NO_DEFAULT,
+) -> Any:
+    """Read a value produced by ANY asset, by key -- not necessarily a declared dependency.
+    Airflow's `ti.xcom_pull(task_ids=X)` for a task that isn't your direct upstream (stubbed
+    by converters inside graph-form DAGs today).
+
+    ```python
+    from dagster_community_components import get_upstream_value
+
+    @dg.asset
+    def report(context):
+        row_count = get_upstream_value(context, "extract/orders", metadata_key="row_count", default=0)
+        full_df = get_upstream_value(context, "extract/orders")  # the whole IO-manager value
+    ```
+
+    Args:
+        asset_key: slash-delimited asset key string.
+        metadata_key: if set, reads that one named metadata entry off the asset's
+            materialization event (Airflow's multi-value XCom push/pull-by-key -- same
+            convention as `python_callable_asset`'s own `inputs: {name: 'key.metadata_key'}`).
+            If unset, loads the asset's FULL value via its IO manager
+            (`context.op_execution_context.load_asset_value`, the same real mechanism
+            `dynamic_fanout_asset`'s `upstream_asset_key` already uses).
+        scope: 'this_run' (default) -- only consider a materialization from the CURRENT run,
+            matching Airflow's "the upstream task already ran earlier in this same DAG run."
+            'latest' -- the most recent materialization ever, from any run (a previous
+            scheduled run's value, or a cross-DAG lookup).
+        default: returned when nothing is found for the given scope. If omitted entirely
+            (not even `None`), raises `dg.Failure` with a clear message instead of silently
+            returning `None`.
+    """
+    akey = dg.AssetKey.from_user_string(asset_key)
+    record = context.instance.get_latest_materialization_event(akey)
+    found_this_run = record is not None and record.run_id == context.run.run_id
+
+    if scope == "this_run" and not found_this_run:
+        if default is not _NO_DEFAULT:
+            return default
+        raise dg.Failure(
+            description=f"get_upstream_value: no materialization of {akey.to_user_string()} found in this run (scope='this_run').",
+        )
+    if record is None:
+        if default is not _NO_DEFAULT:
+            return default
+        raise dg.Failure(description=f"get_upstream_value: {akey.to_user_string()} has never been materialized.")
+
+    if metadata_key is not None:
+        mat = record.asset_materialization
+        entry = mat.metadata.get(metadata_key) if mat else None
+        if entry is None:
+            if default is not _NO_DEFAULT:
+                return default
+            raise dg.Failure(
+                description=f"get_upstream_value: metadata key {metadata_key!r} not found on {akey.to_user_string()}'s materialization.",
+            )
+        return entry.value
+
+    try:
+        return context.op_execution_context.load_asset_value(akey)
+    except Exception as e:  # noqa: BLE001
+        if default is not _NO_DEFAULT:
+            return default
+        raise dg.Failure(
+            description=f"get_upstream_value: could not load {akey.to_user_string()}'s value: {type(e).__name__}: {e}",
+        ) from e

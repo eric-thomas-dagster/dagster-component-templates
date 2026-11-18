@@ -63,6 +63,35 @@ earlier run) — if the upstream hasn't actually run yet in this run, or didn't 
 key, the entry falls back to `input_defaults[name]` if set, else fails loudly rather than
 silently passing `None`.
 
+## `get_upstream_value` — reading a value from an asset that isn't your direct upstream
+
+`inputs` (above) requires a declared `AssetIn`/dependency. For a task that pulls a value
+from a step that is **not** its direct upstream — Airflow's `ti.xcom_pull(task_ids=X)` for
+any `X`, not just a direct predecessor, common inside graph-form converted DAGs — use the
+standalone `get_upstream_value` function instead, from any asset's own compute, no
+declared dependency required:
+
+```python
+import dagster as dg
+from dagster_community_components import get_upstream_value
+
+@dg.asset
+def report(context):
+    row_count = get_upstream_value(context, "extract/orders", metadata_key="row_count", default=0)
+    full_df = get_upstream_value(context, "extract/orders")  # the whole IO-manager value instead
+```
+
+- `metadata_key` set: reads that one named metadata entry off the asset's materialization
+  event (same multi-value-XCom convention as `inputs: {name: 'key.metadata_key'}` above).
+  Unset: loads the asset's full value via its IO manager
+  (`context.op_execution_context.load_asset_value` — the same real mechanism
+  `dynamic_fanout_asset`'s own `upstream_asset_key` already uses).
+- `scope`: `'this_run'` (default) only considers a materialization from the **current run**.
+  `'latest'` accepts the most recent materialization from any run — a previous scheduled
+  run's value, or a genuine cross-DAG-run lookup.
+- `default`: returned when nothing is found. Omit it entirely (not even `None`) to raise
+  `dg.Failure` instead of silently returning `None`.
+
 ## Jinja templates in `args`/`kwargs`
 
 `context_mode: "airflow"` only. String values in `args`/`kwargs` containing `{{ }}` are rendered with exactly these variables — anything else **raises at component-construction time**, not at run time. Rendered through Jinja's `SandboxedEnvironment`, not a plain `Environment`: the identifier whitelist only checks the top-level name (`{{ ds }}`), not what a template does with it once bound, so the sandbox is what actually stops something like `{{ params.__class__.__mro__ }}` from reaching into Python internals at render time.

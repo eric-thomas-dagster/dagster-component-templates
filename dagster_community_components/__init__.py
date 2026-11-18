@@ -1884,6 +1884,8 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.log_prints_asset.component:log_prints",
     "on_hooks":
         "dagster_community_components.assets.infrastructure.hooks_asset.component:on_hooks",
+    "get_upstream_value":
+        "dagster_community_components.assets.infrastructure.python_callable_asset.component:get_upstream_value",
     "af_gate":
         "dagster_community_components.assets.infrastructure.conditional_asset.component:af_gate",
     "af_guard":

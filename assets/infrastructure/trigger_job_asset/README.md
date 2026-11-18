@@ -1,6 +1,6 @@
 # TriggerJobAsset
 
-An asset that synchronously launches another Dagster job (or an ad-hoc asset selection) with config, and waits for it to finish — the Airflow `TriggerDagRunOperator` equivalent, Dagster-to-Dagster.
+An asset that launches another Dagster job (or an ad-hoc asset selection) with config — the Airflow `TriggerDagRunOperator` equivalent, Dagster-to-Dagster. `wait=True` (default) waits for it to finish; `wait=False` fires it in the background and returns immediately.
 
 Two related components in this repo cover adjacent but different cases — this one fills the real gap between them:
 
@@ -8,13 +8,23 @@ Two related components in this repo cover adjacent but different cases — this 
 |---|---|
 | `jobs/airflow_trigger_job` | Dagster → an **external Airflow** DAG, via REST API. |
 | `sensors/asset_to_job_trigger_sensor` | **Reactive**: a sensor fires a job when an asset materializes. |
-| **`trigger_job_asset` (this one)** | An **asset** that **synchronously** launches another **Dagster** job and waits. |
+| **`trigger_job_asset` (this one)** | An **asset** that launches another **Dagster** job, waiting or not. |
 
 ## How it works
 
-Verified against this repo's own `assets/ai/dagster_workflow_tools` component before writing anything: `dagster.execute_job` (a real, documented, synchronous, out-of-process execution entrypoint) with a `ReconstructableJob` built via `dagster._core.definitions.reconstruct.build_reconstructable_job` is the correct mechanism. `instance.submit_run` — the only other candidate — needs a live `BaseWorkspaceRequestContext` that a running op does not have; that's a confirmed architectural gap in Dagster itself (documented in `dagster_workflow_tools`'s own docstring), not something this component works around.
+Verified against this repo's own `assets/ai/dagster_workflow_tools` component before writing anything: `dagster.execute_job` (a real, documented, synchronous, out-of-process execution entrypoint) with a `ReconstructableJob` built via `dagster._core.definitions.reconstruct.build_reconstructable_job` is the correct mechanism for `wait=True`. `instance.submit_run` — the obvious candidate for fire-and-forget — needs a live `BaseWorkspaceRequestContext` that a running op does not have; that's a confirmed architectural gap in Dagster itself (documented in `dagster_workflow_tools`'s own docstring), not something this component works around.
 
-**Consequence: this component is always synchronous.** There is no real "fire and forget, don't wait" mode available via any real Dagster API from inside a running op, so none is faked here.
+## `wait: false` — fire-and-forget (Airflow's `wait_for_completion=False`)
+
+Confirmed live, not guessed: `execute_job` itself is just `instance.create_run_for_job(...)` (synchronous, returns a real run_id immediately, before any step has executed) followed by `dagster._core.execution.api.execute_run(...)` (the actual, slower execution). `wait=False` splits those two steps: it creates the run synchronously (so you get a real `triggered_run_id` back right away) and executes it in a background thread, returning without waiting. No `instance.submit_run`/workspace context needed at all.
+
+```yaml
+attributes:
+  wait: false
+  # timeout_seconds is rejected when wait=false -- there's nothing to time out if not waiting
+```
+
+The triggered run keeps executing after this asset materializes; this asset has no way to report whether it eventually succeeded or failed (look it up by `triggered_run_id` in the Dagster UI/API). `metadata.waited` tells you which mode ran.
 
 ## Usage
 
@@ -98,6 +108,7 @@ Every triggered run is tagged `dagster-community/triggered-by=<this asset's key>
 |---|---|---|---|
 | `asset_keys` | `List[str]` | — | Asset keys in definitions_module to run as an ad-hoc selection job. Set this or job_name, not both. |
 | `run_config` | `Dict[str, Any]` | — | Run config passed to the triggered run. |
+| `wait` | `bool` | `true` | True (default): wait synchronously for the triggered job to finish -- Airflow's TriggerDagRunOperator(wait_for_completion=True). False: fire-and-forget -- create the run (a real run_id is returned immediately) and return… _(full docs in schema.json + component README)_ |
 | `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

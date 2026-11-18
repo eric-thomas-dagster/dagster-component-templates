@@ -138,6 +138,12 @@
       "label": "Timeout Seconds",
       "description": "Fail this trigger asset if the triggered job hasn't finished after this many seconds. Enforced via a background-thread wrapper -- dagster.execute_job has no native timeout, and the triggered run is NOT terminated on timeout (Python threads can't be forcibly killed, and execute_job gives no run_id back until it returns); this only bounds how long the TRIGGERING step waits.",
       "required": false
+    },
+    "wait": {
+      "type": "boolean",
+      "label": "Wait",
+      "description": "True (default): wait synchronously for the triggered job to finish -- Airflow's TriggerDagRunOperator(wait_for_completion=True). False: fire-and-forget -- create the run (a real run_id is returned immediately) and return, without waiting for it -- Airflow's wait_for_completion=False. The triggered run keeps executing in a background thread; this asset has no way to report its eventual success/failure (look it up by `triggered_run_id` in the Dagster UI/API). Mutually exclusive with `timeout_seconds` (nothing to time out if not waiting).",
+      "required": false
     }
   },
   "tags": [

@@ -11,10 +11,16 @@ Verified against this repo's own `assets/ai/dagster_workflow_tools` component be
 anything: `dagster.execute_job` (a real, documented, synchronous, out-of-process execution
 entrypoint) with a `ReconstructableJob` built via `dagster._core.definitions.reconstruct.
 build_reconstructable_job` is the correct mechanism -- `instance.submit_run` (the only other
-candidate) needs a live `BaseWorkspaceRequestContext` that a running op does not have; that's a
-confirmed architectural gap in dagster itself, documented in dagster_workflow_tools's own
-docstring, not something this component works around. Consequence: this component is always
-synchronous -- there is no real "fire and forget, don't wait" mode to offer, so none is faked.
+synchronous-looking candidate) needs a live `BaseWorkspaceRequestContext` that a running op does
+not have; that's a confirmed architectural gap in dagster itself, documented in
+dagster_workflow_tools's own docstring, not something this component works around.
+
+`wait=False` (fire-and-forget, Airflow's `TriggerDagRunOperator(wait_for_completion=False)`):
+confirmed live, not guessed, that `execute_job` itself is just
+`instance.create_run_for_job(...)` (synchronous, returns a real run_id immediately) followed by
+`dagster._core.execution.api.execute_run(...)` (the actual, slower execution). Splitting those
+two steps -- create synchronously, execute in a background thread -- gives a real run_id back
+immediately without needing `instance.submit_run`'s workspace context at all.
 """
 from typing import Any, Dict, List, Literal, Optional, Union
 
@@ -94,8 +100,9 @@ def _this_module_name() -> str:
 
 
 class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
-    """An asset that synchronously launches another Dagster job (or ad-hoc asset selection)
-    with config, and waits for it to finish -- the Airflow `TriggerDagRunOperator` equivalent."""
+    """An asset that launches another Dagster job (or ad-hoc asset selection) with config --
+    the Airflow `TriggerDagRunOperator` equivalent. `wait=True` (default) waits for it to
+    finish; `wait=False` fires it in the background and returns immediately."""
 
     asset_key: str = Field(description="Dagster asset key for this trigger asset, slash-delimited (e.g. 'pipeline/trigger_downstream').")
     definitions_module: str = Field(description="'pkg.module' or 'pkg.module:attr' (default attr 'defs') pointing at the target Definitions containing the job/assets to run.")
@@ -105,6 +112,18 @@ class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Extra tags on the triggered run (in addition to dagster-community/triggered-by).")
     partition_key: Optional[str] = Field(default=None, description="Partition key for the triggered run, if the target job/assets are partitioned.")
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys for this trigger asset's own lineage (in this component's own pipeline, separate from definitions_module's graph).")
+    wait: bool = Field(
+        default=True,
+        description=(
+            "True (default): wait synchronously for the triggered job to finish -- Airflow's "
+            "TriggerDagRunOperator(wait_for_completion=True). False: fire-and-forget -- create "
+            "the run (a real run_id is returned immediately) and return, without waiting for "
+            "it -- Airflow's wait_for_completion=False. The triggered run keeps executing in a "
+            "background thread; this asset has no way to report its eventual success/failure "
+            "(look it up by `triggered_run_id` in the Dagster UI/API). Mutually exclusive with "
+            "`timeout_seconds` (nothing to time out if not waiting)."
+        ),
+    )
 
     group_name: str = Field(default="infrastructure", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -149,6 +168,8 @@ class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def _validate_target(self):
         if bool(self.job_name) == bool(self.asset_keys):
             raise ValueError("TriggerJobAssetComponent: set exactly one of `job_name` or `asset_keys`.")
+        if not self.wait and self.timeout_seconds:
+            raise ValueError("TriggerJobAssetComponent: `timeout_seconds` has nothing to bound when `wait=False` (fire-and-forget) -- unset one of them.")
         return self
 
     @classmethod
@@ -197,8 +218,33 @@ class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 run_tags["dagster/partition"] = component.partition_key
             context.log.info(
                 f"Triggering {'job ' + component.job_name if component.job_name else 'asset selection ' + str(component.asset_keys)} "
-                f"from {component.definitions_module!r}..."
+                f"from {component.definitions_module!r} (wait={component.wait})..."
             )
+
+            if not component.wait:
+                import threading
+
+                from dagster._core.execution.api import execute_run
+
+                job_def = reconstructable_job.get_definition()
+                dagster_run = context.instance.create_run_for_job(
+                    job_def=job_def,
+                    run_config=component.run_config,
+                    tags=run_tags,
+                    job_code_origin=reconstructable_job.get_python_origin(),
+                )
+                threading.Thread(
+                    target=execute_run,
+                    args=(reconstructable_job, dagster_run, context.instance),
+                    kwargs={"raise_on_error": False},
+                    daemon=True,
+                ).start()
+                context.log.info(f"Fired run {dagster_run.run_id} in the background (wait=False) -- not waiting for it to finish.")
+                return dg.MaterializeResult(metadata={
+                    "triggered_run_id": dg.MetadataValue.text(dagster_run.run_id),
+                    "triggered_job_name": dg.MetadataValue.text(component.job_name or "trigger_job_asset_ad_hoc"),
+                    "waited": dg.MetadataValue.bool(False),
+                })
 
             def _do_trigger():
                 return dg.execute_job(reconstructable_job, instance=context.instance, run_config=component.run_config, tags=run_tags)
@@ -213,6 +259,7 @@ class TriggerJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "triggered_run_id": dg.MetadataValue.text(result.run_id),
                 "triggered_job_name": dg.MetadataValue.text(component.job_name or "trigger_job_asset_ad_hoc"),
                 "success": dg.MetadataValue.bool(result.success),
+                "waited": dg.MetadataValue.bool(True),
             })
 
         return dg.Definitions(assets=[_trigger])

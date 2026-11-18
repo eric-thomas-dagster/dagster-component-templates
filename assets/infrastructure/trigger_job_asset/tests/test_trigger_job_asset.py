@@ -75,6 +75,45 @@ def test_partition_key_lands_as_a_run_tag(mod, instance, defs_module_spec):
     assert triggered_run.tags.get("dagster/partition") == "2024-01-01"
 
 
+# --- wait=False: fire-and-forget --------------------------------------------------------
+
+def test_wait_false_returns_immediately_with_a_real_run_id(mod, instance, defs_module_spec):
+    import time
+    component = mod.TriggerJobAssetComponent(
+        asset_key="d/trigger", definitions_module=defs_module_spec, job_name="slow_job", wait=False,
+        run_config=IN_PROCESS_RUN_CONFIG,
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    start = time.monotonic()
+    result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()}, instance=instance)
+    elapsed = time.monotonic() - start
+    assert result.success
+    assert elapsed < 1  # slow_job sleeps 1s -- this must not have waited for it
+
+    md = result.asset_materializations_for_node("d__trigger")[0].metadata
+    assert md["waited"].value is False
+    run_id = md["triggered_run_id"].value
+    assert run_id
+
+    # Give the background thread a moment to actually finish the triggered run, then
+    # confirm it really executed (not just created-and-abandoned).
+    for _ in range(50):
+        triggered_run = instance.get_run_by_id(run_id)
+        if triggered_run.is_finished:
+            break
+        time.sleep(0.1)
+    assert triggered_run.is_finished
+    assert triggered_run.status == dg.DagsterRunStatus.SUCCESS
+
+
+def test_wait_false_rejects_timeout_seconds(mod):
+    with pytest.raises(Exception, match="timeout_seconds"):
+        mod.TriggerJobAssetComponent(
+            asset_key="d/trigger", definitions_module="fixture_defs:defs", job_name="named_job",
+            wait=False, timeout_seconds=5,
+        )
+
+
 def test_no_pool_by_default(mod, instance, defs_module_spec):
     component = mod.TriggerJobAssetComponent(asset_key="d/trigger", definitions_module=defs_module_spec, job_name="named_job")
     asset_def = component.build_defs(context=None).assets[0]

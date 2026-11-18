@@ -1880,6 +1880,16 @@ _HELPERS = {
         "dagster_community_components.assets.infrastructure.log_prints_asset.component:log_prints",
     "on_hooks":
         "dagster_community_components.assets.infrastructure.hooks_asset.component:on_hooks",
+    "af_gate":
+        "dagster_community_components.assets.infrastructure.conditional_asset.component:af_gate",
+    "af_guard":
+        "dagster_community_components.assets.infrastructure.conditional_asset.component:af_guard",
+    "af_finish":
+        "dagster_community_components.assets.infrastructure.conditional_asset.component:af_finish",
+    "AfSkip":
+        "dagster_community_components.assets.infrastructure.conditional_asset.component:AfSkip",
+    "StepOutcome":
+        "dagster_community_components.assets.infrastructure.conditional_asset.component:StepOutcome",
     "throttle":
         "dagster_community_components.assets.infrastructure.throttle_asset.component:throttle",
     "dry_run":

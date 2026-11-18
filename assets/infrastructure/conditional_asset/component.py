@@ -189,3 +189,240 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             yield dg.Output(payload, output_name=chosen)
 
         return dg.Definitions(assets=[_conditional])
+
+
+# --- af_gate / af_guard / af_finish -----------------------------------------------------
+#
+# `ConditionalAssetComponent` (above) is Dagster's STRUCTURAL skip propagation
+# (`AssetOut(is_required=False)`, not yielded -> the engine skips every true downstream
+# dependent). That's the right tool for a plain short-circuit/branch, but it has no
+# selective rejoin: a step with several upstream branches skips the moment even ONE of
+# them skipped, because the step never runs at all (see the component's README).
+#
+# These three decorators are the other tool, for pipelines that need that rejoin: a
+# VALUE-level marker instead of a structural skip. Every decorated step always actually
+# runs (nothing is skipped at the Dagster level) and returns a `StepOutcome` describing
+# what happened, so the next step can inspect its upstreams' states and decide for itself
+# -- exactly what the converter's own ~150-line `af_gate`/`af_guard`/`af_finish` runtime
+# helper does today for branch/short-circuit/join/cleanup/alert shapes translated from
+# Airflow trigger rules.
+#
+# Plain Python decorators (not a Component -- there's no per-step YAML config to express
+# here beyond a rule name), applied BEFORE `@dg.op`/`@dg.asset`, same convention as
+# `@on_hooks`/`@smart_retry`/`@timeout` elsewhere in this package.
+
+import functools  # noqa: E402
+
+_FAILED_STATES = ("failed", "upstream_failed")
+_SKIPPED_STATES = ("skipped", "upstream_skipped")
+
+# Airflow's own TriggerRule names/semantics, mapped onto this marker model. `all_done` has
+# no distinct meaning here (there's no "still pending" state once a marker exists -- every
+# upstream has already resolved to one of success/skipped/failed/upstream_*), so it's kept
+# as an alias of `always` for naming fidelity with Airflow, not because it's a different
+# check.
+_TRIGGER_RULES = {
+    "all_success": lambda states: all(s == "success" for s in states),
+    "all_failed": lambda states: all(s in _FAILED_STATES for s in states),
+    "all_done": lambda states: True,
+    "one_failed": lambda states: any(s in _FAILED_STATES for s in states),
+    "one_success": lambda states: any(s == "success" for s in states),
+    "none_failed": lambda states: not any(s in _FAILED_STATES for s in states),
+    "none_failed_min_one_success": lambda states: (
+        not any(s in _FAILED_STATES for s in states) and any(s == "success" for s in states)
+    ),
+    "none_skipped": lambda states: not any(s in _SKIPPED_STATES for s in states),
+    "always": lambda states: True,
+}
+
+
+class AfSkip(Exception):
+    """Raise inside an `@af_gate`/`@af_guard`-wrapped function to mark this step as
+    deliberately skipped, instead of failed -- the gate/guard's own short-circuit decision,
+    expressed from inside the step body rather than by a guard rule over upstream states."""
+
+
+class StepOutcome:
+    """The marker `af_gate`/`af_guard` return instead of the raw value, and that
+    `af_guard`/`af_finish` read off their inputs. `state` is one of 'success', 'skipped',
+    'failed', 'upstream_failed', 'upstream_skipped'. `value` is the real return value when
+    `state == 'success'`. `error` is a human-readable reason for any other state. `issues`
+    accumulates every failure/skip message from the WHOLE upstream lineage feeding this
+    outcome, not just this step's own -- so a join whose trigger rule let it proceed despite
+    an upstream failure still carries that failure forward for `af_finish` to catch at the
+    end, instead of a satisfied rule silently erasing it."""
+
+    def __init__(self, state: str, value: Any = None, error: Optional[str] = None, issues: Optional[List[str]] = None):
+        self.state = state
+        self.value = value
+        self.error = error
+        self.issues = list(issues) if issues else []
+
+    def __repr__(self) -> str:
+        return f"StepOutcome(state={self.state!r}, value={self.value!r}, error={self.error!r}, issues={self.issues!r})"
+
+
+def _is_context(obj) -> bool:
+    return hasattr(obj, "log") and hasattr(obj, "run")
+
+
+def _unwrap_call(args, kwargs):
+    """Split a leading Dagster context (if any) off `args`, and reduce every remaining
+    positional/keyword value to its real value while collecting each one's state and its
+    full upstream `issues` lineage. A bare value not produced by one of these decorators is
+    treated as state='success' with no issues, so a chain can mix decorated and undecorated
+    steps."""
+    context = args[0] if args and _is_context(args[0]) else None
+    rest = args[1:] if context is not None else args
+    states: List[str] = []
+    issues: List[str] = []
+
+    def _unwrap(v):
+        if isinstance(v, StepOutcome):
+            states.append(v.state)
+            issues.extend(v.issues)
+            return v.value
+        states.append("success")
+        return v
+
+    new_args = ((context,) if context is not None else ()) + tuple(_unwrap(v) for v in rest)
+    new_kwargs = {k: _unwrap(v) for k, v in kwargs.items()}
+    return new_args, new_kwargs, states, issues
+
+
+def af_gate(_fn=None):
+    """A step that returns a `StepOutcome` marker instead of raising/propagating a real
+    skip. If any upstream input is itself a non-'success' `StepOutcome`, the wrapped
+    function is never called -- this step becomes 'upstream_failed'/'upstream_skipped'
+    without running. Otherwise it runs; `AfSkip` -> 'skipped', any other exception ->
+    'failed', a normal return -> 'success' (value preserved for downstream af_gate/
+    af_guard steps to unwrap).
+
+    ```python
+    from dagster_community_components import af_gate
+
+    @dg.op
+    @af_gate()
+    def check_rows(data):
+        if not data:
+            raise AfSkip("no rows to process")
+        return len(data)
+    ```
+    """
+    def _decorator(fn):
+        @functools.wraps(fn)
+        def _wrapped(*args, **kwargs):
+            new_args, new_kwargs, states, issues = _unwrap_call(args, kwargs)
+            if any(s in _FAILED_STATES for s in states):
+                return StepOutcome("upstream_failed", error="an upstream step failed", issues=issues)
+            if any(s in _SKIPPED_STATES for s in states):
+                return StepOutcome("upstream_skipped", error="an upstream step was skipped", issues=issues)
+            try:
+                result = fn(*new_args, **new_kwargs)
+            except AfSkip as exc:
+                msg = str(exc) or "skipped"
+                return StepOutcome("skipped", error=msg, issues=issues + [msg])
+            except BaseException as exc:  # noqa: BLE001
+                msg = f"{type(exc).__name__}: {exc}"
+                return StepOutcome("failed", error=msg, issues=issues + [msg])
+            if isinstance(result, StepOutcome):
+                result.issues = issues + result.issues
+                return result
+            return StepOutcome("success", value=result, issues=issues)
+        return _wrapped
+    return _decorator(_fn) if _fn is not None else _decorator
+
+
+def af_guard(rule: str = "all_success"):
+    """A join/rejoin step: evaluates `rule` (an Airflow TriggerRule name -- 'all_success'
+    (default), 'all_failed', 'all_done', 'one_failed', 'one_success', 'none_failed',
+    'none_failed_min_one_success', 'none_skipped', 'always') over its upstream inputs'
+    states. Rule satisfied -> the wrapped function runs with the real (unwrapped) upstream
+    values, same outcome handling as `af_gate`. Rule not satisfied -> the function is never
+    called and this step becomes 'skipped' -- this is what makes a rejoin possible: the
+    step still RUNS (at the Dagster level) regardless of which upstream branches actually
+    materialized, so it's never itself skipped by structural propagation.
+
+    ```python
+    from dagster_community_components import af_guard
+
+    @dg.op
+    @af_guard(rule="one_success")   # cleanup/alert: run if at least one branch succeeded
+    def notify(us_result, eu_result):
+        ...
+    ```
+    """
+    if rule not in _TRIGGER_RULES:
+        raise ValueError(f"af_guard: unknown rule {rule!r}; choose one of {sorted(_TRIGGER_RULES)}")
+    check = _TRIGGER_RULES[rule]
+
+    def _decorator(fn):
+        @functools.wraps(fn)
+        def _wrapped(*args, **kwargs):
+            new_args, new_kwargs, states, issues = _unwrap_call(args, kwargs)
+            if not check(states):
+                return StepOutcome(
+                    "skipped",
+                    error=f"af_guard rule {rule!r} not satisfied by upstream states {states}",
+                    issues=issues,
+                )
+            try:
+                result = fn(*new_args, **new_kwargs)
+            except AfSkip as exc:
+                msg = str(exc) or "skipped"
+                return StepOutcome("skipped", error=msg, issues=issues + [msg])
+            except BaseException as exc:  # noqa: BLE001
+                msg = f"{type(exc).__name__}: {exc}"
+                return StepOutcome("failed", error=msg, issues=issues + [msg])
+            if isinstance(result, StepOutcome):
+                result.issues = issues + result.issues
+                return result
+            # Rule satisfied despite an upstream failure/skip (e.g. one_success,
+            # none_failed) -- the step still ran, but `issues` carries that upstream
+            # problem forward so a downstream af_finish can still catch it.
+            return StepOutcome("success", value=result, issues=issues)
+        return _wrapped
+    return _decorator
+
+
+def af_finish(_fn=None):
+    """The pipeline's last step: always runs (same rejoin property as `af_guard`), but
+    raises `dg.Failure` -- actually failing the Dagster run -- if any upstream input is a
+    'failed'/'upstream_failed' `StepOutcome`, or if the wrapped function itself raises.
+    Turns the soft, value-level failures `af_gate`/`af_guard` caught along the way back
+    into a real run failure at the end, instead of a run that silently "succeeds" despite
+    every branch having failed.
+
+    ```python
+    from dagster_community_components import af_finish
+
+    @dg.op
+    @af_finish()
+    def pipeline_done(us_result, eu_result):
+        return "done"
+    ```
+    """
+    def _decorator(fn):
+        @functools.wraps(fn)
+        def _wrapped(*args, **kwargs):
+            new_args, new_kwargs, states, issues = _unwrap_call(args, kwargs)
+            failed = [s for s in states if s in _FAILED_STATES]
+            try:
+                result = fn(*new_args, **new_kwargs)
+            except BaseException as exc:  # noqa: BLE001
+                raise dg.Failure(
+                    description=f"af_finish: step raised {type(exc).__name__}: {exc}",
+                ) from exc
+            # `issues` (not just `states`) is the real check -- a guard upstream may have
+            # proceeded (state='success') despite a failure elsewhere in its own upstream
+            # lineage; that failure is still sitting in `issues`.
+            if failed or issues:
+                raise dg.Failure(
+                    description=(
+                        f"af_finish: upstream failure(s) detected (direct states {failed}, "
+                        f"lineage issues {issues}); failing the run."
+                    ),
+                )
+            return result
+        return _wrapped
+    return _decorator(_fn) if _fn is not None else _decorator

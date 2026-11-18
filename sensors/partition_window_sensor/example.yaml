@@ -1,0 +1,10 @@
+type: dagster_community_components.PartitionWindowSensorComponent
+attributes:
+  sensor_name: segment_region_stats_rollup
+  upstream_asset_key: regional/region_raw_stats
+  job_name: rollup_regional_stats_job
+  mode: rollup
+  window_type: segment
+  segment_keys: [us, eu, apac]
+  wait_policy: all
+  default_status: running

@@ -1024,6 +1024,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PardotIngestionComponent": "assets/ingestion/pardot_ingestion/component.py",
     "PartOfSpeechTaggerComponent": "assets/ai/part_of_speech_tagger/component.py",
     "PartitionLockAssetComponent": "assets/infrastructure/partition_lock_asset/component.py",
+    "PartitionWindowSensorComponent": "sensors/partition_window_sensor/component.py",
     "PartitionedAssetLauncherJobComponent": "jobs/partitioned_asset_launcher_job/component.py",
     "PayPalIngestionComponent": "assets/ingestion/paypal_ingestion/component.py",
     "PaylocityIngestionComponent": "assets/ingestion/paylocity_ingestion/component.py",

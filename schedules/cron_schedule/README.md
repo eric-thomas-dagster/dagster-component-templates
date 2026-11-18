@@ -39,34 +39,43 @@ attributes:
   end_date: "2026-06-01"
 ```
 
-## Airflow 3.2 `CronPartitionTimetable` / `PartitionedAssetTimetable` → Dagster mapping
+## Airflow `CronPartitionTimetable` / `PartitionedAssetTimetable` → Dagster mapping
 
-Verified against Airflow 3.2.0's real classes (`airflow.sdk`), not guessed — confirmed via
-the 3.2.0 release blog and the official `example_asset_partition` example DAG. This is a
-reference for the converter, not a new field here: both producer- and consumer-side
-concepts already map onto existing Dagster/this-repo primitives.
+Verified against Airflow's real classes (`airflow.sdk`), not guessed — fetched directly
+from the official rendered source of Airflow's own `example_asset_partition` example DAG
+(not blog posts or PR threads). **Version correction from an earlier pass of this doc:**
+`CronPartitionTimetable` is real as of Airflow 3.2.0. The richer mapper/window vocabulary
+below (`RollupMapper`, `FanOutMapper`, `FixedKeyMapper`, the window classes, `WaitForAll`,
+`MinimumCount`) is Airflow **3.3.0**, not 3.2 — an earlier pass of this section
+misattributed it.
 
-**Producer side — `CronPartitionTimetable(cron_expr, timezone=..., run_offset=...)`**: a
-DAG/asset's partition key is the cron-fired run's timestamp. This is exactly
-`partition_type: cron` (`TimeWindowPartitionsDefinition`) on this repo's own schedule and
-asset components — no new work needed; map `cron_expr` → `partition_cron_schedule`,
-`timezone` → `partition_timezone`.
+**Producer side — `CronPartitionTimetable(cron, timezone=..., run_offset=None,
+key_format='%Y-%m-%dT%H:%M:%S')`**: a DAG/asset's partition key is the cron-fired run's
+timestamp. Maps to `partition_type: cron` (`TimeWindowPartitionsDefinition`) on this
+repo's own schedule and asset components. One real gap closed from the earlier pass:
+`key_format` (an strftime/strptime string) must actually match Dagster's own `fmt=` for
+the partition keys to line up across the two systems — it's not just "turn on cron mode,"
+check that the two format strings agree.
 
 **Consumer side — `PartitionedAssetTimetable(assets=..., default_partition_mapper=... |
 partition_mapper_config={asset: mapper})`**: triggers when upstream partitioned asset(s)
 update, translating the upstream partition key into this DAG's own key space via a
-*mapper*:
+*mapper*. Confirmed directly from the example DAG's real constructor calls:
 
-| Airflow 3.2 mapper | Dagster equivalent |
+| Airflow mapper/window | Dagster equivalent |
 |---|---|
 | `IdentityMapper` (default passthrough) | No mapping needed — same partitions_def on both sides. |
-| `StartOfHourMapper` / `StartOfDayMapper` / `StartOfYearMapper` (coarsen time granularity) | Nothing to build — `TimeWindowPartitionMapping` already infers this automatically from the two sides' own partitions_defs (e.g. an hourly downstream reading a daily upstream). |
+| `StartOfHourMapper` / `StartOfDayMapper` / `StartOfWeekMapper` / `StartOfMonthMapper` / `StartOfYearMapper` (coarsen time granularity) | Nothing to build — `TimeWindowPartitionMapping` already infers this automatically from the two sides' own partitions_defs. |
 | `AllowedKeyMapper([...])` (static allow-list, not time-based) | `StaticPartitionsDefinition` membership — equivalent to this repo's `partition_type: static`. |
-| `ProductMapper(a, b)` (splits a composite `"region\|timestamp"` string key, maps each half separately) | **No native Dagster primitive parses a delimited string key.** `MultiPartitionsDefinition` models a composite key as a dict of named dimensions, not a string — the converter needs to split the key itself (e.g. `key.split("\|")`) and build a `partition_dimensions` multi-axis config (see `partition_dimensions` below) from the parts, rather than relying on a Dagster-side parser. |
+| `ProductMapper(a, b)` (splits a composite `"region\|timestamp"` string key, maps each half separately) | **No native Dagster primitive parses a delimited string key.** The converter needs to split the key itself and build a `partition_dimensions` multi-axis config from the parts. |
+| `FixedKeyMapper("x")` (collapses every upstream key onto one fixed downstream key) | No direct `PartitionMapping` equivalent, but combined with `RollupMapper` below this is the categorical-rollup case `partition_window_sensor` covers (`window_type: segment`). |
+| `RollupMapper(upstream_mapper, window, wait_policy)` + `DayWindow`/`WeekWindow`/`MonthWindow`/`SegmentWindow` + `WaitForAll`/`MinimumCount(n)` (N upstream partitions → 1 downstream run, waiting for the window to fill) | **No native Dagster primitive** — confirmed live: `AutomationCondition.all_deps_match(...)` is documented ("at least one partition of... the target's dependencies") and confirmed to require only ONE matching partition per dependency, not ALL partitions mapped by it. Use [`partition_window_sensor`](https://dagster-component-ui.vercel.app/c/partition_window_sensor) (`mode: rollup`), built for exactly this. |
+| `FanOutMapper(upstream_mapper, window, max_downstream_keys \| downstream_mapper)` (1 upstream partition → N downstream runs, the inverse of Rollup) | Same gap, inverse direction — `partition_window_sensor` (`mode: fan_out`). |
 
-Scope note: this covers the mapping question the handoff asked for. It doesn't include a
-component change, since every case above either needs zero new code or needs converter-side
-string parsing rather than a Dagster-side primitive.
+Scope note: this now includes a component (`partition_window_sensor`) for the Rollup/
+FanOut/window/wait-policy family — the one part of the mapping that genuinely had no
+Dagster-side primitive to fall back on. Everything else above either needs zero new code
+or needs converter-side string parsing (`ProductMapper`) rather than a Dagster primitive.
 
 [//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
 

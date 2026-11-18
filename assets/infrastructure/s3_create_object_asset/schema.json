@@ -1,0 +1,159 @@
+{
+  "component_type": "dagster_community_components.S3CreateObjectAssetComponent",
+  "description": "Write a literal string/bytes value to an S3 object as a Dagster asset -- mirrors Airflow's S3CreateObjectOperator.",
+  "category": "infrastructure",
+  "icon": "si:amazons3",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Writes the given data to the destination S3 object."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset key.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "data": {
+      "type": "string",
+      "label": "Data",
+      "description": "Literal string data to write. Set this or data_asset_key (not both). Encoded as UTF-8 bytes before upload.",
+      "required": false
+    },
+    "data_asset_key": {
+      "type": "string",
+      "label": "Data Asset Key",
+      "description": "Upstream asset key whose materialized value (str or bytes) is written as the object body. Set this or data (not both).",
+      "required": false
+    },
+    "dest_s3_url": {
+      "type": "string",
+      "label": "Dest S3 Url",
+      "description": "Destination object as 's3://bucket/key'. Set this or bucket+key.",
+      "required": false
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "description": "Destination bucket name. Set with key, or use dest_s3_url instead.",
+      "required": false
+    },
+    "key": {
+      "type": "string",
+      "label": "Key",
+      "description": "Destination object key. Set with bucket, or use dest_s3_url instead.",
+      "required": false
+    },
+    "replace": {
+      "type": "boolean",
+      "label": "Replace",
+      "description": "False (default, matches S3CreateObjectOperator): fail clearly if the destination key already exists, checked via head_object before writing. True: always write, overwriting any existing object.",
+      "required": false
+    },
+    "content_type": {
+      "type": "string",
+      "label": "Content Type",
+      "description": "Passed as put_object(ContentType=...).",
+      "required": false
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered aws_s3_resource. When set, credentials/session come from that resource instead of a bare boto3.client('s3', region_name=...).",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "description": "Kill the wait and fail the run if the write hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying boto3 call may continue running past the deadline (Python threads can't be forcibly killed); this bounds the step's wait, not the call itself.",
+      "required": false
+    }
+  }
+}

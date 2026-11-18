@@ -1194,6 +1194,7 @@ _CLASS_PATHS: dict[str, str] = {
     "RuntimePartitionAssetComponent": "assets/infrastructure/runtime_partition_asset/component.py",
     "S3CleanupJobComponent": "jobs/s3_cleanup_job/component.py",
     "S3CopyObjectAssetComponent": "assets/infrastructure/s3_copy_object_asset/component.py",
+    "S3CreateObjectAssetComponent": "assets/infrastructure/s3_create_object_asset/component.py",
     "S3CsvIOManagerComponent": "io_managers/s3_csv_io_manager/component.py",
     "S3DeleteObjectsAssetComponent": "assets/infrastructure/s3_delete_objects_asset/component.py",
     "S3ListKeysAssetComponent": "assets/sources/s3_list_keys_asset/component.py",

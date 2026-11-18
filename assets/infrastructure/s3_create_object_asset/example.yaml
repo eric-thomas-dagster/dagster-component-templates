@@ -1,0 +1,8 @@
+type: dagster_community_components.S3CreateObjectAssetComponent
+attributes:
+  asset_name: write_manifest
+  data: '{"status": "ready"}'
+  dest_s3_url: "s3://my-bucket/manifests/status.json"
+  content_type: application/json
+  group_name: infrastructure
+  description: "Writes a literal status manifest to S3."

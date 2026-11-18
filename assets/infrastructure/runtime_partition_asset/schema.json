@@ -1,0 +1,161 @@
+{
+  "component_type": "dagster_community_components.RuntimePartitionAssetComponent",
+  "description": "An asset whose partition key is chosen while it runs, not before -- Airflow's PartitionedAtRuntime.",
+  "category": "infrastructure",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Registers the runtime-chosen key as a dynamic partition (if new) and reports a materialization of the catalog-facing partitioned asset for that key."
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "description": "The catalog-facing asset key (slash-delimited) that ends up partitioned by dynamic_partitions_name.",
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "dynamic_partitions_name": {
+      "description": "Name for the DynamicPartitionsDefinition backing asset_key.",
+      "type": "string",
+      "label": "Dynamic Partitions Name",
+      "required": true
+    },
+    "callable_path": {
+      "description": "'module.path:function_name', the real compute.",
+      "type": "string",
+      "label": "Callable Path",
+      "required": true
+    },
+    "key_source": {
+      "description": "'run_tag' | 'run_config' | 'callable_return' -- where the chosen partition key comes from.",
+      "type": "string",
+      "enum": ["run_tag", "run_config", "callable_return"],
+      "label": "Key Source",
+      "required": false,
+      "default": "callable_return"
+    },
+    "executor_asset_key": {
+      "type": "string",
+      "label": "Executor Asset Key",
+      "description": "Key (slash-delimited) for the real, unpartitioned executing asset that runs the callable. Defaults to '<asset_key>_runner'. Keep distinct from `asset_key` -- Dagster doesn't allow one AssetsDefinition to be both the unpartitioned runner and the dynamically-partitioned target.",
+      "required": false
+    },
+    "key_run_tag": {
+      "type": "string",
+      "label": "Key Run Tag",
+      "description": "key_source='run_tag' only (required then): the run tag name holding the chosen key.",
+      "required": false
+    },
+    "key_config_field": {
+      "type": "string",
+      "label": "Key Config Field",
+      "description": "key_source='run_config' only (required then): the op config field name holding the chosen key.",
+      "required": false
+    },
+    "kwargs": {
+      "type": "object",
+      "label": "Kwargs",
+      "description": "Static keyword arguments passed to the callable.",
+      "required": false
+    },
+    "inputs": {
+      "type": "object",
+      "label": "Inputs",
+      "description": "{name: upstream_asset_key}. Each entry's value is loaded via the IO manager and bound to a parameter of that name if the callable's signature declares one (TaskFlow-style) -- same shape as python_callable_asset's `inputs`.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "report_value_as_metadata": {
+      "type": "boolean",
+      "label": "Report Value As Metadata",
+      "description": "If true, the callable's returned payload is recorded as `value` metadata on the reported materialization (via dg.MetadataValue.text/json as appropriate) -- best-effort; non-JSON-serializable payloads are stringified. Set false to skip this if the payload is large or sensitive.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name (applied to both the executor and the catalog-facing asset).",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description (applied to the catalog-facing asset).",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "description": "Fail the executing asset's step if the callable hasn't returned after this many seconds. Enforced via a background-thread wrapper -- the callable may continue running past the deadline (Python threads can't be forcibly killed); this bounds the step's wait, not the call itself.",
+      "required": false
+    }
+  }
+}

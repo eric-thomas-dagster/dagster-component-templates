@@ -1191,6 +1191,7 @@ _CLASS_PATHS: dict[str, str] = {
     "RunMyJobsIntegrationComponent": "integrations/runmyjobs_integration/component.py",
     "RundeckIntegrationComponent": "integrations/rundeck_integration/component.py",
     "RunningTotalComponent": "assets/transforms/running_total/component.py",
+    "RuntimePartitionAssetComponent": "assets/infrastructure/runtime_partition_asset/component.py",
     "S3CleanupJobComponent": "jobs/s3_cleanup_job/component.py",
     "S3CopyObjectAssetComponent": "assets/infrastructure/s3_copy_object_asset/component.py",
     "S3CsvIOManagerComponent": "io_managers/s3_csv_io_manager/component.py",

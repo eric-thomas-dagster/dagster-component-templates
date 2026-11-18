@@ -1,0 +1,9 @@
+type: dagster_community_components.RuntimePartitionAssetComponent
+attributes:
+  asset_key: regional/region_stats
+  executor_asset_key: regional/region_stats_runner
+  dynamic_partitions_name: regions_rt
+  callable_path: "myproject.ingestion:ingest_region"
+  key_source: callable_return
+  group_name: infrastructure
+  description: "Region stats, partitioned by a region code the callable decides for itself."

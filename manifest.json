@@ -59925,6 +59925,52 @@
       "icon": "GitBranch"
     },
     {
+      "id": "runtime_partition_asset",
+      "name": "RuntimePartitionAsset",
+      "category": "infrastructure",
+      "description": "An asset whose partition key is chosen while it runs, not before -- Airflow 3.3's PartitionedAtRuntime.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/runtime_partition_asset",
+      "tags": [
+        "infrastructure",
+        "airflow-migration",
+        "dynamic-partitions",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/infrastructure/runtime_partition_asset/tests/test_runtime_partition_asset.py",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Registers the runtime-chosen key as a dynamic partition and reports a materialization of the catalog-facing partitioned asset for that key.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "partitionedatruntime",
+        "dynamic-partitions",
+        "runtime-partition",
+        "airflow-migration"
+      ],
+      "icon": "GitBranch"
+    },
+    {
       "id": "trigger_job_asset",
       "name": "TriggerJobAsset",
       "category": "infrastructure",

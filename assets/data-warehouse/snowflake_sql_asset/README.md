@@ -138,5 +138,6 @@ snowflake-connector-python>=3.0.0
 ## See also
 
 - [`sql_asset`](https://dagster-component-ui.vercel.app/c/sql_asset) — the dialect-agnostic equivalent for everything else (postgres/mysql/duckdb/databricks_sql/mssql/oracle/db2/doris/starburst/starrocks/timescaledb/trino). Snowflake has its own fields here specifically because its connector supports `num_statements` auto-split and pyformat parameters that don't generalize across drivers.
+- [`snowflake_copy_into_asset`](https://dagster-component-ui.vercel.app/c/snowflake_copy_into_asset) — for loading staged files into a table, use the typed COPY INTO fields instead of hand-writing that SQL here
 - [`snowflake_stored_procedure_call_asset`](https://dagster-component-ui.vercel.app/c/snowflake_stored_procedure_call_asset) — call a named stored procedure instead of raw SQL
 - [`snowflake_workspace`](https://dagster-component-ui.vercel.app/c/snowflake_workspace) — multi-entity auto-discovery

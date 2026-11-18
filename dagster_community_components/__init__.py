@@ -1296,6 +1296,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SnapshotAssetComponent": "assets/infrastructure/snapshot_asset/component.py",
     "SnowflakeAccessHistoryIngestionComponent": "ingestion/snowflake_access_history_ingestion/component.py",
     "SnowflakeAlertComponent": "integrations/snowflake_alert/component.py",
+    "SnowflakeCopyIntoAssetComponent": "assets/data-warehouse/snowflake_copy_into_asset/component.py",
     "SnowflakeCortexAgentComponent": "assets/ai/snowflake_cortex_agent/component.py",
     "SnowflakeCortexAssetComponent": "assets/ai/snowflake_cortex_asset/component.py",
     "SnowflakeCortexSearchComponent": "integrations/snowflake_cortex_search/component.py",

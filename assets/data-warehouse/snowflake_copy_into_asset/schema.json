@@ -1,0 +1,221 @@
+{
+  "component_type": "dagster_community_components.SnowflakeCopyIntoAssetComponent",
+  "description": "Bulk-load files from a Snowflake stage into a table via COPY INTO -- mirrors Airflow's CopyFromExternalStageToSnowflakeOperator.",
+  "category": "integration",
+  "icon": "si:snowflake",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "COPY INTO per-file load result"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "description": "Dagster asset key (e.g. 'snowflake/loads/orders').",
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "database": {
+      "description": "Target Snowflake database.",
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "schema": {
+      "description": "Target Snowflake schema.",
+      "type": "string",
+      "label": "Schema",
+      "required": true
+    },
+    "table": {
+      "description": "Target table name.",
+      "type": "string",
+      "label": "Table",
+      "required": true
+    },
+    "stage": {
+      "description": "Stage to copy from, e.g. 'my_stage', '@my_stage', or '@~' for the user stage. The leading '@' is added automatically if omitted.",
+      "type": "string",
+      "label": "Stage",
+      "required": true
+    },
+    "account_env_var": {
+      "description": "Env var with Snowflake account. Required unless resource_key is set.",
+      "type": "string",
+      "label": "Account Env Var",
+      "required": false
+    },
+    "user_env_var": {
+      "description": "Env var with Snowflake username. Required unless resource_key is set.",
+      "type": "string",
+      "label": "User Env Var",
+      "required": false
+    },
+    "stage_path": {
+      "type": "string",
+      "label": "Stage Path",
+      "description": "Subpath/prefix within the stage to copy from, e.g. '2026/01/'.",
+      "required": false
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Files",
+      "description": "Explicit list of filenames (relative to the stage) to load, rendered as FILES = ('a.csv', 'b.csv'). Leave unset to load every file matching `pattern` (or every file in the stage/path if `pattern` is also unset).",
+      "required": false
+    },
+    "pattern": {
+      "type": "string",
+      "label": "Pattern",
+      "description": "Regex pattern (Snowflake's PATTERN clause) to filter which staged files are loaded.",
+      "required": false
+    },
+    "file_format_name": {
+      "type": "string",
+      "label": "File Format Name",
+      "description": "Name of an existing named file format object, rendered as FILE_FORMAT = (FORMAT_NAME = '...'). Set this or file_format_options, not both.",
+      "required": false
+    },
+    "file_format_options": {
+      "type": "object",
+      "label": "File Format Options",
+      "description": "Inline file format options, e.g. {TYPE: CSV, FIELD_DELIMITER: '\\|', SKIP_HEADER: 1}, rendered as FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = '\\|' SKIP_HEADER = 1). Set this or file_format_name, not both.",
+      "required": false
+    },
+    "on_error": {
+      "type": "string",
+      "label": "On Error",
+      "description": "COPY INTO's ON_ERROR option, e.g. 'CONTINUE', 'SKIP_FILE', 'ABORT_STATEMENT' (the default when unset).",
+      "required": false
+    },
+    "purge": {
+      "type": "boolean",
+      "label": "Purge",
+      "description": "If true, staged files are deleted after a successful load (COPY INTO's PURGE option).",
+      "required": false
+    },
+    "force": {
+      "type": "boolean",
+      "label": "Force",
+      "description": "If true, files are reloaded even if already loaded previously (COPY INTO's FORCE option; by default Snowflake skips files it has already loaded).",
+      "required": false
+    },
+    "match_by_column_name": {
+      "type": "string",
+      "label": "Match By Column Name",
+      "description": "For semi-structured formats: 'CASE_SENSITIVE', 'CASE_INSENSITIVE', or 'NONE' (the default when unset).",
+      "required": false
+    },
+    "size_limit": {
+      "type": "integer",
+      "label": "Size Limit",
+      "description": "Maximum bytes loaded per COPY statement (COPY INTO's SIZE_LIMIT option).",
+      "required": false
+    },
+    "truncatecolumns": {
+      "type": "boolean",
+      "label": "Truncatecolumns",
+      "description": "If true, string values exceeding a column's length are truncated rather than erroring.",
+      "required": false
+    },
+    "validation_mode": {
+      "type": "string",
+      "label": "Validation Mode",
+      "description": "If set (e.g. 'RETURN_ERRORS', 'RETURN_10_ROWS'), validates the load without inserting data and returns the validation result instead.",
+      "required": false
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with Snowflake password.",
+      "required": false
+    },
+    "pat_env_var": {
+      "type": "string",
+      "label": "Pat Env Var",
+      "description": "Env var with Snowflake PAT.",
+      "required": false
+    },
+    "private_key_path_env_var": {
+      "type": "string",
+      "label": "Private Key Path Env Var",
+      "description": "Env var with RSA private key path.",
+      "required": false
+    },
+    "private_key_passphrase_env_var": {
+      "type": "string",
+      "label": "Private Key Passphrase Env Var",
+      "description": "Env var with private-key passphrase.",
+      "required": false
+    },
+    "warehouse_env_var": {
+      "type": "string",
+      "label": "Warehouse Env Var",
+      "description": "Env var with Snowflake warehouse.",
+      "required": false
+    },
+    "role_env_var": {
+      "type": "string",
+      "label": "Role Env Var",
+      "description": "Env var with Snowflake role.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account_env_var/user_env_var/password_env_var/pat_env_var/private_key_path_env_var/warehouse_env_var/role_env_var fields.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  }
+}

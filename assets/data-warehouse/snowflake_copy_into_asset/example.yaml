@@ -1,0 +1,21 @@
+type: dagster_community_components.SnowflakeCopyIntoAssetComponent
+attributes:
+  asset_key: snowflake/loads/orders
+  database: DAGSTER_DEMO
+  schema: RAW
+  table: ORDERS
+  stage: orders_stage
+  stage_path: "2026/01/"
+  pattern: ".*\\.csv"
+  file_format_options:
+    TYPE: CSV
+    FIELD_DELIMITER: ","
+    SKIP_HEADER: 1
+  on_error: CONTINUE
+  purge: true
+  account_env_var: SNOWFLAKE_ACCOUNT
+  user_env_var: SNOWFLAKE_USER
+  password_env_var: SNOWFLAKE_PASSWORD
+  warehouse_env_var: SNOWFLAKE_WAREHOUSE
+  role_env_var: SNOWFLAKE_ROLE
+  group_name: snowflake

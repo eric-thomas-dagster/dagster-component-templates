@@ -62492,6 +62492,59 @@
       ]
     },
     {
+      "id": "snowflake_copy_into_asset",
+      "name": "Snowflake Copy Into Asset",
+      "category": "integration",
+      "description": "Bulk-load files from a Snowflake stage into a table via COPY INTO -- mirrors Airflow's CopyFromExternalStageToSnowflakeOperator.",
+      "path": "assets/data-warehouse/snowflake_copy_into_asset",
+      "tags": [
+        "data-warehouse",
+        "snowflake",
+        "copy-into",
+        "airflow-migration"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/schema.json",
+      "component_type": "dagster_community_components.SnowflakeCopyIntoAssetComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/data-warehouse/snowflake_copy_into_asset/tests/test_snowflake_copy_into_asset.py",
+        "last_validated": "2026-11-17"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Bulk-load files from a Snowflake stage into a table.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "consumes": [
+        "resource:snowflake"
+      ],
+      "keywords": [
+        "copyfromexternalstagetosnowflakeoperator",
+        "s3tosnowflakeoperator",
+        "bulk-load",
+        "stage"
+      ]
+    },
+    {
       "id": "snowflake_sql_asset",
       "name": "Snowflake SQL Asset",
       "category": "integration",

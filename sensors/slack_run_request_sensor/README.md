@@ -40,6 +40,43 @@ matching trigger (in config order) wins. There is no intent-classification model
 purpose: a sentence that can silently launch a job either matches a phrase you wrote down
 or it doesn't.
 
+## What a message looks like
+
+Given the minimal example's trigger (`phrases: ["run the nightly etl", "kick off nightly"]`,
+`asset_selection: "group:nightly_etl"`), any of these channel messages fire it -- as long
+as the sender is a listed owner of `nightly_etl`:
+
+```
+Hey, can someone run the nightly etl job? it didn't kick off on its own
+```
+```
+@databot kick off nightly please
+```
+
+**Pasting a link instead of typing a sentence also works**, with no phrase needed at all.
+If a teammate uses Dagster's own "Copy link" on the asset or job and pastes it (Slack
+auto-links it, e.g. `<https://dagster.example.com/assets/nightly/etl|Nightly ETL>`):
+
+```
+can someone run this: https://dagster.example.com/assets/nightly/etl
+```
+```
+need this rerun -> https://dagster.example.com/locations/my_project/jobs/nightly_etl_job
+```
+
+This is `match_dagster_links` (on by default) -- it recognizes the real Dagster UI URL
+shapes (`/assets/<key>`, `/locations/<repo>/jobs/<name>`) and matches the extracted
+asset key or job name directly against each trigger's own resolved target, no `phrases:`
+match required. It only checks the URL's **path shape and target name** -- not which
+Dagster instance the link actually points at -- so a same-named target on a different
+deployment would also match; the owners-authorization gate still applies regardless, so
+this never loosens who can trigger what. Set `match_dagster_links: false` if you'd rather
+require a typed phrase every time.
+
+A message that matches NO trigger (`good morning team`) or comes from someone who isn't
+a listed owner is simply skipped -- a threaded reply explains which, by default
+(`post_acknowledgement` / `on_unauthorized`).
+
 ## Auth -- a bot token, much simpler than the Teams version
 
 Unlike Microsoft Graph (see `teams_run_request_sensor` / `teams_approval_gate` -- sending
@@ -99,6 +136,17 @@ attributes:
   default_status: STOPPED
 ```
 
+`ack_message_template` and `unauthorized_message_template` also accept a **list of
+strings** instead of one -- a random entry is picked each time, so replies don't read as
+copy-pasted:
+
+```yaml
+  ack_message_template:
+    - "✅ Got it — launching *{target}* for you."
+    - "👍 On it — *{target}* is launching now."
+    - "🚀 Launching *{target}*..."
+```
+
 ## Full example
 
 See `example.yaml` (also shows a `job_name` trigger with an explicit `owners:` list).
@@ -131,13 +179,14 @@ See `example.yaml` (also shows a `job_name` trigger with an explicit `owners:` l
 | `resolve_requester_email` | `bool` | `true` | Resolve the message sender's Slack user id to an email address via users.info (needs users:read.email) before checking owners -- most owners: lists use emails, not Slack user ids. When false, only a literal Slack user id… _(full docs in schema.json + component README)_ |
 | `require_all_owners` | `bool` | `false` | For an asset_selection trigger matching MULTIPLE assets with different owners: false (default) authorizes the requester if they own ANY matched asset; true requires them to own EVERY matched asset. Ignored for job_name triggers. |
 | `case_sensitive_phrases` | `bool` | `false` | Match trigger phrases case-sensitively. Default: case-insensitive. |
+| `match_dagster_links` | `bool` | `true` | Also match a message that contains a link straight to the target asset or job in the Dagster UI (e.g. pasted via 'Copy link'), not just a typed phrase -- same owners-authorization gate either way. Recognizes the real dag… _(full docs in schema.json + component README)_ |
 | `messages_per_poll` | `int` | `200` | Messages to request per Slack page (Slack's own recommended max is 200). |
 | `max_pages_per_poll` | `int` | `3` | Follow at most this many pagination cursors per poll -- bounds how far back a single tick can catch up after an outage. |
 | `process_backlog_on_first_run` | `bool` | `false` | If false (default), the first-ever tick seeds the cursor to 'now' and processes nothing -- activating this sensor never replays a channel's past run requests. Set true only if that replay is actually wanted. |
 | `post_acknowledgement` | `bool` | `true` | Reply in-thread when a match is authorized and launched, and (per on_unauthorized) when it's rejected. Needs chat:write. |
 | `on_unauthorized` | `Literal['skip', 'reply']` | `"reply"` | 'reply' (default) posts unauthorized_message_template as a threaded reply; 'skip' just logs it. Ignored when post_acknowledgement is false. |
-| `ack_message_template` | `str` | `"✅ Got it — launching *{target}* for you."` | Threaded reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}. |
-| `unauthorized_message_template` | `str` | `"⚠️ Sorry, you're not listed as an owner of *{target}*, so I can't launch it from chat. Ask an owner to run it, or ask to be added as one."` | Threaded reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}. |
+| `ack_message_template` | `Union[str, List[str]]` | `"✅ Got it — launching *{target}* for you."` | Threaded reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}. Give a list instead of a single string to have one chosen at random each time, so replies don't feel copy-pasted. |
+| `unauthorized_message_template` | `Union[str, List[str]]` | `"⚠️ Sorry, you're not listed as an owner of *{target}*, so I can't launch it from chat. Ask an owner to run it, or ask to be added as one."` | Threaded reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}. Also accepts a list for a randomly-chosen reply, same as ack_message_template. |
 
 [//]: # (FIELDS:END)
 

@@ -311,3 +311,69 @@ def test_get_teams_bearer_persists_a_rotated_refresh_token(monkeypatch, tmp_path
     mod._get_teams_bearer(fs, "TEAMS_TENANT_ID", "TEAMS_CLIENT_ID", "TEAMS_CLIENT_SECRET", "TEAMS_REFRESH_TOKEN")
 
     assert seen_refresh_tokens == ["seed-token", "rotated-token"]  # second call preferred the persisted rotation
+
+
+# --- pasting a Dagster UI link works the same as typing a phrase -----------------------------
+
+def test_extract_dagster_link_targets_recognizes_asset_and_job_links():
+    assert mod._extract_dagster_link_targets(
+        '<a href="https://dagster.example.com/assets/nightly/etl?view=lineage">link</a>'
+    ) == [("asset", "nightly/etl")]
+    assert mod._extract_dagster_link_targets(
+        "https://dagster.example.com/locations/my_repo%40my_location/jobs/nightly_etl_job/playground"
+    ) == [("job", "nightly_etl_job")]
+    assert mod._extract_dagster_link_targets("no link here") == []
+
+
+def test_asset_link_in_message_triggers_without_any_phrase(monkeypatch):
+    comp = _component(triggers=[dict(phrases=["run nightly etl"], job_name="nightly_etl_job", owners=["owner@co.com"])])
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    messages = [_msg(
+        "m1", "2026-01-01T00:00:01.0000000Z",
+        '<a href="https://dagster.example.com/locations/x/jobs/nightly_etl_job">nightly_etl_job</a>',
+        "aad-owner",
+    )]
+    _install_fakes(monkeypatch, messages=messages, email_by_aad_id={"aad-owner": "owner@co.com"})
+
+    ctx = dg.build_sensor_context(cursor="2026-01-01T00:00:00.0000000Z")
+    result = sensor_def(ctx)
+    assert [(r.run_key, r.job_name) for r in result.run_requests] == [("teams_runner:m1", "nightly_etl_job")]
+
+
+def test_match_dagster_links_false_ignores_links(monkeypatch):
+    comp = _component(
+        match_dagster_links=False,
+        triggers=[dict(phrases=["run nightly etl"], job_name="nightly_etl_job", owners=["owner@co.com"])],
+    )
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    messages = [_msg(
+        "m1", "2026-01-01T00:00:01.0000000Z",
+        '<a href="https://dagster.example.com/locations/x/jobs/nightly_etl_job">nightly_etl_job</a>',
+        "aad-owner",
+    )]
+    _install_fakes(monkeypatch, messages=messages, email_by_aad_id={"aad-owner": "owner@co.com"})
+
+    ctx = dg.build_sensor_context(cursor="2026-01-01T00:00:00.0000000Z")
+    result = sensor_def(ctx)
+    assert result.run_requests == []
+
+
+# --- ack/unauthorized templates accept a list for a randomly-chosen reply --------------------
+
+def test_render_template_accepts_a_list_and_picks_one(monkeypatch):
+    monkeypatch.setattr(mod.random, "choice", lambda seq: seq[1])
+    assert mod._render_template(["a {x}", "b {x}", "c {x}"], x="!") == "b !"
+    assert mod._render_template("only {x}", x="!") == "only !"
+
+
+def test_ack_message_template_list_is_used_for_the_reply(monkeypatch):
+    comp = _component(ack_message_template=["Done: {target}", "Launched: {target}"])
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    messages = [_msg("m1", "2026-01-01T00:00:01.0000000Z", "run nightly etl", "aad-owner")]
+    calls = _install_fakes(monkeypatch, messages=messages, email_by_aad_id={"aad-owner": "owner@co.com"})
+
+    ctx = dg.build_sensor_context(cursor="2026-01-01T00:00:00.0000000Z")
+    sensor_def(ctx)
+    reply_posts = [c for c in calls["post"] if "/replies" in c[0]]
+    posted_body = reply_posts[0][1]["json"]["body"]["content"]
+    assert posted_body in ("Done: nightly_etl_job", "Launched: nightly_etl_job")

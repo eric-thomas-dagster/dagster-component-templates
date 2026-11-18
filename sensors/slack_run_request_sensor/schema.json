@@ -113,13 +113,13 @@
     "ack_message_template": {
       "type": "string",
       "label": "Ack Message Template",
-      "description": "Threaded reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}.",
+      "description": "Threaded reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}. Give a list instead of a single string to have one chosen at random each time.",
       "required": false
     },
     "unauthorized_message_template": {
       "type": "string",
       "label": "Unauthorized Message Template",
-      "description": "Threaded reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}.",
+      "description": "Threaded reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}. Also accepts a list for a randomly-chosen reply.",
       "required": false
     },
     "minimum_interval_seconds": {
@@ -132,6 +132,12 @@
       "type": "string",
       "label": "Default Status",
       "description": "'RUNNING' or 'STOPPED' -- initial status of the sensor.",
+      "required": false
+    },
+    "match_dagster_links": {
+      "type": "boolean",
+      "label": "Match Dagster Links",
+      "description": "Also match a message that contains a link straight to the target asset or job in the Dagster UI (e.g. pasted via 'Copy link'), not just a typed phrase -- same owners-authorization gate either way. Recognizes the real dagster-webserver URL shapes: an asset's '/assets/<key-path>' (no location prefix needed) and a job's '/locations/<repoPath>/jobs/<name>' (or legacy '/pipelines/<name>'). Matching is by URL PATH SHAPE only -- it does not verify the link points at this Dagster instance, so a same-named target on a different deployment would also match; the owners gate still applies regardless.",
       "required": false
     }
   }

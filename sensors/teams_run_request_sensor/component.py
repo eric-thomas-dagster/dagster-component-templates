@@ -71,6 +71,7 @@ is only the INITIAL seed; once Microsoft returns a different one, it's persisted
   messages between polls, or genuinely new requests can be missed.
 """
 import os
+import random
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -237,6 +238,39 @@ def _post_teams_reply(bearer: str, team_id: str, channel_id: str, message_id: st
 
 def _strip_html(html: str) -> str:
     return re.sub(r"<[^>]+>", " ", html or "").strip()
+
+
+# ── Dagster UI link recognition -- so "can someone run this: <link>" works as well as a
+# typed phrase. Extracted directly from dagster-webserver's own real route/link-building
+# source (not guessed): an asset's link is `/assets/<key-path-segments, each
+# encodeURIComponent'd>` (assetDetailsPathForKey.tsx, no location prefix -- the global
+# asset catalog); a job's link is `/locations/<repoPath>/jobs/<jobName>` or the legacy
+# `/pipelines/<jobName>` (workspacePath.ts's workspacePipelinePath). Matches anywhere in
+# the message text, so it works whether the link is a bare URL or wrapped in an <a href>.
+_ASSET_LINK_RE = re.compile(r"/assets/([^\s?\"'<>|)]+)")
+_JOB_LINK_RE = re.compile(r"/locations/[^/\s]+/(?:jobs|pipelines)/([^/\s?\"'<>|)]+)")
+
+
+def _extract_dagster_link_targets(text: str) -> List["tuple[str, str]"]:
+    """Returns [(\"asset\", \"nightly/etl\"), (\"job\", \"nightly_etl_job\"), ...] for every
+    Dagster UI asset/job link found in `text`, in the order they appear."""
+    from urllib.parse import unquote
+
+    out: List["tuple[str, str]"] = []
+    for m in _ASSET_LINK_RE.finditer(text or ""):
+        segs = [unquote(s) for s in m.group(1).split("/") if s]
+        if segs:
+            out.append(("asset", "/".join(segs)))
+    for m in _JOB_LINK_RE.finditer(text or ""):
+        out.append(("job", unquote(m.group(1))))
+    return out
+
+
+def _render_template(template: Union[str, List[str]], **kwargs: Any) -> str:
+    """A list picks one entry at random each call, so a reply doesn't feel copy-pasted;
+    a bare string renders every time, unchanged."""
+    tpl = random.choice(template) if isinstance(template, list) else template
+    return tpl.format(**kwargs)
 
 
 # ── Sibling-asset discovery + selection DSL resolution -- same shape as
@@ -413,6 +447,19 @@ class TeamsRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
     case_sensitive_phrases: bool = Field(default=False, description="Match trigger phrases case-sensitively. Default: case-insensitive.")
+    match_dagster_links: bool = Field(
+        default=True,
+        description=(
+            "Also match a message that contains a link straight to the target asset or job in "
+            "the Dagster UI (e.g. pasted via 'Copy link'), not just a typed phrase -- same "
+            "owners-authorization gate either way. Recognizes the real dagster-webserver URL "
+            "shapes: an asset's '/assets/<key-path>' (no location prefix needed) and a job's "
+            "'/locations/<repoPath>/jobs/<name>' (or legacy '/pipelines/<name>'). Matching is by "
+            "URL PATH SHAPE only -- it does not verify the link points at this Dagster instance, "
+            "so a same-named target on a different deployment would also match; the owners gate "
+            "still applies regardless."
+        ),
+    )
 
     messages_per_poll: int = Field(default=50, description="Messages to request per Graph page (Graph's own hard cap is 50).")
     max_pages_per_poll: int = Field(default=3, description="Follow at most this many '@odata.nextLink' pages per poll -- bounds how far back a single tick can catch up after an outage.")
@@ -423,13 +470,13 @@ class TeamsRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     post_acknowledgement: bool = Field(default=True, description="Reply in-thread when a match is authorized and launched, and (per on_unauthorized) when it's rejected. Needs delegated ChannelMessage.Send.")
     on_unauthorized: Literal["skip", "reply"] = Field(default="reply", description="'reply' (default) posts unauthorized_message_template as a thread reply; 'skip' just logs it. Ignored when post_acknowledgement is false.")
-    ack_message_template: str = Field(
+    ack_message_template: Union[str, List[str]] = Field(
         default="✅ Got it — launching <b>{target}</b> for you.",
-        description="HTML reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}.",
+        description="HTML reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}. Give a list instead of a single string to have one chosen at random each time, so replies don't feel copy-pasted.",
     )
-    unauthorized_message_template: str = Field(
+    unauthorized_message_template: Union[str, List[str]] = Field(
         default="⚠️ Sorry, you're not listed as an owner of <b>{target}</b>, so I can't launch it from chat. Ask an owner to run it, or ask to be added as one.",
-        description="HTML reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}.",
+        description="HTML reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}. Also accepts a list for a randomly-chosen reply, same as ack_message_template.",
     )
 
     minimum_interval_seconds: int = Field(default=30, description="Minimum seconds between sensor evaluations.")
@@ -490,6 +537,7 @@ class TeamsRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         resolve_requester_email = self.resolve_requester_email
         require_all_owners = self.require_all_owners
         case_sensitive = self.case_sensitive_phrases
+        match_dagster_links = self.match_dagster_links
         messages_per_poll = self.messages_per_poll
         max_pages_per_poll = self.max_pages_per_poll
         process_backlog_on_first_run = self.process_backlog_on_first_run
@@ -500,11 +548,20 @@ class TeamsRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         default_status = dg.DefaultSensorStatus.RUNNING if self.default_status.upper() == "RUNNING" else dg.DefaultSensorStatus.STOPPED
         sensor_asset_selection = [dg.AssetKey(k.split("/")) for k in sorted(set(all_asset_keys))] or None
 
-        def _match_trigger(text_lower: str) -> Optional[Dict[str, Any]]:
+        def _match_trigger_or_link(text_lower: str, link_text: str) -> "tuple[Optional[Dict[str, Any]], str]":
             for tr in resolved_triggers:
                 if any(p in text_lower for p in tr["phrases"]):
-                    return tr
-            return None
+                    return tr, next(p for p in tr["phrases"] if p in text_lower)
+            if match_dagster_links:
+                targets = _extract_dagster_link_targets(link_text)
+                if targets:
+                    for tr in resolved_triggers:
+                        for kind, ident in targets:
+                            if (tr["mode"] == "asset" and kind == "asset" and ident in tr["keys"]) or (
+                                tr["mode"] == "job" and kind == "job" and ident == tr["job_name"]
+                            ):
+                                return tr, f"(linked: {ident})"
+            return None, ""
 
         def _is_authorized(tr: Dict[str, Any], sender_id: str, bearer: str, email_cache: Dict[str, Optional[str]]) -> bool:
             identity = {sender_id.lower()} if sender_id else set()
@@ -553,22 +610,22 @@ class TeamsRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             email_cache: Dict[str, Optional[str]] = {}
 
             for m in candidates:
-                text = _strip_html((m.get("body") or {}).get("content") or "")
+                raw_body = (m.get("body") or {}).get("content") or ""
+                text = _strip_html(raw_body)
                 haystack = text if case_sensitive else text.lower()
-                tr = _match_trigger(haystack)
+                tr, phrase = _match_trigger_or_link(haystack, raw_body)
                 if tr is None:
                     continue
 
                 sender = (m.get("from") or {}).get("user") or {}
                 sender_id = sender.get("id") or ""
-                phrase = next((p for p in tr["phrases"] if p in haystack), "")
 
                 if require_owner_authorization and not _is_authorized(tr, sender_id, bearer, email_cache):
                     notes.append(f"message {m.get('id')}: sender {sender_id or '?'} is not an authorized owner of {tr['label']!r} -- skipped.")
                     if post_acknowledgement and on_unauthorized == "reply":
                         try:
-                            _post_teams_reply(bearer, team_id, channel_id, m["id"], unauthorized_template.format(
-                                target=tr["label"], requester=email_cache.get(sender_id) or sender_id, phrase=phrase,
+                            _post_teams_reply(bearer, team_id, channel_id, m["id"], _render_template(
+                                unauthorized_template, target=tr["label"], requester=email_cache.get(sender_id) or sender_id, phrase=phrase,
                             ))
                         except Exception as e:  # noqa: BLE001 -- a failed courtesy reply must never block the gate
                             notes.append(f"message {m.get('id')}: unauthorized-reply post failed: {e}")
@@ -582,8 +639,8 @@ class TeamsRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
                 if post_acknowledgement:
                     try:
-                        _post_teams_reply(bearer, team_id, channel_id, m["id"], ack_template.format(
-                            target=tr["label"], requester=email_cache.get(sender_id) or sender_id, phrase=phrase,
+                        _post_teams_reply(bearer, team_id, channel_id, m["id"], _render_template(
+                            ack_template, target=tr["label"], requester=email_cache.get(sender_id) or sender_id, phrase=phrase,
                         ))
                     except Exception as e:  # noqa: BLE001 -- a failed courtesy reply must never block the launch
                         notes.append(f"message {m.get('id')}: ack-reply post failed: {e}")

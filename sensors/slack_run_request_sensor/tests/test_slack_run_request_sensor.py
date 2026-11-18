@@ -269,3 +269,67 @@ def test_get_slack_client_raises_clearly_when_token_missing(monkeypatch):
     monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
     with pytest.raises(RuntimeError, match="not set"):
         mod._get_slack_client("SLACK_BOT_TOKEN")
+
+
+# --- pasting a Dagster UI link works the same as typing a phrase -----------------------------
+
+def test_extract_dagster_link_targets_recognizes_asset_and_job_links():
+    assert mod._extract_dagster_link_targets(
+        "<https://dagster.example.com/assets/nightly/etl?view=lineage|Nightly ETL>"
+    ) == [("asset", "nightly/etl")]
+    assert mod._extract_dagster_link_targets(
+        "https://dagster.example.com/locations/my_repo%40my_location/jobs/nightly_etl_job/playground"
+    ) == [("job", "nightly_etl_job")]
+    assert mod._extract_dagster_link_targets("no link here") == []
+
+
+def test_asset_link_in_message_triggers_without_any_phrase(monkeypatch):
+    comp = _component(triggers=[dict(phrases=["run nightly etl"], job_name="nightly_etl_job", owners=["owner@co.com"])])
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    messages = [_msg(
+        "100.001",
+        "<https://dagster.example.com/locations/x/jobs/nightly_etl_job|nightly_etl_job>",
+        "U-OWNER",
+    )]
+    _install_fake_client(monkeypatch, messages=messages, email_by_user={"U-OWNER": "owner@co.com"})
+
+    ctx = dg.build_sensor_context(cursor="100.000")
+    result = sensor_def(ctx)
+    assert [(r.run_key, r.job_name) for r in result.run_requests] == [("slack_runner:100.001", "nightly_etl_job")]
+
+
+def test_match_dagster_links_false_ignores_links(monkeypatch):
+    comp = _component(
+        match_dagster_links=False,
+        triggers=[dict(phrases=["run nightly etl"], job_name="nightly_etl_job", owners=["owner@co.com"])],
+    )
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    messages = [_msg(
+        "100.001",
+        "<https://dagster.example.com/locations/x/jobs/nightly_etl_job|nightly_etl_job>",
+        "U-OWNER",
+    )]
+    _install_fake_client(monkeypatch, messages=messages, email_by_user={"U-OWNER": "owner@co.com"})
+
+    ctx = dg.build_sensor_context(cursor="100.000")
+    result = sensor_def(ctx)
+    assert result.run_requests == []
+
+
+# --- ack/unauthorized templates accept a list for a randomly-chosen reply --------------------
+
+def test_render_template_accepts_a_list_and_picks_one(monkeypatch):
+    monkeypatch.setattr(mod.random, "choice", lambda seq: seq[1])
+    assert mod._render_template(["a {x}", "b {x}", "c {x}"], x="!") == "b !"
+    assert mod._render_template("only {x}", x="!") == "only !"
+
+
+def test_ack_message_template_list_is_used_for_the_reply(monkeypatch):
+    comp = _component(ack_message_template=["Done: {target}", "Launched: {target}"])
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    messages = [_msg("100.001", "run nightly etl", "U-OWNER")]
+    calls = _install_fake_client(monkeypatch, messages=messages, email_by_user={"U-OWNER": "owner@co.com"})
+
+    ctx = dg.build_sensor_context(cursor="100.000")
+    sensor_def(ctx)
+    assert calls["post"][0]["text"] in ("Done: nightly_etl_job", "Launched: nightly_etl_job")

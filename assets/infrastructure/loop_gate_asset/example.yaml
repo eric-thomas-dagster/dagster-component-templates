@@ -1,0 +1,10 @@
+type: dagster_community_components.LoopGateAssetComponent
+attributes:
+  asset_key: ml/refine_embeddings
+  callable_path: myproject.refine:refine_once
+  until_callable_path: myproject.refine:accurate_enough
+  max_iterations: 10
+  inputs:
+    raw_text: raw/documents
+  group_name: infrastructure
+  description: "Refines an embedding batch, re-running until quality crosses a threshold or 10 attempts are exhausted."

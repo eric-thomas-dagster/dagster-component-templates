@@ -13,6 +13,8 @@ COMPONENTS = [
     "assets/infrastructure/trigger_job_asset",
     "assets/infrastructure/pipes_python_asset",
     "assets/infrastructure/conditional_asset",
+    "assets/infrastructure/runtime_partition_asset",
+    "assets/infrastructure/loop_gate_asset",
     "assets/data-warehouse/snowflake_sql_asset",
     "assets/data-warehouse/snowflake_copy_into_asset",
 ]

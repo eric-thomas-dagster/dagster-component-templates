@@ -1,0 +1,141 @@
+{
+  "component_type": "dagster_community_components.LoopGateAssetComponent",
+  "description": "Repeat a step's work until a condition is met -- Airflow 3.4's task-loop (@task_group.loop(max_iterations=, until=)).",
+  "category": "infrastructure",
+  "icon": "Repeat",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "Any",
+      "description": "The body callable's return value from the iteration that stopped the loop (or the last iteration, for a fixed-count loop)."
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "The asset's key, slash-delimited.",
+      "required": true
+    },
+    "callable_path": {
+      "type": "string",
+      "label": "Callable Path",
+      "description": "'module.path:function_name'. The loop body -- called once per iteration with the same TaskFlow-style inputs/args/kwargs binding as python_callable_asset.",
+      "required": true
+    },
+    "max_iterations": {
+      "type": "integer",
+      "label": "Max Iterations",
+      "description": "Maximum number of times the body runs. Required, same as Airflow's own .loop(max_iterations=...).",
+      "required": true
+    },
+    "until_callable_path": {
+      "type": "string",
+      "label": "Until Callable Path",
+      "description": "'module.path:function_name'. Called as until_fn(loop=LoopState(...)) after every iteration. Must return bool or (stop: bool, reason). Omit for a fixed-count loop (runs max_iterations times, always succeeds).",
+      "required": false
+    },
+    "args": {
+      "type": "array",
+      "label": "Args",
+      "description": "Static positional arguments passed to the body callable on every iteration.",
+      "required": false
+    },
+    "kwargs": {
+      "type": "object",
+      "label": "Kwargs",
+      "description": "Static keyword arguments passed to the body callable on every iteration.",
+      "required": false
+    },
+    "inputs": {
+      "type": "object",
+      "label": "Inputs",
+      "description": "{name: upstream_asset_key}. Each entry's value is loaded via the IO manager (once, before the loop starts) and bound to a parameter of that name if the body callable's signature declares one (TaskFlow-style) -- same shape as python_callable_asset's `inputs`.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "description": "Fail this step if the WHOLE loop (every iteration, not just one) hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying call may continue running past the deadline (Python threads can't be forcibly killed); this bounds the step's wait, not the call itself.",
+      "required": false
+    }
+  }
+}

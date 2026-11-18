@@ -1,0 +1,10 @@
+type: dagster_community_components.SqlAssetComponent
+attributes:
+  asset_key: warehouse/transforms/customer_rollup
+  resource_key: analytics_postgres
+  sql_statements:
+    - "DELETE FROM analytics.customer_rollup WHERE updated_at < NOW() - INTERVAL '1 day'"
+    - "INSERT INTO analytics.customer_rollup SELECT * FROM raw.customers WHERE updated_at >= NOW() - INTERVAL '1 day'"
+  pre_sql:
+    - "SET search_path TO analytics"
+  group_name: data_warehouse

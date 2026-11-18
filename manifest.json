@@ -62441,6 +62441,109 @@
       ]
     },
     {
+      "id": "sql_asset",
+      "name": "SQL Asset",
+      "category": "integration",
+      "description": "Run one or more SQL statements against any registered resource exposing .get_connection() -- one component covering postgres/mysql/duckdb/databricks_sql/mssql/oracle/db2/doris/starburst/starrocks/timescaledb/trino instead of a dialect-specific asset per resource type. For Snowflake, use snowflake_sql_asset instead.",
+      "path": "assets/data-warehouse/sql_asset",
+      "tags": [
+        "data-warehouse",
+        "sql",
+        "postgres",
+        "mysql",
+        "generic"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/schema.json",
+      "component_type": "dagster_community_components.SqlAssetComponent",
+      "icon": "database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/data-warehouse/sql_asset/tests/test_sql_asset.py",
+        "last_validated": "2026-11-17"
+      },
+      "dependencies": {
+        "pip": []
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Run one or more SQL statements against any resource exposing .get_connection().",
+        "requires_resources": [
+          "any resource with .get_connection()"
+        ]
+      },
+      "consumes": [
+        "resource:sql"
+      ],
+      "keywords": [
+        "postgres",
+        "mysql",
+        "generic-sql",
+        "sqlexecutequeryoperator"
+      ]
+    },
+    {
+      "id": "snowflake_sql_asset",
+      "name": "Snowflake SQL Asset",
+      "category": "integration",
+      "description": "Run one or more SQL statements against Snowflake as a Dagster asset -- mirrors Airflow's SnowflakeOperator / SQLExecuteQueryOperator. Multi-statement execution, bind parameters, and session-level USE overrides go beyond dagster.TemplatedSqlComponent's single-statement case.",
+      "path": "assets/data-warehouse/snowflake_sql_asset",
+      "tags": [
+        "data-warehouse",
+        "snowflake",
+        "sql",
+        "airflow-migration"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/schema.json",
+      "component_type": "dagster_community_components.SnowflakeSqlAssetComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/data-warehouse/snowflake_sql_asset/tests/test_snowflake_sql_asset.py",
+        "last_validated": "2026-11-17"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Run one or more SQL statements against Snowflake.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "consumes": [
+        "resource:snowflake"
+      ],
+      "keywords": [
+        "snowsql",
+        "sqlexecutequeryoperator",
+        "snowflakeoperator"
+      ]
+    },
+    {
       "id": "snowflake_stored_procedure_call_asset",
       "name": "Snowflake Stored Procedure Call Asset",
       "category": "integration",

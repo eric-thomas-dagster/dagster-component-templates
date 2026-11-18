@@ -1,0 +1,109 @@
+{
+  "component_type": "dagster_community_components.SqlAssetComponent",
+  "description": "Run one or more SQL statements against any registered resource exposing .get_connection() -- one component covering postgres/mysql/duckdb/databricks_sql/mssql/oracle/db2/doris/starburst/starrocks/timescaledb/trino instead of a dialect-specific asset per resource type.",
+  "category": "integration",
+  "icon": "database",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "SQL execution result"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "description": "Dagster asset key (e.g. 'warehouse/transforms/rollup').",
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "resource_key": {
+      "description": "Key of a registered resource that exposes .get_connection() returning a DBAPI connection (directly, or via its own @contextmanager). Matches postgres_resource, mysql_resource, duckdb_resource, databricks_sql_resource, mssql_resource, oracle_resource, db2_resource, doris_resource, starburst_resource, starrocks_resource, timescaledb_resource, trino_resource. For Snowflake, use snowflake_sql_asset instead.",
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    },
+    "sql": {
+      "description": "SQL text, run in a single cursor.execute() call. Whether multiple ;-separated statements run in one call is driver-dependent (works for psycopg2/duckdb; most other drivers run only the first). Set exactly one of sql / sql_file / sql_statements.",
+      "type": "string",
+      "label": "Sql",
+      "required": false
+    },
+    "sql_statements": {
+      "type": "array",
+      "items": {},
+      "label": "Sql Statements",
+      "description": "Explicit list of statements, each run as its own cursor.execute() call -- the one way to run multiple statements that works regardless of driver. Set exactly one of sql / sql_file / sql_statements.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "sql_file": {
+      "type": "string",
+      "label": "Sql File",
+      "description": "Path (relative to the Dagster process working directory) to a .sql file, read and treated the same as `sql`. Set exactly one of sql / sql_file / sql_statements.",
+      "required": false
+    },
+    "parameters": {
+      "type": "object",
+      "label": "Parameters",
+      "description": "Bind parameters applied to every statement. Placeholder style is whatever the underlying driver's DBAPI paramstyle is (e.g. pyformat %(name)s for psycopg2/mysql-connector, qmark ? or named :name for pyodbc/oracledb) -- passed through as-is, not translated.",
+      "required": false
+    },
+    "pre_sql": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Pre Sql",
+      "description": "Dialect-specific statements run before the main SQL, e.g. ['SET search_path TO analytics'] (Postgres) or ['USE mydb'] (MySQL) -- write whatever your dialect needs; this component doesn't guess it for you.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  }
+}

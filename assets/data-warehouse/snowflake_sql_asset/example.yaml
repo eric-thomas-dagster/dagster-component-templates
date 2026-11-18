@@ -1,0 +1,14 @@
+type: dagster_community_components.SnowflakeSqlAssetComponent
+attributes:
+  asset_key: snowflake/transforms/customer_rollup
+  sql_statements:
+    - "CREATE OR REPLACE TEMP TABLE _staging AS SELECT * FROM RAW.CUSTOMERS WHERE updated_at > CURRENT_DATE - 1"
+    - "MERGE INTO ANALYTICS.CUSTOMER_ROLLUP t USING _staging s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.name = s.name WHEN NOT MATCHED THEN INSERT (id, name) VALUES (s.id, s.name)"
+  session_warehouse: TRANSFORM_WH
+  session_database: ANALYTICS
+  account_env_var: SNOWFLAKE_ACCOUNT
+  user_env_var: SNOWFLAKE_USER
+  password_env_var: SNOWFLAKE_PASSWORD
+  warehouse_env_var: SNOWFLAKE_WAREHOUSE
+  role_env_var: SNOWFLAKE_ROLE
+  group_name: snowflake

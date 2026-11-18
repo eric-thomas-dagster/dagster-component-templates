@@ -122,6 +122,18 @@
       "label": "Derive Expected From History",
       "description": "Auto-derive expected_duration_seconds from prior materializations. Shape: {n_runs: 10, statistic: 'median' \\| 'p95' \\| 'mean' \\| 'p99', multiplier: 1.5}. If set, this OVERRIDES expected_duration_seconds. n_runs = how many recent successful runs to consider. multiplier = safety factor (1.5 = allow 50%% overhead over baseline). If fewer than 3 runs available, falls back to expected_duration_seconds.",
       "required": false
+    },
+    "start_from": {
+      "type": "string",
+      "label": "Start From",
+      "description": "Where the SLA clock starts. 'compute_start' (default): when compute begins -- pure compute duration. 'partition_start' / 'partition_end': the partition's own time window bounds (e.g. 'data for this hour must be ready within 30 min of the hour ending' -> partition_end). 'scheduled_execution_time': the schedule TICK itself (the real Dagster scheduler's own hidden tag, not when the run happened to start executing -- captures queueing/retry delay too, matching how most real freshness SLAs are actually defined).",
+      "required": false
+    },
+    "on_missing_start_reference": {
+      "type": "string",
+      "label": "On Missing Start Reference",
+      "description": "What to do when `start_from` isn't 'compute_start' but its prerequisite is missing on this run (no partition window, or not a schedule-triggered run). 'warn' (default): log a warning and fall back to 'compute_start' for this run. 'fail': raise dg.Failure instead.",
+      "required": false
     }
   },
   "tags": [

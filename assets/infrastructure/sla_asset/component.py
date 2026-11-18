@@ -96,6 +96,57 @@ def _lookup_per_partition(
     raise ValueError(f"unknown matcher: {matcher!r}")
 
 
+def _resolve_start_time(context: Any, start_from: str, on_missing: str) -> float:
+    """Returns a unix timestamp to measure SLA elapsed time FROM, per `start_from`:
+
+    - 'compute_start' (default): now, right before the wrapped compute runs -- the
+      original, compute-duration-only behavior.
+    - 'partition_start' / 'partition_end': the partition's own time window bounds
+      (`context.partition_time_window`, verified real Dagster API).
+    - 'scheduled_execution_time': the real Dagster scheduler's own hidden tag
+      (`dagster._core.storage.tags.SCHEDULED_EXECUTION_TIME_TAG`,
+      `.dagster/scheduled_execution_time`) -- confirmed live, not guessed: every
+      schedule-triggered run gets this tag set by the scheduler daemon itself to an
+      ISO-8601 UTC timestamp of the schedule TICK, not when the run happened to start
+      executing. Missing on manually-launched or sensor-triggered runs.
+
+    Any of the latter three missing their prerequisite (no partition window / no
+    schedule tag) falls back to 'compute_start' with a loud warning if `on_missing`
+    is 'warn' (default), or raises `dg.Failure` if 'fail'.
+    """
+    if start_from == "compute_start":
+        return time.time()
+
+    if start_from in ("partition_start", "partition_end"):
+        try:
+            has_window = context.has_partition_key or context.has_partition_key_range
+        except Exception:  # noqa: BLE001
+            has_window = False
+        if has_window:
+            window = context.partition_time_window
+            dt = window.start if start_from == "partition_start" else window.end
+            return dt.timestamp()
+        msg = f"[sla] start_from={start_from!r} requires a partitioned run with a partition_time_window, but none is available for this run."
+        if on_missing == "fail":
+            raise dg.Failure(description=msg)
+        context.log.warning(msg + " Falling back to start_from='compute_start'.")
+        return time.time()
+
+    if start_from == "scheduled_execution_time":
+        from dagster._core.storage.tags import SCHEDULED_EXECUTION_TIME_TAG
+        raw = (context.run.tags or {}).get(SCHEDULED_EXECUTION_TIME_TAG)
+        if raw:
+            from datetime import datetime
+            return datetime.fromisoformat(raw).timestamp()
+        msg = "[sla] start_from='scheduled_execution_time' requires a schedule-triggered run (the '.dagster/scheduled_execution_time' tag the scheduler daemon sets), but this run has no such tag."
+        if on_missing == "fail":
+            raise dg.Failure(description=msg)
+        context.log.warning(msg + " Falling back to start_from='compute_start'.")
+        return time.time()
+
+    raise ValueError(f"unknown start_from: {start_from!r}")
+
+
 # --------------------------------------------------------------------------
 # Breach event emission + cross-run history
 # --------------------------------------------------------------------------
@@ -120,6 +171,7 @@ def _sanitize_tag_value(v: str) -> str:
 
 def _emit_breach_observation(
     context: Any, key: str, actual_s: float, expected_s: float, escalated: bool,
+    compute_s: Optional[float] = None,
 ):
     """Emit AssetObservation with breach metadata + tag.
 
@@ -127,6 +179,11 @@ def _emit_breach_observation(
     values outside ``[A-Za-z0-9_.-]{,63}``) while preserving the raw key
     in metadata. Emission failures surface via ``log.warning`` instead of
     being silently swallowed.
+
+    `compute_s` (only passed when `start_from != 'compute_start'`) is the raw
+    compute-only duration, distinct from `actual_s` (elapsed since `start_from`'s
+    reference point) -- kept separate so a dashboard can tell "the step itself was
+    slow" from "something upstream of the step delayed it."
     """
     try:
         from dagster import AssetObservation, MetadataValue
@@ -140,19 +197,18 @@ def _emit_breach_observation(
             "sla_expected_seconds": _sanitize_tag_value(str(round(expected_s, 3))),
             "sla_escalated": _sanitize_tag_value(str(escalated).lower()),
         }
+        metadata = {
+            "sla_key": MetadataValue.text(str(key)),
+            "sla_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
+            "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
+            "sla_overrun_seconds": dg.MetadataValue.float(round(actual_s - expected_s, 3)),
+            "sla_overrun_pct": dg.MetadataValue.float(round((actual_s - expected_s) / expected_s * 100.0, 1)),
+            "sla_escalated": dg.MetadataValue.bool(escalated),
+        }
+        if compute_s is not None:
+            metadata["sla_compute_seconds"] = dg.MetadataValue.float(round(compute_s, 3))
         if hasattr(context, "log_event"):
-            context.log_event(AssetObservation(
-                asset_key=asset_key,
-                tags=tags,
-                metadata={
-                    "sla_key": MetadataValue.text(str(key)),
-                    "sla_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
-                    "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
-                    "sla_overrun_seconds": dg.MetadataValue.float(round(actual_s - expected_s, 3)),
-                    "sla_overrun_pct": dg.MetadataValue.float(round((actual_s - expected_s) / expected_s * 100.0, 1)),
-                    "sla_escalated": dg.MetadataValue.bool(escalated),
-                },
-            ))
+            context.log_event(AssetObservation(asset_key=asset_key, tags=tags, metadata=metadata))
     except Exception as e:  # noqa: BLE001
         try:
             context.log.warning(
@@ -293,6 +349,7 @@ def _derive_expected_from_history(
 
 def _emit_sla_actual_observation(
     context: Any, key: str, actual_s: float, expected_s: float,
+    compute_s: Optional[float] = None,
 ) -> None:
     """Emit AssetObservation for every run (breach OR non-breach) so the
     `sla_actual_seconds` history is populated for baseline derivation.
@@ -308,6 +365,13 @@ def _emit_sla_actual_observation(
         if asset_key is None:
             from dagster import AssetKey
             asset_key = AssetKey(["sla_asset"])
+        metadata = {
+            "sla_key": MetadataValue.text(str(key)),
+            "sla_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
+            "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
+        }
+        if compute_s is not None:
+            metadata["sla_compute_seconds"] = dg.MetadataValue.float(round(compute_s, 3))
         if hasattr(context, "log_event"):
             context.log_event(AssetObservation(
                 asset_key=asset_key,
@@ -316,11 +380,7 @@ def _emit_sla_actual_observation(
                     "sla_actual_seconds": _sanitize_tag_value(str(round(actual_s, 3))),
                     "sla_expected_seconds": _sanitize_tag_value(str(round(expected_s, 3))),
                 },
-                metadata={
-                    "sla_key": MetadataValue.text(str(key)),
-                    "sla_actual_seconds": dg.MetadataValue.float(round(actual_s, 3)),
-                    "sla_expected_seconds": dg.MetadataValue.float(round(expected_s, 3)),
-                },
+                metadata=metadata,
             ))
     except Exception as e:  # noqa: BLE001
         try:
@@ -346,12 +406,15 @@ def sla(
     per_partition_expected: Optional[Dict[str, float]] = None,
     partition_matcher: str = "exact",
     derive_expected_from_history: Optional[Dict[str, Any]] = None,
+    start_from: str = "compute_start",
+    on_missing_start_reference: str = "warn",
 ) -> Callable:
     """Wrap a compute function with wall-clock SLA enforcement.
 
-    Applied BEFORE `@dg.asset`. Timer starts before the compute call,
-    stops after. On breach, emits `AssetObservation(sla_breach=<key>,
-    sla_actual_seconds, sla_expected_seconds, sla_overrun_pct, ...)`.
+    Applied BEFORE `@dg.asset`. By default, the timer starts right before the
+    compute call (`start_from='compute_start'`) and stops after. On breach, emits
+    `AssetObservation(sla_breach=<key>, sla_actual_seconds, sla_expected_seconds,
+    sla_overrun_pct, ...)`.
 
     ```python
     from dagster_community_components import sla
@@ -374,9 +437,34 @@ def sla(
     `escalate_window_seconds` (uses `context.instance.get_event_records`),
     the observation is tagged `sla_escalated=true` for sensor-driven
     alerting.
+
+    `start_from` — measure the SLA from a reference point other than when
+    compute began: `'compute_start'` (default, unchanged behavior),
+    `'partition_start'` / `'partition_end'` (the partition's own time window
+    bounds), or `'scheduled_execution_time'` (the schedule TICK itself -- the real
+    Dagster scheduler's own hidden tag, not when the run happened to start
+    executing; see `_resolve_start_time`'s docstring for how this is verified).
+    `on_missing_start_reference` ('warn' default / 'fail') controls what happens
+    when the chosen reference isn't available on a given run (e.g. a manually
+    launched run with `start_from='scheduled_execution_time'`).
     """
     if on_breach not in ("warn", "fail"):
         raise ValueError(f"on_breach must be 'warn' or 'fail'; got {on_breach!r}")
+    if start_from not in ("compute_start", "partition_start", "partition_end", "scheduled_execution_time"):
+        raise ValueError(f"start_from must be one of compute_start|partition_start|partition_end|scheduled_execution_time; got {start_from!r}")
+    if on_missing_start_reference not in ("warn", "fail"):
+        raise ValueError(f"on_missing_start_reference must be 'warn' or 'fail'; got {on_missing_start_reference!r}")
+
+    # Real pre-existing bug, surfaced while testing start_from: dg.MetadataValue.float()
+    # rejects a plain int (raises ParameterCheckError), and unlike SlaAssetComponent (which
+    # pydantic-coerces + explicitly float()s these), this bare decorator never cast its own
+    # type-hinted-only args -- `@sla(expected_duration_seconds=5)` (a very natural thing to
+    # write) crashed breach/actuals observation emission. Fixed here, not just worked around
+    # in the new start_from code.
+    expected_duration_seconds = float(expected_duration_seconds)
+    if per_partition_expected:
+        per_partition_expected = {k: float(v) for k, v in per_partition_expected.items()}
+    escalate_window_seconds = float(escalate_window_seconds)
 
     def _decorator(fn: Callable) -> Callable:
         _state_key = key or getattr(fn, "__qualname__", None) or fn.__name__
@@ -413,9 +501,13 @@ def sla(
                     context, derive_expected_from_history, asset_key_obj, effective_expected,
                 )
 
-            t0 = time.time()
+            start_ts = _resolve_start_time(context, start_from, on_missing_start_reference)
+            compute_t0 = time.time()
             result = fn(*args, **kwargs)
-            elapsed = time.time() - t0
+            now = time.time()
+            elapsed = now - start_ts
+            compute_elapsed = now - compute_t0
+            compute_s = compute_elapsed if start_from != "compute_start" else None
 
             if elapsed > effective_expected:
                 escalated = False
@@ -426,31 +518,34 @@ def sla(
                         escalated = True
 
                 _emit_breach_observation(
-                    context, _state_key, elapsed, effective_expected, escalated,
+                    context, _state_key, elapsed, effective_expected, escalated, compute_s=compute_s,
                 )
                 overrun_pct = (elapsed - effective_expected) / effective_expected * 100.0
                 context.log.warning(
-                    f"[sla] BREACH: {_state_key} took {elapsed:.1f}s "
+                    f"[sla] BREACH: {_state_key} took {elapsed:.1f}s since {start_from} "
                     f"(expected <= {effective_expected}s, "
                     f"overrun {overrun_pct:.1f}%){' [ESCALATED]' if escalated else ''}"
                 )
                 if on_breach == "fail":
+                    metadata = {
+                        "sla_actual_seconds": dg.MetadataValue.float(round(elapsed, 3)),
+                        "sla_expected_seconds": dg.MetadataValue.float(round(effective_expected, 3)),
+                        "sla_overrun_pct": dg.MetadataValue.float(round(overrun_pct, 1)),
+                        "sla_escalated": dg.MetadataValue.bool(escalated),
+                    }
+                    if compute_s is not None:
+                        metadata["sla_compute_seconds"] = dg.MetadataValue.float(round(compute_s, 3))
                     raise dg.Failure(
-                        description=f"SLA breach: {_state_key} took {elapsed:.1f}s > expected {effective_expected}s",
-                        metadata={
-                            "sla_actual_seconds": dg.MetadataValue.float(round(elapsed, 3)),
-                            "sla_expected_seconds": dg.MetadataValue.float(round(effective_expected, 3)),
-                            "sla_overrun_pct": dg.MetadataValue.float(round(overrun_pct, 1)),
-                            "sla_escalated": dg.MetadataValue.bool(escalated),
-                        },
+                        description=f"SLA breach: {_state_key} took {elapsed:.1f}s since {start_from} > expected {effective_expected}s",
+                        metadata=metadata,
                     )
             else:
                 context.log.info(
-                    f"[sla] {_state_key} completed in {elapsed:.1f}s (within {effective_expected}s SLA)"
+                    f"[sla] {_state_key} completed in {elapsed:.1f}s since {start_from} (within {effective_expected}s SLA)"
                 )
                 # Emit the actuals-only observation so history stays populated for
                 # baseline derivation. Breaches already emit their own observation.
-                _emit_sla_actual_observation(context, _state_key, elapsed, effective_expected)
+                _emit_sla_actual_observation(context, _state_key, elapsed, effective_expected, compute_s=compute_s)
             return result
 
         return _wrapped
@@ -628,6 +723,27 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "If fewer than 3 runs available, falls back to expected_duration_seconds."
         ),
     )
+    start_from: str = Field(
+        default="compute_start",
+        description=(
+            "Where the SLA clock starts. 'compute_start' (default): when compute begins -- "
+            "pure compute duration. 'partition_start' / 'partition_end': the partition's own "
+            "time window bounds (e.g. 'data for this hour must be ready within 30 min of the "
+            "hour ending' -> partition_end). 'scheduled_execution_time': the schedule TICK "
+            "itself (the real Dagster scheduler's own hidden tag, not when the run happened to "
+            "start executing -- captures queueing/retry delay too, matching how most real "
+            "freshness SLAs are actually defined)."
+        ),
+    )
+    on_missing_start_reference: str = Field(
+        default="warn",
+        description=(
+            "What to do when `start_from` isn't 'compute_start' but its prerequisite is "
+            "missing on this run (no partition window, or not a schedule-triggered run). "
+            "'warn' (default): log a warning and fall back to 'compute_start' for this run. "
+            "'fail': raise dg.Failure instead."
+        ),
+    )
 
     # Catalog / governance
     group_name: Optional[str] = Field(default=None)
@@ -648,6 +764,14 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
+
+    @model_validator(mode="after")
+    def _validate_start_from(self):
+        if self.start_from not in ("compute_start", "partition_start", "partition_end", "scheduled_execution_time"):
+            raise ValueError(f"SlaAssetComponent: start_from must be one of compute_start|partition_start|partition_end|scheduled_execution_time; got {self.start_from!r}")
+        if self.on_missing_start_reference not in ("warn", "fail"):
+            raise ValueError(f"SlaAssetComponent: on_missing_start_reference must be 'warn' or 'fail'; got {self.on_missing_start_reference!r}")
+        return self
 
     @classmethod
     def get_form_config(cls):
@@ -683,6 +807,8 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         derive_cfg = (
             dict(self.derive_expected_from_history) if self.derive_expected_from_history else None
         )
+        start_from = self.start_from
+        on_missing_start = self.on_missing_start_reference
 
         if on_breach not in ("warn", "fail"):
             raise ValueError(f"on_breach must be warn|fail; got {on_breach!r}")
@@ -742,14 +868,17 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     context, derive_cfg, asset_key_obj, effective_expected,
                 )
 
-            t0 = time.time()
+            start_ts = _resolve_start_time(context, start_from, on_missing_start)
+            compute_t0 = time.time()
             if n_positional == 0:
                 result = fn()
             elif n_positional == 1:
                 result = fn(context)
             else:
                 result = fn(context, kwargs.get("upstream"))
-            elapsed = time.time() - t0
+            now = time.time()
+            elapsed = now - start_ts
+            compute_s = (now - compute_t0) if start_from != "compute_start" else None
 
             breach = elapsed > effective_expected
             escalated = False
@@ -758,13 +887,15 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "sla_expected_seconds": dg.MetadataValue.float(round(effective_expected, 3)),
                 "sla_breach": dg.MetadataValue.bool(breach),
             }
+            if compute_s is not None:
+                metadata["sla_compute_seconds"] = dg.MetadataValue.float(round(compute_s, 3))
 
             if breach:
                 if escalate_n and getattr(context, "instance", None) is not None:
                     prior = _count_recent_breaches(context, state_key, escalate_window)
                     if prior + 1 >= escalate_n:
                         escalated = True
-                _emit_breach_observation(context, state_key, elapsed, effective_expected, escalated)
+                _emit_breach_observation(context, state_key, elapsed, effective_expected, escalated, compute_s=compute_s)
                 overrun_pct = (elapsed - effective_expected) / effective_expected * 100.0
                 metadata["sla_overrun_pct"] = dg.MetadataValue.float(round(overrun_pct, 1))
                 metadata["sla_escalated"] = dg.MetadataValue.bool(escalated)
@@ -783,7 +914,7 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"[sla] {state_key} completed in {elapsed:.1f}s (within {effective_expected}s SLA)"
                 )
                 # Emit non-breach observation so the historical baseline has actuals to derive from.
-                _emit_sla_actual_observation(context, state_key, elapsed, effective_expected)
+                _emit_sla_actual_observation(context, state_key, elapsed, effective_expected, compute_s=compute_s)
 
             return dg.MaterializeResult(metadata=metadata)
 
@@ -846,6 +977,8 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         derive_cfg = (
             dict(self.derive_expected_from_history) if self.derive_expected_from_history else None
         )
+        start_from = self.start_from
+        on_missing_start = self.on_missing_start_reference
 
         if on_breach not in ("warn", "fail"):
             raise ValueError(f"on_breach must be warn|fail; got {on_breach!r}")
@@ -905,9 +1038,12 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     context, derive_cfg, asset_key_obj, effective_expected,
                 )
 
-            t0 = time.time()
+            start_ts = _resolve_start_time(context, start_from, on_missing_start)
+            compute_t0 = time.time()
             result = inner_compute(context, **kwargs)
-            elapsed = time.time() - t0
+            now = time.time()
+            elapsed = now - start_ts
+            compute_s = (now - compute_t0) if start_from != "compute_start" else None
 
             breach = elapsed > effective_expected
             escalated = False
@@ -916,13 +1052,15 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "sla_expected_seconds": dg.MetadataValue.float(round(effective_expected, 3)),
                 "sla_breach": dg.MetadataValue.bool(breach),
             }
+            if compute_s is not None:
+                extra_meta["sla_compute_seconds"] = dg.MetadataValue.float(round(compute_s, 3))
 
             if breach:
                 if escalate_n and getattr(context, "instance", None) is not None:
                     prior = _count_recent_breaches(context, state_key, escalate_window)
                     if prior + 1 >= escalate_n:
                         escalated = True
-                _emit_breach_observation(context, state_key, elapsed, effective_expected, escalated)
+                _emit_breach_observation(context, state_key, elapsed, effective_expected, escalated, compute_s=compute_s)
                 overrun_pct = (elapsed - effective_expected) / effective_expected * 100.0
                 extra_meta["sla_overrun_pct"] = dg.MetadataValue.float(round(overrun_pct, 1))
                 extra_meta["sla_escalated"] = dg.MetadataValue.bool(escalated)
@@ -941,7 +1079,7 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"[sla] {state_key} completed in {elapsed:.1f}s (within {effective_expected}s SLA)"
                 )
                 # Non-breach: emit actuals-only observation so history stays populated.
-                _emit_sla_actual_observation(context, state_key, elapsed, effective_expected)
+                _emit_sla_actual_observation(context, state_key, elapsed, effective_expected, compute_s=compute_s)
 
             # If the inner returned a MaterializeResult, merge SLA metadata into it.
             if isinstance(result, dg.MaterializeResult):

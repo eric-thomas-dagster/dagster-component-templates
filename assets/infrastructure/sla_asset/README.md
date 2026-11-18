@@ -127,8 +127,36 @@ def slow_report(context):
 - `sla_expected_seconds` (float)
 - `sla_breach` (bool)
 - On breach: `sla_overrun_pct` (float), `sla_escalated` (bool)
+- `sla_compute_seconds` (float) — only when `start_from != 'compute_start'`: the raw compute-only duration, kept separate from `sla_actual_seconds` so you can tell "the step itself was slow" from "something upstream of the step delayed it."
 
 Plus one `AssetObservation` per breach with the same fields — searchable in the event log.
+
+## `start_from` — measure from partition end / schedule tick, not compute start
+
+Most real freshness SLAs aren't "the compute took too long" — they're "the data wasn't ready
+in time," measured from some external reference point, not from when this step happened to
+start running:
+
+```yaml
+attributes:
+  expected_duration_seconds: 1800   # 30 minutes
+  start_from: partition_end         # "ready within 30 min of the partition's window ending"
+```
+
+| `start_from` | Clock starts at |
+|---|---|
+| `compute_start` (default) | When compute begins — pure compute duration, original behavior, unchanged. |
+| `partition_start` / `partition_end` | The partition's own time window bounds (`context.partition_time_window`). |
+| `scheduled_execution_time` | The schedule **tick** itself — confirmed live, not guessed: every schedule-triggered run gets Dagster's own hidden `.dagster/scheduled_execution_time` tag set by the scheduler daemon to the tick's timestamp, not when the run happened to start executing. Captures queueing/retry delay too, which is usually what a real SLA is meant to catch. |
+
+`on_missing_start_reference` (`warn` default / `fail`) controls what happens when the chosen
+reference isn't available for a given run (e.g. `start_from: scheduled_execution_time` on a
+manually launched or sensor-triggered run, which has no scheduler tag; or a time-based
+`start_from` on an unpartitioned asset). `warn` falls back to `compute_start` for that run and
+logs a warning; `fail` raises `dg.Failure` instead.
+
+Works identically in both the `@sla` decorator and `SlaAssetComponent` (`compute:` and
+`wraps:` modes).
 
 ## Composes with
 
@@ -274,5 +302,7 @@ threshold, so breach detection + observation history are all per-partition-aware
 | `sla_key` | `str` | — | Shared SLA key. Defaults to asset_name. Set explicitly to group multiple assets under one SLA budget. |
 | `per_partition_expected` | `Dict[str, float]` | — | Per-partition-key override. e.g. {'hourly': 30, 'daily': 300}. Falls back to expected_duration_seconds if no key matches. Only meaningful on partitioned assets. |
 | `derive_expected_from_history` | `Dict[str, Any]` | — | Auto-derive expected_duration_seconds from prior materializations. Shape: {n_runs: 10, statistic: 'median' \| 'p95' \| 'mean' \| 'p99', multiplier: 1.5}. If set, this OVERRIDES expected_duration_seconds. n_runs = how man… _(full docs in schema.json + component README)_ |
+| `start_from` | `str` | `"compute_start"` | Where the SLA clock starts. 'compute_start' (default): when compute begins -- pure compute duration. 'partition_start' / 'partition_end': the partition's own time window bounds (e.g. 'data for this hour must be ready wit… _(full docs in schema.json + component README)_ |
+| `on_missing_start_reference` | `str` | `"warn"` | What to do when `start_from` isn't 'compute_start' but its prerequisite is missing on this run (no partition window, or not a schedule-triggered run). 'warn' (default): log a warning and fall back to 'compute_start' for… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

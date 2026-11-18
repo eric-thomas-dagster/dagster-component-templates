@@ -1,0 +1,10 @@
+type: dagster_community_components.S3UploadFileAssetComponent
+attributes:
+  asset_name: upload_nightly_report
+  local_path: ./output/report.csv
+  dest_s3_url: "s3://my-bucket/reports/report.csv"
+  replace: true
+  extra_args:
+    ContentType: text/csv
+  group_name: infrastructure
+  description: "Uploads the nightly report CSV to S3."

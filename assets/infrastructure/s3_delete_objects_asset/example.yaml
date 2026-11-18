@@ -1,0 +1,7 @@
+type: dagster_community_components.S3DeleteObjectsAssetComponent
+attributes:
+  asset_name: cleanup_processed_files
+  bucket: my-bucket
+  keys_asset_key: inbox_file_keys
+  group_name: infrastructure
+  description: "Deletes inbox files after s3_list_keys_asset confirms they were processed."

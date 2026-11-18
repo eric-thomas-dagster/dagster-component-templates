@@ -1,0 +1,125 @@
+{
+  "component_type": "dagster_community_components.S3UploadFileAssetComponent",
+  "description": "Upload a local file to S3 as a Dagster asset -- mirrors Airflow's LocalFilesystemToS3Operator / S3Hook.load_file.",
+  "category": "infrastructure",
+  "icon": "si:amazons3",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "local_path, destination."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key.",
+      "required": true
+    },
+    "local_path": {
+      "type": "string",
+      "label": "Local Path",
+      "description": "Path (relative to the Dagster process working directory) to the local file to upload.",
+      "required": true
+    },
+    "dest_s3_url": {
+      "type": "string",
+      "label": "Dest S3 Url",
+      "description": "Destination object as 's3://bucket/key'. Set this or bucket+key.",
+      "required": false
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "description": "Destination bucket name. Set with key, or use dest_s3_url instead.",
+      "required": false
+    },
+    "key": {
+      "type": "string",
+      "label": "Key",
+      "description": "Destination object key. Set with bucket, or use dest_s3_url instead.",
+      "required": false
+    },
+    "replace": {
+      "type": "boolean",
+      "label": "Replace",
+      "description": "False (default, matches S3Hook.load_file): fail clearly if the destination key already exists, checked via head_object before uploading. True: always upload, overwriting any existing object.",
+      "required": false,
+      "default": false
+    },
+    "extra_args": {
+      "type": "object",
+      "label": "Extra Args",
+      "description": "Passed to boto3's upload_file(ExtraArgs=...), e.g. {'ACL': 'private', 'ContentType': 'text/csv'}.",
+      "required": false
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered aws_s3_resource. When set, credentials/session come from that resource instead of a bare boto3.client('s3', region_name=...).",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "aws",
+    "s3",
+    "airflow",
+    "official"
+  ],
+  "name": "S3UploadFileAsset"
+}

@@ -1,0 +1,107 @@
+{
+  "component_type": "dagster_community_components.S3DeleteObjectsAssetComponent",
+  "description": "Delete a list of S3 objects as a Dagster asset -- mirrors Airflow's S3DeleteObjectsOperator.",
+  "category": "infrastructure",
+  "icon": "si:amazons3",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "deleted_count, deleted_keys."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key.",
+      "required": true
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "description": "S3 bucket name.",
+      "required": true
+    },
+    "keys": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Keys",
+      "description": "Static list of keys to delete. Set this or keys_asset_key (not both).",
+      "required": false
+    },
+    "keys_asset_key": {
+      "type": "string",
+      "label": "Keys Asset Key",
+      "description": "Upstream asset key whose materialized value is a list of keys to delete (e.g. the output of s3_list_keys_asset). Set this or keys (not both).",
+      "required": false
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered aws_s3_resource. When set, credentials/session come from that resource instead of a bare boto3.client('s3', region_name=...).",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "aws",
+    "s3",
+    "airflow",
+    "official"
+  ],
+  "name": "S3DeleteObjectsAsset"
+}

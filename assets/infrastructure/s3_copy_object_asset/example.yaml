@@ -1,0 +1,8 @@
+type: dagster_community_components.S3CopyObjectAssetComponent
+attributes:
+  asset_name: archive_processed_file
+  source_s3_url: "s3://my-bucket/inbox/report.csv"
+  dest_s3_url: "s3://my-bucket/archive/report.csv"
+  acl: private
+  group_name: infrastructure
+  description: "Archives a processed inbox file after downstream processing completes."

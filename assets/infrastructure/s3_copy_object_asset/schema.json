@@ -1,0 +1,137 @@
+{
+  "component_type": "dagster_community_components.S3CopyObjectAssetComponent",
+  "description": "Copy an S3 object to another location as a Dagster asset -- mirrors Airflow's S3CopyObjectOperator.",
+  "category": "infrastructure",
+  "icon": "si:amazons3",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "source, destination, acl."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key.",
+      "required": true
+    },
+    "source_s3_url": {
+      "type": "string",
+      "label": "Source S3 Url",
+      "description": "Source object as 's3://bucket/key'. Set this or source_bucket+source_key.",
+      "required": false
+    },
+    "source_bucket": {
+      "type": "string",
+      "label": "Source Bucket",
+      "description": "Source bucket name. Set with source_key, or use source_s3_url instead.",
+      "required": false
+    },
+    "source_key": {
+      "type": "string",
+      "label": "Source Key",
+      "description": "Source object key. Set with source_bucket, or use source_s3_url instead.",
+      "required": false
+    },
+    "dest_s3_url": {
+      "type": "string",
+      "label": "Dest S3 Url",
+      "description": "Destination object as 's3://bucket/key'. Set this or dest_bucket+dest_key.",
+      "required": false
+    },
+    "dest_bucket": {
+      "type": "string",
+      "label": "Dest Bucket",
+      "description": "Destination bucket name. Set with dest_key, or use dest_s3_url instead.",
+      "required": false
+    },
+    "dest_key": {
+      "type": "string",
+      "label": "Dest Key",
+      "description": "Destination object key. Set with dest_bucket, or use dest_s3_url instead.",
+      "required": false
+    },
+    "acl": {
+      "type": "string",
+      "label": "Acl",
+      "description": "Canned ACL for the destination object (e.g. 'private', 'public-read', 'bucket-owner-full-control').",
+      "required": false,
+      "default": "private"
+    },
+    "metadata_directive": {
+      "type": "string",
+      "label": "Metadata Directive",
+      "description": "'COPY' (default, keeps the source object's metadata) or 'REPLACE' (use this component's own metadata -- not yet exposed as a separate field; set via the python escape hatch if needed).",
+      "required": false
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered aws_s3_resource. When set, credentials/session come from that resource instead of a bare boto3.client('s3', region_name=...).",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "aws",
+    "s3",
+    "airflow",
+    "official"
+  ],
+  "name": "S3CopyObjectAsset"
+}

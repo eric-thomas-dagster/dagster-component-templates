@@ -1,0 +1,8 @@
+type: dagster_community_components.S3ListKeysAssetComponent
+attributes:
+  asset_name: inbox_file_keys
+  bucket: my-bucket
+  prefix: inbox/
+  delimiter: "/"
+  group_name: infrastructure
+  description: "Lists files currently in the inbox/ prefix, one level deep."

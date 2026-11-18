@@ -1,0 +1,107 @@
+{
+  "component_type": "dagster_community_components.S3ListKeysAssetComponent",
+  "description": "List S3 object keys under a bucket/prefix as a Dagster asset -- mirrors Airflow's S3ListOperator.",
+  "category": "sources",
+  "icon": "si:amazons3",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "keys (List[str]), common_prefixes (List[str], only with delimiter set), count (int)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key.",
+      "required": true
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "description": "S3 bucket name.",
+      "required": true
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "description": "Only list keys starting with this prefix.",
+      "required": false,
+      "default": ""
+    },
+    "delimiter": {
+      "type": "string",
+      "label": "Delimiter",
+      "description": "Group keys by this delimiter (e.g. '/'): only keys immediately under prefix are returned as keys, and one level of subfolder names is returned separately as common_prefixes.",
+      "required": false
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered aws_s3_resource (resources/aws_s3_resource). When set, credentials/session come from that resource instead of a bare boto3.client('s3', region_name=...).",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "sources",
+    "aws",
+    "s3",
+    "airflow",
+    "official"
+  ],
+  "name": "S3ListKeysAsset"
+}

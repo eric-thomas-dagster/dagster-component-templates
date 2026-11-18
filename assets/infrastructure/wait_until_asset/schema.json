@@ -1,0 +1,139 @@
+{
+  "component_type": "dagster_community_components.WaitUntilAssetComponent",
+  "description": "Hold a single Dagster step open until a condition becomes true -- Airflow's sensor-mode operators (PythonSensor, BashSensor, FileSensor, TimeSensor, TimeDeltaSensor).",
+  "category": "infrastructure",
+  "icon": "Clock",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Materializes once the condition is met (or on_timeout='skip' after a timeout)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "condition": {
+      "description": "'callable': callable_path() returns truthy. 'shell_exit_zero': command exits 0. 'file_exists': a path matching file_pattern exists. 'time_of_day': now (in timezone) has passed time_of_day. 'delay': delay_seconds have passed since the run's reference time.",
+      "type": "string",
+      "enum": ["callable", "shell_exit_zero", "file_exists", "time_of_day", "delay"],
+      "label": "Condition",
+      "required": true
+    },
+    "callable_path": {
+      "type": "string",
+      "label": "Callable Path",
+      "description": "condition='callable' only (required then): 'module.path:function_name', called with no arguments each poll, returning truthy/falsy.",
+      "required": false
+    },
+    "command": {
+      "type": "string",
+      "label": "Command",
+      "description": "condition='shell_exit_zero' only (required then): shell command run via bash -c each poll.",
+      "required": false
+    },
+    "retry_exit_code": {
+      "type": "integer",
+      "label": "Retry Exit Code",
+      "description": "condition='shell_exit_zero' only: this exit code means 'not ready yet, keep polling' (Airflow BashSensor's retry_exit_code). Any OTHER non-zero exit code fails immediately instead of polling further. Unset: any non-zero exit code fails immediately.",
+      "required": false
+    },
+    "file_pattern": {
+      "type": "string",
+      "label": "File Pattern",
+      "description": "condition='file_exists' only (required then): a glob pattern (e.g. '/data/inbox/*.csv') checked each poll.",
+      "required": false
+    },
+    "time_of_day": {
+      "type": "string",
+      "label": "Time Of Day",
+      "description": "condition='time_of_day' only (required then): 'HH:MM' (24h) in `timezone`. Met once today's wall-clock time has passed it.",
+      "required": false
+    },
+    "delay_seconds": {
+      "type": "number",
+      "label": "Delay Seconds",
+      "description": "condition='delay' only (required then): seconds after the run's reference time that must have passed.",
+      "required": false
+    },
+    "timezone": {
+      "type": "string",
+      "label": "Timezone",
+      "description": "IANA timezone for condition='time_of_day' (default UTC).",
+      "required": false
+    },
+    "poll_seconds": {
+      "type": "number",
+      "label": "Poll Seconds",
+      "description": "Seconds between condition checks.",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "description": "Give up after this many seconds total.",
+      "required": false
+    },
+    "on_timeout": {
+      "type": "string",
+      "enum": [
+        "fail",
+        "skip"
+      ],
+      "label": "On Timeout",
+      "description": "'fail' (default): raise and fail the run. 'skip': materialize successfully with metadata timed_out=true (Dagster has no native per-asset 'skipped' status; same convention as shell_command_asset's skip_on_exit_code).",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    }
+  }
+}

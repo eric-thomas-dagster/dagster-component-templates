@@ -1492,6 +1492,7 @@ _CLASS_PATHS: dict[str, str] = {
     "VitallyAccountsIngestionComponent": "assets/ingestion/vitally_ingestion/component.py",
     "VitallyResourceComponent": "resources/vitally_resource/component.py",
     "VoyageEmbeddingBatchComponent": "assets/ai/voyage_embedding_batch/component.py",
+    "WaitUntilAssetComponent": "assets/infrastructure/wait_until_asset/component.py",
     "WandbAssetComponent": "assets/analytics/wandb_asset/component.py",
     "WandbReaderComponent": "assets/sources/wandb_reader/component.py",
     "WandbResource": "resources/wandb_resource/component.py",

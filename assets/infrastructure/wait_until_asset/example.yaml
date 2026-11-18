@@ -1,0 +1,10 @@
+type: dagster_community_components.WaitUntilAssetComponent
+attributes:
+  asset_name: wait_for_upstream_file
+  condition: file_exists
+  file_pattern: "/data/inbox/orders_*.csv"
+  poll_seconds: 30
+  timeout_seconds: 1800
+  on_timeout: fail
+  group_name: infrastructure
+  description: "Block until the upstream export lands, then let the rest of the run proceed."

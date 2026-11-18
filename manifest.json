@@ -59782,6 +59782,54 @@
       "icon": "Server"
     },
     {
+      "id": "wait_until_asset",
+      "name": "WaitUntilAsset",
+      "category": "infrastructure",
+      "description": "Hold a single Dagster step open until a condition becomes true -- Airflow's sensor-mode operators (PythonSensor, BashSensor, FileSensor, TimeSensor, TimeDeltaSensor).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/wait_until_asset",
+      "tags": [
+        "infrastructure",
+        "sensor",
+        "airflow-migration",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/infrastructure/wait_until_asset/tests/test_wait_until_asset.py",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Materializes once its condition is met (or on_timeout='skip' after a timeout).",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "sensor-mode",
+        "pythonsensor",
+        "bashsensor",
+        "filesensor",
+        "poll",
+        "blocking"
+      ],
+      "icon": "Clock"
+    },
+    {
       "id": "python_callable_asset",
       "name": "PythonCallableAsset",
       "category": "infrastructure",

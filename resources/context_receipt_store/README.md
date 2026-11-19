@@ -398,6 +398,19 @@ priors, and, only for assets listed in `rebuild_asset_keys`, requests a rebuild 
 `dagster/data_version`, so the gateway should stamp `source_version` with that value
 (assets without a data version are never judged stale).
 
+**Individual ratings, not just the aggregate** (`publish_recent_ratings: true`, the
+default): the same observation's metadata also carries
+`context_receipts/recent_ratings` -- `{schema_version: 1, ratings: [...]}`, the latest
+`recent_ratings_limit` (default 20) individual rating events from `store.recent_outcomes`:
+`receipt_id`, `occurred_at`, `signal`, `value`, `outcome_ref` (the rater), `source_partition`,
+and `item_ids` (the chunk ids that receipt returned for this asset) -- never query text or
+chunk text, neither of which this store persists. This is the raw event log, not folded
+into a mean the way the rest of this metadata is: a later `outcome_ref` that supersedes an
+earlier one for scoring purposes still shows up as its own row here, so a UI can show that
+someone changed their mind. A page number per chunk isn't available here -- this store's
+`context_receipt_items` table has no such column; resolve one from the chunk id against
+whatever vector store holds the source document's chunk metadata, if you need it.
+
 This is a feedback loop that optimizes the context layer with the model held fixed,
 not reinforcement learning. Limits: priors are only as good as the outcome signal;
 credit is per item (not a causal estimate); no inverse-propensity correction for
@@ -656,6 +669,8 @@ weight (it has no list of known ids); use `build_maintenance_check(store, key, k
 | `connection_max_age_seconds` | `float` | — | backend: sql -- recycle a database connection once it is this many seconds old (guards against idle-session kills on Snowflake, Postgres and Databricks). Empty keeps a connection until it fails; a dead one is always replaced. |
 | `usage_sensor_enabled` | `bool` | `false` | Add a sensor that tails receipts, reports aggregated usage as AssetObservations on the source assets, refreshes learned item priors, and can request rebuilds. |
 | `usage_sensor_interval_seconds` | `int` | `60` | Sensor evaluation interval. |
+| `publish_recent_ratings` | `bool` | `true` | Also include recent_ratings (schema_version 1: receipt_id, occurred_at, signal, value, outcome_ref, source_partition, item_ids -- never query text or chunk text) in each AssetObservation's metadata, so a UI can read indi… _(full docs in schema.json + component README)_ |
+| `recent_ratings_limit` | `int` | `20` | Most recent individual ratings to include per asset, when publish_recent_ratings is true. |
 | `rebuild_asset_keys` | `list[str]` | `list()` | Asset keys (e.g. 'support/tickets') the sensor may re-materialize when stale reads pile up. Empty means observe only, never trigger runs. |
 | `stale_reads_threshold` | `int` | `25` | Receipt items served from an out-of-date data version before a rebuild is requested. |
 | `check_asset_keys` | `list[str]` | `list()` | Asset keys to attach context-health asset checks to (staleness, outcome quality, verified share). The assets must be defined in the same code location. |

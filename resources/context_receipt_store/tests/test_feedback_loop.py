@@ -178,6 +178,39 @@ def test_sensor_aggregates_usage_outcomes_and_resumes_from_cursor(mod, tmp_path)
     assert store.get_item_scores(["i-v1"])["i-v1"]["prior"] < 0
 
 
+def test_sensor_publishes_recent_ratings_by_default(mod, tmp_path):
+    store, instance, sensor = _usage_setup(mod, tmp_path)
+    r = _stale_receipt(store, "v1")
+    store.record_outcome(r, signal="thumbs_up", outcome_ref="jane@co.com")
+    result = sensor(dg.build_sensor_context(instance=instance))
+    md = result.asset_events[0].metadata["context_receipts/recent_ratings"].value
+    assert md["schema_version"] == 1
+    assert len(md["ratings"]) == 1
+    rating = md["ratings"][0]
+    assert rating["receipt_id"] == r
+    assert rating["signal"] == "thumbs_up"
+    assert rating["outcome_ref"] == "jane@co.com"
+    assert rating["item_ids"] == [f"i-v1"]
+
+
+def test_sensor_publish_recent_ratings_false_omits_the_key(mod, tmp_path):
+    instance = dg.DagsterInstance.ephemeral()
+
+    @dg.asset(name="docs")
+    def docs():
+        return dg.MaterializeResult(data_version=dg.DataVersion("v2"))
+
+    dg.materialize([docs], instance=instance)
+    store = mod.ContextReceiptStore(str(tmp_path / "r2.sqlite3"))
+    sensor = mod.build_usage_sensor(
+        store, name="s", interval_seconds=60, rebuild_asset_keys=[], stale_reads_threshold=3,
+        prior_strength=1.0, publish_recent_ratings=False,
+    )
+    _stale_receipt(store, "v1")
+    result = sensor(dg.build_sensor_context(instance=instance))
+    assert "context_receipts/recent_ratings" not in result.asset_events[0].metadata
+
+
 def test_sensor_requests_rebuild_only_for_allowed_assets_past_threshold(mod, tmp_path):
     store, instance, sensor = _usage_setup(mod, tmp_path, rebuild=["docs"], threshold=3)
     for _ in range(2):

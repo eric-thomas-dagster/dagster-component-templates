@@ -257,6 +257,18 @@
       "label": "Connection Max Age Seconds",
       "description": "backend: sql -- recycle a database connection once it is this many seconds old (guards against idle-session kills on Snowflake, Postgres and Databricks). Empty keeps a connection until it fails; a dead one is always replaced.",
       "required": false
+    },
+    "publish_recent_ratings": {
+      "type": "boolean",
+      "label": "Publish Recent Ratings",
+      "description": "Also include recent_ratings (schema_version 1: receipt_id, occurred_at, signal, value, outcome_ref, source_partition, item_ids -- never query text or chunk text) in each AssetObservation's metadata, so a UI can read individual ratings instead of only the aggregated context_receipts/* counts. recent_ratings_limit bounds how many.",
+      "required": false
+    },
+    "recent_ratings_limit": {
+      "type": "integer",
+      "label": "Recent Ratings Limit",
+      "description": "Most recent individual ratings to include per asset, when publish_recent_ratings is true.",
+      "required": false
     }
   }
 }

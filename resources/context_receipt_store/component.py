@@ -629,6 +629,36 @@ def _fold_item_feedback(item_rows: Any, excl_rows: Any, events: Any) -> dict[str
     return out
 
 
+def _fold_recent_outcomes(item_rows: Any, events: Any, limit: int) -> list[dict[str, Any]]:
+    """Pure aggregation behind ``recent_outcomes`` (shared by every storage backend). ``item_rows`` are
+    THIS asset's own (receipt_id, item_id, source_partition, created_at) rows; ``events`` are outcome
+    events for those same receipts, already newest-first. Returns individual rating rows -- never
+    folded into a mean the way ``asset_usage_since``/``item_feedback`` do -- schema_version 1:
+    ``{receipt_id, occurred_at, signal, value, outcome_ref, source_partition, item_ids}``. Never query
+    text or chunk text: neither ``context_receipt_events`` nor ``context_receipt_items`` stores either."""
+    items_by_receipt: dict[str, list[str]] = {}
+    partition_by_receipt: dict[str, Any] = {}
+    for row in item_rows:
+        items_by_receipt.setdefault(row["receipt_id"], []).append(row["item_id"])
+        partition_by_receipt[row["receipt_id"]] = row["source_partition"]
+    out: list[dict[str, Any]] = []
+    for ev in events:
+        if len(out) >= limit:
+            break
+        payload = json.loads(ev["payload_json"])
+        rid = ev["receipt_id"]
+        out.append({
+            "receipt_id": rid,
+            "occurred_at": ev["occurred_at"],
+            "signal": payload.get("signal"),
+            "value": payload.get("value"),
+            "outcome_ref": payload.get("outcome_ref"),
+            "source_partition": partition_by_receipt.get(rid),
+            "item_ids": sorted(set(items_by_receipt.get(rid, []))),
+        })
+    return out
+
+
 def _fold_asset_usage(rows: Any, events: Any, ids: Any) -> dict[str, Any]:
     """Pure aggregation behind ``asset_usage_since`` (shared by every storage backend)."""
     outcomes: dict[str, dict[str, float]] = {}
@@ -1460,6 +1490,36 @@ class ContextReceiptStore:
                     batch,
                 ).fetchall())
         return _fold_item_feedback(item_rows, excl_rows, events)
+
+    def recent_outcomes(self, asset_key: str, *, limit: int = 20, since: str = "") -> list[dict[str, Any]]:
+        """The latest ``limit`` individual outcome (rating) events for receipts that used ``asset_key`` --
+        ``receipt_id``, time, ``signal``/``value``, rater (``outcome_ref``), and the item ids (chunk ids)
+        THIS asset contributed to that receipt. Never query text or chunk text: neither table stores
+        either. This is the raw event log (one row per recorded outcome, including a later outcome_ref
+        that superseded an earlier one) -- not ``asset_usage_since``'s folded "effective outcome" per
+        receipt. A UI (or anything else) that wants to show or act on individual ratings reads this
+        instead of the usage sensor's own purely-aggregated AssetObservation metadata."""
+        with self._connect() as conn:
+            item_rows = conn.execute(
+                """
+                SELECT i.receipt_id, i.item_id, i.source_partition, r.created_at
+                FROM context_receipt_items i JOIN context_receipts r ON r.receipt_id = i.receipt_id
+                WHERE i.source_asset_key = ? AND r.created_at >= ?
+                """,
+                (asset_key, since),
+            ).fetchall()
+            ids = sorted({r["receipt_id"] for r in item_rows})
+            events: list[Any] = []
+            for start in range(0, len(ids), 500):  # stay under SQLite's bound-variable limit
+                batch = ids[start:start + 500]
+                events.extend(conn.execute(
+                    f"SELECT receipt_id, occurred_at, payload_json FROM context_receipt_events "
+                    f"WHERE event_type = 'outcome' AND receipt_id IN ({','.join('?' * len(batch))}) "
+                    f"ORDER BY occurred_at DESC, rowid DESC LIMIT ?",
+                    (*batch, limit),
+                ).fetchall())
+        events.sort(key=lambda e: e["occurred_at"], reverse=True)
+        return _fold_recent_outcomes(item_rows, events, limit)
 
     def ingest(self, event: Mapping[str, Any]) -> str:
         """Apply one spec-v1 event (see receipt-spec.v1.json); returns its receipt_id.
@@ -2549,6 +2609,23 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
         events = self._events_for(sorted({r["receipt_id"] for r in item_rows}), "'outcome', 'evidence'")
         return _fold_item_feedback(item_rows, excl_rows, events)
 
+    def recent_outcomes(self, asset_key: str, *, limit: int = 20, since: str = "") -> list[dict[str, Any]]:
+        item_rows = self._query(
+            f"SELECT i.receipt_id AS receipt_id, i.item_id AS item_id, i.source_partition AS source_partition "
+            f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
+            f"WHERE i.source_asset_key = @a AND r.created_at >= TIMESTAMP(@since)", a=asset_key, since=self._ts(since))
+        ids = sorted({r["receipt_id"] for r in item_rows})
+        events: list[Any] = []
+        for start in range(0, len(ids), 5000):
+            events.extend(self._query(
+                f"SELECT receipt_id AS receipt_id, occurred_at AS occurred_at, payload_json AS payload_json "
+                f"FROM {self._t('context_receipt_events')} WHERE event_type = 'outcome' AND receipt_id IN UNNEST(@ids) "
+                f"ORDER BY occurred_at DESC LIMIT @lim", ids=ids[start:start + 5000], lim=limit))
+        for ev in events:
+            ev["occurred_at"] = _bq_iso(ev["occurred_at"])
+        events.sort(key=lambda e: e["occurred_at"], reverse=True)
+        return _fold_recent_outcomes(item_rows, events, limit)
+
     def asset_usage_since(self, asset_key: str, since: str) -> dict[str, Any]:
         rows = self._query(
             f"SELECT i.receipt_id AS receipt_id, i.source_partition AS source_partition, i.source_version AS source_version "
@@ -3465,6 +3542,23 @@ class SqlContextReceiptStore(ContextReceiptStore):
         events = self._events_for(sorted({r["receipt_id"] for r in item_rows}), "'outcome', 'evidence'")
         return _fold_item_feedback(item_rows, excl_rows, events)
 
+    def recent_outcomes(self, asset_key: str, *, limit: int = 20, since: str = "") -> list[dict[str, Any]]:
+        item_rows = self._query(
+            f"SELECT i.receipt_id AS receipt_id, i.item_id AS item_id, i.source_partition AS source_partition "
+            f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
+            f"WHERE i.source_asset_key = :a AND r.created_at >= :since", a=asset_key, since=self._tsv(since or _EPOCH))
+        ids = sorted({r["receipt_id"] for r in item_rows})
+        events: list[Any] = []
+        for chunk in self._in_chunks(ids):
+            events.extend(self._query(
+                f"SELECT receipt_id AS receipt_id, occurred_at AS occurred_at, payload_json AS payload_json "
+                f"FROM {self._t('context_receipt_events')} WHERE event_type = 'outcome' AND receipt_id IN :ids "
+                f"ORDER BY occurred_at DESC LIMIT :lim", ids=chunk, lim=limit))
+        for ev in events:
+            ev["occurred_at"] = self._iso(ev["occurred_at"])
+        events.sort(key=lambda e: e["occurred_at"], reverse=True)
+        return _fold_recent_outcomes(item_rows, events, limit)
+
     def asset_usage_since(self, asset_key: str, since: str) -> dict[str, Any]:
         rows = self._query(
             f"SELECT i.receipt_id AS receipt_id, i.source_partition AS source_partition, i.source_version AS source_version "
@@ -4023,6 +4117,8 @@ def build_usage_sensor(
     reformulation_window_seconds: float = 120.0,
     enforce_retention: bool = False,
     default_retention_days: float | None = None,
+    publish_recent_ratings: bool = True,
+    recent_ratings_limit: int = 20,
 ) -> dg.SensorDefinition:
     """Cold-path sensor: tail receipts, report aggregated usage, learn priors, request rebuilds.
 
@@ -4031,6 +4127,12 @@ def build_usage_sensor(
     receipt items is compared with the asset's (or that partition's) latest
     ``dagster/data_version``; reads of an older version are *stale reads*. Only assets
     listed in ``rebuild_asset_keys`` can be re-materialized by this sensor.
+
+    When ``publish_recent_ratings`` (default on), each observation's metadata also carries
+    ``context_receipts/recent_ratings`` -- ``store.recent_outcomes(asset_key, limit=
+    recent_ratings_limit)``, individual rating events (never folded into a mean the way the
+    rest of this metadata is), wrapped with a ``schema_version`` so a UI can tell which shape
+    it's reading, the same convention ``receipts_feedback`` already uses.
     """
     rebuild_keys = [dg.AssetKey.from_user_string(k) for k in rebuild_asset_keys]
 
@@ -4121,6 +4223,11 @@ def build_usage_sensor(
                 }
             if version is not None:
                 metadata["context_receipts/current_data_version"] = version
+            if publish_recent_ratings:
+                metadata["context_receipts/recent_ratings"] = {
+                    "schema_version": 1,
+                    "ratings": store.recent_outcomes(key, limit=recent_ratings_limit),
+                }
             asset_key = dg.AssetKey.from_user_string(key)
             events.append(dg.AssetObservation(asset_key=asset_key, partition=part, metadata=metadata))
             if asset_key in rebuild_keys and running >= stale_reads_threshold:
@@ -4294,6 +4401,16 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
     usage_sensor_interval_seconds: int = Field(default=60, description="Sensor evaluation interval.")
+    publish_recent_ratings: bool = Field(
+        default=True,
+        description=(
+            "Also include recent_ratings (schema_version 1: receipt_id, occurred_at, signal, value, "
+            "outcome_ref, source_partition, item_ids -- never query text or chunk text) in each "
+            "AssetObservation's metadata, so a UI can read individual ratings instead of only the "
+            "aggregated context_receipts/* counts. recent_ratings_limit bounds how many."
+        ),
+    )
+    recent_ratings_limit: int = Field(default=20, description="Most recent individual ratings to include per asset, when publish_recent_ratings is true.")
     rebuild_asset_keys: list[str] = Field(
         default_factory=list,
         description=(
@@ -4463,6 +4580,8 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
                     enforce_retention=self.enforce_retention,
                     default_retention_days=self.default_retention_days,
                     reformulation_window_seconds=self.reformulation_window_seconds,
+                    publish_recent_ratings=self.publish_recent_ratings,
+                    recent_ratings_limit=self.recent_ratings_limit,
                 )
             )
         checks = [

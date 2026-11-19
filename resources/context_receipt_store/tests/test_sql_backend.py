@@ -64,6 +64,8 @@ def test_parity_with_the_native_sqlite_store(sql, lite):
         assert got == want, cv
     assert sql.outcomes_by_code_version("kb", since) == lite.outcomes_by_code_version("kb", since)
     assert norm_usage(sql.asset_usage_since("kb", since)) == norm_usage(lite.asset_usage_since("kb", since))
+    norm_recent = lambda rows: sorted(({k: v for k, v in r.items() if k != "occurred_at"} for r in rows), key=str)  # noqa: E731
+    assert norm_recent(sql.recent_outcomes("kb", since=since, limit=50)) == norm_recent(lite.recent_outcomes("kb", since=since, limit=50))
     assert sql.refresh_item_scores(3.0) == lite.refresh_item_scores(3.0)
     got, want = sql.get_item_scores(["a", "b", "c", "nope"]), lite.get_item_scores(["a", "b", "c", "nope"])
     assert set(got) == set(want) == {"a", "b", "c"}

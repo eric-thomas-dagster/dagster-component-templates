@@ -1,0 +1,12 @@
+# Shared across every chat-agent run via mcp_server_resource_key -- see
+# teams_agent_request_sensor and the anthropic_agent/openai_agent/litellm_agent README for how
+# team_id_template/channel_id_template/thread_id_template actually get resolved to real ids at
+# run time.
+type: dagster_community_components.TeamsChatToolsComponent
+attributes:
+  mcp_server_resource_key: teams_chat_mcp
+  oauth_state_dir: /var/dagster/teams_agent_oauth_state  # can share teams_agent_request_sensor's
+  max_messages: 20
+  # team_id_template / channel_id_template / thread_id_template default to "{tag.teams/team_id}" /
+  # "{tag.teams/channel_id}" / "{tag.teams/thread_id}" -- leave them unless your sensor sets the
+  # identifier tags under different names.

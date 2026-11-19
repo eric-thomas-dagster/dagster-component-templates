@@ -1,0 +1,86 @@
+{
+  "component_type": "dagster_community_components.TeamsChatToolsComponent",
+  "description": "Gives a chat-triggered agent live read access to the Microsoft Teams thread it's answering, plus (optionally) which knowledge-base receipts a past bot reply in it was built from.",
+  "category": "ai",
+  "icon": "MicrosoftTeams",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key the toolset is registered under.",
+      "required": false
+    },
+    "teams_tenant_id_env_var": {
+      "type": "string",
+      "label": "Teams Tenant Id Env Var",
+      "description": "Env var holding the Azure AD tenant id.",
+      "required": false
+    },
+    "teams_client_id_env_var": {
+      "type": "string",
+      "label": "Teams Client Id Env Var",
+      "description": "Env var holding the Azure AD app registration client id.",
+      "required": false
+    },
+    "teams_client_secret_env_var": {
+      "type": "string",
+      "label": "Teams Client Secret Env Var",
+      "description": "Env var holding the Azure AD app registration client secret.",
+      "required": false
+    },
+    "teams_refresh_token_env_var": {
+      "type": "string",
+      "label": "Teams Refresh Token Env Var",
+      "description": "Env var holding the INITIAL OAuth refresh token (see teams_run_request_sensor's README, 'Auth').",
+      "required": false
+    },
+    "oauth_state_dir": {
+      "type": "string",
+      "label": "Oauth State Dir",
+      "description": "Local path or fsspec URI dedicated to this server's '.teams_oauth_state.json' (a rotated refresh token, if Microsoft ever issues one). Can be the SAME directory teams_agent_request_sensor uses -- they share nothing in code, but rotation state for the same Entra app/account is safe to share.",
+      "required": true
+    },
+    "team_id_template": {
+      "type": "string",
+      "label": "Team Id Template",
+      "description": "Template string for this spawned server's TEAMS_CHAT_TOOLS_TEAM_ID env value -- the calling agent's own {tag.<key>} substitution resolves it at run time. Set to a literal team id instead if every run should always read the same fixed team.",
+      "required": false
+    },
+    "channel_id_template": {
+      "type": "string",
+      "label": "Channel Id Template",
+      "description": "Template string for this spawned server's TEAMS_CHAT_TOOLS_CHANNEL_ID env value, same mechanism as team_id_template.",
+      "required": false
+    },
+    "thread_id_template": {
+      "type": "string",
+      "label": "Thread Id Template",
+      "description": "Template string for this spawned server's TEAMS_CHAT_TOOLS_THREAD_ID env value, same mechanism as team_id_template.",
+      "required": false
+    },
+    "max_messages": {
+      "type": "integer",
+      "label": "Max Messages",
+      "description": "Most recent messages get_thread returns.",
+      "required": false
+    },
+    "max_result_chars": {
+      "type": "integer",
+      "label": "Max Result Chars",
+      "description": "Upper bound on the serialized size of any tool result.",
+      "required": false
+    },
+    "receipts_db_path": {
+      "type": "string",
+      "label": "Receipts Db Path",
+      "description": "SQLite file path -- the SAME receipts_db_path a teams_reply instance (and the knowledge_search_server/hybrid_knowledge_search_server the agent calls) are configured with. When set, get_thread() attaches receipt_ids to any BOT-authored message in the thread (a prior reply from this same chat agent, looked up via teams_reply's own receipt-message link table).",
+      "required": false
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings. *_template fields are passed through VERBATIM as env values -- resolved by the calling agent's own {tag.*} substitution at run time, not by this component. Leave unset to skip this -- existing resource_key-only behavior is unchanged.",
+      "required": false
+    }
+  }
+}

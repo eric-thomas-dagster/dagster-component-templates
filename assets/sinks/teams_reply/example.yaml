@@ -1,0 +1,9 @@
+type: dagster_community_components.TeamsReplyComponent
+attributes:
+  asset_name: chat_reply
+  upstream_asset_key: chat_agent   # the anthropic_agent/openai_agent/litellm_agent asset
+  oauth_state_dir: /var/dagster/teams_agent_oauth_state  # can share teams_agent_request_sensor's
+  webserver_base_url: http://localhost:3000   # omit the run link entirely if you'd rather not set this
+  max_chars_per_message: 3000
+  on_long_answer: split
+  group_name: chat_agent

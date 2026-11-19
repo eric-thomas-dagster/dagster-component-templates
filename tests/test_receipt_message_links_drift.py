@@ -8,6 +8,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent / "assets"
 COMPONENTS = [
     "sinks/slack_reply",
     "ai/slack_chat_tools",
+    "sinks/teams_reply",
+    "ai/teams_chat_tools",
 ]
 BEGIN = "# BEGIN receipt-message-links"
 END = "# END receipt-message-links"

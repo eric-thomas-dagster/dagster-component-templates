@@ -1,0 +1,190 @@
+{
+  "component_type": "dagster_community_components.TeamsReplyComponent",
+  "description": "Posts a chat agent's answer into the Teams thread it's answering, with a run-failure watcher so a crashed run is never silent, plus optional receipt-linking and reaction-based rating.",
+  "category": "sinks",
+  "icon": "MicrosoftTeams",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output asset name.",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "The chat agent asset to depend on and read the answer from (slash-delimited). Exactly one -- a list of more than one is a validation error.",
+      "required": true
+    },
+    "teams_tenant_id_env_var": {
+      "type": "string",
+      "label": "Teams Tenant Id Env Var",
+      "description": "Env var holding the Azure AD tenant id.",
+      "required": false
+    },
+    "teams_client_id_env_var": {
+      "type": "string",
+      "label": "Teams Client Id Env Var",
+      "description": "Env var holding the Azure AD app registration client id.",
+      "required": false
+    },
+    "teams_client_secret_env_var": {
+      "type": "string",
+      "label": "Teams Client Secret Env Var",
+      "description": "Env var holding the Azure AD app registration client secret.",
+      "required": false
+    },
+    "teams_refresh_token_env_var": {
+      "type": "string",
+      "label": "Teams Refresh Token Env Var",
+      "description": "Env var holding the INITIAL OAuth refresh token (see teams_run_request_sensor's README, 'Auth').",
+      "required": false
+    },
+    "oauth_state_dir": {
+      "type": "string",
+      "label": "Oauth State Dir",
+      "description": "Local path or fsspec URI dedicated to this asset's '.teams_oauth_state.json' (a rotated refresh token, if Microsoft ever issues one). Can be the SAME directory teams_agent_request_sensor uses.",
+      "required": true
+    },
+    "answer_field": {
+      "type": "string",
+      "label": "Answer Field",
+      "description": "Which key of the upstream asset's output dict holds the answer text. Defaults to 'final_answer' (the agent components' own documented output shape) when the upstream value is a dict; used verbatim (str()'d) otherwise.",
+      "required": false
+    },
+    "max_chars_per_message": {
+      "type": "integer",
+      "label": "Max Chars Per Message",
+      "description": "Split or truncate (see on_long_answer) an answer longer than this many characters.",
+      "required": false
+    },
+    "on_long_answer": {
+      "type": "string",
+      "enum": [
+        "split",
+        "truncate"
+      ],
+      "label": "On Long Answer",
+      "description": "'split' (default): post as multiple sequential thread replies, each <= max_chars_per_message. 'truncate': post one reply, cut short with an ellipsis.",
+      "required": false
+    },
+    "include_run_link": {
+      "type": "boolean",
+      "label": "Include Run Link",
+      "description": "Append a link to the Dagster run (requires webserver_base_url) to the last reply posted.",
+      "required": false
+    },
+    "run_link_label": {
+      "type": "string",
+      "label": "Run Link Label",
+      "description": "Link text for include_run_link.",
+      "required": false
+    },
+    "webserver_base_url": {
+      "type": "string",
+      "label": "Webserver Base Url",
+      "description": "Base URL of the Dagster webserver (e.g. 'http://localhost:3000' or your Dagster+ deployment URL) -- used to build the run link. Leave unset to omit the link entirely.",
+      "required": false
+    },
+    "monitor_failures": {
+      "type": "boolean",
+      "label": "Monitor Failures",
+      "description": "Also emit {asset_name}_failure_watcher, a run-status sensor that posts a short error reply for ANY failed run carrying teams/team_id + teams/channel_id + teams/thread_id tags -- so a crashed run is never silent in the channel. Set false to handle failure notification some other way.",
+      "required": false
+    },
+    "error_message_template": {
+      "type": "string",
+      "label": "Error Message Template",
+      "description": "Template for the failure-path reply. Placeholder: {error}.",
+      "required": false
+    },
+    "receipts_db_path": {
+      "type": "string",
+      "label": "Receipts Db Path",
+      "description": "SQLite file path -- the SAME receipts_db_path a knowledge_search_server/hybrid_knowledge_search_server the agent calls is configured with (and which must also have run_id_template set, the default, so its receipts carry this run's dagster_run_id). When set, after posting, this asset looks up every receipt this run produced and links them to the posted Teams reply/replies -- so a later rating (watch_reactions below) can find the exact receipt_id to record an outcome against. Best-effort: a lookup failure here never fails the reply post itself.",
+      "required": false
+    },
+    "watch_reactions": {
+      "type": "boolean",
+      "label": "Watch Reactions",
+      "description": "Also emit {asset_name}_rating_watcher, a sensor that polls reactions on every Teams reply this asset has linked to a receipt (via receipts_db_path, which must also be set) and records a thumbs_up/thumbs_down outcome against each linked receipt_id -- the reactor's resolved email (see resolve_rater_email) becomes the outcome's `outcome_ref`, so changing a reaction later supersedes the earlier rating instead of double-counting. Needs delegated ChannelMessage.Send (the same scope already provisioned for posting) -- confirmed against Microsoft's own Graph reference, reading a message's own `reactions[]` needs no separate scope at all.",
+      "required": false
+    },
+    "positive_reaction": {
+      "type": "string",
+      "label": "Positive Reaction",
+      "description": "Reaction (any Unicode emoji character, or a legacy name like 'like') that records a thumbs_up outcome. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "negative_reaction": {
+      "type": "string",
+      "label": "Negative Reaction",
+      "description": "Reaction that records a thumbs_down outcome. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "rating_poll_interval_seconds": {
+      "type": "integer",
+      "label": "Rating Poll Interval Seconds",
+      "description": "Minimum seconds between rating_watcher ticks. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "rating_lookback_messages": {
+      "type": "integer",
+      "label": "Rating Lookback Messages",
+      "description": "Most-recently-linked replies to keep polling for reactions, and the cursor's bound. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "resolve_rater_email": {
+      "type": "boolean",
+      "label": "Resolve Rater Email",
+      "description": "Resolve the reacting user's Azure AD object id to an email address (needs delegated User.Read.All) before using it as the outcome's outcome_ref. When false, the raw Azure AD object id is used instead. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys, beyond upstream_asset_key -- no value loaded.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners -- team names ('team:analytics') or email addresses.",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog.",
+      "required": false
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    }
+  }
+}

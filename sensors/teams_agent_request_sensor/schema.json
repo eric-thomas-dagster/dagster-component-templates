@@ -1,0 +1,150 @@
+{
+  "component_type": "dagster_community_components.TeamsAgentRequestSensorComponent",
+  "description": "Polls a Teams channel and launches a chat-agent asset for a mention or a reply in an already-answered thread -- identifiers only in run tags, never the message text.",
+  "category": "sensors",
+  "icon": "MicrosoftTeams",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": true
+    },
+    "teams_team_id": {
+      "type": "string",
+      "label": "Teams Team Id",
+      "description": "Teams team id (Teams client -> team -> ... -> Get link).",
+      "required": true
+    },
+    "teams_channel_id": {
+      "type": "string",
+      "label": "Teams Channel Id",
+      "description": "Teams channel id inside the team (e.g. '19:xxx@thread.tacv2').",
+      "required": true
+    },
+    "asset_selection": {
+      "type": "string",
+      "label": "Asset Selection",
+      "description": "The agent asset (and anything downstream, e.g. a teams_reply asset) to materialize when a message matches: explicit key list, the Dagster selection DSL (tag:/group:/kind:/boolean composition), '*', or a bare fnmatch glob -- resolved against sibling assets in the same defs folder, same as teams_run_request_sensor's own asset_selection trigger.",
+      "required": true
+    },
+    "oauth_state_dir": {
+      "type": "string",
+      "label": "Oauth State Dir",
+      "description": "Local path or fsspec URI (s3://, gs://, abfs://) dedicated to this sensor's '.teams_oauth_state.json' -- holds a rotated OAuth refresh token, if Microsoft ever issues one. Without a durable place to persist it, the next rotation breaks this sensor's auth entirely.",
+      "required": true
+    },
+    "teams_tenant_id_env_var": {
+      "type": "string",
+      "label": "Teams Tenant Id Env Var",
+      "description": "Env var holding the Azure AD tenant id.",
+      "required": false
+    },
+    "teams_client_id_env_var": {
+      "type": "string",
+      "label": "Teams Client Id Env Var",
+      "description": "Env var holding the Azure AD app registration client id. Also the default source for bot_application_id when that field is left unset.",
+      "required": false
+    },
+    "teams_client_secret_env_var": {
+      "type": "string",
+      "label": "Teams Client Secret Env Var",
+      "description": "Env var holding the Azure AD app registration client secret.",
+      "required": false
+    },
+    "teams_refresh_token_env_var": {
+      "type": "string",
+      "label": "Teams Refresh Token Env Var",
+      "description": "Env var holding the INITIAL OAuth refresh token (one-time interactive consent for the dedicated bot account -- see README, 'Auth'). Only the seed; a later rotation is persisted to oauth_state_dir instead.",
+      "required": false
+    },
+    "bot_application_id": {
+      "type": "string",
+      "label": "Bot Application Id",
+      "description": "This bot's own Azure AD application (client) id, for mention-detection -- a message's mentions[] carries mentioned.application.id when a bot/app is @-mentioned (confirmed against Graph's own chatMessageMentionedIdentitySet schema). Defaults to reading teams_client_id_env_var's own value if unset, since there is no Teams equivalent of Slack's auth.test self-lookup under a delegated token (it represents the consenting HUMAN, not the bot identity) -- set this explicitly only if that assumption ever proves wrong for your tenant.",
+      "required": false
+    },
+    "trigger_mode": {
+      "type": "string",
+      "enum": [
+        "mention",
+        "all"
+      ],
+      "label": "Trigger Mode",
+      "description": "'mention' (default): only a message that @-mentions the bot starts a NEW conversation (a reply in an already-tracked thread still matches regardless of mode -- see follow_up_threads). 'all' matches every new root message unconditionally -- never use this on a busy shared channel. Unlike slack_agent_request_sensor, there is no separate 'dm' mode: this sensor only polls team CHANNELS, never 1:1 personal chats, the same scope teams_run_request_sensor already has.",
+      "required": false
+    },
+    "follow_up_threads": {
+      "type": "boolean",
+      "label": "Follow Up Threads",
+      "description": "Also launch a run for a NEW REPLY in a thread this sensor has already launched a run for -- not gated by trigger_mode. Unlike Slack, Graph's replies endpoint has no delta/incremental query (confirmed against Microsoft's own API reference), so this re-fetches and diffs ALL replies in each tracked thread every tick -- real, higher cost than the Slack version. Set false for a channel with many concurrent long-lived threads.",
+      "required": false
+    },
+    "known_threads_limit": {
+      "type": "integer",
+      "label": "Known Threads Limit",
+      "description": "Most-recently-active threads to keep polling for follow-ups. Bounds both cursor size and the extra replies-list calls follow_up_threads costs per tick.",
+      "required": false
+    },
+    "resolve_requester_email": {
+      "type": "boolean",
+      "label": "Resolve Requester Email",
+      "description": "Resolve the message sender's Azure AD object id to an email address (needs delegated User.Read.All) before setting the teams/user tag -- most owners: checks downstream (e.g. dagster_workflow_tools' launch_job) use emails, not Azure AD object ids. When false, teams/user carries the raw Azure AD object id instead.",
+      "required": false
+    },
+    "messages_per_poll": {
+      "type": "integer",
+      "label": "Messages Per Poll",
+      "description": "Messages/replies to request per Graph page (Graph's own hard cap is 50).",
+      "required": false
+    },
+    "max_pages_per_poll": {
+      "type": "integer",
+      "label": "Max Pages Per Poll",
+      "description": "Follow at most this many '@odata.nextLink' pages per poll, for both new-root-message and (per-thread) replies polling.",
+      "required": false
+    },
+    "process_backlog_on_first_run": {
+      "type": "boolean",
+      "label": "Process Backlog On First Run",
+      "description": "If false (default), the first-ever tick seeds the cursor to 'now' and processes nothing -- activating this sensor never answers a channel's past history.",
+      "required": false
+    },
+    "post_acknowledgement": {
+      "type": "boolean",
+      "label": "Post Acknowledgement",
+      "description": "React to a matched message immediately (acknowledgement_reaction) so the sender sees it was received before the agent run even starts. Needs delegated ChannelMessage.Send (the same scope already provisioned for replies).",
+      "required": false
+    },
+    "acknowledgement_reaction": {
+      "type": "string",
+      "label": "Acknowledgement Reaction",
+      "description": "Reaction for post_acknowledgement -- any Unicode emoji character, or a legacy name ('like', 'heart', 'laugh', 'surprised', 'sad', 'angry').",
+      "required": false
+    },
+    "set_isolation_disabled_tag": {
+      "type": "boolean",
+      "label": "Set Isolation Disabled Tag",
+      "description": "Tag every RunRequest dagster/isolation: disabled, so the run starts in-process on the code location server instead of spinning up an isolated container (which can take up to 3 minutes on Dagster+ -- far too slow for chat). Needs non_isolated_runs enabled on the deployment, and a sensible max_concurrent_non_isolated_runs (default 1 on Dagster+ -- a second concurrent question falls back to a slow isolated run, not a queue, if you don't raise it).",
+      "required": false
+    },
+    "use_in_process_executor": {
+      "type": "boolean",
+      "label": "Use In Process Executor",
+      "description": "Tag every RunRequest with run_config={'execution': {'config': {'in_process': {}}}}, so the agent asset and its downstream teams_reply asset run as plain function calls in one step-process instead of each spawning its own multiprocess-executor subprocess. Requires the code location that owns these assets not to set a non-default executor itself -- if it does, this run_config key is rejected by that executor's own config schema and the run fails with a RunConfigValidationInvalid error. Set false to leave execution untouched.",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations. Chat latency is roughly this plus the run-queue dequeue time plus the LLM call -- keep this low.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED' -- initial status of the sensor.",
+      "required": false
+    }
+  }
+}

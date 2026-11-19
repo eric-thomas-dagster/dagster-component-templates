@@ -46,12 +46,24 @@ since they're genuinely separate store configurations being composed:
   (`"vector"`, `"graph:hop_<N>:<entity>"`, or both).
 
 Graph-only passages (reached by traversal, not a direct vector hit) have
-`text: null` **unless** `vector_store.provider` is `chromadb`, in which
-case a best-effort `collection.get(ids=[chunk_id])` backfills it --
-chromadb is the only provider here with a cheap get-by-id lookup; every
-other provider is left `null` rather than guessed at.
+`text`/`source`/`doc_id: null` **unless** `vector_store.provider` is
+`chromadb`, in which case a best-effort `collection.get(ids=[chunk_id])`
+backfills them -- chromadb is the only provider here with a cheap
+get-by-id lookup; every other provider is left `null` rather than
+guessed at. `score` has no graph-only equivalent (traversal has no
+relevance score) and stays `null` regardless of provider.
 
-Every result is capped by `max_results` (default 50).
+Entity matching (both `mode: graph` seeding and `search_entities`) does a
+case-insensitive substring match, plus a lightweight plural/singular
+normalization (common English suffixes, not real stemming -- no new
+runtime dependency) so a query like `"invoices"` still matches a node
+named `"invoice"`, and vice versa.
+
+The final `passages` list is capped by `min(top_k, max_results)` --
+`top_k` is the per-call ask (including in `mode: graph`, where vector
+search never runs to apply its own cap); `max_results` (default 50) is a
+hard ceiling no call can exceed. Every other result (`triples`, entity
+search, neighbors, ...) is capped by `max_results` alone.
 
 ## Closed-loop receipts (`receipts_db_path`)
 

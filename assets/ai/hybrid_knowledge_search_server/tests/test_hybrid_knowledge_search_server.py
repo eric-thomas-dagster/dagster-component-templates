@@ -125,6 +125,26 @@ def test_search_mode_must_be_valid(resource):
         resource.search("x", mode="bogus")
 
 
+def test_graph_mode_respects_top_k_cap(resource):
+    """Query 'a' direct-matches Alice/Acme Corp/Beta Inc (all contain the letter) -- two
+    disconnected chunks (c1, c2) are reached with no traversal needed. Before this fix, graph
+    mode's only cap was max_results (default 50): top_k was silently ignored."""
+    uncapped = resource.search("a", mode="graph", hops=0, top_k=50)
+    assert {p["chunk_id"] for p in uncapped["passages"]} == {"c1", "c2"}
+    capped = resource.search("a", mode="graph", hops=0, top_k=1)
+    assert len(capped["passages"]) == 1
+
+
+def test_hybrid_mode_graph_only_passage_gets_doc_id_and_source_backfilled(resource):
+    """Same gap as text backfill: a graph-only passage (c2, reached only via traversal) is
+    missing doc_id/source until backfilled from the same chromadb metadata the vector path
+    already reads them from in _vector_search."""
+    res = resource.search("Bob", top_k=1, hops=1, mode="graph")
+    c2 = next(p for p in res["passages"] if p["chunk_id"] == "c2")
+    assert c2["doc_id"] == "d2"
+    assert c2["source"] == "support_kb"
+
+
 # ─── chunk <-> entity round trip (explicit test ask) ───────────────────────
 
 def test_chunk_found_by_vector_search_resolves_to_its_entities(resource):
@@ -148,6 +168,32 @@ def test_get_chunks_for_entity_unknown_entity(resource):
 def test_search_entities_fuzzy_match(resource):
     res = resource.search_entities("acme")
     assert {e["name"] for e in res["entities"]} == {"Acme Corp"}
+
+
+def test_search_entities_matches_across_plural_and_singular(mod, tmp_path):
+    """A bare substring check can never match a plural query against a singular node name (or
+    vice versa) -- a longer string can't be a substring of a shorter one. Node 'Invoice' should
+    still be found by query 'invoices', and node 'Invoices Dept' by query 'invoice'."""
+    g = nx.MultiDiGraph()
+    g.add_node("Invoice", type="DOCUMENT", aliases=["Invoice"], mention_count=1)
+    g.add_node("Invoices Dept", type="ORG", aliases=["Invoices Dept"], mention_count=1)
+    graph_path = str(tmp_path / "kg.json")
+    with open(graph_path, "w") as f:
+        json.dump(nx.node_link_data(g, edges="edges"), f)
+
+    cls = getattr(mod, RESOURCE_CLS)
+    resource = cls(graph={"provider": "networkx", "path": graph_path, "graph_name": "kg"})
+
+    assert {e["name"] for e in resource.search_entities("invoices").get("entities", [])} == {"Invoice", "Invoices Dept"}
+    assert {e["name"] for e in resource.search_entities("invoice").get("entities", [])} == {"Invoice", "Invoices Dept"}
+
+
+@pytest.mark.parametrize("word,singular", [
+    ("invoices", "invoice"), ("companies", "company"), ("boxes", "box"),
+    ("glasses", "glass"), ("cats", "cat"), ("cat", "cat"), ("corp", "corp"),
+])
+def test_singularize_for_match(mod, word, singular):
+    assert mod._singularize_for_match(word) == singular
 
 
 def test_get_entity_relations(resource):

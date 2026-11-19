@@ -23,12 +23,16 @@ component's own settings. Their read logic is duplicated here from those two com
     mentioned in the top vector hits AND entities matching the query text directly),
     merged and de-duplicated by chunk_id. Each passage's `paths` field names how it was
     found (`"vector"`, `"graph:hop_<N>:<entity>"`, or both). Graph-only passages (reached by
-    traversal, not a direct vector hit) have `text: null` UNLESS `vector_store.provider`
-    is `chromadb`, in which case a best-effort `collection.get(ids=[chunk_id])` backfills it
-    (chromadb is the only provider here with a cheap get-by-id lookup; others are left null
-    rather than guessed at).
+    traversal, not a direct vector hit) have `text`/`source`/`doc_id: null` UNLESS
+    `vector_store.provider` is `chromadb`, in which case a best-effort
+    `collection.get(ids=[chunk_id])` backfills them (chromadb is the only provider here with a
+    cheap get-by-id lookup; others are left null rather than guessed at). `score` has no graph-only
+    equivalent (traversal has no relevance score) and stays null regardless of provider.
 
-Every search/expansion result is capped by `max_results`.
+The final `passages` list is capped by `min(top_k, max_results)` -- `top_k` is the per-call ask
+(including in `mode='graph'`, where vector search never runs to apply its own cap), `max_results`
+a hard ceiling no call can exceed. Every other search/expansion result (`triples`, entity search,
+neighbors, ...) is capped by `max_results` alone.
 
 Overlap check: when `vector_store.provider == "chromadb"` and `graph.provider == "networkx"`
 (the only combination where listing every id in both stores is cheap), the inspection asset
@@ -458,6 +462,21 @@ def _run_graph_query(provider: str, cfg: dict, query: str, params: dict) -> List
 # get_graph_context's evidence for a given chunk_id is that triple's one aggregate value, not
 # necessarily the exact snippet from that specific chunk -- a real, documented scope cut (same
 # spirit as execution_mode='sql' having no resolve/alias-merging step).
+def _singularize_for_match(s: str) -> str:
+    """Lightweight plural -> singular normalization for entity-name substring matching: just the
+    common English plural suffixes, not real stemming/lemmatization (no new runtime dependency).
+    Lets a query like 'invoices' still match a node named 'invoice' (or vice versa), which a bare
+    substring check can't do -- a longer string can never be a substring of a shorter one."""
+    s = s.lower()
+    if s.endswith("ies") and len(s) > 3:
+        return s[:-3] + "y"
+    if s.endswith(("ses", "xes", "zes", "ches", "shes")) and len(s) > 4:
+        return s[:-2]
+    if s.endswith("s") and not s.endswith("ss") and len(s) > 1:
+        return s[:-1]
+    return s
+
+
 def _sql_str(value: Any) -> str:
     s = str(value).replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
     return f"'{s}'"
@@ -591,8 +610,12 @@ def _build_sql_path_query(dialect: str, edges_tbl: str, source: str, target: str
 
 def _build_sql_search_entities_query(nodes_tbl: str, query: str, type: Optional[str], limit: int) -> str:
     q = _sql_str(f"%{query.lower()}%")
+    q_norm = _sql_str(f"%{_singularize_for_match(query)}%")
     type_filter = f"AND type = {_sql_str(type)}" if type is not None else ""
-    return f"SELECT id, name, type, mentions FROM {nodes_tbl} WHERE LOWER(name) LIKE {q} {type_filter} ORDER BY mentions DESC LIMIT {int(limit)}"
+    return (
+        f"SELECT id, name, type, mentions FROM {nodes_tbl} "
+        f"WHERE (LOWER(name) LIKE {q} OR LOWER(name) LIKE {q_norm}) {type_filter} ORDER BY mentions DESC LIMIT {int(limit)}"
+    )
 
 
 def _build_sql_entity_relations_queries(edges_tbl: str, name: str) -> Tuple[str, str]:
@@ -753,10 +776,17 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
             })
         return out, eligible_count
 
-    def _backfill_text_from_chromadb(self, chunk_id: str) -> Optional[str]:
+    def _backfill_metadata_from_chromadb(self, chunk_id: str) -> Dict[str, Optional[str]]:
+        """Graph-only passages (reached by traversal, never a direct vector hit) start with
+        text/source/doc_id all None, while the vector path fills all three from its own hit
+        metadata (see _vector_search). This does the same single-chunk point lookup for chromadb
+        (the only provider here with a cheap get-by-id) so graph-only passages are just as
+        traceable to their source document -- other providers get an all-None dict, a documented
+        limitation, not a silent guess."""
+        out: Dict[str, Optional[str]] = {"text": None, "source": None, "doc_id": None}
         vcfg = self._vector_cfg()
         if vcfg["provider"] != "chromadb" or not vcfg["collection_name"]:
-            return None
+            return out
         try:
             import chromadb
             client = chromadb.PersistentClient(path=vcfg["connection_string"] or "./chroma_db")
@@ -764,19 +794,19 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
             res = collection.get(ids=[chunk_id], include=["documents", "metadatas"])
             if res["ids"]:
                 doc = (res.get("documents") or [None])[0]
-                if doc is not None:
-                    return doc
                 meta = (res.get("metadatas") or [{}])[0] or {}
-                return meta.get(vcfg["text_metadata_key"])
+                out["text"] = doc if doc is not None else meta.get(vcfg["text_metadata_key"])
+                out["source"] = meta.get("source_asset_key")
+                out["doc_id"] = meta.get("source_id")
         except Exception:  # noqa: BLE001 -- best-effort only
-            return None
-        return None
+            pass
+        return out
 
     def _graph_only_chunk_is_quarantined(self, chunk_id: str) -> bool:
         """Point-checks whether a chunk that reached this result purely through graph
         expansion (never passed through _vector_search's own quarantine filter) is itself
         quarantined. Only chromadb supports a cheap point lookup by id today (same scope as
-        _backfill_text_from_chromadb) -- for every other vector provider this returns False,
+        _backfill_metadata_from_chromadb) -- for every other vector provider this returns False,
         a documented limitation, not a silent false negative dressed up as a pass."""
         vcfg = self._vector_cfg()
         if vcfg["provider"] != "chromadb" or not vcfg["collection_name"]:
@@ -798,6 +828,7 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
     def search_entities(self, query: str, type: Optional[str] = None) -> dict:
         gcfg = self._graph_cfg()
         q = query.lower()
+        q_norm = _singularize_for_match(query)
         if gcfg["provider"] == "sql_tables":
             nodes_tbl, _ = self._sql_tables(gcfg)
             rows = _run_sql_tables_query(gcfg, _build_sql_search_entities_query(nodes_tbl, query, type, self.max_results))
@@ -807,17 +838,22 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
             hits = []
             for name, data in g.nodes(data=True):
                 aliases = data.get("aliases") or []
-                if q in name.lower() or any(q in a.lower() for a in aliases):
+                name_l = name.lower()
+                if (
+                    q in name_l or q_norm in _singularize_for_match(name_l)
+                    or any(q in a.lower() or q_norm in _singularize_for_match(a) for a in aliases)
+                ):
                     if type is not None and data.get("type") != type:
                         continue
                     hits.append({"name": name, "type": data.get("type"), "mention_count": data.get("mention_count"), "aliases": aliases})
             return {"entities": hits[: self.max_results]}
         records = _run_graph_query(
             gcfg["provider"], gcfg,
-            "MATCH (n {graph: $graph_name}) WHERE (toLower(n.name) CONTAINS $q "
-            "OR any(a IN n.aliases WHERE toLower(a) CONTAINS $q)) AND ($type IS NULL OR n.type = $type) "
+            "MATCH (n {graph: $graph_name}) WHERE (toLower(n.name) CONTAINS $q OR toLower(n.name) CONTAINS $q_norm "
+            "OR any(a IN n.aliases WHERE toLower(a) CONTAINS $q OR toLower(a) CONTAINS $q_norm)) "
+            "AND ($type IS NULL OR n.type = $type) "
             "RETURN n.name AS name, n.type AS type, n.mention_count AS mention_count, n.aliases AS aliases LIMIT $limit",
-            {"graph_name": gcfg["graph_name"], "q": q, "type": type, "limit": self.max_results},
+            {"graph_name": gcfg["graph_name"], "q": q, "q_norm": q_norm, "type": type, "limit": self.max_results},
         )
         return {"entities": records}
 
@@ -1080,11 +1116,15 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
                     _add_triples_for_chunk(cid, "vector")
 
         for rec in passages.values():
-            if rec["text"] is None:
-                rec["text"] = self._backfill_text_from_chromadb(rec["chunk_id"])
+            if rec["text"] is None or rec["doc_id"] is None:
+                backfill = self._backfill_metadata_from_chromadb(rec["chunk_id"])
+                for field in ("text", "source", "doc_id"):
+                    if rec[field] is None and backfill[field] is not None:
+                        rec[field] = backfill[field]
 
         ordered = sorted(passages.values(), key=lambda r: (r["score"] is None, -(r["score"] or 0)))
-        result: Dict[str, Any] = {"passages": ordered[: self.max_results], "triples": triples[: self.max_results]}
+        passage_limit = min(top_k, self.max_results)
+        result: Dict[str, Any] = {"passages": ordered[:passage_limit], "triples": triples[: self.max_results]}
         if self.receipts_db_path and vector_hits:
             items = [
                 {

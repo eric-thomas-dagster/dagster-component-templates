@@ -109,6 +109,64 @@ A `skill_keys` entry that doesn't resolve to a real `SkillResource` fails loudly
 the run, naming the key — this is the earliest point this component's own code can check it,
 since Dagster only binds cross-component resources at run time.
 
+## Hosted Agent Skills with code execution (`hosted_skills`)
+
+A DIFFERENT, separate mechanism from `skill_keys` above -- `skill_keys`' `load_skill`/
+`read_skill_file` only ever return text; nothing in that loop can run a script. A skill that
+bundles one (see `resources/skill_resource`'s own `runnable_here`/`needs_code_execution`,
+which this agent already checks to keep such a skill OUT of the `skill_keys` listing) needs
+real code execution instead -- Anthropic's hosted sandbox, via `hosted_skills`:
+
+```yaml
+hosted_skills:
+  - type: anthropic
+    skill_id: pdf          # built-in: pdf, docx, xlsx, pptx
+    version: latest
+  - skill_resource_key: chart_skill   # a SkillResourceComponent(publish_as_custom_skill: true)
+```
+
+Setting `hosted_skills` adds the `code_execution` tool (`code_execution_tool_version`, default
+`code_execution_20250825` -- no `anthropic-beta` header needed for any current version,
+confirmed against Anthropic's own current docs) and the request's `container.skills`
+automatically. Up to 20 entries (Anthropic's own limit); more raises a clear error at
+`build_defs` time. The container id Anthropic returns is kept and passed back on every later
+turn of the SAME run, so files Claude writes earlier in the run are still there later --
+including across a `pause_turn` response (a long-running turn the API paused mid-way,
+resent as-is rather than treated as a final answer or a tool-dispatch round).
+
+A `hosted_skills` entry either names a built-in skill literally (`type: anthropic`, `skill_id`
+one of `pdf`/`docx`/`xlsx`/`pptx`), or points `skill_resource_key` at a
+`SkillResourceComponent` with `publish_as_custom_skill: true` -- resolved to that skill's
+uploaded `anthropic_skill_id` at run time (same `getattr(context.resources, key)` convention
+`skill_keys` already uses), as `type: custom`.
+
+### Generated files
+
+Every file Claude's code execution writes to its output directory comes back in this asset's
+own output (`result["files"]`, each `{file_id, name, media_type, bytes}`) and in
+`hosted_skill_files` materialization metadata (name/media_type/size, never the raw bytes).
+Set `hosted_skills_files_dir` to ALSO write them to disk, one subfolder per `dagster/run_id`
+with a `manifest.json` -- the EXACT shape `report_tools_server` uses -- so
+[`slack_reply`](../../sinks/slack_reply)'s/[`teams_reply`](../../sinks/teams_reply)'s own
+`report_files_dir` (and `slack_chat_tools`' `upload_files`) deliver these files with zero
+changes needed there; point `report_tools_server` and `hosted_skills_files_dir` at the SAME
+directory to have both sources land in one delivery path.
+
+```yaml
+hosted_skills_files_dir: /var/dagster/report_tools_files
+```
+
+### What this does NOT do
+
+- Work on any non-Claude model -- `hosted_skills` is Anthropic-only, same as this whole component.
+- Keep document/file contents private to your own infrastructure -- they're processed in
+  Anthropic's own sandbox. Billed by execution time (Anthropic's own pricing, not this
+  repo's) after a free monthly allowance; the sandbox has no internet access, so a custom
+  skill that shells out to a tool like `dg` can reference its own bundled files but can't
+  actually run that command.
+- Let the model install additional packages at runtime -- only Anthropic's own pre-installed
+  set (pandas, matplotlib, python-docx, reportlab, and others) is available.
+
 ## When to use vs `openai_agent` / `gemini_agent` / `litellm_agent`
 
 - **`anthropic_agent`** — Claude-only shop. `anthropic`+`mcp` deps only.
@@ -200,6 +258,9 @@ since Dagster only binds cross-component resources at run time.
 | `mcp_servers` | `List[MCPServerSpec]` | `list()` | MCP servers to expose as tools. |
 | `allowed_tools` | `List[str]` | — | Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), '*' wildcards supported (fnmatch), applied across every mcp_servers entry. Default: all discovered tools. A server can expose many tools the a… _(full docs in schema.json + component README)_ |
 | `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
+| `hosted_skills` | `List[HostedSkillSpec]` | — | Skills Claude runs with CODE EXECUTION in Anthropic's hosted sandbox -- a DIFFERENT, separate mechanism from skill_keys (which only ever returns text, never runs anything). Enables the code_execution tool and the request… _(full docs in schema.json + component README)_ |
+| `code_execution_tool_version` | `str` | `"code_execution_20250825"` | Tool `type` string for the code execution tool hosted_skills enables -- 'code_execution_20250825' (the broadly-supported default) or a later version (e.g. 'code_execution_20260120'/'code_execution_20260521') for programm… _(full docs in schema.json + component README)_ |
+| `hosted_skills_files_dir` | `str` | — | Local directory root -- hosted_skills only. When set, every file Claude's code execution generates is ALSO written here (one subfolder per dagster/run_id, a manifest.json per run) in the exact same shape report_tools_ser… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

@@ -189,5 +189,7 @@ The registered `SkillResource` exposes:
 | `url_headers_env` | `str` | — | Env var holding a JSON object of HTTP headers to send with the download request (e.g. '{"Authorization": "Bearer ..."}'), for authenticated downloads. |
 | `include` | `List[str]` | — | mode='collection' only: allow-list of subfolder names to register. Leave unset to register every subfolder that contains a SKILL.md. |
 | `exclude` | `List[str]` | — | mode='collection' only: subfolder names to skip, applied after include. |
+| `publish_as_custom_skill` | `bool` | `false` | Also upload this skill (or, in mode='collection', every skill in it) to Anthropic's Skills API as a custom skill, at component load time -- idempotent by content hash, so unchanged content is never re-uploaded. The resol… _(full docs in schema.json + component README)_ |
+| `custom_skill_api_key_env_var` | `str` | `"ANTHROPIC_API_KEY"` | publish_as_custom_skill only. Env var holding the Anthropic API key used to upload. |
 
 [//]: # (FIELDS:END)

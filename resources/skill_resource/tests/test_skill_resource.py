@@ -230,3 +230,125 @@ def test_describe_flags_skill_md_text_that_tells_the_model_to_run_a_script(mod, 
     result = component.build_defs(None).resources["pdf_skill"].describe()
     assert result["needs_code_execution"] is True
     assert result["code_execution_files"] == []
+
+
+# --- publish_as_custom_skill: upload to Anthropic's Skills API, idempotent by content hash --------
+
+def test_publish_as_custom_skill_uploads_and_exposes_skill_id(mod, monkeypatch, tmp_path):
+    content = "---\nname: pdf-report\ndescription: Generate a formatted PDF report from a DataFrame.\n---\n\nbody\n"
+    local_path = _write_local_skill(tmp_path, content=content)
+    calls = []
+
+    import requests
+
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"id": "skill_abc123", "latest_version_id": "skver_1"}
+
+    def fake_post(url, headers=None, files=None, timeout=None):
+        calls.append((url, files))
+        return _Resp()
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake")
+
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path, publish_as_custom_skill=True)
+    resource = component.build_defs(None).resources["pdf_skill"]
+    assert resource.anthropic_skill_id == "skill_abc123"
+    assert resource.describe()["anthropic_skill_id"] == "skill_abc123"
+    assert len(calls) == 1
+    assert calls[0][0] == "https://api.anthropic.com/v1/skills"
+
+
+def test_publish_as_custom_skill_is_idempotent_by_content_hash(mod, monkeypatch, tmp_path):
+    content = "---\nname: pdf-report\ndescription: Generate a formatted PDF report from a DataFrame.\n---\n\nbody\n"
+    local_path = _write_local_skill(tmp_path, content=content)
+    calls = []
+
+    import requests
+
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"id": "skill_abc123"}
+
+    def fake_post(url, headers=None, files=None, timeout=None):
+        calls.append(url)
+        return _Resp()
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake")
+
+    mod.SkillResourceComponent(resource_key="a", local_path=local_path, publish_as_custom_skill=True).build_defs(None)
+    mod.SkillResourceComponent(resource_key="b", local_path=local_path, publish_as_custom_skill=True).build_defs(None)
+    assert len(calls) == 1  # second component load found the unchanged content already registered
+
+
+def test_publish_as_custom_skill_uploads_a_new_version_when_content_changes(mod, monkeypatch, tmp_path):
+    import requests
+
+    calls = []
+
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"id": "skill_abc123"}
+
+    def fake_post(url, headers=None, files=None, timeout=None):
+        calls.append(url)
+        return _Resp()
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake")
+
+    local_path = _write_local_skill(
+        tmp_path, content="---\nname: pdf-report\ndescription: Generate a formatted PDF report from a DataFrame.\n---\n\nv1\n",
+    )
+    mod.SkillResourceComponent(resource_key="a", local_path=local_path, publish_as_custom_skill=True).build_defs(None)
+    assert calls == ["https://api.anthropic.com/v1/skills"]
+
+    (tmp_path / "pdf-report" / "SKILL.md").write_text(
+        "---\nname: pdf-report\ndescription: Generate a formatted PDF report from a DataFrame.\n---\n\nv2\n",
+    )
+    mod.SkillResourceComponent(resource_key="b", local_path=local_path, publish_as_custom_skill=True).build_defs(None)
+    assert calls == ["https://api.anthropic.com/v1/skills", "https://api.anthropic.com/v1/skills/skill_abc123/versions"]
+
+
+def test_publish_as_custom_skill_rejects_an_invalid_name(mod, tmp_path):
+    local_path = _write_local_skill(
+        tmp_path, content="---\nname: PDF_Report\ndescription: Generate a formatted PDF report from a DataFrame.\n---\n\nbody\n",
+    )
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path, publish_as_custom_skill=True)
+    with pytest.raises(ValueError, match="lowercase letters, digits, and hyphens"):
+        component.build_defs(None)
+
+
+def test_publish_as_custom_skill_rejects_a_reserved_word(mod, tmp_path):
+    local_path = _write_local_skill(
+        tmp_path, content="---\nname: anthropic-pdf-report\ndescription: Generate a formatted PDF report from a DataFrame.\n---\n\nbody\n",
+    )
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path, publish_as_custom_skill=True)
+    with pytest.raises(ValueError, match="reserved word"):
+        component.build_defs(None)
+
+
+def test_publish_as_custom_skill_requires_api_key(mod, tmp_path, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    content = "---\nname: pdf-report\ndescription: Generate a formatted PDF report from a DataFrame.\n---\n\nbody\n"
+    local_path = _write_local_skill(tmp_path, content=content)
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path, publish_as_custom_skill=True)
+    with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+        component.build_defs(None)

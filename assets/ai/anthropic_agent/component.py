@@ -102,6 +102,117 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
     return out
 # END field-shape normalization
 
+# BEGIN report-manifest (inlined per component; keep copies identical across report_tools_server / anthropic_agent /
+# slack_reply / teams_reply / slack_chat_tools -- see tests/test_report_manifest_drift.py)
+import json as _rm_json  # noqa: E402,F401
+import os as _rm_os  # noqa: E402,F401
+import shutil as _rm_shutil  # noqa: E402,F401
+import threading as _rm_threading  # noqa: E402,F401
+import time as _rm_time  # noqa: E402,F401
+
+_REPORT_MANIFEST_LOCK = _rm_threading.Lock()
+
+
+def _report_run_dir(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_rm_os.path.expanduser(files_dir), run_id or "_unscoped")
+
+
+def _report_manifest_path(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_report_run_dir(files_dir, run_id), "manifest.json")
+
+
+def read_run_manifest(files_dir: str, run_id: Optional[str]) -> List[Dict[str, Any]]:
+    """Every file {file_id, name, media_type, path, size_bytes, tool, created_at} report_tools_server has
+    written for this run so far. Trusted, run-scoped lookup -- same reasoning as receipts_db_path's own
+    receipt_ids_for_run: a caller only ever reads its OWN run's files by the run id Dagster itself put on the
+    run (never an argument an agent could spoof)."""
+    path = _report_manifest_path(files_dir, run_id)
+    if not _rm_os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = _rm_json.load(f)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def append_to_report_manifest(files_dir: str, run_id: Optional[str], entry: Dict[str, Any]) -> None:
+    run_dir = _report_run_dir(files_dir, run_id)
+    with _REPORT_MANIFEST_LOCK:
+        _rm_os.makedirs(run_dir, exist_ok=True)
+        existing = read_run_manifest(files_dir, run_id)
+        existing.append(entry)
+        manifest_path = _report_manifest_path(files_dir, run_id)
+        tmp_path = manifest_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            _rm_json.dump(existing, f)
+        _rm_os.replace(tmp_path, manifest_path)
+
+
+def lookup_report_file(files_dir: str, run_id: Optional[str], file_id: str) -> Optional[Dict[str, Any]]:
+    for entry in read_run_manifest(files_dir, run_id):
+        if entry.get("file_id") == file_id:
+            return entry
+    return None
+
+
+def sweep_old_report_runs(files_dir: str, retention_hours: float) -> int:
+    """Delete run folders under files_dir whose manifest.json is older than retention_hours. Best-effort: a run
+    folder with no manifest.json yet, or one that loses a race with a concurrent writer, is skipped rather than
+    raised -- this runs opportunistically on every tool call, not as a scheduled job."""
+    base = _rm_os.path.expanduser(files_dir)
+    if not _rm_os.path.isdir(base):
+        return 0
+    cutoff = _rm_time.time() - max(0.0, retention_hours) * 3600
+    removed = 0
+    for name in list(_rm_os.listdir(base)):
+        run_dir = _rm_os.path.join(base, name)
+        manifest = _rm_os.path.join(run_dir, "manifest.json")
+        if not _rm_os.path.isdir(run_dir) or not _rm_os.path.isfile(manifest):
+            continue
+        try:
+            if _rm_os.path.getmtime(manifest) < cutoff:
+                _rm_shutil.rmtree(run_dir, ignore_errors=True)
+                removed += 1
+        except OSError:
+            continue
+    return removed
+# END report-manifest
+
+
+from typing import Literal  # noqa: E402,F401
+
+
+class HostedSkillSpec(dg.Model, dg.Resolvable):
+    """One entry in `hosted_skills` -- a skill Claude runs with code execution in Anthropic's
+    hosted sandbox, as opposed to `skill_keys`' plain load_skill/read_skill_file (text only,
+    no code execution). Either a literal `type` + `skill_id` (e.g. one of Anthropic's own
+    built-in skills: 'pdf', 'docx', 'xlsx', 'pptx'), or `skill_resource_key` pointing at a
+    SkillResourceComponent with `publish_as_custom_skill: true` (resolved to a 'custom'
+    skill_id at run time) -- exactly one of the two is required."""
+
+    type: Optional[Literal["anthropic", "custom"]] = Field(default=None, description="'anthropic' for a built-in skill (pdf/docx/xlsx/pptx), 'custom' for one uploaded via the Skills API. Required together with skill_id; leave both unset when using skill_resource_key instead.")
+    skill_id: Optional[str] = Field(default=None, description="The skill id -- a built-in name ('pdf', 'docx', 'xlsx', 'pptx') when type='anthropic', or an uploaded skill_id ('skill_...') when type='custom'. Required together with type.")
+    skill_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Resource key of a SkillResourceComponent with publish_as_custom_skill: true -- "
+            "resolved to that skill's anthropic_skill_id at run time, as type='custom'. "
+            "Alternative to type+skill_id; exactly one of the two is required."
+        ),
+    )
+    version: str = Field(default="latest", description="Skill version -- a date string (Anthropic skills) or version id (custom skills), or 'latest' (default) for the most recent.")
+
+    @model_validator(mode="after")
+    def _exactly_one_skill_source(self):
+        literal_set = bool(self.type) or bool(self.skill_id)
+        if bool(literal_set) == bool(self.skill_resource_key):
+            raise ValueError("HostedSkillSpec requires exactly one of (type + skill_id) or skill_resource_key.")
+        if literal_set and not (self.type and self.skill_id):
+            raise ValueError("HostedSkillSpec: type and skill_id must both be set together.")
+        return self
+
 
 class AnthropicAgentComponent(Component, Model, Resolvable):
     """Single-shot agent using the Anthropic SDK directly + MCP tools.
@@ -180,6 +291,49 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         default=None,
         description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
     )
+    hosted_skills: Optional[List[HostedSkillSpec]] = Field(
+        default=None,
+        description=(
+            "Skills Claude runs with CODE EXECUTION in Anthropic's hosted sandbox -- a "
+            "DIFFERENT, separate mechanism from skill_keys (which only ever returns text, "
+            "never runs anything). Enables the code_execution tool and the request's "
+            "container.skills automatically. Up to 20 entries (Anthropic's own limit) -- "
+            "more raises a clear error at build_defs time. Each entry is a built-in skill "
+            "('anthropic' type, e.g. skill_id: pdf/docx/xlsx/pptx) or a custom one uploaded "
+            "via a SkillResourceComponent(publish_as_custom_skill=true), referenced by "
+            "skill_resource_key. Files Claude's code execution generates come back in this "
+            "asset's own output (`files`) and materialization metadata, and -- when "
+            "hosted_skills_files_dir is also set -- are written there too, in the SAME "
+            "manifest.json shape report_tools_server uses, so slack_reply's/teams_reply's "
+            "own report_files_dir delivers them with no changes needed there. Claude models "
+            "only; the code and any file contents go to Anthropic; billed by execution time "
+            "after a free monthly allowance (Anthropic's own pricing, not this repo's); the "
+            "sandbox has no internet access."
+        ),
+    )
+    code_execution_tool_version: str = Field(
+        default="code_execution_20250825",
+        description=(
+            "Tool `type` string for the code execution tool hosted_skills enables -- "
+            "'code_execution_20250825' (the broadly-supported default) or a later version "
+            "(e.g. 'code_execution_20260120'/'code_execution_20260521') for programmatic "
+            "tool calling or REPL state persistence. No anthropic-beta header is needed for "
+            "any of these -- confirmed against Anthropic's own current docs, not the older, "
+            "now-unnecessary beta header some earlier guidance mentioned."
+        ),
+    )
+    hosted_skills_files_dir: Optional[str] = Field(
+        default=None,
+        description=(
+            "Local directory root -- hosted_skills only. When set, every file Claude's code "
+            "execution generates is ALSO written here (one subfolder per dagster/run_id, a "
+            "manifest.json per run) in the exact same shape report_tools_server uses -- so "
+            "slack_reply/teams_reply's own report_files_dir (and slack_chat_tools' "
+            "upload_files) deliver these files with zero changes needed there. Point it at "
+            "the SAME directory if you want generated files from both report_tools_server "
+            "and hosted_skills delivered through one report_files_dir."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -255,6 +409,11 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         mcp_servers = self.mcp_servers
         allowed_tools = self.allowed_tools
         skill_keys = self.skill_keys or []
+        hosted_skills = self.hosted_skills or []
+        if len(hosted_skills) > 20:
+            raise ValueError(f"AnthropicAgentComponent {asset_name!r}: hosted_skills has {len(hosted_skills)} entries, over Anthropic's own 20-skills-per-request limit.")
+        code_execution_tool_version = self.code_execution_tool_version
+        hosted_skills_files_dir = self.hosted_skills_files_dir
         group_name = self.group_name
         description = self.description
         owners = self.owners or []
@@ -307,7 +466,10 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         # SkillResource's describe()/load()/read_file() are only resolved via
         # getattr(context.resources, key) at run time, same as server_resource_key above.
         _skill_resource_keys = set(skill_keys)
-        _required_resource_keys = _mcp_resource_keys | _skill_resource_keys
+        # Same mechanism, a third time, for hosted_skills[].skill_resource_key entries --
+        # resolved to a describe()['anthropic_skill_id'] at run time, same as skill_keys above.
+        _hosted_skill_resource_keys = {s.skill_resource_key for s in hosted_skills if s.skill_resource_key}
+        _required_resource_keys = _mcp_resource_keys | _skill_resource_keys | _hosted_skill_resource_keys
 
         @asset(
             key=AssetKey.from_user_string(asset_name),
@@ -356,6 +518,31 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                 for s in mcp_servers
             ]
 
+            # hosted_skills: a literal type+skill_id, or a skill_resource_key resolved to its
+            # anthropic_skill_id at run time (SkillResourceComponent(publish_as_custom_skill))
+            # -- same getattr(context.resources, key) convention as skill_keys above.
+            resolved_hosted_skills: List[Dict[str, str]] = []
+            for _spec in hosted_skills:
+                if _spec.skill_resource_key:
+                    try:
+                        _hres = getattr(context.resources, _spec.skill_resource_key)
+                    except Exception as e:
+                        raise ValueError(
+                            f"hosted_skills references skill_resource_key {_spec.skill_resource_key!r} "
+                            f"but no resource is registered under that key: {e}"
+                        ) from e
+                    _hinfo = _hres.describe() if hasattr(_hres, "describe") else {}
+                    _hid = _hinfo.get("anthropic_skill_id")
+                    if not _hid:
+                        raise ValueError(
+                            f"hosted_skills references skill_resource_key {_spec.skill_resource_key!r}, "
+                            "but that resource has no anthropic_skill_id -- set "
+                            "publish_as_custom_skill: true on its SkillResourceComponent."
+                        )
+                    resolved_hosted_skills.append({"type": "custom", "skill_id": _hid, "version": _spec.version})
+                else:
+                    resolved_hosted_skills.append({"type": _spec.type, "skill_id": _spec.skill_id, "version": _spec.version})
+
             substitutions = {"run_id": context.run_id, "tags": dict(context.run.tags or {})}
             if context.has_partition_key:
                 pk = context.partition_key
@@ -391,6 +578,10 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                     prompt_caching=prompt_caching,
                     skill_resources=skill_resources,
                     allowed_tools=allowed_tools,
+                    hosted_skills=resolved_hosted_skills,
+                    code_execution_tool_version=code_execution_tool_version,
+                    hosted_skills_files_dir=hosted_skills_files_dir,
+                    run_id=context.run.run_id,
                 )
             )
 
@@ -409,6 +600,12 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                 )
                 md["skills_loaded"] = MetadataValue.json(sorted(result["loaded_skill_names"]))
                 md["skill_load_count"] = MetadataValue.int(result["skill_load_count"])
+            if hosted_skills:
+                md["hosted_skills_used"] = MetadataValue.json(resolved_hosted_skills)
+                md["hosted_skill_files"] = MetadataValue.json([
+                    {"name": f["name"], "media_type": f["media_type"], "size_bytes": len(f["bytes"]) if "bytes" in f else f.get("size_bytes")}
+                    for f in result.get("files", [])
+                ])
             context.add_output_metadata(md)
             return result
 
@@ -704,9 +901,14 @@ async def _run_agent(
     prompt_caching: bool = False,
     skill_resources: Optional[Dict[str, Any]] = None,
     allowed_tools: Optional[List[str]] = None,
+    hosted_skills: Optional[List[Dict[str, str]]] = None,
+    code_execution_tool_version: str = "code_execution_20250825",
+    hosted_skills_files_dir: Optional[str] = None,
+    run_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     import os
     from contextlib import AsyncExitStack
+    from datetime import datetime, timezone
 
     try:
         from anthropic import AsyncAnthropic
@@ -761,12 +963,21 @@ async def _run_agent(
             )
             system_prompt = (system_prompt or "") + skills_block
 
+        hosted_skills = hosted_skills or []
+        if hosted_skills:
+            # No anthropic-beta header needed for any current code_execution_tool_version --
+            # confirmed against Anthropic's own current docs. {"name": "code_execution"} is
+            # the ONLY allowed name; the `type` string alone selects the tool version.
+            anthropic_tools = anthropic_tools + [{"type": code_execution_tool_version, "name": "code_execution"}]
+
         messages: List[Dict[str, Any]] = [{"role": "user", "content": prompt}]
 
         tool_call_details: List[Dict[str, Any]] = []
         iterations = 0
         stopped_reason = "max_iterations"
         last_text_answer = ""
+        container_id: Optional[str] = None
+        generated_file_ids: List[str] = []
 
         for i in range(max_iterations):
             iterations = i + 1
@@ -799,8 +1010,16 @@ async def _run_agent(
                     "type": "enabled",
                     "budget_tokens": int(thinking_budget),
                 }
+            if hosted_skills:
+                container_param: Dict[str, Any] = {"skills": hosted_skills}
+                if container_id:
+                    container_param["id"] = container_id
+                kwargs["container"] = container_param
 
             response = await client.messages.create(**kwargs)
+            response_container = getattr(response, "container", None)
+            if response_container is not None:
+                container_id = getattr(response_container, "id", None) or container_id
             # Append the assistant's full content list back into messages.
             assistant_content = []
             tool_uses = []
@@ -820,6 +1039,26 @@ async def _run_agent(
                             "input": block.input,
                         }
                     )
+                else:
+                    # Server-run blocks this loop never dispatches itself (thinking,
+                    # server_tool_use, bash_code_execution_tool_result,
+                    # text_editor_code_execution_tool_result, redacted_thinking, ...) --
+                    # echoed back verbatim (via the SDK's own serialization) so the API
+                    # sees exactly what it returned on a later turn. Previously only
+                    # "text"/"tool_use" were preserved here, silently dropping e.g.
+                    # thinking blocks from history -- a real pre-existing gap, not just a
+                    # hosted_skills concern.
+                    try:
+                        assistant_content.append(block.model_dump())
+                    except Exception:  # noqa: BLE001 -- never let an unknown block type crash the loop
+                        pass
+                    if btype == "bash_code_execution_tool_result":
+                        _result = getattr(block, "content", None)
+                        if getattr(_result, "type", None) == "bash_code_execution_result":
+                            for _output in (getattr(_result, "content", None) or []):
+                                _fid = getattr(_output, "file_id", None)
+                                if _fid and _fid not in generated_file_ids:
+                                    generated_file_ids.append(_fid)
 
             if text_parts:
                 last_text_answer = "\n".join(text_parts)
@@ -827,6 +1066,12 @@ async def _run_agent(
             messages.append({"role": "assistant", "content": assistant_content})
 
             stop_reason = getattr(response, "stop_reason", None)
+            if stop_reason == "pause_turn":
+                # The API paused a long-running turn (code execution ran long) -- NOT a
+                # final answer and NOT a tool-dispatch round. Resending the conversation
+                # as-is (the assistant content above, already appended) with the same
+                # container id lets Claude continue exactly where it left off.
+                continue
             if stop_reason != "tool_use" or not tool_uses:
                 stopped_reason = "final_answer"
                 break
@@ -938,6 +1183,43 @@ async def _run_agent(
 
             messages.append({"role": "user", "content": tool_results_content})
 
+        downloaded_files: List[Dict[str, Any]] = []
+        if generated_file_ids:
+            # client.files lives at the top level on the installed SDK (verified against
+            # anthropic==1.11.0); fall back to client.beta.files for an SDK version where
+            # it hasn't graduated out of beta yet.
+            files_ns = client.files if hasattr(client, "files") else client.beta.files
+            for _fid in generated_file_ids:
+                try:
+                    _meta = await files_ns.retrieve_metadata(_fid)
+                    _resp = await files_ns.download(_fid)
+                    _data = await _resp.read()
+                except Exception as e:  # noqa: BLE001 -- one bad download must never fail the whole run
+                    log.warning(f"hosted_skills: could not download generated file {_fid}: {e}")
+                    continue
+                _name = getattr(_meta, "filename", None) or _fid
+                _media_type = getattr(_meta, "mime_type", None) or "application/octet-stream"
+                _entry: Dict[str, Any] = {"file_id": _fid, "name": _name, "media_type": _media_type}
+                if hosted_skills_files_dir:
+                    try:
+                        _run_dir = _report_run_dir(hosted_skills_files_dir, run_id)
+                        os.makedirs(_run_dir, exist_ok=True)
+                        _path = os.path.join(_run_dir, f"{_fid}_{_name}")
+                        with open(_path, "wb") as f:
+                            f.write(_data)
+                        _entry["path"] = _path
+                        append_to_report_manifest(hosted_skills_files_dir, run_id, {
+                            "file_id": _fid, "name": _name, "media_type": _media_type, "path": _path,
+                            "size_bytes": len(_data), "tool": "hosted_skills",
+                            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        })
+                    except Exception as e:  # noqa: BLE001 -- a manifest write failure must never lose the file itself
+                        log.warning(f"hosted_skills: could not write {_fid!r} to hosted_skills_files_dir: {e}")
+                        _entry["bytes"] = _data
+                else:
+                    _entry["bytes"] = _data
+                downloaded_files.append(_entry)
+
         return {
             "final_answer": last_text_answer,
             "iterations": iterations,
@@ -949,6 +1231,7 @@ async def _run_agent(
             "mcp_servers": servers_used,
             "loaded_skill_names": sorted(loaded_skill_names),
             "skill_load_count": skill_load_count,
+            "files": downloaded_files,
         }
 
 

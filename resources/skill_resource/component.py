@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
@@ -186,6 +187,7 @@ class SkillResource(dg.ConfigurableResource):
     local_path: Optional[str] = Field(default=None, description="Local filesystem directory containing SKILL.md.")
     url: Optional[str] = Field(default=None, description="URL the skill was downloaded from (a raw SKILL.md file or a .zip archive).")
     url_headers_env: Optional[str] = Field(default=None, description="Env var holding a JSON object of HTTP headers, if the download needs to be re-fetched.")
+    anthropic_skill_id: Optional[str] = Field(default=None, description="Set when publish_as_custom_skill was true at component load -- the resolved Anthropic custom skill_id, for an anthropic_agent hosted_skills entry to reference via skill_resource_key.")
 
     def _skill_dir(self) -> Path:
         if self.git_url:
@@ -205,6 +207,8 @@ class SkillResource(dg.ConfigurableResource):
         directory."""
         result = {"key": self.key, "name": self.name, "description": self.description}
         result.update(_classify_skill_dir(self._skill_dir()))
+        if self.anthropic_skill_id:
+            result["anthropic_skill_id"] = self.anthropic_skill_id
         return result
 
     def load(self) -> dict:
@@ -262,6 +266,107 @@ def _classify_skill_dir(skill_dir: Path) -> Dict[str, Any]:
     if code_files or run_hint:
         return {"runnable_here": False, "needs_code_execution": True, "code_execution_files": sorted(code_files)}
     return {"runnable_here": True}
+
+
+# ── publish_as_custom_skill: upload a skill folder to Anthropic's Skills API ────────────────────────────────────────
+_ANTHROPIC_SKILLS_LOCK = threading.Lock()
+
+
+def _anthropic_skills_registry_path() -> Path:
+    # A function, not a module-level constant, so it re-reads `_CACHE_ROOT` fresh on every
+    # call -- same reasoning as `_git_checkout_cache_dir`/`_url_cache_dir`: tests monkeypatch
+    # `_CACHE_ROOT` per test, which a constant bound at module-exec time would never see.
+    return _CACHE_ROOT / "anthropic_skills_registry.json"
+_ANTHROPIC_SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+
+def _validate_anthropic_skill_name(name: str) -> None:
+    """Anthropic's Skills API constraints on a custom skill's `name` (SKILL.md front matter) --
+    checked here, before any upload attempt, so a bad name fails with a clear, local error
+    instead of an opaque 422 from the API."""
+    if len(name) > 64:
+        raise ValueError(f"custom skill name {name!r} is {len(name)} chars, over Anthropic's 64-char limit.")
+    if not _ANTHROPIC_SKILL_NAME_RE.match(name):
+        raise ValueError(
+            f"custom skill name {name!r} must be lowercase letters, digits, and hyphens only "
+            "(Anthropic's Skills API constraint) -- set an explicit `name` override if the "
+            "SKILL.md front matter name doesn't already fit."
+        )
+    if "anthropic" in name or "claude" in name:
+        raise ValueError(f"custom skill name {name!r} contains a reserved word ('anthropic'/'claude') -- Anthropic's Skills API rejects this.")
+
+
+def _skill_content_hash(skill_dir: Path) -> str:
+    h = hashlib.sha256()
+    for p in sorted(skill_dir.rglob("*")):
+        if p.is_file():
+            h.update(str(p.relative_to(skill_dir)).encode())
+            h.update(p.read_bytes())
+    return h.hexdigest()
+
+
+def _load_anthropic_skills_registry() -> Dict[str, Dict[str, str]]:
+    path = _anthropic_skills_registry_path()
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_anthropic_skills_registry(registry: Dict[str, Dict[str, str]]) -> None:
+    path = _anthropic_skills_registry_path()
+    with _ANTHROPIC_SKILLS_LOCK:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(registry))
+        tmp.replace(path)
+
+
+def _publish_custom_anthropic_skill(skill_dir: Path, name: str, api_key_env_var: str) -> str:
+    """Uploads (POST /v1/skills) or re-versions (POST /v1/skills/{id}/versions) a skill
+    folder as an Anthropic custom skill -- idempotent by content hash against a small local
+    registry (name -> {skill_id, content_hash}) persisted under the same cache root the git/
+    url source caching already uses: unchanged content is never re-uploaded, even across
+    component reloads. Returns the resolved skill_id."""
+    import requests
+
+    _validate_anthropic_skill_name(name)
+    api_key = os.environ.get(api_key_env_var)
+    if not api_key:
+        raise RuntimeError(f"Anthropic API key env var {api_key_env_var!r} is not set (needed to publish a custom skill).")
+
+    content_hash = _skill_content_hash(skill_dir)
+    registry = _load_anthropic_skills_registry()
+    entry = registry.get(name)
+    if entry and entry.get("content_hash") == content_hash and entry.get("skill_id"):
+        return entry["skill_id"]
+
+    files = [p for p in sorted(skill_dir.rglob("*")) if p.is_file()]
+    if not files:
+        raise ValueError(f"custom skill {name!r}: no files found under {skill_dir} to upload.")
+    headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
+    url = (
+        f"https://api.anthropic.com/v1/skills/{entry['skill_id']}/versions"
+        if entry and entry.get("skill_id") else
+        "https://api.anthropic.com/v1/skills"
+    )
+    opened = [p.open("rb") for p in files]
+    try:
+        file_tuples = [("files[]", (str(p.relative_to(skill_dir)), fh)) for p, fh in zip(files, opened)]
+        resp = requests.post(url, headers=headers, files=file_tuples, timeout=60)
+    finally:
+        for fh in opened:
+            fh.close()
+    resp.raise_for_status()
+    body = resp.json()
+    skill_id = body.get("id") or (entry or {}).get("skill_id")
+    if not skill_id:
+        raise RuntimeError(f"custom skill {name!r}: upload succeeded but the response had no skill id: {body!r}")
+    registry[name] = {"skill_id": skill_id, "content_hash": content_hash}
+    _save_anthropic_skills_registry(registry)
+    return skill_id
 
 
 def _read_skill_md_or_none(folder: Path) -> Optional[str]:
@@ -388,6 +493,20 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     include: Optional[List[str]] = Field(default=None, description="mode='collection' only: allow-list of subfolder names to register. Leave unset to register every subfolder that contains a SKILL.md.")
     exclude: Optional[List[str]] = Field(default=None, description="mode='collection' only: subfolder names to skip, applied after include.")
+    publish_as_custom_skill: bool = Field(
+        default=False,
+        description=(
+            "Also upload this skill (or, in mode='collection', every skill in it) to "
+            "Anthropic's Skills API as a custom skill, at component load time -- idempotent "
+            "by content hash, so unchanged content is never re-uploaded. The resolved "
+            "skill_id is exposed via describe()['anthropic_skill_id'] for an anthropic_agent "
+            "hosted_skills entry to reference via skill_resource_key. Needs a skill name "
+            "that already fits Anthropic's constraints (lowercase letters/digits/hyphens, "
+            "<=64 chars, no 'anthropic'/'claude') -- fails loudly at component load "
+            "otherwise, naming exactly what's wrong."
+        ),
+    )
+    custom_skill_api_key_env_var: str = Field(default="ANTHROPIC_API_KEY", description="publish_as_custom_skill only. Env var holding the Anthropic API key used to upload.")
 
     @model_validator(mode="after")
     def _exactly_one_source(self):
@@ -444,6 +563,10 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"{checked_path_desc})."
             )
 
+        anthropic_skill_id = None
+        if self.publish_as_custom_skill:
+            anthropic_skill_id = _publish_custom_anthropic_skill(skill_dir, resolved_name, self.custom_skill_api_key_env_var)
+
         resource = SkillResource(
             key=self.resource_key,
             name=resolved_name,
@@ -455,6 +578,7 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             local_path=self.local_path,
             url=self.url,
             url_headers_env=self.url_headers_env,
+            anthropic_skill_id=anthropic_skill_id,
         )
         return dg.Definitions(resources={self.resource_key: resource})
 
@@ -512,17 +636,23 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                     "in its front matter."
                 )
 
+            member_anthropic_skill_id = None
+            if self.publish_as_custom_skill:
+                member_anthropic_skill_id = _publish_custom_anthropic_skill(entry, resolved_name, self.custom_skill_api_key_env_var)
+
             if self.git_url:
                 member_git_path = f"{self.git_path}/{folder_name}" if self.git_path else folder_name
                 resource: Any = SkillResource(
                     key=key, name=resolved_name, description=resolved_description,
                     git_url=self.git_url, git_path=member_git_path, git_ref=self.git_ref,
                     git_token_env_var=self.git_token_env_var,
+                    anthropic_skill_id=member_anthropic_skill_id,
                 )
             else:
                 resource = SkillResource(
                     key=key, name=resolved_name, description=resolved_description,
                     local_path=str(entry),
+                    anthropic_skill_id=member_anthropic_skill_id,
                 )
             resources[key] = resource
 

@@ -155,7 +155,7 @@
     },
     "partition_type": {
       "default": null,
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
       "enum": [
         "daily",
         "weekly",
@@ -281,6 +281,50 @@
       "label": "Allowed Tools",
       "description": "Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), '*' wildcards supported (fnmatch), applied across every mcp_servers entry. Default: all discovered tools. A server can expose many tools the agent shouldn't be able to call (e.g. a hosted Dagster+ MCP server's terminate_run/rerun_run/delete_alert_policy alongside read-only ones) -- this is the lever to restrict an agent to a safe subset, e.g. ['dagster_plus__list_*', 'dagster_plus__get_*'].",
       "required": false
+    },
+    "code_execution_tool_version": {
+      "type": "string",
+      "label": "Code Execution Tool Version",
+      "description": "Tool `type` string for the code execution tool hosted_skills enables -- 'code_execution_20250825' (the broadly-supported default) or a later version (e.g. 'code_execution_20260120'/'code_execution_20260521') for programmatic tool calling or REPL state persistence. No anthropic-beta header is needed for any of these -- confirmed against Anthropic's own current docs, not the older, now-unnecessary beta header some earlier guidance mentioned.",
+      "required": false
+    },
+    "hosted_skills_files_dir": {
+      "type": "string",
+      "label": "Hosted Skills Files Dir",
+      "description": "Local directory root -- hosted_skills only. When set, every file Claude's code execution generates is ALSO written here (one subfolder per dagster/run_id, a manifest.json per run) in the exact same shape report_tools_server uses -- so slack_reply/teams_reply's own report_files_dir (and slack_chat_tools' upload_files) deliver these files with zero changes needed there. Point it at the SAME directory if you want generated files from both report_tools_server and hosted_skills delivered through one report_files_dir.",
+      "required": false
+    },
+    "hosted_skills": {
+      "type": "array",
+      "label": "Hosted Skills",
+      "description": "Skills Claude runs with CODE EXECUTION in Anthropic's hosted sandbox -- a different, separate mechanism from skill_keys. Each entry is a built-in skill (type: anthropic, skill_id: pdf/docx/xlsx/pptx) or a custom one, referenced either literally (type + skill_id) or via skill_resource_key (a SkillResourceComponent with publish_as_custom_skill: true).",
+      "required": false,
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "anthropic",
+              "custom"
+            ],
+            "description": "'anthropic' for a built-in skill, 'custom' for one uploaded via the Skills API. Required together with skill_id; leave both unset when using skill_resource_key instead."
+          },
+          "skill_id": {
+            "type": "string",
+            "description": "The skill id -- a built-in name ('pdf'/'docx'/'xlsx'/'pptx') when type='anthropic', or an uploaded skill_id when type='custom'. Required together with type."
+          },
+          "skill_resource_key": {
+            "type": "string",
+            "description": "Resource key of a SkillResourceComponent with publish_as_custom_skill: true -- resolved to that skill anthropic_skill_id at run time. Alternative to type+skill_id."
+          },
+          "version": {
+            "type": "string",
+            "default": "latest",
+            "description": "Skill version, or 'latest' (default) for the most recent."
+          }
+        }
+      }
     }
   }
 }

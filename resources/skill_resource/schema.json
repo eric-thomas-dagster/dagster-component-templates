@@ -100,6 +100,18 @@
       "label": "Exclude",
       "description": "mode='collection' only: subfolder names to skip, applied after include.",
       "required": false
+    },
+    "publish_as_custom_skill": {
+      "type": "boolean",
+      "label": "Publish As Custom Skill",
+      "description": "Also upload this skill (or, in mode='collection', every skill in it) to Anthropic's Skills API as a custom skill, at component load time -- idempotent by content hash, so unchanged content is never re-uploaded. The resolved skill_id is exposed via describe()['anthropic_skill_id'] for an anthropic_agent hosted_skills entry to reference via skill_resource_key. Needs a skill name that already fits Anthropic's constraints (lowercase letters/digits/hyphens, <=64 chars, no 'anthropic'/'claude') -- fails loudly at component load otherwise, naming exactly what's wrong.",
+      "required": false
+    },
+    "custom_skill_api_key_env_var": {
+      "type": "string",
+      "label": "Custom Skill Api Key Env Var",
+      "description": "publish_as_custom_skill only. Env var holding the Anthropic API key used to upload.",
+      "required": false
     }
   }
 }

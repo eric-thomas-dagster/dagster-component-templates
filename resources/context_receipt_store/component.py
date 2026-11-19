@@ -562,16 +562,44 @@ def context_policies(source: Any) -> dict[str, ContextPolicy]:
     return policies
 
 
+def _fold_outcome_event(payload: Mapping[str, Any], rid: str, et: str, outcomes: dict, pending: dict) -> None:
+    """Shared one-event step behind every fold that tracks per-``outcome_ref`` effective values (``outcomes``) and
+    the ones still awaiting approval (``pending``), both ``{receipt_id: {key: value}}``. A pending outcome (recorded
+    via ``record_outcome(..., pending=True)``) sits in ``pending`` until an ``outcome_approval`` event for the same
+    ``outcome_ref`` moves it into ``outcomes``; an ``outcome_retraction`` event removes it from both, from either
+    state. Anonymous outcomes (no ``outcome_ref``) can never be pending/retracted -- they always land in ``outcomes``,
+    unchanged from before this existed."""
+    if et == "outcome":
+        ref = payload.get("outcome_ref")
+        key = ref or f"anon-{len(outcomes.get(rid, {})) + len(pending.get(rid, {}))}"
+        if ref and payload.get("pending"):
+            pending.setdefault(rid, {})[key] = payload["value"]
+            outcomes.get(rid, {}).pop(key, None)
+        else:
+            outcomes.setdefault(rid, {})[key] = payload["value"]
+            pending.get(rid, {}).pop(key, None)
+    elif et == "outcome_approval":
+        ref = payload.get("outcome_ref")
+        if ref and ref in pending.get(rid, {}):
+            outcomes.setdefault(rid, {})[ref] = pending[rid].pop(ref)
+    elif et == "outcome_retraction":
+        ref = payload.get("outcome_ref")
+        if ref:
+            outcomes.get(rid, {}).pop(ref, None)
+            pending.get(rid, {}).pop(ref, None)
+
+
 def _fold_item_scores(items: Any, events: Any) -> dict[str, list[float]]:
     """Pure aggregation behind ``refresh_item_scores``: item -> [retrievals, weight, weighted_sum] (shared by every storage backend)."""
     outcomes: dict[str, dict[str, float]] = {}
+    pending: dict[str, dict[str, float]] = {}
     evidence: dict[str, list[tuple[float, set[str] | None]]] = {}
     for row in events:
         payload = json.loads(row["payload_json"])
-        if row["event_type"] == "outcome":
-            key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(row['receipt_id'], {}))}"
-            outcomes.setdefault(row["receipt_id"], {})[key] = payload["value"]
-        else:
+        et = row["event_type"]
+        if et in ("outcome", "outcome_approval", "outcome_retraction"):
+            _fold_outcome_event(payload, row["receipt_id"], et, outcomes, pending)
+        elif et == "evidence":
             ids = payload["details"].get("item_ids")
             evidence.setdefault(row["receipt_id"], []).append(
                 (EVIDENCE_WEIGHTS[payload["level"]], set(ids) if isinstance(ids, list) else None)
@@ -595,12 +623,13 @@ def _fold_item_scores(items: Any, events: Any) -> dict[str, list[float]]:
 def _fold_item_feedback(item_rows: Any, excl_rows: Any, events: Any) -> dict[str, dict[str, Any]]:
     """Pure aggregation behind ``item_feedback`` (rows are mappings: sqlite3.Row or dict); shared by every storage backend."""
     outcomes: dict[str, dict[str, float]] = {}
+    pending: dict[str, dict[str, float]] = {}
     evidence: dict[str, list[set[str] | None]] = {}
     for ev in events:
         payload = json.loads(ev["payload_json"])
-        if ev["event_type"] == "outcome":
-            key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(ev['receipt_id'], {}))}"
-            outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
+        et = ev["event_type"]
+        if et in ("outcome", "outcome_approval", "outcome_retraction"):
+            _fold_outcome_event(payload, ev["receipt_id"], et, outcomes, pending)
         elif payload.get("level") in ("cited", "verified", "counterfactual_tested"):
             scoped = (payload.get("details") or {}).get("item_ids")
             evidence.setdefault(ev["receipt_id"], []).append(set(scoped) if isinstance(scoped, list) else None)
@@ -662,17 +691,18 @@ def _fold_recent_outcomes(item_rows: Any, events: Any, limit: int) -> list[dict[
 def _fold_asset_usage(rows: Any, events: Any, ids: Any) -> dict[str, Any]:
     """Pure aggregation behind ``asset_usage_since`` (shared by every storage backend)."""
     outcomes: dict[str, dict[str, float]] = {}
+    pending: dict[str, dict[str, float]] = {}
     with_output: set[str] = set()
     verified: set[str] = set()
     claims: dict[str, tuple[int, int]] = {}  # receipt -> (claims_total, claims_ungrounded), latest report wins
     for ev in events:
         payload = json.loads(ev["payload_json"])
-        if ev["event_type"] == "outcome":
-            key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(ev['receipt_id'], {}))}"
-            outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
-        elif ev["event_type"] == "output_attached":
+        et = ev["event_type"]
+        if et in ("outcome", "outcome_approval", "outcome_retraction"):
+            _fold_outcome_event(payload, ev["receipt_id"], et, outcomes, pending)
+        elif et == "output_attached":
             with_output.add(ev["receipt_id"])
-        elif ev["event_type"] == "evidence":
+        elif et == "evidence":
             if payload["level"] in ("verified", "counterfactual_tested"):
                 verified.add(ev["receipt_id"])
             details = payload.get("details") or {}
@@ -683,7 +713,7 @@ def _fold_asset_usage(rows: Any, events: Any, ids: Any) -> dict[str, Any]:
         "claims_ungrounded": sum(u for _, u in claims.values()),
         "receipts": len(ids),
         "items": [(r["source_partition"], r["source_version"]) for r in rows],
-        "outcome_means": [sum(v.values()) / len(v) for v in outcomes.values()],
+        "outcome_means": [sum(v.values()) / len(v) for v in outcomes.values() if v],
         "with_output": len(with_output),
         "verified_outputs": len(with_output & verified),
     }
@@ -697,10 +727,10 @@ def _fold_code_version_outcomes(rows: Any, events: Any) -> tuple[dict[str, int],
     only. Samples are ordered by receipt id so the result is deterministic.
     """
     per_receipt: dict[str, dict[str, float]] = {}
+    pending: dict[str, dict[str, float]] = {}
     for ev in events:
         payload = json.loads(ev["payload_json"])
-        key = payload.get("outcome_ref") or f"anon-{len(per_receipt.get(ev['receipt_id'], {}))}"
-        per_receipt.setdefault(ev["receipt_id"], {})[key] = payload["value"]
+        _fold_outcome_event(payload, ev["receipt_id"], ev["event_type"], per_receipt, pending)
     receipts: dict[str, int] = {}
     pairs: dict[str, list[tuple[str, float]]] = {}
     for row in sorted(rows, key=lambda r: (r["cv"], r["receipt_id"])):
@@ -1297,6 +1327,7 @@ class ContextReceiptStore:
         value: float | None = None,
         source: str | None = None,
         outcome_ref: str | None = None,
+        pending: bool = False,
     ) -> None:
         """Append an outcome (thumbs, human edit, escalation, deal result...) to a receipt.
 
@@ -1304,6 +1335,12 @@ class ContextReceiptStore:
         ones need an explicit value. A later outcome with the same ``outcome_ref`` (for
         example a user id flipping thumbs-up to thumbs-down) supersedes the earlier one
         when scoring, so changing your mind is not double-counted.
+
+        ``pending=True`` holds this outcome out of every aggregation (scoring, ``item_feedback``,
+        ``asset_usage_since``, ``outcomes_by_code_version``) until ``approve_outcome`` is called for
+        the same ``outcome_ref`` -- for a review workflow where a rating shouldn't count until someone
+        signs off. Requires ``outcome_ref`` (otherwise there would be no way to approve it later). See
+        ``retract_outcome`` to cancel a rating outright instead.
         """
         if not isinstance(signal, str) or not signal.strip():
             raise ValueError("signal must be a non-empty string")
@@ -1318,11 +1355,35 @@ class ContextReceiptStore:
             or not -1 <= value <= 1
         ):
             raise ValueError("outcome value must be a finite number in [-1, 1]")
+        if pending and not outcome_ref:
+            raise ValueError("pending outcomes need outcome_ref so they can later be approved")
         self._append_event(
             receipt_id,
             "outcome",
-            {"signal": signal, "value": float(value), "source": source, "outcome_ref": outcome_ref},
+            {"signal": signal, "value": float(value), "source": source, "outcome_ref": outcome_ref, "pending": bool(pending)},
         )
+
+    def approve_outcome(self, receipt_id: str, outcome_ref: str, *, actor: str | None = None) -> None:
+        """Approve a pending outcome (recorded via ``record_outcome(..., pending=True)``) so it now counts
+        toward scoring and feedback. A no-op, not an error, when that ``outcome_ref`` isn't currently pending
+        (already active, retracted, or never recorded) -- callers can approve idempotently without checking
+        state first. ``actor`` is recorded for an audit trail; this store does not itself enforce who may
+        call this, leaving room for an RBAC layer in front of it.
+        """
+        if not isinstance(outcome_ref, str) or not outcome_ref.strip():
+            raise ValueError("outcome_ref must be a non-empty string")
+        self._append_event(receipt_id, "outcome_approval", {"outcome_ref": outcome_ref, "actor": actor})
+
+    def retract_outcome(self, receipt_id: str, outcome_ref: str, *, actor: str | None = None) -> None:
+        """Cancel a specific rating (by ``outcome_ref``) so it stops counting toward every aggregation,
+        whether it was active or still pending approval. Idempotent and irreversible by design -- retracting
+        again, or retracting a ref that was never rated, is a harmless no-op; there is no un-retract (record a
+        fresh outcome with the same ``outcome_ref`` instead). ``actor`` is recorded for an audit trail, same as
+        ``approve_outcome``.
+        """
+        if not isinstance(outcome_ref, str) or not outcome_ref.strip():
+            raise ValueError("outcome_ref must be a non-empty string")
+        self._append_event(receipt_id, "outcome_retraction", {"outcome_ref": outcome_ref, "actor": actor})
 
     def read_since(
         self, receipt_cursor: int = 0, event_cursor: int = 0, limit: int = 1000
@@ -1410,7 +1471,7 @@ class ContextReceiptStore:
             events = conn.execute(
                 """
                 SELECT receipt_id, event_type, payload_json FROM context_receipt_events
-                WHERE event_type IN ('outcome', 'evidence') ORDER BY rowid
+                WHERE event_type IN ('outcome', 'evidence', 'outcome_approval', 'outcome_retraction') ORDER BY rowid
                 """
             ).fetchall()
         stats = _fold_item_scores(items, events)
@@ -1486,7 +1547,8 @@ class ContextReceiptStore:
                 batch = ids[start:start + 500]
                 events.extend(conn.execute(
                     f"SELECT receipt_id, event_type, payload_json FROM context_receipt_events "
-                    f"WHERE event_type IN ('outcome', 'evidence') AND receipt_id IN ({','.join('?' * len(batch))}) ORDER BY rowid",
+                    f"WHERE event_type IN ('outcome', 'evidence', 'outcome_approval', 'outcome_retraction') "
+                    f"AND receipt_id IN ({','.join('?' * len(batch))}) ORDER BY rowid",
                     batch,
                 ).fetchall())
         return _fold_item_feedback(item_rows, excl_rows, events)
@@ -1549,7 +1611,7 @@ class ContextReceiptStore:
             allowed = {"receipt_id", "level", "details"}
             handler = self.add_evidence
         elif kind == "outcome":
-            allowed = {"receipt_id", "signal", "value", "source", "outcome_ref"}
+            allowed = {"receipt_id", "signal", "value", "source", "outcome_ref", "pending"}
             handler = self.record_outcome
         else:
             raise ValueError(f"unknown event type {kind!r}")
@@ -1675,7 +1737,8 @@ class ContextReceiptStore:
             ).fetchall()
             ids = sorted({r["receipt_id"] for r in rows})
             events = conn.execute(
-                f"SELECT receipt_id, payload_json FROM context_receipt_events WHERE event_type = 'outcome' "
+                f"SELECT receipt_id, event_type, payload_json FROM context_receipt_events "
+                f"WHERE event_type IN ('outcome', 'outcome_approval', 'outcome_retraction') "
                 f"AND receipt_id IN ({','.join('?' * len(ids))}) ORDER BY rowid",
                 ids,
             ).fetchall() if ids else []
@@ -2542,7 +2605,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
         items = self._query(f"SELECT receipt_id, item_id FROM {self._t('context_receipt_items')}")
         events = self._query(
             f"SELECT receipt_id, event_type, payload_json FROM {self._t('context_receipt_events')} "
-            f"WHERE event_type IN ('outcome', 'evidence') ORDER BY occurred_at, event_id")
+            f"WHERE event_type IN ('outcome', 'evidence', 'outcome_approval', 'outcome_retraction') ORDER BY occurred_at, event_id")
         stats = _fold_item_scores(items, events)
         now = self._timestamp()
         rows = [{"item_id": item, "retrievals": int(n), "outcome_weight": w, "outcome_sum": total,
@@ -2606,7 +2669,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
         excl_rows = self._query(
             f"SELECT e.item_id AS item_id, e.reason AS reason FROM {self._t('context_receipt_excluded')} e "
             f"JOIN {self._t('context_receipts')} r ON r.receipt_id = e.receipt_id WHERE {excl_where}", **params)
-        events = self._events_for(sorted({r["receipt_id"] for r in item_rows}), "'outcome', 'evidence'")
+        events = self._events_for(sorted({r["receipt_id"] for r in item_rows}), "'outcome', 'evidence', 'outcome_approval', 'outcome_retraction'")
         return _fold_item_feedback(item_rows, excl_rows, events)
 
     def recent_outcomes(self, asset_key: str, *, limit: int = 20, since: str = "") -> list[dict[str, Any]]:
@@ -2632,7 +2695,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
             f"WHERE i.source_asset_key = @a AND r.created_at >= TIMESTAMP(@since)", a=asset_key, since=self._ts(since))
         ids = sorted({r["receipt_id"] for r in rows})
-        events = self._events_for(ids, "'outcome', 'output_attached', 'evidence'")
+        events = self._events_for(ids, "'outcome', 'output_attached', 'evidence', 'outcome_approval', 'outcome_retraction'")
         return _fold_asset_usage(rows, events, ids)
 
     def _code_version_rows_events(self, asset_key: str, since: str = "") -> tuple[Any, Any]:
@@ -2640,7 +2703,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             f"SELECT DISTINCT i.receipt_id AS receipt_id, COALESCE(i.source_code_version, 'unknown') AS cv "
             f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
             f"WHERE i.source_asset_key = @a AND r.created_at >= TIMESTAMP(@since)", a=asset_key, since=self._ts(since))
-        return rows, self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome'")
+        return rows, self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome', 'outcome_approval', 'outcome_retraction'")
 
     def outcome_samples_by_code_version(self, asset_key: str, since: str = "") -> dict[str, list[float]]:
         return _fold_outcome_samples_by_code_version(*self._code_version_rows_events(asset_key, since))
@@ -3461,7 +3524,7 @@ class SqlContextReceiptStore(ContextReceiptStore):
         items = self._query(f"SELECT receipt_id, item_id FROM {self._t('context_receipt_items')}")
         events = self._query(
             f"SELECT receipt_id, event_type, payload_json FROM {self._t('context_receipt_events')} "
-            f"WHERE event_type IN ('outcome', 'evidence') ORDER BY occurred_at, event_id")
+            f"WHERE event_type IN ('outcome', 'evidence', 'outcome_approval', 'outcome_retraction') ORDER BY occurred_at, event_id")
         stats = _fold_item_scores(items, events)
         now = self._tsv(self._timestamp())
         rows = [{"item_id": item, "retrievals": int(n), "outcome_weight": w, "outcome_sum": total,
@@ -3539,7 +3602,7 @@ class SqlContextReceiptStore(ContextReceiptStore):
         excl_rows = self._query(
             f"SELECT e.item_id AS item_id, e.reason AS reason FROM {self._t('context_receipt_excluded')} e "
             f"JOIN {self._t('context_receipts')} r ON r.receipt_id = e.receipt_id WHERE {excl_where}", **params)
-        events = self._events_for(sorted({r["receipt_id"] for r in item_rows}), "'outcome', 'evidence'")
+        events = self._events_for(sorted({r["receipt_id"] for r in item_rows}), "'outcome', 'evidence', 'outcome_approval', 'outcome_retraction'")
         return _fold_item_feedback(item_rows, excl_rows, events)
 
     def recent_outcomes(self, asset_key: str, *, limit: int = 20, since: str = "") -> list[dict[str, Any]]:
@@ -3565,14 +3628,14 @@ class SqlContextReceiptStore(ContextReceiptStore):
             f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
             f"WHERE i.source_asset_key = :a AND r.created_at >= :since", a=asset_key, since=self._tsv(since or _EPOCH))
         ids = sorted({r["receipt_id"] for r in rows})
-        return _fold_asset_usage(rows, self._events_for(ids, "'outcome', 'output_attached', 'evidence'"), ids)
+        return _fold_asset_usage(rows, self._events_for(ids, "'outcome', 'output_attached', 'evidence', 'outcome_approval', 'outcome_retraction'"), ids)
 
     def _code_version_rows_events(self, asset_key: str, since: str = "") -> tuple[Any, Any]:
         rows = self._query(
             f"SELECT DISTINCT i.receipt_id AS receipt_id, COALESCE(i.source_code_version, 'unknown') AS cv "
             f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
             f"WHERE i.source_asset_key = :a AND r.created_at >= :since", a=asset_key, since=self._tsv(since or _EPOCH))
-        return rows, self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome'")
+        return rows, self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome', 'outcome_approval', 'outcome_retraction'")
 
     def outcome_samples_by_code_version(self, asset_key: str, since: str = "") -> dict[str, list[float]]:
         return _fold_outcome_samples_by_code_version(*self._code_version_rows_events(asset_key, since))
@@ -3703,7 +3766,7 @@ class AsyncReceiptWriter:
     receipt) are dead-lettered immediately either way.
     """
 
-    _OPS = ("record_retrieval", "attach_output", "add_evidence", "record_outcome")
+    _OPS = ("record_retrieval", "attach_output", "add_evidence", "record_outcome", "approve_outcome", "retract_outcome")
 
     def __init__(self, store: ContextReceiptStore, *, max_retries: int | None = None, backoff_seconds: float = 0.1, sleep: Any = None):
         self.store = store
@@ -3728,6 +3791,12 @@ class AsyncReceiptWriter:
 
     def record_outcome(self, *args: Any, **kwargs: Any) -> None:
         self._queue.put(("record_outcome", args, kwargs))
+
+    def approve_outcome(self, *args: Any, **kwargs: Any) -> None:
+        self._queue.put(("approve_outcome", args, kwargs))
+
+    def retract_outcome(self, *args: Any, **kwargs: Any) -> None:
+        self._queue.put(("retract_outcome", args, kwargs))
 
     def ingest(self, event: Mapping[str, Any]) -> str:
         """Queue a spec-v1 event; assigns a receipt_id to a retrieval event that lacks one."""
@@ -3823,6 +3892,12 @@ class _AsyncWrites:
 
     def record_outcome(self, *args: Any, **kwargs: Any) -> None:
         self._writer.record_outcome(*args, **kwargs)
+
+    def approve_outcome(self, *args: Any, **kwargs: Any) -> None:
+        self._writer.approve_outcome(*args, **kwargs)
+
+    def retract_outcome(self, *args: Any, **kwargs: Any) -> None:
+        self._writer.retract_outcome(*args, **kwargs)
 
     def ingest(self, event: Mapping[str, Any]) -> str:
         if self.pseudonymizing and event.get("type") == "retrieval":

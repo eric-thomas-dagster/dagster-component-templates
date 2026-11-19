@@ -49,7 +49,7 @@ def test_reformulation_marks_the_earlier_receipt_and_is_idempotent(mod, tmp_path
     assert store.derive_implicit_outcomes(window_seconds=120) == 1
     out = _outcomes(store, first)
     assert out == [{"signal": "reformulated", "value": -0.2, "source": "implicit",
-                    "outcome_ref": f"implicit:reformulated:{second}"}]
+                    "outcome_ref": f"implicit:reformulated:{second}", "pending": False}]
     assert _outcomes(store, second) == []  # the follow-up is not blamed
     assert store.derive_implicit_outcomes(window_seconds=120) == 0  # idempotent
     store.refresh_item_scores(prior_strength=0)

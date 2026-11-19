@@ -74,6 +74,35 @@ def norm_usage(u):
     return {**u, "items": sorted(u["items"], key=str), "outcome_means": sorted(round(x, 6) for x in u["outcome_means"])}
 
 
+def pending_retract_scenario(store):
+    """A small, separate scenario for pending/retract parity, kept apart from ``scenario()`` so it never
+    perturbs that function's many existing hardcoded-expectation tests."""
+    store.record_retrieval(context_name="kb", receipt_id="p1", items=[item("a")])
+    store.record_outcome("p1", signal="thumbs_up", outcome_ref="u1", pending=True)
+    store.approve_outcome("p1", "u1")
+    store.record_retrieval(context_name="kb", receipt_id="p2", items=[item("a")])
+    store.record_outcome("p2", signal="thumbs_down", outcome_ref="u2")
+    store.retract_outcome("p2", "u2")
+    store.record_retrieval(context_name="kb", receipt_id="p3", items=[item("a")])
+    store.record_outcome("p3", signal="thumbs_up", outcome_ref="u3", pending=True)
+    store.retract_outcome("p3", "u3")  # retracted before it was ever approved
+
+
+def test_pending_and_retracted_outcomes_parity(bq, lite):
+    pending_retract_scenario(bq)
+    pending_retract_scenario(lite)
+    since = "2000-01-01T00:00:00+00:00"
+    got, want = bq.item_feedback("kb", since=since), lite.item_feedback("kb", since=since)
+    for d in (got, want):
+        for e in d.values():
+            e.pop("last_retrieved_at")
+    assert got == want == {"a": {"retrievals": 3, "rated": 1, "mean_outcome": 1.0, "cited": 0, "excluded": {}}}
+    assert bq.outcomes_by_code_version("kb", since) == lite.outcomes_by_code_version("kb", since)
+    assert norm_usage(bq.asset_usage_since("kb", since)) == norm_usage(lite.asset_usage_since("kb", since))
+    assert bq.refresh_item_scores(0.0) == lite.refresh_item_scores(0.0)
+    assert bq.get_item_scores(["a"])["a"]["prior"] == lite.get_item_scores(["a"])["a"]["prior"] == 1.0
+
+
 def test_parity_with_the_sqlite_store(bq, lite):
     scenario(bq)
     scenario(lite)

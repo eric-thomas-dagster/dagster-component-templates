@@ -380,6 +380,19 @@ writer.record_outcome(receipt_id, signal="thumbs_down", outcome_ref="user-42")
 value in [-1, 1]). A later outcome with the same `outcome_ref` supersedes the earlier
 one, so a flipped thumb isn't double-counted. Outcomes can arrive weeks later.
 
+**Undo or hold a rating for review:** `retract_outcome(receipt_id, outcome_ref, actor=...)`
+cancels a specific rating outright -- it stops counting toward scoring, `item_feedback`,
+`asset_usage_since` and `outcomes_by_code_version`, whether it was active or still
+pending. There is no un-retract; record a fresh outcome with the same `outcome_ref`
+instead. `record_outcome(..., pending=True, outcome_ref=...)` holds a rating out of
+every aggregation until `approve_outcome(receipt_id, outcome_ref, actor=...)` is called
+for that same ref -- for a review workflow where a rating shouldn't count until someone
+signs off. Both require `outcome_ref` (there would be no later way to address an
+anonymous rating) and are idempotent: approving something that isn't pending, or
+retracting a ref that was never rated, is a harmless no-op. `actor` is recorded for an
+audit trail; neither call enforces who may invoke it, leaving room for an RBAC layer in
+front of this store.
+
 **Scoring:** `refresh_item_scores()` credits/blames each retrieved item with the
 receipt's outcome, weighted by the strongest evidence it was actually used
 (retrieved 0.5 < cited 1.0 < verified 1.5 < counterfactual 2.0; evidence may name

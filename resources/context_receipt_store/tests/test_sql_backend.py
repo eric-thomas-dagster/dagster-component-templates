@@ -9,7 +9,7 @@ import pytest
 
 sqlalchemy = pytest.importorskip("sqlalchemy")
 sys.path.insert(0, str(Path(__file__).parent))
-from .test_bigquery_backend import item, scenario, norm_usage  # noqa: E402
+from .test_bigquery_backend import item, scenario, norm_usage, pending_retract_scenario  # noqa: E402
 
 
 def _load():
@@ -75,6 +75,21 @@ def test_parity_with_the_native_sqlite_store(sql, lite):
     assert sql.find_by_item("a") == lite.find_by_item("a")
     assert sql.find_by_source_asset("kb") == lite.find_by_source_asset("kb")
     assert sql.find_by_assets({"kb": ["2026-01-01"]}) == lite.find_by_assets({"kb": ["2026-01-01"]})
+
+
+def test_pending_and_retracted_outcomes_parity(sql, lite):
+    pending_retract_scenario(sql)
+    pending_retract_scenario(lite)
+    since = "2000-01-01T00:00:00+00:00"
+    got, want = sql.item_feedback("kb", since=since), lite.item_feedback("kb", since=since)
+    for d in (got, want):
+        for e in d.values():
+            e.pop("last_retrieved_at")
+    assert got == want == {"a": {"retrievals": 3, "rated": 1, "mean_outcome": 1.0, "cited": 0, "excluded": {}}}
+    assert sql.outcomes_by_code_version("kb", since) == lite.outcomes_by_code_version("kb", since)
+    assert norm_usage(sql.asset_usage_since("kb", since)) == norm_usage(lite.asset_usage_since("kb", since))
+    assert sql.refresh_item_scores(0.0) == lite.refresh_item_scores(0.0)
+    assert sql.get_item_scores(["a"])["a"]["prior"] == lite.get_item_scores(["a"])["a"]["prior"] == 1.0
 
 
 def test_get_receipt_matches(sql, lite):

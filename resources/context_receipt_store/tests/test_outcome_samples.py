@@ -72,8 +72,8 @@ def test_parity_with_sqlite(mod, store, tmp_path):
 
 def test_pure_fold_summary_derives_from_samples(mod):
     rows = [{"receipt_id": "x", "cv": "a"}, {"receipt_id": "y", "cv": "a"}, {"receipt_id": "z", "cv": "b"}]
-    events = [{"receipt_id": "x", "payload_json": '{"value": 1.0, "outcome_ref": "o"}'},
-              {"receipt_id": "x", "payload_json": '{"value": -1.0, "outcome_ref": "o"}'}]
+    events = [{"receipt_id": "x", "event_type": "outcome", "payload_json": '{"value": 1.0, "outcome_ref": "o"}'},
+              {"receipt_id": "x", "event_type": "outcome", "payload_json": '{"value": -1.0, "outcome_ref": "o"}'}]
     assert mod._fold_outcome_samples_by_code_version(rows, events) == {"a": [-1.0], "b": []}
     assert mod._fold_outcomes_by_code_version(rows, events) == {
         "a": {"receipts": 2, "outcomes": 1, "mean_outcome": -1.0}, "b": {"receipts": 1, "outcomes": 0, "mean_outcome": None}}

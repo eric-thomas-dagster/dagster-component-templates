@@ -189,6 +189,56 @@ def test_document_summary_marks_a_fully_filtered_document_skipped(mod, tmp_path)
     assert summary["B"]["reason"] == "filtered_or_deduped_after_chunking"
 
 
+@requires_sentence_transformers
+@requires_chromadb
+def test_per_step_ops_also_emits_document_summary_on_the_final_step(mod, tmp_path):
+    """Regression: document_summary/document_summary_totals used to live only in the bundled
+    (non-per_step_ops) asset body -- per_step_ops=True's separate ops never computed it, since
+    the final step's op only ever sees the PREVIOUS op's DataFrame, never the chunk step's own
+    all_doc_ids/chunked_doc_ids checkpoints. Those are now carried forward via df.attrs."""
+    df = pd.DataFrame({
+        "doc_id": ["A", "B"],
+        "txt": [
+            "Document A's full text, long enough to split into more than one chunk easily given a small chunk_size.",
+            "short",  # too short to survive the min_chars filter below -- exercises "skipped" too
+        ],
+    })
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="test_kb5",
+        upstream_asset_key="raw_docs",
+        id_column="doc_id",
+        text_column="txt",
+        per_step_ops=True,
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200, "chunk_overlap": 0},
+            {"id": "filtered", "op": "filter", "text_column": "chunk_text", "min_chars": 20},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2"},
+            {"id": "indexed", "op": "write_vector_store", "provider": "chromadb",
+             "connection_string": str(tmp_path / "chroma5"), "collection_name": "test_kb5_collection"},
+        ],
+    )
+    result = _materialize(component, df)
+    assert result.success
+    final_md = next(
+        e.materialization.metadata for e in result.get_asset_materialization_events()
+        if e.materialization.asset_key == dg.AssetKey("test_kb5")
+    )
+    summary = {row["doc_id"]: row for row in final_md["document_summary"].data}
+    assert summary["A"]["status"] == "indexed" and summary["A"]["chunks"] > 0
+    assert summary["B"]["status"] == "skipped" and summary["B"]["chunks"] == 0
+    assert summary["B"]["reason"] == "filtered_or_deduped_after_chunking"
+    totals = final_md["document_summary_totals"].data
+    assert totals == {"total_documents": 2, "truncated": False, "indexed": 1, "skipped": 1, "failed": 0}
+
+    # Not emitted on intermediate per-step assets -- only the final step has it, same as the
+    # bundled path puts it only on the (one) asset's own metadata.
+    chunks_md = next(
+        e.materialization.metadata for e in result.get_asset_materialization_events()
+        if e.materialization.asset_key == dg.AssetKey("test_kb5_chunks")
+    )
+    assert "document_summary" not in chunks_md
+
+
 def test_do_embed_raw_litellm_reports_tokens_model_and_time(mod):
     fake_resp = MagicMock()
     fake_resp.data = [{"embedding": [0.1, 0.2]}, {"embedding": [0.3, 0.4]}]

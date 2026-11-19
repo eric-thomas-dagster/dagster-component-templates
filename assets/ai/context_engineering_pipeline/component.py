@@ -4768,6 +4768,16 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     import time as _time
                     t0 = _time.time()
                     extra_md: Dict[str, Any] = {}
+                    # Carries all_doc_ids/chunked_doc_ids across the op chain (ops only pass a plain
+                    # DataFrame to each other, not out-of-band state) so the LAST step can compute
+                    # document_summary/document_summary_totals the same way the bundled (non-per_step_ops)
+                    # path does -- explicitly re-stamped onto each op's own returned df.attrs below
+                    # (not relied on to survive automatically; pandas attrs propagation through
+                    # arbitrary per-op transforms is not guaranteed).
+                    carry: Dict[str, Any] = (
+                        dict((getattr(upstream, "attrs", {}) or {}).get("_doc_summary_carry") or {})
+                        if not is_first else {}
+                    )
 
                     if is_first:
                         if upstream is None:
@@ -4795,6 +4805,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                         extra_md["source_rows"] = MetadataValue.int(len(upstream_df))
                         extra_md["source_rows_available"] = MetadataValue.int(source_rows_available)
                         extra_md.update(_chunk_run_metadata(upstream_df, df, step, id_column))
+                        carry["all_doc_ids"] = list(dict.fromkeys(upstream_df[id_column].tolist()))  # preserve order, dedupe
+                        carry["chunked_doc_ids"] = list(set(df[id_column].unique())) if id_column in df.columns else []
                     elif op_kind == "write_vector_store":
                         write_input = upstream
                         local_step = step
@@ -4839,6 +4851,33 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                             except Exception as e:
                                 context.log.warning(f"preview emission failed: {e}")
 
+                        # Same per-document summary as the bundled (non-per_step_ops) path -- see
+                        # its own comment for the status derivation. all_doc_ids/chunked_doc_ids
+                        # come from the chunk step via `carry` (this op never sees the original
+                        # upstream DataFrame directly).
+                        _all_doc_ids = carry.get("all_doc_ids")
+                        _chunked_doc_ids = carry.get("chunked_doc_ids")
+                        if _all_doc_ids is not None and _chunked_doc_ids is not None:
+                            _chunked_doc_ids_set = set(_chunked_doc_ids)
+                            _final_doc_counts = df[id_column].value_counts().to_dict() if id_column in df.columns else {}
+                            _doc_summary = []
+                            _status_counts = {"indexed": 0, "skipped": 0, "failed": 0}
+                            for _doc_id in _all_doc_ids:
+                                _chunks = int(_final_doc_counts.get(_doc_id, 0))
+                                if _chunks > 0:
+                                    _status, _reason = "indexed", None
+                                elif _doc_id in _chunked_doc_ids_set:
+                                    _status, _reason = "skipped", "filtered_or_deduped_after_chunking"
+                                else:
+                                    _status, _reason = "failed", "chunking_produced_no_chunks"
+                                _status_counts[_status] += 1
+                                _doc_summary.append({"doc_id": _doc_id, "chunks": _chunks, "status": _status, "reason": _reason})
+                            extra_md["document_summary"] = MetadataValue.json(_doc_summary[:200])
+                            extra_md["document_summary_totals"] = MetadataValue.json({
+                                "total_documents": len(_all_doc_ids), "truncated": len(_doc_summary) > 200, **_status_counts,
+                            })
+
+                    df.attrs["_doc_summary_carry"] = carry
                     elapsed = _time.time() - t0
                     md = {**_step_metadata(step_id, op_kind, df, elapsed), **extra_md}
                     context.log.info(f"step {step_id!r} ({op_kind}) → {len(df)} rows in {elapsed:.2f}s")

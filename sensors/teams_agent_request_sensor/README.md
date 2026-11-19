@@ -84,6 +84,28 @@ sensor needs beyond that setup: **reacting to a message** (`post_acknowledgement
 delegated `ChannelMessage.Send` -- confirmed against Microsoft's own `chatmessage-setreaction`
 reference, no additional scope or consent needed.
 
+## Showing progress (`placeholder_text`) and the completion reaction
+
+Same two independent, composable fixes as `slack_agent_request_sensor`'s own README section --
+read that for the full rationale (including why a placeholder message, not
+`agents.sessions.setStatus`, is the right mechanism here too).
+
+- **The reaction**: `teams_reply` removes `acknowledgement_reaction` and adds a done/error one
+  once it posts the answer (or its `failure_watcher` catches a crash) -- see `teams_reply`'s own
+  README ("update_reaction_on_completion"). Nothing to set here; it reads the
+  `teams/message_id` tag this sensor already puts on every run.
+- **`placeholder_text`**: set this to post a real reply (e.g. `"Looking into it…"`) right after
+  acknowledging, tagged `teams/placeholder_id` so `teams_reply` can find and *edit* it
+  (`PATCH .../replies/{id}`) with the final answer instead of posting a new one. Editing a
+  reply needs delegated `ChannelMessage.ReadWrite` -- a DIFFERENT, broader scope than
+  `ChannelMessage.Send` (posting/reacting), confirmed against Microsoft's own
+  `chatmessage-update` reference. Add it to the same Entra app registration before setting
+  `placeholder_text`.
+
+```yaml
+  placeholder_text: "Looking into it…"
+```
+
 ## What this does NOT do
 
 - Classify intent or decide *what* to do with a message -- that's the agent's job, downstream.
@@ -153,6 +175,7 @@ See `example.yaml`.
 | `process_backlog_on_first_run` | `bool` | `false` | If false (default), the first-ever tick seeds the cursor to 'now' and processes nothing -- activating this sensor never answers a channel's past history. |
 | `post_acknowledgement` | `bool` | `true` | React to a matched message immediately (acknowledgement_reaction) so the sender sees it was received before the agent run even starts. Needs delegated ChannelMessage.Send (the same scope already provisioned for replies). |
 | `acknowledgement_reaction` | `str` | `"👀"` | Reaction for post_acknowledgement -- any Unicode emoji character, or a legacy name ('like', 'heart', 'laugh', 'surprised', 'sad', 'angry'). |
+| `placeholder_text` | `str` | — | If set, post this text as a new reply right after acknowledging a matched message, and tag the run teams/placeholder_id with that reply's own id. teams_reply then edits THIS reply with the final answer (PATCH .../replies… _(full docs in schema.json + component README)_ |
 | `set_isolation_disabled_tag` | `bool` | `true` | Tag every RunRequest dagster/isolation: disabled, so the run starts in-process on the code location server instead of spinning up an isolated container (which can take up to 3 minutes on Dagster+ -- far too slow for chat… _(full docs in schema.json + component README)_ |
 | `use_in_process_executor` | `bool` | `true` | Tag every RunRequest with run_config={'execution': {'config': {'in_process': {}}}}, so the agent asset and its downstream teams_reply asset run as plain function calls in one step-process instead of each spawning its own… _(full docs in schema.json + component README)_ |
 

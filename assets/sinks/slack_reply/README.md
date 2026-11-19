@@ -65,6 +65,46 @@ users. This component gives that a real mechanism instead:
   watch_reactions: true
 ```
 
+## Delivering generated files (`report_files_dir`)
+
+A model can forget to post a file it made, the same way it can forget to post an answer at all
+-- so this is handled the same deterministic way. Point `report_files_dir` at the SAME
+`files_dir` a [`report_tools_server`](../../ai/report_tools_server) the agent calls is
+configured with, and after posting the answer, `{asset_name}` reads that run's manifest (every
+`make_chart`/`make_pdf`/`make_docx`/`make_xlsx` file the run produced) and uploads each one into
+the same thread with `files_upload_v2` -- needs the `files:write` bot scope. A file may contain
+data the agent read while answering, so it's visible to whoever can already see the channel, same
+as the answer text itself. Posted filenames land in this asset's own materialization metadata
+(`files_posted`); an upload failure here is logged and skipped, never a reason to fail an
+already-posted answer.
+
+```yaml
+  report_files_dir: /var/dagster/report_tools_files
+```
+
+## Showing progress (`update_reaction_on_completion`, `placeholder_ts`)
+
+Without this, `slack_agent_request_sensor` adds its acknowledgement reaction (👀 by default)
+when it picks a message up and nothing visibly changes after that -- so a normal 20-30s answer
+looks stuck. Two independent fixes, on by default:
+
+- **`update_reaction_on_completion`** (default true): once `{asset_name}` posts the answer, it
+  removes `ack_reaction` (must match the sensor's own `acknowledgement_reaction`) and adds
+  `done_reaction` to the ORIGINAL triggering message (the `slack/message_ts` tag the sensor
+  sets) -- `{asset_name}_failure_watcher` adds `error_reaction` instead on a crash. Needs
+  `reactions:write`.
+- **`placeholder_ts`**: if `slack_agent_request_sensor`'s own `placeholder_text` is set, the
+  run carries a `slack/placeholder_ts` tag -- `{asset_name}` then edits that message in place
+  (`chat.update`) with the final answer instead of posting a new one (falling back to a new
+  post if the edit fails), and `{asset_name}_failure_watcher` edits it with the error. Nothing
+  to set here; this is driven entirely by that tag's presence.
+
+```yaml
+  ack_reaction: eyes
+  done_reaction: white_check_mark
+  error_reaction: warning
+```
+
 ## Minimal example
 
 ```yaml
@@ -120,7 +160,12 @@ attributes:
 | `webserver_base_url` | `str` | — | Base URL of the Dagster webserver (e.g. 'http://localhost:3000' or your Dagster+ deployment URL) -- used to build the run link. Leave unset to omit the link entirely. |
 | `monitor_failures` | `bool` | `true` | Also emit {asset_name}_failure_watcher, a run-status sensor that posts a short error reply for ANY failed run carrying slack/channel + slack/thread_ts tags -- so a crashed run is never silent in the channel. Set false to… _(full docs in schema.json + component README)_ |
 | `error_message_template` | `str` | `"⚠️ Something went wrong answering this: {error}"` | Template for the failure-path reply. Placeholder: {error}. |
+| `update_reaction_on_completion` | `bool` | `true` | On success, remove ack_reaction and add done_reaction to the ORIGINAL triggering message (the slack/message_ts tag slack_agent_request_sensor sets) -- so a 20-30s answer doesn't just look stuck at its acknowledgement rea… _(full docs in schema.json + component README)_ |
+| `ack_reaction` | `str` | `"eyes"` | The reaction slack_agent_request_sensor posted on pickup (must match its own acknowledgement_reaction) -- removed on completion. Only used when update_reaction_on_completion is true. |
+| `done_reaction` | `str` | `"white_check_mark"` | Reaction added to the original message once the reply posts successfully. Only used when update_reaction_on_completion is true. |
+| `error_reaction` | `str` | `"warning"` | Reaction added to the original message when the run fails (added by {asset_name}_failure_watcher). Only used when update_reaction_on_completion is true. |
 | `receipts_db_path` | `str` | — | SQLite file path -- the SAME receipts_db_path a knowledge_search_server/hybrid_knowledge_search_server the agent calls is configured with (and which must also have run_id_template set, the default, so its receipts carry… _(full docs in schema.json + component README)_ |
+| `report_files_dir` | `str` | — | Local directory root -- the SAME files_dir a report_tools_server this agent calls is configured with. When set, after posting the answer, this asset reads this run's manifest (written by report_tools_server's make_chart/… _(full docs in schema.json + component README)_ |
 | `watch_reactions` | `bool` | `false` | Also emit {asset_name}_rating_watcher, a sensor that polls reactions on every Slack message this asset has linked to a receipt (via receipts_db_path, which must also be set) and records a thumbs_up/thumbs_down outcome ag… _(full docs in schema.json + component README)_ |
 | `positive_reaction` | `str` | `"+1"` | Slack reaction name (as reactions.get returns it, e.g. '+1' for 👍) that records a thumbs_up outcome. Only used when watch_reactions is true. |
 | `negative_reaction` | `str` | `"-1"` | Slack reaction name (e.g. '-1' for 👎) that records a thumbs_down outcome. Only used when watch_reactions is true. |

@@ -231,6 +231,43 @@ def record_outcome(db_path: str, receipt_id: str, *, signal: str, outcome_ref: O
         conn.close()
 # END receipt-message-links
 
+# BEGIN report-manifest (read-only; inlined per component, kept byte-identical to the shared
+# reader functions in report_tools_server's own writer copy -- see tests/test_report_manifest_drift.py)
+import json as _rm_json  # noqa: E402,F401
+import os as _rm_os  # noqa: E402,F401
+
+
+def _report_run_dir(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_rm_os.path.expanduser(files_dir), run_id or "_unscoped")
+
+
+def _report_manifest_path(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_report_run_dir(files_dir, run_id), "manifest.json")
+
+
+def read_run_manifest(files_dir: str, run_id: Optional[str]) -> List[Dict[str, Any]]:
+    """Every file {file_id, name, media_type, path, size_bytes, tool, created_at} report_tools_server has
+    written for this run so far. Trusted, run-scoped lookup -- same reasoning as receipts_db_path's own
+    receipt_ids_for_run: a caller only ever reads its OWN run's files by the run id Dagster itself put on the
+    run (never an argument an agent could spoof)."""
+    path = _report_manifest_path(files_dir, run_id)
+    if not _rm_os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = _rm_json.load(f)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def lookup_report_file(files_dir: str, run_id: Optional[str], file_id: str) -> Optional[Dict[str, Any]]:
+    for entry in read_run_manifest(files_dir, run_id):
+        if entry.get("file_id") == file_id:
+            return entry
+    return None
+# END report-manifest (read-only)
+
 
 # ── Inline fs helper: local + cloud (s3://, gs://, abfs://) via fsspec. Same shape as
 # teams_run_request_sensor's / teams_agent_request_sensor's own copy, not a shared import.
@@ -359,6 +396,83 @@ def _get_teams_replies(bearer: str, team_id: str, channel_id: str, thread_id: st
     return out
 
 
+def _get_channel_files_folder(bearer: str, team_id: str, channel_id: str) -> Dict[str, str]:
+    """GET /teams/{id}/channels/{id}/filesFolder -- the driveItem for this channel's SharePoint
+    folder. Confirmed against Microsoft's own Graph reference: least-privileged delegated scope
+    is Files.Read.All (Files.ReadWrite/.All also works); the response's own `id` is the PARENT
+    item id uploads below address, and `parentReference.driveId` is the drive uploads need."""
+    import requests
+    r = requests.get(
+        f"{_GRAPH}/teams/{team_id}/channels/{channel_id}/filesFolder",
+        headers={"Authorization": f"Bearer {bearer}"}, timeout=30,
+    )
+    r.raise_for_status()
+    body = r.json()
+    return {"drive_id": (body.get("parentReference") or {}).get("driveId"), "item_id": body.get("id")}
+
+
+def _upload_file_to_channel_folder(bearer: str, drive_id: str, folder_item_id: str, filename: str, local_path: str, content_type: str) -> Dict[str, Any]:
+    """PUT /drives/{drive-id}/items/{parent-id}:/{filename}:/content -- Graph's "upload small
+    file" call (confirmed against Microsoft's own reference: up to 250 MB in one request, well
+    above report_tools_server's own max_file_bytes default). Least-privileged delegated scope is
+    Files.ReadWrite (Files.ReadWrite.All also works) -- a DIFFERENT scope than ChannelMessage.Send
+    (posting replies/reactions), so this is new consent beyond what teams_reply otherwise needs."""
+    import requests
+    with open(local_path, "rb") as f:
+        data = f.read()
+    r = requests.put(
+        f"{_GRAPH}/drives/{drive_id}/items/{folder_item_id}:/{filename}:/content",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": content_type or "application/octet-stream"},
+        data=data, timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def _set_teams_reaction(bearer: str, team_id: str, channel_id: str, message_id: str, reaction_type: str) -> None:
+    """Adds a reaction to a (root) channel message -- same shape as teams_agent_request_sensor's
+    own `_set_teams_reaction`, confirmed against Microsoft's own `chatmessage-setreaction`
+    reference: delegated ChannelMessage.Send is sufficient. teams_reply only ever reacts to the
+    triggering ROOT message (teams/message_id), never a reply, so no parent_id parameter here."""
+    import requests
+    r = requests.post(
+        f"{_GRAPH}/teams/{team_id}/channels/{channel_id}/messages/{message_id}/setReaction",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": "application/json"},
+        json={"reactionType": reaction_type}, timeout=30,
+    )
+    r.raise_for_status()
+
+
+def _unset_teams_reaction(bearer: str, team_id: str, channel_id: str, message_id: str, reaction_type: str) -> None:
+    """Removes a reaction from a (root) channel message. Confirmed against Microsoft's own
+    `chatmessage-unsetreaction` reference (v1.0, not beta-only): same endpoint shape and
+    delegated ChannelMessage.Send scope as setReaction -- no separate permission for removing."""
+    import requests
+    r = requests.post(
+        f"{_GRAPH}/teams/{team_id}/channels/{channel_id}/messages/{message_id}/unsetReaction",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": "application/json"},
+        json={"reactionType": reaction_type}, timeout=30,
+    )
+    r.raise_for_status()
+
+
+def _update_teams_reply(bearer: str, team_id: str, channel_id: str, thread_id: str, reply_id: str, html_body: str) -> None:
+    """PATCH .../replies/{id} -- edits an existing reply's content in place (used for the
+    placeholder-message update path). Confirmed against Microsoft's own `chatmessage-update`
+    reference: delegated ChannelMessage.ReadWrite is required -- a DIFFERENT, broader scope than
+    ChannelMessage.Send (posting new replies/reactions), so this is new consent beyond what
+    teams_reply otherwise needs. Returns 204 No Content on success (delegated); raises on any
+    other status via raise_for_status()."""
+    import requests
+    r = requests.patch(
+        f"{_GRAPH}/teams/{team_id}/channels/{channel_id}/messages/{thread_id}/replies/{reply_id}",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": "application/json"},
+        json={"body": {"contentType": "html", "content": html_body}},
+        timeout=30,
+    )
+    r.raise_for_status()
+
+
 def _resolve_user_email(bearer: str, aad_id: str) -> Optional[str]:
     """`from.user` on a chatMessage carries only an Azure AD object id, never an email -- same
     shape as teams_run_request_sensor's own `_resolve_user_email`. Any failure degrades to
@@ -460,6 +574,22 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
     monitor_failures: bool = Field(default=True, description="Also emit {asset_name}_failure_watcher, a run-status sensor that posts a short error reply for ANY failed run carrying teams/team_id + teams/channel_id + teams/thread_id tags -- so a crashed run is never silent in the channel. Set false to handle failure notification some other way.")
     error_message_template: str = Field(default="⚠️ Something went wrong answering this: {error}", description="Template for the failure-path reply. Placeholder: {error}.")
 
+    update_reaction_on_completion: bool = Field(
+        default=True,
+        description=(
+            "On success, remove ack_reaction and add done_reaction to the ORIGINAL triggering "
+            "message (the teams/message_id tag teams_agent_request_sensor sets) -- so a 20-30s "
+            "answer doesn't just look stuck at its acknowledgement reaction forever. On a "
+            "failed run, {asset_name}_failure_watcher adds error_reaction instead (ack_reaction "
+            "is still removed first). Same delegated ChannelMessage.Send scope watch_reactions "
+            "already needs -- confirmed no separate scope for removing a reaction either, same "
+            "as adding one. Best-effort: a reaction-swap failure never fails the reply itself."
+        ),
+    )
+    ack_reaction: str = Field(default="👀", description="The reaction teams_agent_request_sensor posted on pickup (must match its own acknowledgement_reaction) -- removed on completion. Only used when update_reaction_on_completion is true.")
+    done_reaction: str = Field(default="✅", description="Reaction added to the original message once the reply posts successfully. Only used when update_reaction_on_completion is true.")
+    error_reaction: str = Field(default="⚠️", description="Reaction added to the original message when the run fails (added by {asset_name}_failure_watcher). Only used when update_reaction_on_completion is true.")
+
     receipts_db_path: Optional[str] = Field(
         default=None,
         description=(
@@ -470,6 +600,21 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
             "run produced and links them to the posted Teams reply/replies -- so a later "
             "rating (watch_reactions below) can find the exact receipt_id to record an outcome "
             "against. Best-effort: a lookup failure here never fails the reply post itself."
+        ),
+    )
+    report_files_dir: Optional[str] = Field(
+        default=None,
+        description=(
+            "Local directory root -- the SAME files_dir a report_tools_server this agent calls "
+            "is configured with. When set, after posting the answer, this asset reads this "
+            "run's manifest (written by report_tools_server's make_chart/make_pdf/make_docx/"
+            "make_xlsx), uploads each file to the channel's own Files folder (Graph has no "
+            "inline file attachment on a channel message, unlike Slack), and posts a reply "
+            "linking to it. Needs delegated Files.ReadWrite (or Files.ReadWrite.All) -- a "
+            "DIFFERENT scope than ChannelMessage.Send, which only covers posting/reacting. "
+            "Files may contain data the agent read, so the same people who can already see the "
+            "channel's Files tab can see them. Best-effort: an upload failure here never fails "
+            "the already-posted answer."
         ),
     )
     watch_reactions: bool = Field(
@@ -529,6 +674,11 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
         webserver_base_url = self.webserver_base_url
         error_message_template = self.error_message_template
         receipts_db_path = self.receipts_db_path
+        report_files_dir = self.report_files_dir
+        update_reaction_on_completion = self.update_reaction_on_completion
+        ack_reaction = self.ack_reaction
+        done_reaction = self.done_reaction
+        error_reaction = self.error_reaction
 
         @dg.asset(
             key=asset_key,
@@ -543,6 +693,8 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
         def _reply(context: dg.AssetExecutionContext, agent_output: Any):
             tags = context.run.tags or {}
             team_id, channel_id, thread_id = tags.get("teams/team_id"), tags.get("teams/channel_id"), tags.get("teams/thread_id")
+            message_id = tags.get("teams/message_id")
+            placeholder_id = tags.get("teams/placeholder_id")
             if not team_id or not channel_id or not thread_id:
                 raise dg.Failure(
                     "teams_reply requires 'teams/team_id', 'teams/channel_id' and "
@@ -562,10 +714,29 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                     # Appended AFTER escaping the plain-text part -- _to_html would otherwise
                     # escape this markup's own angle brackets right along with the text.
                     html_part = f'{html_part}<br><br><a href="{link}">{run_link_label}</a>'
+                if i == 0 and placeholder_id:
+                    # Edits the sensor's own "Looking into it…" reply in place rather than
+                    # posting a new one -- falls back to a fresh post if the edit fails (e.g.
+                    # the placeholder was deleted).
+                    try:
+                        _update_teams_reply(bearer, team_id, channel_id, thread_id, placeholder_id, html_part)
+                        posted_ids.append(placeholder_id)
+                        continue
+                    except Exception as e:  # noqa: BLE001 -- fall back to a new post below
+                        context.log.warning(f"teams_reply: could not edit the placeholder reply, posting a new one instead: {e}")
                 resp = _post_teams_reply(bearer, team_id, channel_id, thread_id, html_part)
                 reply_id = resp.get("id")
                 if reply_id:
                     posted_ids.append(reply_id)
+            if update_reaction_on_completion and message_id:
+                try:
+                    _unset_teams_reaction(bearer, team_id, channel_id, message_id, ack_reaction)
+                except Exception:  # noqa: BLE001 -- may already be gone; never fatal
+                    pass
+                try:
+                    _set_teams_reaction(bearer, team_id, channel_id, message_id, done_reaction)
+                except Exception as e:  # noqa: BLE001 -- a cosmetic reaction must never fail an already-posted reply
+                    context.log.warning(f"teams_reply: could not add {done_reaction!r} to the original message: {e}")
             if receipts_db_path:
                 try:
                     receipt_ids = receipt_ids_for_run(receipts_db_path, context.run.run_id)
@@ -576,9 +747,39 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                         )
                 except Exception as e:  # noqa: BLE001 -- linking receipts must never fail an already-posted reply
                     context.log.warning(f"teams_reply: could not link receipts to the posted message(s): {e}")
+            files_posted: List[str] = []
+            if report_files_dir:
+                try:
+                    manifest = read_run_manifest(report_files_dir, context.run.run_id)
+                except Exception as e:  # noqa: BLE001 -- a manifest read failure must never fail an already-posted reply
+                    manifest = []
+                    context.log.warning(f"teams_reply: could not read report_tools_server's manifest: {e}")
+                if manifest:
+                    try:
+                        folder = _get_channel_files_folder(bearer, team_id, channel_id)
+                    except Exception as e:  # noqa: BLE001 -- see above
+                        folder = None
+                        context.log.warning(f"teams_reply: could not resolve the channel's Files folder: {e}")
+                    for entry in manifest:
+                        if not folder or not folder.get("drive_id") or not folder.get("item_id"):
+                            break
+                        try:
+                            item = _upload_file_to_channel_folder(
+                                bearer, folder["drive_id"], folder["item_id"], entry["name"], entry["path"],
+                                entry.get("media_type", "application/octet-stream"),
+                            )
+                            web_url = item.get("webUrl")
+                            link_html = f'<a href="{web_url}">{_to_html(entry["name"])}</a>' if web_url else _to_html(entry["name"])
+                            _post_teams_reply(bearer, team_id, channel_id, thread_id, f"📎 {link_html}")
+                            files_posted.append(entry["name"])
+                        except Exception as e:  # noqa: BLE001 -- one bad file upload must never block the others or the reply
+                            context.log.warning(f"teams_reply: could not post generated file {entry.get('name')!r}: {e}")
             return dg.Output(
-                {"posted_parts": len(parts), "team_id": team_id, "channel_id": channel_id, "thread_id": thread_id},
-                metadata={"posted_parts": dg.MetadataValue.int(len(parts)), "channel_id": dg.MetadataValue.text(channel_id)},
+                {"posted_parts": len(parts), "team_id": team_id, "channel_id": channel_id, "thread_id": thread_id, "files_posted": files_posted},
+                metadata={
+                    "posted_parts": dg.MetadataValue.int(len(parts)), "channel_id": dg.MetadataValue.text(channel_id),
+                    "files_posted": dg.MetadataValue.json(files_posted),
+                },
             )
 
         defs = dg.Definitions(assets=[_reply])
@@ -595,6 +796,8 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
             def _failure_watcher(sensor_context: dg.RunStatusSensorContext):
                 run_tags = sensor_context.dagster_run.tags or {}
                 team_id, channel_id, thread_id = run_tags.get("teams/team_id"), run_tags.get("teams/channel_id"), run_tags.get("teams/thread_id")
+                message_id = run_tags.get("teams/message_id")
+                placeholder_id = run_tags.get("teams/placeholder_id")
                 if not team_id or not channel_id or not thread_id:
                     return  # not a chat-agent run -- nothing to do, same tag-based identity check as everywhere else here
                 error = _redact(getattr(sensor_context.dagster_event, "message", None) or "the run failed with no further detail.")
@@ -607,7 +810,21 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                 try:
                     fs = _StateFS(oauth_state_dir)
                     bearer = _get_teams_bearer(fs, tenant_env, client_env, secret_env, refresh_env)
-                    _post_teams_reply(bearer, team_id, channel_id, thread_id, html_text)
+                    posted = False
+                    if placeholder_id:
+                        try:
+                            _update_teams_reply(bearer, team_id, channel_id, thread_id, placeholder_id, html_text)
+                            posted = True
+                        except Exception as e:  # noqa: BLE001 -- fall back to a new post below
+                            sensor_context.log.warning(f"teams_reply failure_watcher: could not edit the placeholder reply, posting a new one instead: {e}")
+                    if not posted:
+                        _post_teams_reply(bearer, team_id, channel_id, thread_id, html_text)
+                    if update_reaction_on_completion and message_id:
+                        try:
+                            _unset_teams_reaction(bearer, team_id, channel_id, message_id, ack_reaction)
+                        except Exception:  # noqa: BLE001 -- may already be gone; never fatal
+                            pass
+                        _set_teams_reaction(bearer, team_id, channel_id, message_id, error_reaction)
                 except Exception as e:  # noqa: BLE001 -- a failed failure-notification must not crash the sensor loop
                     sensor_context.log.warning(f"teams_reply failure_watcher: could not post error reply: {e}")
 

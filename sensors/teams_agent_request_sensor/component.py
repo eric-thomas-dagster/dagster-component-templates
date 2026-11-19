@@ -237,6 +237,28 @@ def _set_teams_reaction(bearer: str, team_id: str, channel_id: str, message_id: 
     r.raise_for_status()
 
 
+def _to_html(text: str) -> str:
+    """Teams message bodies are HTML (contentType: 'html') -- same minimal escape as
+    teams_reply's own `_to_html`: & < > escaped, newlines to <br>."""
+    escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return escaped.replace("\n", "<br>")
+
+
+def _post_teams_reply(bearer: str, team_id: str, channel_id: str, thread_id: str, html_body: str) -> Dict[str, Any]:
+    """Posts a reply and returns the created chatMessage -- same shape as teams_reply's own
+    `_post_teams_reply`, needed here (not just there) so placeholder_text's reply id can be
+    tagged onto the RunRequest before the run even starts."""
+    import requests
+    r = requests.post(
+        f"{_GRAPH}/teams/{team_id}/channels/{channel_id}/messages/{thread_id}/replies",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": "application/json"},
+        json={"body": {"contentType": "html", "content": html_body}},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
 def _is_bot_mentioned(message: Dict[str, Any], bot_application_id: Optional[str]) -> bool:
     if not bot_application_id:
         return False
@@ -366,6 +388,18 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     post_acknowledgement: bool = Field(default=True, description="React to a matched message immediately (acknowledgement_reaction) so the sender sees it was received before the agent run even starts. Needs delegated ChannelMessage.Send (the same scope already provisioned for replies).")
     acknowledgement_reaction: str = Field(default="👀", description="Reaction for post_acknowledgement -- any Unicode emoji character, or a legacy name ('like', 'heart', 'laugh', 'surprised', 'sad', 'angry').")
+    placeholder_text: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, post this text as a new reply right after acknowledging a matched message, "
+            "and tag the run teams/placeholder_id with that reply's own id. teams_reply then "
+            "edits THIS reply with the final answer (PATCH .../replies/{id}, delegated "
+            "ChannelMessage.ReadWrite -- a DIFFERENT scope than ChannelMessage.Send, which only "
+            "covers posting) instead of posting a new one, and its failure_watcher edits it "
+            "with the error. Leave unset (default) to skip this -- teams_reply just posts new "
+            "replies, as before."
+        ),
+    )
     set_isolation_disabled_tag: bool = Field(
         default=True,
         description=(
@@ -429,6 +463,7 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         process_backlog_on_first_run = self.process_backlog_on_first_run
         post_acknowledgement = self.post_acknowledgement
         acknowledgement_reaction = self.acknowledgement_reaction
+        placeholder_text = self.placeholder_text
         set_isolation_disabled_tag = self.set_isolation_disabled_tag
         use_in_process_executor = self.use_in_process_executor
         default_status = dg.DefaultSensorStatus.RUNNING if self.default_status.upper() == "RUNNING" else dg.DefaultSensorStatus.STOPPED
@@ -503,6 +538,13 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 }
                 if set_isolation_disabled_tag:
                     tags["dagster/isolation"] = "disabled"
+                if placeholder_text:
+                    try:
+                        resp = _post_teams_reply(bearer, team_id, channel_id, thread_id, _to_html(placeholder_text))
+                        if resp.get("id"):
+                            tags["teams/placeholder_id"] = resp["id"]
+                    except Exception as e:  # noqa: BLE001 -- a failed placeholder post must never block the launch
+                        notes.append(f"message {m['id']}: placeholder post failed: {e}")
                 run_config = {"execution": {"config": {"in_process": {}}}} if use_in_process_executor else {}
                 run_requests.append(dg.RunRequest(
                     run_key=f"{sensor_name}:{m['id']}", asset_selection=sensor_asset_selection, tags=tags, run_config=run_config,

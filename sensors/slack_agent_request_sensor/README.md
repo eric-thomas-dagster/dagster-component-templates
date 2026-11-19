@@ -126,6 +126,29 @@ setup, plus the extra `reactions:write` scope for `post_acknowledgement`.
 export SLACK_BOT_TOKEN=xoxb-...
 ```
 
+## Showing progress (`placeholder_text`) and the completion reaction
+
+Without this, the sensor adds its acknowledgement reaction (👀 by default) when it picks a
+message up and nothing visibly changes after that -- so a normal 20-30s answer looks stuck.
+Two independent, composable fixes:
+
+- **The reaction**: once `slack_reply` posts the answer (or its `failure_watcher` catches a
+  crash), it removes the acknowledgement reaction and adds a done/error one instead -- see
+  `slack_reply`'s own README ("update_reaction_on_completion"). Nothing to set here; it reads
+  the `slack/message_ts` tag this sensor already puts on every run.
+- **`placeholder_text`**: set this to post a real message (e.g. `"Looking into it…"`) right
+  after acknowledging, tagged `slack/placeholder_ts` so `slack_reply` can find and *edit* it
+  (`chat.update`) with the final answer instead of posting a new one. We checked Slack's own
+  docs rather than assuming: the newer `agents.sessions.setStatus` DOES work in a regular
+  channel thread (not just the AI-assistant pane the older `assistant.threads.setStatus` is
+  scoped to), but it has no free-text field -- just an enum (`active`/`processing`/`suspended`/
+  `closed`) -- and needs the Agents feature enabled on the workspace. A placeholder message is
+  what actually shows free text like "Looking into it…", everywhere, with no feature flag.
+
+```yaml
+  placeholder_text: "Looking into it…"
+```
+
 ## What this does NOT do
 
 - Classify intent or decide *what* to do with a message -- that's the agent's job, downstream.
@@ -187,6 +210,7 @@ See `example.yaml`.
 | `process_backlog_on_first_run` | `bool` | `false` | If false (default), the first-ever tick seeds the cursor to 'now' and processes nothing -- activating this sensor never answers a channel's past history. |
 | `post_acknowledgement` | `bool` | `true` | React to a matched message immediately (acknowledgement_reaction) so the sender sees it was received before the agent run even starts. |
 | `acknowledgement_reaction` | `str` | `"eyes"` | Reaction name for post_acknowledgement (one of Slack's built-in emoji names, e.g. 'eyes', 'thinking_face'). |
+| `placeholder_text` | `str` | — | If set, post this text as a new thread reply right after acknowledging a matched message, and tag the run slack/placeholder_ts with that reply's own ts. slack_reply then updates THIS message with the final answer (chat.u… _(full docs in schema.json + component README)_ |
 | `set_isolation_disabled_tag` | `bool` | `true` | Tag every RunRequest dagster/isolation: disabled, so the run starts in-process on the code location server instead of spinning up an isolated container (which can take up to 3 minutes on Dagster+ -- far too slow for chat… _(full docs in schema.json + component README)_ |
 | `use_in_process_executor` | `bool` | `true` | Tag every RunRequest with run_config={'execution': {'config': {'in_process': {}}}}, so the agent asset and its downstream slack_reply asset run as plain function calls in one step-process instead of each spawning its own… _(full docs in schema.json + component README)_ |
 

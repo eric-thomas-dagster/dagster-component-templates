@@ -52,6 +52,24 @@
       "label": "Receipts Db Path",
       "description": "SQLite file path -- the SAME receipts_db_path a slack_reply instance (and the knowledge_search_server/hybrid_knowledge_search_server the agent calls) are configured with. When set, get_thread() attaches receipt_ids to any BOT-authored message in the thread (a prior reply from this same chat agent, looked up via slack_reply's own receipt-message link table) -- so the model can see which knowledge-base searches a past answer was built from, without parsing its own text for a 'ref: <id>' marker.",
       "required": false
+    },
+    "report_files_dir": {
+      "type": "string",
+      "label": "Report Files Dir",
+      "description": "Local directory root -- the SAME files_dir a report_tools_server this agent calls is configured with. When set, ALSO registers an upload_files tool so the agent can post a generated chart/PDF/doc/spreadsheet (by file_id) into the thread mid-conversation, instead of waiting for slack_reply's own end-of-run delivery. Needs run_id_template too (left at its default) so this run's own files can be found.",
+      "required": false
+    },
+    "run_id_template": {
+      "type": "string",
+      "label": "Run Id Template",
+      "description": "Template for the spawned server's SLACK_CHAT_TOOLS_RUN_ID env var -- left as the literal string '{run_id}' here; the CALLING agent's own generic {run_id}/{tag.*} substitution resolves it to the real run id before the subprocess is spawned (same mechanism as report_tools_server's own run_id_template). Only used by upload_files (report_files_dir).",
+      "required": false
+    },
+    "enable_canvas_tool": {
+      "type": "boolean",
+      "label": "Enable Canvas Tool",
+      "description": "Also registers create_canvas(title, markdown): creates a Slack canvas (better than a PDF for a long document people will keep and edit), tabs it into this channel, and returns its link for the agent to include in its own answer. Needs canvases:write -- a NEW scope beyond what this component otherwise needs.",
+      "required": false
     }
   }
 }

@@ -186,9 +186,46 @@ def record_outcome(db_path: str, receipt_id: str, *, signal: str, outcome_ref: O
         conn.close()
 # END receipt-message-links
 
+# BEGIN report-manifest (read-only; inlined per component, kept byte-identical to the shared
+# reader functions in report_tools_server's own writer copy -- see tests/test_report_manifest_drift.py)
+import json as _rm_json  # noqa: E402,F401
+import os as _rm_os  # noqa: E402,F401
+
+
+def _report_run_dir(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_rm_os.path.expanduser(files_dir), run_id or "_unscoped")
+
+
+def _report_manifest_path(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_report_run_dir(files_dir, run_id), "manifest.json")
+
+
+def read_run_manifest(files_dir: str, run_id: Optional[str]) -> List[Dict[str, Any]]:
+    """Every file {file_id, name, media_type, path, size_bytes, tool, created_at} report_tools_server has
+    written for this run so far. Trusted, run-scoped lookup -- same reasoning as receipts_db_path's own
+    receipt_ids_for_run: a caller only ever reads its OWN run's files by the run id Dagster itself put on the
+    run (never an argument an agent could spoof)."""
+    path = _report_manifest_path(files_dir, run_id)
+    if not _rm_os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = _rm_json.load(f)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def lookup_report_file(files_dir: str, run_id: Optional[str], file_id: str) -> Optional[Dict[str, Any]]:
+    for entry in read_run_manifest(files_dir, run_id):
+        if entry.get("file_id") == file_id:
+            return entry
+    return None
+# END report-manifest (read-only)
+
 _AUDIT = logging.getLogger("slack_chat_tools.audit")
 
-ALL_TOOLS = ("get_thread",)
+ALL_TOOLS = ("get_thread", "upload_files", "create_canvas")
 
 
 # ── redaction -- same patterns dagster_instance_tools uses (duplicated, not imported, per this
@@ -264,6 +301,9 @@ class SlackChatTools:
         max_messages: int = 20,
         max_result_chars: int = 8000,
         receipts_db_path: Optional[str] = None,
+        report_files_dir: Optional[str] = None,
+        run_id: Optional[str] = None,
+        enable_canvas_tool: bool = False,
         audit=None,
     ):
         self.bot_token_env_var = bot_token_env_var
@@ -272,6 +312,9 @@ class SlackChatTools:
         self.max_messages = max(1, int(max_messages))
         self.max_result_chars = max(200, int(max_result_chars))
         self.receipts_db_path = receipts_db_path
+        self.report_files_dir = report_files_dir
+        self.run_id = run_id
+        self.enable_canvas_tool = enable_canvas_tool
         self._audit = audit or (lambda line: _AUDIT.info(line))
 
     def tool_names(self) -> List[str]:
@@ -348,6 +391,63 @@ class SlackChatTools:
             rows.append(row)
         return {"channel": self.channel, "thread_ts": self.thread_ts, "message_count": len(rows), "messages": rows}
 
+    def t_upload_files(self, file_ids: List[str]) -> Dict[str, Any]:
+        """Posts one or more files report_tools_server already generated (by file_id) into THIS
+        thread -- same channel/thread_ts get_thread() reads, there is no channel/thread
+        argument. Use this when the person wants a chart/PDF/doc/spreadsheet posted mid-
+        conversation rather than waiting for the run to finish (slack_reply posts every
+        generated file automatically at the end of the run regardless)."""
+        if not self.report_files_dir:
+            raise ToolError(
+                "upload_files needs report_files_dir configured "
+                "(SLACK_CHAT_TOOLS_REPORT_FILES_DIR env var unset); see README."
+            )
+        if not self.channel or not self.thread_ts:
+            raise ToolError(
+                "upload_files has no channel/thread configured -- same cause as get_thread's "
+                "own error; see README."
+            )
+        if not file_ids:
+            raise ToolError("file_ids must be a non-empty list of file_id values returned by report_tools_server.")
+        client = _get_slack_client(self.bot_token_env_var)
+        posted, missing = [], []
+        for file_id in file_ids:
+            entry = lookup_report_file(self.report_files_dir, self.run_id, file_id)
+            if entry is None:
+                missing.append(file_id)
+                continue
+            client.files_upload_v2(channel=self.channel, thread_ts=self.thread_ts, file=entry["path"], filename=entry.get("name"))
+            posted.append(entry["name"])
+        result: Dict[str, Any] = {"posted": posted}
+        if missing:
+            result["missing_file_ids"] = missing
+        return result
+
+    def t_create_canvas(self, title: str, markdown: str) -> Dict[str, Any]:
+        """Creates a Slack canvas from markdown -- better than a PDF for a long document people
+        will keep and edit -- tabs it into THIS channel, and returns its link. Include the link
+        in your own answer text; slack_reply posts that normally, there is no separate upload
+        step for a canvas."""
+        if not self.enable_canvas_tool:
+            raise ToolError("create_canvas is not enabled (enable_canvas_tool is false); see README.")
+        if not self.channel:
+            raise ToolError("create_canvas has no channel configured -- same cause as get_thread's own error; see README.")
+        if not title or not markdown:
+            raise ToolError("title and markdown are both required.")
+        client = _get_slack_client(self.bot_token_env_var)
+        resp = client.canvases_create(title=title, document_content={"type": "markdown", "markdown": markdown}, channel_id=self.channel)
+        if not resp.get("ok"):
+            raise ToolError(f"canvases.create failed: {resp.get('error')}")
+        canvas_id = resp["canvas_id"]
+        link = None
+        try:
+            team = client.team_info()
+            if team.get("ok"):
+                link = f"https://{team['team']['domain']}.slack.com/docs/{team['team']['id']}/{canvas_id}"
+        except Exception:  # noqa: BLE001 -- a missing link is not fatal, the canvas itself was already created
+            pass
+        return {"canvas_id": canvas_id, "link": link}
+
 
 # ── definitions loading not needed here -- unlike dagster_instance_tools/dagster_workflow_tools,
 # this tool never touches a Dagster instance at all, only the Slack API. ──────────────────────
@@ -384,6 +484,35 @@ class SlackChatToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             "text for a 'ref: <id>' marker."
         ),
     )
+    report_files_dir: Optional[str] = Field(
+        default=None,
+        description=(
+            "Local directory root -- the SAME files_dir a report_tools_server this agent calls "
+            "is configured with. When set, ALSO registers an upload_files tool so the agent can "
+            "post a generated chart/PDF/doc/spreadsheet (by file_id) into the thread mid-"
+            "conversation, instead of waiting for slack_reply's own end-of-run delivery. Needs "
+            "run_id_template too (left at its default) so this run's own files can be found."
+        ),
+    )
+    run_id_template: Optional[str] = Field(
+        default="{run_id}",
+        description=(
+            "Template for the spawned server's SLACK_CHAT_TOOLS_RUN_ID env var -- left as the "
+            "literal string '{run_id}' here; the CALLING agent's own generic {run_id}/{tag.*} "
+            "substitution resolves it to the real run id before the subprocess is spawned (same "
+            "mechanism as report_tools_server's own run_id_template). Only used by upload_files "
+            "(report_files_dir)."
+        ),
+    )
+    enable_canvas_tool: bool = Field(
+        default=False,
+        description=(
+            "Also registers create_canvas(title, markdown): creates a Slack canvas (better "
+            "than a PDF for a long document people will keep and edit), tabs it into this "
+            "channel, and returns its link for the agent to include in its own answer. Needs "
+            "canvases:write -- a NEW scope beyond what this component otherwise needs."
+        ),
+    )
     mcp_server_resource_key: Optional[str] = Field(
         default=None,
         description=(
@@ -411,6 +540,8 @@ class SlackChatToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         bot_token_env_var, max_messages, max_result_chars = self.slack_bot_token_env_var, self.max_messages, self.max_result_chars
         receipts_db_path = self.receipts_db_path
+        report_files_dir = self.report_files_dir
+        enable_canvas_tool = self.enable_canvas_tool
 
         def _init(init_context):
             # The in-process resource_key path has no per-run tag substitution to resolve
@@ -420,7 +551,7 @@ class SlackChatToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             # resource_key path has no `requester` either.
             return SlackChatTools(
                 bot_token_env_var=bot_token_env_var, max_messages=max_messages, max_result_chars=max_result_chars,
-                receipts_db_path=receipts_db_path,
+                receipts_db_path=receipts_db_path, report_files_dir=report_files_dir, enable_canvas_tool=enable_canvas_tool,
             )
 
         res = dg.ResourceDefinition(resource_fn=_init, description="Reads the Slack thread a chat-triggered agent run is answering.")
@@ -437,6 +568,12 @@ class SlackChatToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["SLACK_CHAT_TOOLS_THREAD_TS"] = self.thread_ts_template
             if receipts_db_path:
                 mcp_env["SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH"] = receipts_db_path
+            if report_files_dir:
+                mcp_env["SLACK_CHAT_TOOLS_REPORT_FILES_DIR"] = report_files_dir
+                if self.run_id_template:
+                    mcp_env["SLACK_CHAT_TOOLS_RUN_ID"] = self.run_id_template
+            if enable_canvas_tool:
+                mcp_env["SLACK_CHAT_TOOLS_ENABLE_CANVAS"] = "1"
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key,
                 type="stdio",
@@ -508,6 +645,16 @@ def build_mcp_server(tools: SlackChatTools):
         """The conversation so far: the last messages in the thread this run is answering (or the single message, if not in a thread), oldest first, as {user, text, ts} rows."""
         return tools.call("get_thread", {})
 
+    @mcp.tool()
+    def upload_files(file_ids: list) -> dict:
+        """Posts one or more files report_tools_server already generated (by file_id, from its make_chart/make_pdf/make_docx/make_xlsx results) into the thread this run is answering, right now -- use this when the person wants a file posted mid-conversation rather than waiting for the run to finish."""
+        return tools.call("upload_files", {"file_ids": file_ids})
+
+    @mcp.tool()
+    def create_canvas(title: str, markdown: str) -> dict:
+        """Creates a Slack canvas from markdown -- use this for a long document the person wants to keep and edit, instead of a PDF. Tabs it into this channel and returns {canvas_id, link}; include the link in your own answer text."""
+        return tools.call("create_canvas", {"title": title, "markdown": markdown})
+
     return mcp
 
 
@@ -516,7 +663,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     SLACK_CHAT_TOOLS_THREAD_TS (both normally resolved per-run by the CALLING agent's own
     {tag.*} substitution -- see README), SLACK_CHAT_TOOLS_MAX_MESSAGES (default 20),
     SLACK_CHAT_TOOLS_MAX_CHARS (default 8000),
-    SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH (optional -- attaches receipt_ids to bot messages)."""
+    SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH (optional -- attaches receipt_ids to bot messages),
+    SLACK_CHAT_TOOLS_REPORT_FILES_DIR + SLACK_CHAT_TOOLS_RUN_ID (optional -- enables upload_files),
+    SLACK_CHAT_TOOLS_ENABLE_CANVAS (optional, any truthy value -- enables create_canvas)."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     tools = SlackChatTools(
         bot_token_env_var=os.environ.get("SLACK_CHAT_TOOLS_BOT_TOKEN_ENV_VAR", "SLACK_BOT_TOKEN"),
@@ -525,6 +674,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         max_messages=int(os.environ.get("SLACK_CHAT_TOOLS_MAX_MESSAGES", "20")),
         max_result_chars=int(os.environ.get("SLACK_CHAT_TOOLS_MAX_CHARS", "8000")),
         receipts_db_path=os.environ.get("SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH") or None,
+        report_files_dir=os.environ.get("SLACK_CHAT_TOOLS_REPORT_FILES_DIR") or None,
+        run_id=os.environ.get("SLACK_CHAT_TOOLS_RUN_ID") or None,
+        enable_canvas_tool=bool(os.environ.get("SLACK_CHAT_TOOLS_ENABLE_CANVAS")),
     )
     build_mcp_server(tools).run(transport="stdio")
 

@@ -145,6 +145,12 @@
       "label": "Default Status",
       "description": "'RUNNING' or 'STOPPED' -- initial status of the sensor.",
       "required": false
+    },
+    "placeholder_text": {
+      "type": "string",
+      "label": "Placeholder Text",
+      "description": "If set, post this text as a new reply right after acknowledging a matched message, and tag the run teams/placeholder_id with that reply's own id. teams_reply then edits THIS reply with the final answer (PATCH .../replies/{id}, delegated ChannelMessage.ReadWrite -- a DIFFERENT scope than ChannelMessage.Send, which only covers posting) instead of posting a new one, and its failure_watcher edits it with the error. Leave unset (default) to skip this -- teams_reply just posts new replies, as before.",
+      "required": false
     }
   }
 }

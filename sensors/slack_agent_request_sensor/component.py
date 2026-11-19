@@ -212,6 +212,24 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     post_acknowledgement: bool = Field(default=True, description="React to a matched message immediately (acknowledgement_reaction) so the sender sees it was received before the agent run even starts.")
     acknowledgement_reaction: str = Field(default="eyes", description="Reaction name for post_acknowledgement (one of Slack's built-in emoji names, e.g. 'eyes', 'thinking_face').")
+    placeholder_text: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, post this text as a new thread reply right after acknowledging a matched "
+            "message, and tag the run slack/placeholder_ts with that reply's own ts. "
+            "slack_reply then updates THIS message with the final answer (chat.update) instead "
+            "of posting a new one, and its failure_watcher updates it with the error -- so a "
+            "20-30s wait shows 'Looking into it…' (or whatever text you set) instead of nothing. "
+            "Needs chat:write (already required). Leave unset (default) to skip this -- "
+            "slack_reply just posts new replies, as before. Checked against Slack's own docs, "
+            "not assumed: the newer agents.sessions.setStatus DOES work in regular channel "
+            "threads (not just the AI-assistant pane the older assistant.threads.setStatus is "
+            "scoped to), but it has no free-text status (an enum: active/processing/suspended/"
+            "closed) and needs the Agents feature enabled on the workspace (feature_disabled "
+            "error otherwise) -- this placeholder message is what actually shows free text like "
+            "'Looking into it…' in an ordinary channel, everywhere, with no feature flag."
+        ),
+    )
     set_isolation_disabled_tag: bool = Field(
         default=True,
         description=(
@@ -273,6 +291,7 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         process_backlog_on_first_run = self.process_backlog_on_first_run
         post_acknowledgement = self.post_acknowledgement
         acknowledgement_reaction = self.acknowledgement_reaction
+        placeholder_text = self.placeholder_text
         set_isolation_disabled_tag = self.set_isolation_disabled_tag
         use_in_process_executor = self.use_in_process_executor
         default_status = dg.DefaultSensorStatus.RUNNING if self.default_status.upper() == "RUNNING" else dg.DefaultSensorStatus.STOPPED
@@ -345,6 +364,13 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 }
                 if set_isolation_disabled_tag:
                     tags["dagster/isolation"] = "disabled"
+                if placeholder_text:
+                    try:
+                        resp = client.chat_postMessage(channel=channel_id, thread_ts=thread_ts, text=placeholder_text)
+                        if resp.get("ok") and resp.get("ts"):
+                            tags["slack/placeholder_ts"] = resp["ts"]
+                    except Exception as e:  # noqa: BLE001 -- a failed placeholder post must never block the launch
+                        notes.append(f"message {m['ts']}: placeholder post failed: {e}")
                 run_config = {"execution": {"config": {"in_process": {}}}} if use_in_process_executor else {}
                 run_requests.append(dg.RunRequest(
                     run_key=f"{sensor_name}:{m['ts']}", asset_selection=sensor_asset_selection, tags=tags, run_config=run_config,

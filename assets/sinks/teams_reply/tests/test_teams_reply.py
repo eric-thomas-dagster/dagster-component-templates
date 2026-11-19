@@ -35,12 +35,18 @@ class _Resp:
         return self._body
 
 
-def _install_fakes(monkeypatch, *, post_fail=None, reactions_by_reply=None):
+def _install_fakes(monkeypatch, *, post_fail=None, reactions_by_reply=None, files_folder_fail=None, upload_fail=None, patch_fail=None):
     import requests
 
     reactions_by_reply = reactions_by_reply or {}
-    calls = {"post": [], "get": []}
+    calls = {"post": [], "get": [], "put": [], "patch": []}
     counter = {"n": 0}
+
+    def fake_patch(url, **kwargs):
+        calls["patch"].append((url, kwargs))
+        if patch_fail:
+            raise RuntimeError(patch_fail)
+        return _Resp({})
 
     def fake_post(url, **kwargs):
         calls["post"].append((url, kwargs))
@@ -57,6 +63,10 @@ def _install_fakes(monkeypatch, *, post_fail=None, reactions_by_reply=None):
         calls["get"].append((url, kwargs))
         if "/users/" in url:
             return _Resp({"mail": None, "userPrincipalName": None})
+        if url.endswith("/filesFolder"):
+            if files_folder_fail:
+                raise RuntimeError(files_folder_fail)
+            return _Resp({"id": "folder1", "parentReference": {"driveId": "drive1"}})
         if url.endswith("/replies"):
             replies = [
                 {"id": rid, "reactions": reactions}
@@ -65,8 +75,16 @@ def _install_fakes(monkeypatch, *, post_fail=None, reactions_by_reply=None):
             return _Resp({"value": replies})
         return _Resp({"value": []})
 
+    def fake_put(url, **kwargs):
+        calls["put"].append((url, kwargs))
+        if upload_fail:
+            raise RuntimeError(upload_fail)
+        return _Resp({"id": "item1", "webUrl": "https://sharepoint.example/chart.png"})
+
     monkeypatch.setattr(requests, "post", fake_post)
     monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr(requests, "put", fake_put)
+    monkeypatch.setattr(requests, "patch", fake_patch)
     monkeypatch.setenv("TEAMS_TENANT_ID", "tid")
     monkeypatch.setenv("TEAMS_CLIENT_ID", "cid")
     monkeypatch.setenv("TEAMS_CLIENT_SECRET", "sec")
@@ -87,8 +105,11 @@ def _component(tmp_path, **overrides):
     return mod_cache["mod"].TeamsReplyComponent(**defaults)
 
 
-def _materialize(agent_output, component, monkeypatch, tmp_path, *, tags=None, post_fail=None, reactions_by_reply=None):
-    calls = _install_fakes(monkeypatch, post_fail=post_fail, reactions_by_reply=reactions_by_reply)
+def _materialize(agent_output, component, monkeypatch, tmp_path, *, tags=None, post_fail=None, reactions_by_reply=None, files_folder_fail=None, upload_fail=None, patch_fail=None):
+    calls = _install_fakes(
+        monkeypatch, post_fail=post_fail, reactions_by_reply=reactions_by_reply,
+        files_folder_fail=files_folder_fail, upload_fail=upload_fail, patch_fail=patch_fail,
+    )
     upstream = _upstream_asset(agent_output)
     defs = component.build_defs(None)
     result = dg.materialize(
@@ -399,3 +420,153 @@ def test_rating_watcher_skips_cleanly_when_no_links_yet(monkeypatch, mod, tmp_pa
     _install_fakes(monkeypatch)
     result = sensor_def(dg.build_sensor_context(cursor=None))
     assert isinstance(result, dg.SkipReason)
+
+
+# --- report_files_dir: uploading to the channel's Files folder -------------------------
+
+def test_report_files_dir_uploads_and_links_every_generated_file(monkeypatch, tmp_path):
+    component = _component(tmp_path, report_files_dir=str(tmp_path))
+    (tmp_path / "chart.png").write_bytes(b"x")
+    fake_manifest = [
+        {"file_id": "f1", "name": "chart.png", "media_type": "image/png", "path": str(tmp_path / "chart.png")},
+    ]
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", lambda *a, **k: fake_manifest)
+    result, calls = _materialize({"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=TEAMS_TAGS)
+    assert result.success
+    assert any(c[0].endswith("/filesFolder") for c in calls["get"])
+    uploads = [c for c in calls["put"] if c[0].endswith(":/chart.png:/content")]
+    assert len(uploads) == 1
+    assert uploads[0][0] == "https://graph.microsoft.com/v1.0/drives/drive1/items/folder1:/chart.png:/content"
+    link_posts = [c for c in calls["post"] if c[0].endswith("/replies") and "sharepoint.example" in c[1]["json"]["body"]["content"]]
+    assert len(link_posts) == 1
+
+
+def test_report_files_dir_unset_never_touches_the_files_folder(monkeypatch, tmp_path):
+    component = _component(tmp_path)
+    called = []
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", lambda *a, **k: called.append(1) or [])
+    result, calls = _materialize({"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=TEAMS_TAGS)
+    assert result.success and not called
+    assert not any(c[0].endswith("/filesFolder") for c in calls["get"])
+
+
+def test_report_files_dir_files_folder_lookup_failure_does_not_fail_the_reply(monkeypatch, tmp_path):
+    component = _component(tmp_path, report_files_dir=str(tmp_path))
+    fake_manifest = [{"file_id": "f1", "name": "chart.png", "media_type": "image/png", "path": str(tmp_path / "chart.png")}]
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", lambda *a, **k: fake_manifest)
+    result, calls = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=TEAMS_TAGS, files_folder_fail="boom",
+    )
+    assert result.success
+
+
+def test_report_files_dir_upload_failure_does_not_fail_the_reply(monkeypatch, tmp_path):
+    component = _component(tmp_path, report_files_dir=str(tmp_path))
+    fake_manifest = [{"file_id": "f1", "name": "chart.png", "media_type": "image/png", "path": str(tmp_path / "chart.png")}]
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", lambda *a, **k: fake_manifest)
+    result, calls = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=TEAMS_TAGS, upload_fail="boom",
+    )
+    assert result.success
+
+
+def test_report_manifest_read_failure_does_not_fail_the_reply(monkeypatch, tmp_path):
+    component = _component(tmp_path, report_files_dir=str(tmp_path))
+
+    def boom(*a, **k):
+        raise RuntimeError("disk error")
+
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", boom)
+    result, calls = _materialize({"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=TEAMS_TAGS)
+    assert result.success
+
+
+def test_read_run_manifest_reads_a_real_manifest_file(mod, tmp_path):
+    run_dir = tmp_path / "run_abc"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text('[{"file_id": "f1", "name": "x.png"}]')
+    assert mod.read_run_manifest(str(tmp_path), "run_abc") == [{"file_id": "f1", "name": "x.png"}]
+
+
+def test_lookup_report_file_finds_by_id(mod, tmp_path):
+    run_dir = tmp_path / "run_abc"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text('[{"file_id": "f1", "name": "x.png"}, {"file_id": "f2", "name": "y.pdf"}]')
+    assert mod.lookup_report_file(str(tmp_path), "run_abc", "f2")["name"] == "y.pdf"
+    assert mod.lookup_report_file(str(tmp_path), "run_abc", "nope") is None
+
+
+# --- update_reaction_on_completion / placeholder_id -------------------------------------
+
+def test_success_swaps_ack_reaction_for_done_reaction(monkeypatch, tmp_path):
+    component = _component(tmp_path)
+    tags = {**TEAMS_TAGS, "teams/message_id": "m1"}
+    result, calls = _materialize({"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=tags)
+    assert result.success
+    unset = [c for c in calls["post"] if c[0].endswith("/messages/m1/unsetReaction")]
+    setr = [c for c in calls["post"] if c[0].endswith("/messages/m1/setReaction")]
+    assert len(unset) == 1 and unset[0][1]["json"] == {"reactionType": "👀"}
+    assert len(setr) == 1 and setr[0][1]["json"] == {"reactionType": "✅"}
+
+
+def test_update_reaction_on_completion_false_skips_reactions(monkeypatch, tmp_path):
+    component = _component(tmp_path, update_reaction_on_completion=False)
+    tags = {**TEAMS_TAGS, "teams/message_id": "m1"}
+    result, calls = _materialize({"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=tags)
+    assert result.success
+    assert not [c for c in calls["post"] if "Reaction" in c[0]]
+
+
+def test_no_message_id_tag_skips_reactions_without_erroring(monkeypatch, tmp_path):
+    component = _component(tmp_path)
+    result, calls = _materialize({"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=TEAMS_TAGS)
+    assert result.success
+    assert not [c for c in calls["post"] if "Reaction" in c[0]]
+
+
+def test_placeholder_id_edits_the_existing_reply_instead_of_posting_a_new_one(monkeypatch, tmp_path):
+    component = _component(tmp_path)
+    tags = {**TEAMS_TAGS, "teams/placeholder_id": "ph1"}
+    result, calls = _materialize({"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=tags)
+    assert result.success
+    assert len(calls["patch"]) == 1
+    assert calls["patch"][0][0] == "https://graph.microsoft.com/v1.0/teams/T1/channels/Ch1/messages/root1/replies/ph1"
+    assert calls["patch"][0][1]["json"]["body"]["content"] == "hi"
+    reply_posts = [c for c in calls["post"] if c[0].endswith("/replies")]
+    assert reply_posts == []  # no NEW reply posted
+
+
+def test_placeholder_id_falls_back_to_a_new_post_when_edit_fails(monkeypatch, tmp_path):
+    component = _component(tmp_path)
+    tags = {**TEAMS_TAGS, "teams/placeholder_id": "ph1"}
+    result, calls = _materialize({"final_answer": "hi"}, component, monkeypatch, tmp_path, tags=tags, patch_fail="boom")
+    assert result.success
+    assert len(calls["patch"]) == 1
+    reply_posts = [c for c in calls["post"] if c[0].endswith("/replies")]
+    assert len(reply_posts) == 1  # fell back to a fresh reply
+
+
+def test_failure_watcher_edits_placeholder_and_swaps_reaction(monkeypatch, tmp_path):
+    component = _component(tmp_path)
+    calls = _install_fakes(monkeypatch)
+    import dagster as dg
+
+    @dg.asset
+    def boom():
+        raise ValueError("deliberate failure for a test")
+
+    instance = dg.DagsterInstance.ephemeral()
+    result = dg.materialize([boom], instance=instance, raise_on_error=False, tags={**TEAMS_TAGS, "teams/message_id": "m1", "teams/placeholder_id": "ph1"})
+    run = instance.get_run_by_id(result.run_id)
+    rec = instance.get_records_for_run(run.run_id, of_type=dg.DagsterEventType.RUN_FAILURE).records[0]
+    ev = rec.event_log_entry.dagster_event
+    ctx = dg.build_run_status_sensor_context(sensor_name="chat_reply_failure_watcher", dagster_event=ev, dagster_instance=instance, dagster_run=run)
+    defs = component.build_defs(None)
+    (sensor_def,) = [s for s in defs.sensors if s.name.endswith("_failure_watcher")]
+    sensor_def(ctx)
+    assert len(calls["patch"]) == 1
+    reply_posts = [c for c in calls["post"] if c[0].endswith("/replies")]
+    assert reply_posts == []
+    unset = [c for c in calls["post"] if c[0].endswith("/messages/m1/unsetReaction")]
+    setr = [c for c in calls["post"] if c[0].endswith("/messages/m1/setReaction")]
+    assert len(unset) == 1 and len(setr) == 1 and setr[0][1]["json"] == {"reactionType": "⚠️"}

@@ -44,13 +44,15 @@ def _msg(ts, user, text, thread_ts=None, subtype=None, bot_id=None):
 
 
 class _FakeClient:
-    def __init__(self, *, root_messages=None, replies_by_thread=None, bot_user_id="UBOT", email_by_user=None, history_fail=None):
+    def __init__(self, *, root_messages=None, replies_by_thread=None, bot_user_id="UBOT", email_by_user=None, history_fail=None, chat_post_fail=None):
         self.root_messages = root_messages or []
         self.replies_by_thread = replies_by_thread or {}
         self.bot_user_id = bot_user_id
         self.email_by_user = email_by_user or {}
         self.history_fail = history_fail
-        self.calls = {"history": [], "replies": [], "reactions": []}
+        self.chat_post_fail = chat_post_fail
+        self._ts_counter = 0
+        self.calls = {"history": [], "replies": [], "reactions": [], "chat_post": []}
 
     def auth_test(self):
         return {"ok": True, "user_id": self.bot_user_id}
@@ -71,6 +73,13 @@ class _FakeClient:
     def reactions_add(self, **kwargs):
         self.calls["reactions"].append(kwargs)
         return {"ok": True}
+
+    def chat_postMessage(self, **kwargs):
+        self.calls["chat_post"].append(kwargs)
+        if self.chat_post_fail:
+            return {"ok": False, "error": self.chat_post_fail}
+        self._ts_counter += 1
+        return {"ok": True, "ts": f"placeholder.{self._ts_counter}"}
 
 
 def _ctx(cursor_dict=None):
@@ -261,3 +270,35 @@ def test_use_in_process_executor_false_leaves_run_config_empty(monkeypatch, chat
     monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
     result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
     assert result.run_requests[0].run_config == {}
+
+
+# --- placeholder_text --------------------------------------------------------------------
+
+def test_placeholder_text_posts_a_message_and_tags_its_ts(monkeypatch, chat_agent_asset):
+    component = _component(placeholder_text="Looking into it…")
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[_msg("100.001", "U1", "<@UBOT> hi")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
+    assert client.calls["chat_post"] == [{"channel": "C1", "thread_ts": "100.001", "text": "Looking into it…"}]
+    assert result.run_requests[0].tags["slack/placeholder_ts"] == "placeholder.1"
+
+
+def test_placeholder_text_unset_never_posts_or_tags(monkeypatch, chat_agent_asset):
+    component = _component()
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[_msg("100.001", "U1", "<@UBOT> hi")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
+    assert client.calls["chat_post"] == []
+    assert "slack/placeholder_ts" not in result.run_requests[0].tags
+
+
+def test_placeholder_text_post_failure_does_not_block_the_launch(monkeypatch, chat_agent_asset):
+    component = _component(placeholder_text="Looking into it…")
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[_msg("100.001", "U1", "<@UBOT> hi")], chat_post_fail="channel_not_found")
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
+    assert len(result.run_requests) == 1
+    assert "slack/placeholder_ts" not in result.run_requests[0].tags

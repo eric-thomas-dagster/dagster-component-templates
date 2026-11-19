@@ -90,6 +90,33 @@ mcp_servers:
 calling agent's own `{run_id}`/`{tag.*}` substitution does, right before it launches the
 subprocess. This is what scopes a run's files (and its manifest) to that run alone.
 
+## Using it with the standard Dagster+ MCP server (not `dagster_instance_tools`)
+
+`make_chart`'s `timestamps`/`bucket`/`group_by` mode (see above) exists specifically so you can
+feed it data straight from the standard Dagster+ MCP server instead of needing
+`dagster_instance_tools` for charting:
+
+- **`list_runs(deployment_name, status, limit<=100)`** returns items with `id`, `status`,
+  `created_at`, `started_at`, `ended_at` (epoch seconds), `job_name` and `tags` (including
+  `dagster/failure_reason`). A list of failed runs' `created_at` values goes straight into
+  `timestamps`; their `job_name` (or `tags["dagster/failure_reason"]`) values go into
+  `group_by` for a per-job (or per-reason) breakdown -- `make_chart` buckets and zero-fills the
+  rest itself, so failures on a day nothing failed still show up as a true `0`, not a gap.
+- **`get_deployment_metrics`/`get_job_metrics`/`get_asset_metrics`** take a metric name, a
+  window (`after`/`before`), and a `granularity` (`HOURLY`/`DAILY`/`WEEKLY`/`MONTHLY`), and
+  return a time series as a list of `{period` or `timestamp, value}` per entity -- reshape that
+  directly into `series` (one `{name, x, y}` per entity) rather than `timestamps`+`bucket`.
+- **We could not confirm whether a run- or step-failure COUNT is among the Insights metric
+  names** -- checked, not assumed: every metrics tool (`list_deployment_metric_types`,
+  `list_job_metric_types`, `get_deployment_metrics`) returned HTTP 500 against the Dagster+
+  deployment we had access to while building this, so we could not list what metric names
+  exist there. If your own deployment's `list_deployment_metric_types`/`list_job_metric_types`
+  turns up nothing failure-shaped, use `list_runs` + the `timestamps`/`bucket`/`group_by` mode
+  instead -- it needs no metric name at all, just raw run rows.
+- `dagster_instance_tools` keeps working for everyone already using it (its own
+  `list_recent_runs`/`run_counts` tools are unaffected); this only means you no longer NEED it
+  just to get a chart.
+
 ## Caps and retention
 
 `max_file_bytes` (default 5 MB) and `max_files_per_run` (default 20) bound a single run; both

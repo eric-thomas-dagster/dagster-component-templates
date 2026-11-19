@@ -69,6 +69,58 @@ own README ("Auth"). `oauth_state_dir` can be the SAME directory `teams_agent_re
 uses; they share nothing in code, but refresh-token rotation state for the same Entra
 app/account is safe to share.
 
+## Delivering generated files (`report_files_dir`)
+
+Same problem, same deterministic fix as `slack_reply`'s own "Delivering generated files" --
+read that for the rationale. The Teams-specific wrinkle: unlike Slack, Microsoft Graph has no
+inline file attachment on a channel message, so this asset instead uploads each file to the
+channel's own **Files folder** (the SharePoint document library backing it) and posts a reply
+linking to it.
+
+Point `report_files_dir` at the SAME `files_dir` a
+[`report_tools_server`](../../ai/report_tools_server) the agent calls is configured with. After
+posting the answer, `{asset_name}` reads that run's manifest, resolves the channel's Files
+folder once (`GET .../channels/{id}/filesFolder`, confirmed against Microsoft's own Graph
+reference), and uploads each file with `PUT .../content` (Graph's "upload small file" call --
+up to 250 MB, well above `report_tools_server`'s own 5 MB default cap), posting one reply per
+file with a link to it (`webUrl`).
+
+**New permission, not a reuse of ChannelMessage.Send**: this needs delegated
+`Files.ReadWrite` (or `Files.ReadWrite.All`) -- a DIFFERENT scope than the `ChannelMessage.Send`
+already provisioned for posting replies and reactions. Add it to the same Entra app
+registration and re-consent before setting `report_files_dir`. Files may contain data the agent
+read while answering, so the same people who can already see the channel's Files tab can see
+them.
+
+```yaml
+  report_files_dir: /var/dagster/report_tools_files
+```
+
+## Showing progress (`update_reaction_on_completion`, `placeholder_id`)
+
+Same two independent fixes as `slack_reply`'s own README section, both on by default -- read
+that for the full rationale:
+
+- **`update_reaction_on_completion`**: once `{asset_name}` posts the answer, it removes
+  `ack_reaction` (must match `teams_agent_request_sensor`'s own `acknowledgement_reaction`) and
+  adds `done_reaction` to the ORIGINAL triggering message (the `teams/message_id` tag the
+  sensor sets) -- `{asset_name}_failure_watcher` adds `error_reaction` instead on a crash.
+  Same delegated `ChannelMessage.Send` scope already needed for posting/reacting -- confirmed
+  against Microsoft's own `chatmessage-unsetreaction` reference (v1.0, not beta-only): no
+  separate permission for removing a reaction either.
+- **`placeholder_id`**: if `teams_agent_request_sensor`'s own `placeholder_text` is set, the
+  run carries a `teams/placeholder_id` tag -- `{asset_name}` then edits that reply in place
+  (`PATCH .../replies/{id}`, needs delegated `ChannelMessage.ReadWrite` -- a DIFFERENT, broader
+  scope than `ChannelMessage.Send`) with the final answer instead of posting a new one (falling
+  back to a new reply if the edit fails), and `{asset_name}_failure_watcher` edits it with the
+  error. Nothing to set here; this is driven entirely by that tag's presence.
+
+```yaml
+  ack_reaction: "👀"
+  done_reaction: "✅"
+  error_reaction: "⚠️"
+```
+
 ## Minimal example
 
 ```yaml
@@ -130,7 +182,12 @@ attributes:
 | `webserver_base_url` | `str` | — | Base URL of the Dagster webserver (e.g. 'http://localhost:3000' or your Dagster+ deployment URL) -- used to build the run link. Leave unset to omit the link entirely. |
 | `monitor_failures` | `bool` | `true` | Also emit {asset_name}_failure_watcher, a run-status sensor that posts a short error reply for ANY failed run carrying teams/team_id + teams/channel_id + teams/thread_id tags -- so a crashed run is never silent in the ch… _(full docs in schema.json + component README)_ |
 | `error_message_template` | `str` | `"⚠️ Something went wrong answering this: {error}"` | Template for the failure-path reply. Placeholder: {error}. |
+| `update_reaction_on_completion` | `bool` | `true` | On success, remove ack_reaction and add done_reaction to the ORIGINAL triggering message (the teams/message_id tag teams_agent_request_sensor sets) -- so a 20-30s answer doesn't just look stuck at its acknowledgement rea… _(full docs in schema.json + component README)_ |
+| `ack_reaction` | `str` | `"👀"` | The reaction teams_agent_request_sensor posted on pickup (must match its own acknowledgement_reaction) -- removed on completion. Only used when update_reaction_on_completion is true. |
+| `done_reaction` | `str` | `"✅"` | Reaction added to the original message once the reply posts successfully. Only used when update_reaction_on_completion is true. |
+| `error_reaction` | `str` | `"⚠️"` | Reaction added to the original message when the run fails (added by {asset_name}_failure_watcher). Only used when update_reaction_on_completion is true. |
 | `receipts_db_path` | `str` | — | SQLite file path -- the SAME receipts_db_path a knowledge_search_server/hybrid_knowledge_search_server the agent calls is configured with (and which must also have run_id_template set, the default, so its receipts carry… _(full docs in schema.json + component README)_ |
+| `report_files_dir` | `str` | — | Local directory root -- the SAME files_dir a report_tools_server this agent calls is configured with. When set, after posting the answer, this asset reads this run's manifest (written by report_tools_server's make_chart/… _(full docs in schema.json + component README)_ |
 | `watch_reactions` | `bool` | `false` | Also emit {asset_name}_rating_watcher, a sensor that polls reactions on every Teams reply this asset has linked to a receipt (via receipts_db_path, which must also be set) and records a thumbs_up/thumbs_down outcome agai… _(full docs in schema.json + component README)_ |
 | `positive_reaction` | `str` | `"👍"` | Reaction (any Unicode emoji character, or a legacy name like 'like') that records a thumbs_up outcome. Only used when watch_reactions is true. |
 | `negative_reaction` | `str` | `"👎"` | Reaction that records a thumbs_down outcome. Only used when watch_reactions is true. |

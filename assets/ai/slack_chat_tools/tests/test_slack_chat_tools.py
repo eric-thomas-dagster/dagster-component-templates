@@ -12,17 +12,25 @@ def mod():
 
 
 class _FakeClient:
-    def __init__(self, messages=None, ok=True, error=None):
+    def __init__(self, messages=None, ok=True, error=None, upload_ok=True):
         self._messages = messages or []
         self._ok = ok
         self._error = error
+        self._upload_ok = upload_ok
         self.calls = []
+        self.uploaded = []
 
     def conversations_replies(self, channel, ts, limit):
         self.calls.append({"channel": channel, "ts": ts, "limit": limit})
         if not self._ok:
             return {"ok": False, "error": self._error}
         return {"ok": True, "messages": self._messages}
+
+    def files_upload_v2(self, **kwargs):
+        if not self._upload_ok:
+            raise RuntimeError("upload failed")
+        self.uploaded.append(kwargs)
+        return {"ok": True}
 
 
 def _msg(user, text, ts):
@@ -183,3 +191,148 @@ def test_receipts_db_path_unset_never_attaches_receipt_ids(mod, monkeypatch):
     tools = mod.SlackChatTools(channel="C1", thread_ts="100.001")
     result = tools.call("get_thread", {})
     assert "receipt_ids" not in result["messages"][0]
+
+
+# --- upload_files (report_files_dir) ----------------------------------------------------
+
+def test_upload_files_posts_each_resolved_file(mod, monkeypatch, tmp_path):
+    run_dir = tmp_path / "run1"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text(
+        '[{"file_id": "f1", "name": "chart.png", "path": "' + str(run_dir / "chart.png").replace("\\", "\\\\") + '"}]'
+    )
+    client = _FakeClient()
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", report_files_dir=str(tmp_path), run_id="run1")
+    result = tools.call("upload_files", {"file_ids": ["f1"]})
+    assert result == {"posted": ["chart.png"]}
+    assert len(client.uploaded) == 1
+    assert client.uploaded[0]["channel"] == "C1" and client.uploaded[0]["thread_ts"] == "100.001"
+
+
+def test_upload_files_unknown_file_id_is_reported_not_raised(mod, monkeypatch, tmp_path):
+    client = _FakeClient()
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", report_files_dir=str(tmp_path), run_id="run1")
+    result = tools.call("upload_files", {"file_ids": ["nope"]})
+    assert result == {"posted": [], "missing_file_ids": ["nope"]}
+
+
+def test_upload_files_without_report_files_dir_is_a_clear_error(mod):
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001")
+    result = tools.call("upload_files", {"file_ids": ["f1"]})
+    assert "report_files_dir" in result["error"]
+
+
+def test_upload_files_without_channel_is_a_clear_error(mod):
+    tools = mod.SlackChatTools(report_files_dir="/tmp/whatever")
+    result = tools.call("upload_files", {"file_ids": ["f1"]})
+    assert "error" in result
+
+
+def test_upload_files_empty_list_is_a_clear_error(mod):
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", report_files_dir="/tmp/whatever")
+    result = tools.call("upload_files", {"file_ids": []})
+    assert "error" in result
+
+
+def test_mcp_server_resource_key_includes_report_files_dir_and_run_id_template_when_set(mod):
+    component = mod.SlackChatToolsComponent(mcp_server_resource_key="slack_chat_mcp", report_files_dir="/tmp/files")
+    cfg = component.build_defs(None).resources["slack_chat_mcp"].model_dump()
+    assert cfg["env"]["SLACK_CHAT_TOOLS_REPORT_FILES_DIR"] == "/tmp/files"
+    assert cfg["env"]["SLACK_CHAT_TOOLS_RUN_ID"] == "{run_id}"
+
+
+def test_mcp_server_resource_key_omits_report_files_dir_when_unset(mod):
+    component = mod.SlackChatToolsComponent(mcp_server_resource_key="slack_chat_mcp")
+    cfg = component.build_defs(None).resources["slack_chat_mcp"].model_dump()
+    assert "SLACK_CHAT_TOOLS_REPORT_FILES_DIR" not in cfg["env"]
+    assert "SLACK_CHAT_TOOLS_RUN_ID" not in cfg["env"]
+
+
+def test_read_run_manifest_reads_a_real_manifest_file(mod, tmp_path):
+    run_dir = tmp_path / "run_abc"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text('[{"file_id": "f1", "name": "x.png"}]')
+    assert mod.read_run_manifest(str(tmp_path), "run_abc") == [{"file_id": "f1", "name": "x.png"}]
+
+
+def test_lookup_report_file_finds_by_id(mod, tmp_path):
+    run_dir = tmp_path / "run_abc"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text('[{"file_id": "f1", "name": "x.png"}, {"file_id": "f2", "name": "y.pdf"}]')
+    assert mod.lookup_report_file(str(tmp_path), "run_abc", "f2")["name"] == "y.pdf"
+    assert mod.lookup_report_file(str(tmp_path), "run_abc", "nope") is None
+
+
+# --- create_canvas (enable_canvas_tool) --------------------------------------------------
+
+class _CanvasFakeClient:
+    def __init__(self, create_ok=True, team_ok=True):
+        self._create_ok = create_ok
+        self._team_ok = team_ok
+        self.calls = []
+
+    def canvases_create(self, **kwargs):
+        self.calls.append(kwargs)
+        if not self._create_ok:
+            return {"ok": False, "error": "canvas_disabled_team"}
+        return {"ok": True, "canvas_id": "F123ABC"}
+
+    def team_info(self):
+        if not self._team_ok:
+            return {"ok": False}
+        return {"ok": True, "team": {"id": "T000", "domain": "my-workspace"}}
+
+
+def test_create_canvas_returns_canvas_id_and_link(mod, monkeypatch):
+    client = _CanvasFakeClient()
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", enable_canvas_tool=True)
+    result = tools.call("create_canvas", {"title": "Notes", "markdown": "# hi"})
+    assert result == {"canvas_id": "F123ABC", "link": "https://my-workspace.slack.com/docs/T000/F123ABC"}
+    assert client.calls[0]["channel_id"] == "C1"
+    assert client.calls[0]["document_content"] == {"type": "markdown", "markdown": "# hi"}
+
+
+def test_create_canvas_disabled_by_default(mod, monkeypatch):
+    client = _CanvasFakeClient()
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001")
+    result = tools.call("create_canvas", {"title": "Notes", "markdown": "# hi"})
+    assert "enable_canvas_tool" in result["error"]
+
+
+def test_create_canvas_api_failure_surfaces_as_error(mod, monkeypatch):
+    client = _CanvasFakeClient(create_ok=False)
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", enable_canvas_tool=True)
+    result = tools.call("create_canvas", {"title": "Notes", "markdown": "# hi"})
+    assert "error" in result
+
+
+def test_create_canvas_missing_link_when_team_info_fails(mod, monkeypatch):
+    client = _CanvasFakeClient(team_ok=False)
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", enable_canvas_tool=True)
+    result = tools.call("create_canvas", {"title": "Notes", "markdown": "# hi"})
+    assert result == {"canvas_id": "F123ABC", "link": None}
+
+
+def test_create_canvas_requires_title_and_markdown(mod, monkeypatch):
+    client = _CanvasFakeClient()
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", enable_canvas_tool=True)
+    assert "error" in tools.call("create_canvas", {"title": "", "markdown": "# hi"})
+
+
+def test_mcp_server_resource_key_sets_enable_canvas_env_when_true(mod):
+    component = mod.SlackChatToolsComponent(mcp_server_resource_key="slack_chat_mcp", enable_canvas_tool=True)
+    cfg = component.build_defs(None).resources["slack_chat_mcp"].model_dump()
+    assert cfg["env"]["SLACK_CHAT_TOOLS_ENABLE_CANVAS"] == "1"
+
+
+def test_mcp_server_resource_key_omits_enable_canvas_env_by_default(mod):
+    component = mod.SlackChatToolsComponent(mcp_server_resource_key="slack_chat_mcp")
+    cfg = component.build_defs(None).resources["slack_chat_mcp"].model_dump()
+    assert "SLACK_CHAT_TOOLS_ENABLE_CANVAS" not in cfg["env"]

@@ -13,16 +13,40 @@ def mod():
 
 
 class _FakeClient:
-    def __init__(self, ok=True, error=None):
+    def __init__(self, ok=True, error=None, upload_ok=True, update_ok=True):
         self.calls = []
+        self.uploaded = []
+        self.updates = []
+        self.reactions_added = []
+        self.reactions_removed = []
         self._ok = ok
         self._error = error
+        self._upload_ok = upload_ok
+        self._update_ok = update_ok
 
     def chat_postMessage(self, **kwargs):
         self.calls.append(kwargs)
         if not self._ok:
             return {"ok": False, "error": self._error}
         return {"ok": True, "ts": "999.0001"}
+
+    def chat_update(self, **kwargs):
+        self.updates.append(kwargs)
+        return {"ok": self._update_ok}
+
+    def reactions_add(self, **kwargs):
+        self.reactions_added.append(kwargs)
+        return {"ok": True}
+
+    def reactions_remove(self, **kwargs):
+        self.reactions_removed.append(kwargs)
+        return {"ok": True}
+
+    def files_upload_v2(self, **kwargs):
+        if not self._upload_ok:
+            raise RuntimeError("upload failed")
+        self.uploaded.append(kwargs)
+        return {"ok": True}
 
 
 def _upstream_asset(output):
@@ -437,3 +461,164 @@ def test_rating_watcher_skips_cleanly_when_no_links_yet(monkeypatch, tmp_path, m
     monkeypatch.setattr(mod, "_get_slack_client", lambda env: _RatingFakeClient())
     result = sensor_def(dg.build_sensor_context(cursor=None))
     assert isinstance(result, dg.SkipReason)
+
+
+# --- report_files_dir: posting report_tools_server's generated files -------------------
+
+def test_report_files_dir_posts_every_generated_file(monkeypatch, tmp_path):
+    component = _component(report_files_dir=str(tmp_path))
+    (tmp_path / "chart.png").write_bytes(b"x")
+    fake_manifest = [
+        {"file_id": "f1", "name": "chart.png", "media_type": "image/png", "path": str(tmp_path / "chart.png"), "size_bytes": 1},
+    ]
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", lambda *a, **k: fake_manifest)
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success
+    assert len(client.uploaded) == 1
+    assert client.uploaded[0]["filename"] == "chart.png"
+    assert client.uploaded[0]["channel"] == "C1" and client.uploaded[0]["thread_ts"] == "100.001"
+
+
+def test_report_files_dir_unset_never_reads_a_manifest(monkeypatch, tmp_path):
+    component = _component()
+    called = []
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", lambda *a, **k: called.append(1) or [])
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success and not called and not client.uploaded
+
+
+def test_report_files_dir_upload_failure_does_not_fail_the_reply(monkeypatch, tmp_path):
+    component = _component(report_files_dir=str(tmp_path))
+    fake_manifest = [{"file_id": "f1", "name": "chart.png", "media_type": "image/png", "path": str(tmp_path / "chart.png")}]
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", lambda *a, **k: fake_manifest)
+    client = _FakeClient(upload_ok=False)
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"}, client=client,
+    )
+    assert result.success  # upload failure must never fail an already-posted reply
+
+
+def test_report_manifest_read_failure_does_not_fail_the_reply(monkeypatch, tmp_path):
+    component = _component(report_files_dir=str(tmp_path))
+
+    def boom(*a, **k):
+        raise RuntimeError("disk error")
+
+    monkeypatch.setattr(mod_cache["mod"], "read_run_manifest", boom)
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success
+
+
+def test_read_run_manifest_reads_a_real_manifest_file(mod, tmp_path):
+    run_dir = tmp_path / "run_abc"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text('[{"file_id": "f1", "name": "x.png"}]')
+    assert mod.read_run_manifest(str(tmp_path), "run_abc") == [{"file_id": "f1", "name": "x.png"}]
+
+
+def test_read_run_manifest_missing_file_returns_empty(mod, tmp_path):
+    assert mod.read_run_manifest(str(tmp_path), "no_such_run") == []
+
+
+def test_lookup_report_file_finds_by_id(mod, tmp_path):
+    run_dir = tmp_path / "run_abc"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text('[{"file_id": "f1", "name": "x.png"}, {"file_id": "f2", "name": "y.pdf"}]')
+    assert mod.lookup_report_file(str(tmp_path), "run_abc", "f2")["name"] == "y.pdf"
+    assert mod.lookup_report_file(str(tmp_path), "run_abc", "nope") is None
+
+
+# --- update_reaction_on_completion / placeholder_ts ------------------------------------
+
+def test_success_swaps_ack_reaction_for_done_reaction(monkeypatch):
+    component = _component()
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch,
+        tags={"slack/channel": "C1", "slack/thread_ts": "100.001", "slack/message_ts": "100.001"},
+    )
+    assert result.success
+    assert client.reactions_removed == [{"channel": "C1", "timestamp": "100.001", "name": "eyes"}]
+    assert client.reactions_added == [{"channel": "C1", "timestamp": "100.001", "name": "white_check_mark"}]
+
+
+def test_update_reaction_on_completion_false_skips_reactions(monkeypatch):
+    component = _component(update_reaction_on_completion=False)
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch,
+        tags={"slack/channel": "C1", "slack/thread_ts": "100.001", "slack/message_ts": "100.001"},
+    )
+    assert result.success and not client.reactions_removed and not client.reactions_added
+
+
+def test_no_message_ts_tag_skips_reactions_without_erroring(monkeypatch):
+    component = _component()
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success and not client.reactions_removed and not client.reactions_added
+
+
+def test_custom_reaction_names_are_used(monkeypatch):
+    component = _component(ack_reaction="thinking_face", done_reaction="tada")
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch,
+        tags={"slack/channel": "C1", "slack/thread_ts": "100.001", "slack/message_ts": "100.001"},
+    )
+    assert client.reactions_removed[0]["name"] == "thinking_face"
+    assert client.reactions_added[0]["name"] == "tada"
+
+
+def test_placeholder_ts_updates_the_existing_message_instead_of_posting_a_new_one(monkeypatch):
+    component = _component()
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch,
+        tags={"slack/channel": "C1", "slack/thread_ts": "100.001", "slack/placeholder_ts": "ph.001"},
+    )
+    assert result.success
+    assert client.updates == [{"channel": "C1", "ts": "ph.001", "text": "hi"}]
+    assert client.calls == []  # no NEW message posted
+
+
+def test_placeholder_ts_falls_back_to_a_new_post_when_update_fails(monkeypatch):
+    component = _component()
+    client = _FakeClient(update_ok=False)
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch,
+        tags={"slack/channel": "C1", "slack/thread_ts": "100.001", "slack/placeholder_ts": "ph.001"}, client=client,
+    )
+    assert result.success
+    assert len(client.updates) == 1
+    assert len(client.calls) == 1  # fell back to chat_postMessage
+
+
+def test_only_the_first_part_of_a_split_answer_uses_the_placeholder(monkeypatch):
+    component = _component(max_chars_per_message=5, on_long_answer="split")
+    result, client = _materialize(
+        {"final_answer": "0123456789"}, component, monkeypatch,
+        tags={"slack/channel": "C1", "slack/thread_ts": "100.001", "slack/placeholder_ts": "ph.001"},
+    )
+    assert result.success
+    assert len(client.updates) == 1
+    assert len(client.calls) == 1  # the second part is a real new post
+
+
+def test_failure_watcher_updates_placeholder_and_swaps_reaction(monkeypatch, mod):
+    component = _component()
+    defs = component.build_defs(None)
+    (sensor_def,) = defs.sensors
+    client = _FakeClient()
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    ctx = _real_failed_run_context({
+        "slack/channel": "C1", "slack/thread_ts": "100.001", "slack/message_ts": "100.001", "slack/placeholder_ts": "ph.001",
+    })
+    sensor_def(ctx)
+    assert client.updates and client.updates[0]["ts"] == "ph.001"
+    assert client.calls == []  # updated the placeholder, never posted a new message
+    assert client.reactions_removed == [{"channel": "C1", "timestamp": "100.001", "name": "eyes"}]
+    assert client.reactions_added == [{"channel": "C1", "timestamp": "100.001", "name": "warning"}]

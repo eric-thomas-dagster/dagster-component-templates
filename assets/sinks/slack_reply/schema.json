@@ -163,6 +163,36 @@
       "label": "Resolve Rater Email",
       "description": "Resolve the reacting user's Slack user id to an email address (needs users:read.email) before using it as the outcome's outcome_ref. When false, the raw Slack user id is used instead. Only used when watch_reactions is true.",
       "required": false
+    },
+    "report_files_dir": {
+      "type": "string",
+      "label": "Report Files Dir",
+      "description": "Local directory root -- the SAME files_dir a report_tools_server this agent calls is configured with. When set, after posting the answer, this asset reads this run's manifest (written by report_tools_server's make_chart/make_pdf/make_docx/make_xlsx) and uploads every file it recorded into the same thread with files_upload_v2 (needs the `files:write` bot scope). Files may contain data the agent read, so the same people who can see the channel can see them -- posted filenames are recorded in this asset's own materialization metadata. Best-effort: an upload failure here never fails the already-posted answer.",
+      "required": false
+    },
+    "update_reaction_on_completion": {
+      "type": "boolean",
+      "label": "Update Reaction On Completion",
+      "description": "On success, remove ack_reaction and add done_reaction to the ORIGINAL triggering message (the slack/message_ts tag slack_agent_request_sensor sets) -- so a 20-30s answer doesn't just look stuck at its acknowledgement reaction forever. On a failed run, {asset_name}_failure_watcher adds error_reaction instead (ack_reaction is still removed first). Needs reactions:write (same scope watch_reactions reads with, just the write half). Best-effort: a reaction-swap failure never fails the reply itself.",
+      "required": false
+    },
+    "ack_reaction": {
+      "type": "string",
+      "label": "Ack Reaction",
+      "description": "The reaction slack_agent_request_sensor posted on pickup (must match its own acknowledgement_reaction) -- removed on completion. Only used when update_reaction_on_completion is true.",
+      "required": false
+    },
+    "done_reaction": {
+      "type": "string",
+      "label": "Done Reaction",
+      "description": "Reaction added to the original message once the reply posts successfully. Only used when update_reaction_on_completion is true.",
+      "required": false
+    },
+    "error_reaction": {
+      "type": "string",
+      "label": "Error Reaction",
+      "description": "Reaction added to the original message when the run fails (added by {asset_name}_failure_watcher). Only used when update_reaction_on_completion is true.",
+      "required": false
     }
   }
 }

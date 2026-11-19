@@ -214,6 +214,43 @@ def record_outcome(db_path: str, receipt_id: str, *, signal: str, outcome_ref: O
         conn.close()
 # END receipt-message-links
 
+# BEGIN report-manifest (read-only; inlined per component, kept byte-identical to the shared
+# reader functions in report_tools_server's own writer copy -- see tests/test_report_manifest_drift.py)
+import json as _rm_json  # noqa: E402,F401
+import os as _rm_os  # noqa: E402,F401
+
+
+def _report_run_dir(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_rm_os.path.expanduser(files_dir), run_id or "_unscoped")
+
+
+def _report_manifest_path(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_report_run_dir(files_dir, run_id), "manifest.json")
+
+
+def read_run_manifest(files_dir: str, run_id: Optional[str]) -> List[Dict[str, Any]]:
+    """Every file {file_id, name, media_type, path, size_bytes, tool, created_at} report_tools_server has
+    written for this run so far. Trusted, run-scoped lookup -- same reasoning as receipts_db_path's own
+    receipt_ids_for_run: a caller only ever reads its OWN run's files by the run id Dagster itself put on the
+    run (never an argument an agent could spoof)."""
+    path = _report_manifest_path(files_dir, run_id)
+    if not _rm_os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = _rm_json.load(f)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def lookup_report_file(files_dir: str, run_id: Optional[str], file_id: str) -> Optional[Dict[str, Any]]:
+    for entry in read_run_manifest(files_dir, run_id):
+        if entry.get("file_id") == file_id:
+            return entry
+    return None
+# END report-manifest (read-only)
+
 
 def _resolve_user_email(client, user_id: str) -> Optional[str]:
     """`users.info` -> profile.email -- same shape as slack_agent_request_sensor's own copy.
@@ -313,6 +350,22 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
     monitor_failures: bool = Field(default=True, description="Also emit {asset_name}_failure_watcher, a run-status sensor that posts a short error reply for ANY failed run carrying slack/channel + slack/thread_ts tags -- so a crashed run is never silent in the channel. Set false to handle failure notification some other way.")
     error_message_template: str = Field(default="⚠️ Something went wrong answering this: {error}", description="Template for the failure-path reply. Placeholder: {error}.")
 
+    update_reaction_on_completion: bool = Field(
+        default=True,
+        description=(
+            "On success, remove ack_reaction and add done_reaction to the ORIGINAL triggering "
+            "message (the slack/message_ts tag slack_agent_request_sensor sets) -- so a 20-30s "
+            "answer doesn't just look stuck at its acknowledgement reaction forever. On a "
+            "failed run, {asset_name}_failure_watcher adds error_reaction instead (ack_reaction "
+            "is still removed first). Needs reactions:write (same scope watch_reactions reads "
+            "with, just the write half). Best-effort: a reaction-swap failure never fails the "
+            "reply itself."
+        ),
+    )
+    ack_reaction: str = Field(default="eyes", description="The reaction slack_agent_request_sensor posted on pickup (must match its own acknowledgement_reaction) -- removed on completion. Only used when update_reaction_on_completion is true.")
+    done_reaction: str = Field(default="white_check_mark", description="Reaction added to the original message once the reply posts successfully. Only used when update_reaction_on_completion is true.")
+    error_reaction: str = Field(default="warning", description="Reaction added to the original message when the run fails (added by {asset_name}_failure_watcher). Only used when update_reaction_on_completion is true.")
+
     receipts_db_path: Optional[str] = Field(
         default=None,
         description=(
@@ -325,6 +378,19 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
             "to record an outcome against, instead of an agent having to end its reply with "
             "'ref: <receipt_id>' and have that parsed back out of the text. Best-effort: a "
             "lookup failure here never fails the reply post itself."
+        ),
+    )
+    report_files_dir: Optional[str] = Field(
+        default=None,
+        description=(
+            "Local directory root -- the SAME files_dir a report_tools_server this agent calls "
+            "is configured with. When set, after posting the answer, this asset reads this "
+            "run's manifest (written by report_tools_server's make_chart/make_pdf/make_docx/"
+            "make_xlsx) and uploads every file it recorded into the same thread with "
+            "files_upload_v2 (needs the `files:write` bot scope). Files may contain data the "
+            "agent read, so the same people who can see the channel can see them -- posted "
+            "filenames are recorded in this asset's own materialization metadata. Best-effort: "
+            "an upload failure here never fails the already-posted answer."
         ),
     )
     watch_reactions: bool = Field(
@@ -379,6 +445,11 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
         webserver_base_url = self.webserver_base_url
         error_message_template = self.error_message_template
         receipts_db_path = self.receipts_db_path
+        report_files_dir = self.report_files_dir
+        update_reaction_on_completion = self.update_reaction_on_completion
+        ack_reaction = self.ack_reaction
+        done_reaction = self.done_reaction
+        error_reaction = self.error_reaction
 
         @dg.asset(
             key=asset_key,
@@ -393,6 +464,8 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
         def _reply(context: dg.AssetExecutionContext, agent_output: Any):
             tags = context.run.tags or {}
             channel, thread_ts = tags.get("slack/channel"), tags.get("slack/thread_ts")
+            message_ts = tags.get("slack/message_ts")
+            placeholder_ts = tags.get("slack/placeholder_ts")
             if not channel or not thread_ts:
                 raise dg.Failure(
                     "slack_reply requires 'slack/channel' and 'slack/thread_ts' run tags "
@@ -406,11 +479,28 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                 parts[-1] = f"{parts[-1]}\n\n<{link}|{run_link_label}>"
             client = _get_slack_client(bot_token_env_var)
             posted_ts: List[str] = []
-            for part in parts:
+            for i, part in enumerate(parts):
+                if i == 0 and placeholder_ts:
+                    # Updates the sensor's own "Looking into it…" message in place rather than
+                    # posting a new one -- falls back to a fresh post if the placeholder is gone
+                    # (e.g. deleted) or the update otherwise fails.
+                    resp = client.chat_update(channel=channel, ts=placeholder_ts, text=part)
+                    if resp.get("ok"):
+                        posted_ts.append(placeholder_ts)
+                        continue
                 resp = client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=part)
                 if not resp.get("ok"):
                     raise dg.Failure(f"Slack chat_postMessage failed: {resp.get('error')}")
                 posted_ts.append(resp.get("ts"))
+            if update_reaction_on_completion and message_ts:
+                try:
+                    client.reactions_remove(channel=channel, timestamp=message_ts, name=ack_reaction)
+                except Exception:  # noqa: BLE001 -- may already be gone; never fatal
+                    pass
+                try:
+                    client.reactions_add(channel=channel, timestamp=message_ts, name=done_reaction)
+                except Exception as e:  # noqa: BLE001 -- a cosmetic reaction must never fail an already-posted reply
+                    context.log.warning(f"slack_reply: could not add {done_reaction!r} to the original message: {e}")
             if receipts_db_path:
                 try:
                     receipt_ids = receipt_ids_for_run(receipts_db_path, context.run.run_id)
@@ -419,9 +509,25 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                             record_message_links(receipts_db_path, receipt_ids, platform="slack", channel=channel, message_ts=ts)
                 except Exception as e:  # noqa: BLE001 -- linking receipts must never fail an already-posted reply
                     context.log.warning(f"slack_reply: could not link receipts to the posted message(s): {e}")
+            files_posted: List[str] = []
+            if report_files_dir:
+                try:
+                    manifest = read_run_manifest(report_files_dir, context.run.run_id)
+                except Exception as e:  # noqa: BLE001 -- a manifest read failure must never fail an already-posted reply
+                    manifest = []
+                    context.log.warning(f"slack_reply: could not read report_tools_server's manifest: {e}")
+                for entry in manifest:
+                    try:
+                        client.files_upload_v2(channel=channel, thread_ts=thread_ts, file=entry["path"], filename=entry.get("name"))
+                        files_posted.append(entry["name"])
+                    except Exception as e:  # noqa: BLE001 -- one bad file upload must never block the others or the reply
+                        context.log.warning(f"slack_reply: could not post generated file {entry.get('name')!r}: {e}")
             return dg.Output(
-                {"posted_parts": len(parts), "channel": channel, "thread_ts": thread_ts},
-                metadata={"posted_parts": dg.MetadataValue.int(len(parts)), "channel": dg.MetadataValue.text(channel)},
+                {"posted_parts": len(parts), "channel": channel, "thread_ts": thread_ts, "files_posted": files_posted},
+                metadata={
+                    "posted_parts": dg.MetadataValue.int(len(parts)), "channel": dg.MetadataValue.text(channel),
+                    "files_posted": dg.MetadataValue.json(files_posted),
+                },
             )
 
         defs = dg.Definitions(assets=[_reply])
@@ -438,6 +544,8 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
             def _failure_watcher(sensor_context: dg.RunStatusSensorContext):
                 run_tags = sensor_context.dagster_run.tags or {}
                 channel, thread_ts = run_tags.get("slack/channel"), run_tags.get("slack/thread_ts")
+                message_ts = run_tags.get("slack/message_ts")
+                placeholder_ts = run_tags.get("slack/placeholder_ts")
                 if not channel or not thread_ts:
                     return  # not a chat-agent run -- nothing to do, same tag-based identity check as everywhere else here
                 error = _redact(getattr(sensor_context.dagster_event, "message", None) or "the run failed with no further detail.")
@@ -447,7 +555,18 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                     text = f"{text}\n<{link}|{run_link_label}>"
                 try:
                     client = _get_slack_client(bot_token_env_var)
-                    client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=text)
+                    posted = False
+                    if placeholder_ts:
+                        resp = client.chat_update(channel=channel, ts=placeholder_ts, text=text)
+                        posted = bool(resp.get("ok"))
+                    if not posted:
+                        client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=text)
+                    if update_reaction_on_completion and message_ts:
+                        try:
+                            client.reactions_remove(channel=channel, timestamp=message_ts, name=ack_reaction)
+                        except Exception:  # noqa: BLE001 -- may already be gone; never fatal
+                            pass
+                        client.reactions_add(channel=channel, timestamp=message_ts, name=error_reaction)
                 except Exception as e:  # noqa: BLE001 -- a failed failure-notification must not crash the sensor loop
                     sensor_context.log.warning(f"slack_reply failure_watcher: could not post error reply: {e}")
 

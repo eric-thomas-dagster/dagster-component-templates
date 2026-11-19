@@ -116,6 +116,12 @@
       "label": "Use In Process Executor",
       "description": "Tag every RunRequest with run_config={'execution': {'config': {'in_process': {}}}}, so the agent asset and its downstream slack_reply asset run as plain function calls in one step-process instead of each spawning its own multiprocess-executor subprocess -- real subprocess spawn time otherwise adds up on top of set_isolation_disabled_tag's own container-startup savings. Requires the code location that owns these assets not to set a non-default executor itself (e.g. k8s_job_executor/celery_executor/docker_executor) -- if it does, this run_config key is rejected by that executor's own config schema and the run fails with a RunConfigValidationInvalid error. Set false to leave execution untouched.",
       "required": false
+    },
+    "placeholder_text": {
+      "type": "string",
+      "label": "Placeholder Text",
+      "description": "If set, post this text as a new thread reply right after acknowledging a matched message, and tag the run slack/placeholder_ts with that reply's own ts. slack_reply then updates THIS message with the final answer (chat.update) instead of posting a new one, and its failure_watcher updates it with the error -- so a 20-30s wait shows 'Looking into it…' (or whatever text you set) instead of nothing. Needs chat:write (already required). Leave unset (default) to skip this -- slack_reply just posts new replies, as before. Checked against Slack's own docs, not assumed: the newer agents.sessions.setStatus DOES work in regular channel threads (not just the AI-assistant pane the older assistant.threads.setStatus is scoped to), but it has no free-text status (an enum: active/processing/suspended/closed) and needs the Agents feature enabled on the workspace (feature_disabled error otherwise) -- this placeholder message is what actually shows free text like 'Looking into it…' in an ordinary channel, everywhere, with no feature flag.",
+      "required": false
     }
   }
 }

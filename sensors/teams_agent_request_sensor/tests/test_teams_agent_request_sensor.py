@@ -55,18 +55,24 @@ class _Resp:
         return self._body
 
 
-def _install_fakes(monkeypatch, *, root_messages=None, replies_by_thread=None, email_by_aad_id=None, list_fail=None):
+def _install_fakes(monkeypatch, *, root_messages=None, replies_by_thread=None, email_by_aad_id=None, list_fail=None, placeholder_post_fail=None):
     import requests
 
     root_messages = root_messages if root_messages is not None else []
     replies_by_thread = replies_by_thread or {}
     email_by_aad_id = email_by_aad_id or {}
     calls = {"post": [], "get": []}
+    counter = {"n": 0}
 
     def fake_post(url, **kwargs):
         calls["post"].append((url, kwargs))
         if "oauth2/v2.0/token" in url:
             return _Resp({"access_token": "BEARER123"})
+        if url.endswith("/replies"):
+            if placeholder_post_fail:
+                raise RuntimeError(placeholder_post_fail)
+            counter["n"] += 1
+            return _Resp({"id": f"placeholder{counter['n']}"})
         return _Resp({})
 
     def fake_get(url, **kwargs):
@@ -297,3 +303,38 @@ def test_bot_application_id_can_be_set_explicitly(tmp_path, monkeypatch, chat_ag
     _install_fakes(monkeypatch, root_messages=[_msg("m2", "2026-01-01T00:00:02Z", "U1", mentions=_mention("OTHERAPPID"))])
     result = sensor_def(_ctx({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
     assert len(result.run_requests) == 1
+
+
+# --- placeholder_text --------------------------------------------------------------------
+
+def test_placeholder_text_posts_a_reply_and_tags_its_id(tmp_path, monkeypatch, chat_agent_asset):
+    component = _component(tmp_path, placeholder_text="Looking into it…")
+    sensor_def = component.build_defs(context=None).sensors[0]
+    calls = _install_fakes(monkeypatch, root_messages=[_msg("m1", "2026-01-01T00:00:01Z", "U1", mentions=_mention("BOTAPPID"))])
+    result = sensor_def(_ctx({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
+    reply_posts = [c for c in calls["post"] if c[0].endswith("/replies")]
+    assert len(reply_posts) == 1
+    assert reply_posts[0][0] == "https://graph.microsoft.com/v1.0/teams/T1/channels/Ch1/messages/m1/replies"
+    assert reply_posts[0][1]["json"]["body"]["content"] == "Looking into it…"
+    assert result.run_requests[0].tags["teams/placeholder_id"] == "placeholder1"
+
+
+def test_placeholder_text_unset_never_posts_or_tags(tmp_path, monkeypatch, chat_agent_asset):
+    component = _component(tmp_path)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    calls = _install_fakes(monkeypatch, root_messages=[_msg("m1", "2026-01-01T00:00:01Z", "U1", mentions=_mention("BOTAPPID"))])
+    result = sensor_def(_ctx({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
+    assert [c for c in calls["post"] if c[0].endswith("/replies")] == []
+    assert "teams/placeholder_id" not in result.run_requests[0].tags
+
+
+def test_placeholder_text_post_failure_does_not_block_the_launch(tmp_path, monkeypatch, chat_agent_asset):
+    component = _component(tmp_path, placeholder_text="Looking into it…")
+    sensor_def = component.build_defs(context=None).sensors[0]
+    _install_fakes(
+        monkeypatch, root_messages=[_msg("m1", "2026-01-01T00:00:01Z", "U1", mentions=_mention("BOTAPPID"))],
+        placeholder_post_fail="boom",
+    )
+    result = sensor_def(_ctx({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
+    assert len(result.run_requests) == 1
+    assert "teams/placeholder_id" not in result.run_requests[0].tags

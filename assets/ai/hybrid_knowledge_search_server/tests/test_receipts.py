@@ -42,6 +42,32 @@ def test_search_mode_vector_drops_quarantined_chunks(mod, monkeypatch):
     assert "receipt_id" not in result
 
 
+def test_receipt_stamps_dagster_run_id_when_resource_has_one(mod, monkeypatch, tmp_path):
+    hits = [_hit("c1")]
+    _patch_vector_internals(monkeypatch, mod, hits)
+    db_path = str(tmp_path / "receipts.sqlite3")
+    resource = _resource(mod, receipts_db_path=db_path, run_id="run-123")
+    result = resource.search("q", mode="vector")
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    receipt = conn.execute("SELECT * FROM context_receipts WHERE receipt_id = ?", (result["receipt_id"],)).fetchone()
+    assert receipt["dagster_run_id"] == "run-123"
+
+
+def test_receipt_dagster_run_id_is_null_by_default(mod, monkeypatch, tmp_path):
+    hits = [_hit("c1")]
+    _patch_vector_internals(monkeypatch, mod, hits)
+    db_path = str(tmp_path / "receipts.sqlite3")
+    resource = _resource(mod, receipts_db_path=db_path)
+    result = resource.search("q", mode="vector")
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    receipt = conn.execute("SELECT * FROM context_receipts WHERE receipt_id = ?", (result["receipt_id"],)).fetchone()
+    assert receipt["dagster_run_id"] is None
+
+
 def test_search_mode_graph_never_records_a_receipt_even_when_configured(mod, monkeypatch, tmp_path):
     hits = [_hit("c1")]
     _patch_vector_internals(monkeypatch, mod, hits)

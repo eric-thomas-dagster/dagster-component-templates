@@ -121,6 +121,48 @@
       "required": false,
       "type": "array",
       "ui:widget": "list"
+    },
+    "receipts_db_path": {
+      "type": "string",
+      "label": "Receipts Db Path",
+      "description": "SQLite file path -- the SAME receipts_db_path a knowledge_search_server/hybrid_knowledge_search_server the agent calls is configured with (and which must also have run_id_template set, the default, so its receipts carry this run's dagster_run_id). When set, after posting, this asset looks up every receipt this run produced and links them to the posted Slack message(s) -- so a later rating (watch_reactions below, or any other feedback path) can find the exact receipt_id to record an outcome against, instead of an agent having to end its reply with 'ref: <receipt_id>' and have that parsed back out of the text. Best-effort: a lookup failure here never fails the reply post itself.",
+      "required": false
+    },
+    "watch_reactions": {
+      "type": "boolean",
+      "label": "Watch Reactions",
+      "description": "Also emit {asset_name}_rating_watcher, a sensor that polls reactions on every Slack message this asset has linked to a receipt (via receipts_db_path, which must also be set) and records a thumbs_up/thumbs_down outcome against each linked receipt_id -- the reactor's resolved email (see resolve_rater_email) becomes the outcome's `outcome_ref`, so changing a reaction later supersedes the earlier rating instead of double-counting (the same outcome_ref-supersede behavior record_feedback already has). Needs the `reactions:read` bot scope.",
+      "required": false
+    },
+    "positive_reaction": {
+      "type": "string",
+      "label": "Positive Reaction",
+      "description": "Slack reaction name (as reactions.get returns it, e.g. '+1' for 👍) that records a thumbs_up outcome. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "negative_reaction": {
+      "type": "string",
+      "label": "Negative Reaction",
+      "description": "Slack reaction name (e.g. '-1' for 👎) that records a thumbs_down outcome. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "rating_poll_interval_seconds": {
+      "type": "integer",
+      "label": "Rating Poll Interval Seconds",
+      "description": "Minimum seconds between rating_watcher ticks. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "rating_lookback_messages": {
+      "type": "integer",
+      "label": "Rating Lookback Messages",
+      "description": "Most-recently-linked (channel, message_ts) pairs to keep polling for reactions, and the cursor's bound. Only used when watch_reactions is true.",
+      "required": false
+    },
+    "resolve_rater_email": {
+      "type": "boolean",
+      "label": "Resolve Rater Email",
+      "description": "Resolve the reacting user's Slack user id to an email address (needs users:read.email) before using it as the outcome's outcome_ref. When false, the raw Slack user id is used instead. Only used when watch_reactions is true.",
+      "required": false
     }
   }
 }

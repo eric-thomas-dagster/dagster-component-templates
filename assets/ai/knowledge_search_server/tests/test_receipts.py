@@ -56,6 +56,32 @@ def test_search_records_a_receipt_and_returns_receipt_id(mod, monkeypatch, tmp_p
     assert {i["item_id"] for i in items} == {"c1", "c2"}
 
 
+def test_receipt_stamps_dagster_run_id_when_resource_has_one(mod, monkeypatch, tmp_path):
+    hits = [_hit("c1")]
+    _patch_search_internals(monkeypatch, mod, hits)
+    db_path = str(tmp_path / "receipts.sqlite3")
+    resource = mod.KnowledgeSearchResource(provider="chromadb", collection_name="kb", receipts_db_path=db_path, run_id="run-123")
+    result = resource.search("q")
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    receipt = conn.execute("SELECT * FROM context_receipts WHERE receipt_id = ?", (result["receipt_id"],)).fetchone()
+    assert receipt["dagster_run_id"] == "run-123"
+
+
+def test_receipt_dagster_run_id_is_null_by_default(mod, monkeypatch, tmp_path):
+    hits = [_hit("c1")]
+    _patch_search_internals(monkeypatch, mod, hits)
+    db_path = str(tmp_path / "receipts.sqlite3")
+    resource = mod.KnowledgeSearchResource(provider="chromadb", collection_name="kb", receipts_db_path=db_path)
+    result = resource.search("q")
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    receipt = conn.execute("SELECT * FROM context_receipts WHERE receipt_id = ?", (result["receipt_id"],)).fetchone()
+    assert receipt["dagster_run_id"] is None
+
+
 def test_receipt_never_contains_the_raw_query_or_chunk_text(mod, monkeypatch, tmp_path):
     hits = [_hit("c1", text="a very secret internal sentence")]
     _patch_search_internals(monkeypatch, mod, hits)

@@ -43,8 +43,8 @@ def test_stdio_server_lists_and_serves_tools(world):
         return names, fail, logs, bad
     names, fail, logs, bad = _run(world, body)
     assert names == sorted([
-        "list_recent_failures", "get_run_summary", "get_run_logs", "asset_status", "asset_lineage",
-        "stale_assets", "list_assets_owned_by",
+        "list_recent_failures", "list_recent_runs", "run_counts", "get_run_summary", "get_run_logs", "asset_status",
+        "asset_lineage", "stale_assets", "list_assets_owned_by",
     ])
     assert {r["run_id"] for r in fail["runs"]} == {world["bad_run"], world["part_b_run"]}
     assert "FAKEFAKEFAKE" not in json.dumps(logs) and "Bearer [REDACTED]" in "\n".join(logs["lines"])

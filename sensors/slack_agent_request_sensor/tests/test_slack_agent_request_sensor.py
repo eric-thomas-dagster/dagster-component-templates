@@ -243,3 +243,21 @@ def test_set_isolation_disabled_tag_false_omits_the_tag(monkeypatch, chat_agent_
     monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
     result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
     assert "dagster/isolation" not in result.run_requests[0].tags
+
+
+def test_use_in_process_executor_defaults_to_true(monkeypatch, chat_agent_asset):
+    component = _component()
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[_msg("100.001", "U1", "<@UBOT> hi")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
+    assert result.run_requests[0].run_config == {"execution": {"config": {"in_process": {}}}}
+
+
+def test_use_in_process_executor_false_leaves_run_config_empty(monkeypatch, chat_agent_asset):
+    component = _component(use_in_process_executor=False)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[_msg("100.001", "U1", "<@UBOT> hi")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
+    assert result.run_requests[0].run_config == {}

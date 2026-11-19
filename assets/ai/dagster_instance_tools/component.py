@@ -13,8 +13,8 @@ is BOTH
 See README.md for the exact agentic_pipeline YAML.
 
 Tools (all return compact JSON-able dicts; errors come back as {"error": ...}, never exceptions):
-  list_recent_failures, get_run_summary, get_run_logs, asset_status, asset_lineage, stale_assets,
-  list_assets_owned_by, receipt_stats.
+  list_recent_failures, list_recent_runs, run_counts, get_run_summary, get_run_logs, asset_status,
+  asset_lineage, stale_assets, list_assets_owned_by, receipt_stats.
 
 Safety: tools only call read APIs on the instance. Log lines / error text / tag values pass through `redact_text`
 (tokens, passwords, Authorization headers, well-known key shapes, long base64/hex blobs). `allow` is a hard allow-list,
@@ -67,8 +67,8 @@ import re  # noqa: E402
 _AUDIT = logging.getLogger("dagster_instance_tools.audit")
 
 ALL_TOOLS = (
-    "list_recent_failures", "get_run_summary", "get_run_logs", "asset_status", "asset_lineage", "stale_assets",
-    "list_assets_owned_by", "receipt_stats",
+    "list_recent_failures", "list_recent_runs", "run_counts", "get_run_summary", "get_run_logs", "asset_status",
+    "asset_lineage", "stale_assets", "list_assets_owned_by", "receipt_stats",
 )
 
 # ── redaction ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -434,6 +434,46 @@ class DagsterInstanceTools:
                 "failed_steps": failed, "asset_keys": keys, "asset_failures": self._run_asset_failures(run.run_id),
             })
         return {"window_hours": hours_f, "count": len(runs), "runs": runs}
+
+    def t_list_recent_runs(self, hours: Any = 24, status: Any = None, limit: Any = 20) -> Dict[str, Any]:
+        """Like list_recent_failures, but not restricted to FAILURE -- this is what answers
+        'what ran recently' or 'did X succeed', which list_recent_failures alone cannot (an
+        agent with only that tool, seeing zero failures, has wrongly concluded everything
+        succeeded -- there is no way to distinguish "no failures" from "nothing ran")."""
+        hours_f = _num(hours, "hours", 0.01, 24 * 90, 24)
+        n = int(_num(limit, "limit", 1, 100, 20))
+        statuses = None
+        if status is not None:
+            try:
+                statuses = [dg.DagsterRunStatus[str(status).upper()]]
+            except KeyError:
+                raise ToolError(f"unknown status {status!r}; valid: {[s.value for s in dg.DagsterRunStatus]}")
+        since = datetime.now(timezone.utc) - timedelta(hours=hours_f)
+        records = self.instance.get_run_records(
+            dg.RunsFilter(statuses=statuses, created_after=since), limit=n, order_by="create_timestamp"
+        )
+        runs = [
+            {
+                "run_id": rec.dagster_run.run_id, "job_name": rec.dagster_run.job_name,
+                "status": rec.dagster_run.status.value, "started_at": _iso(rec.start_time), "ended_at": _iso(rec.end_time),
+            }
+            for rec in records
+        ]
+        return {"window_hours": hours_f, "status_filter": statuses[0].value if statuses else None, "count": len(runs), "runs": runs}
+
+    def t_run_counts(self, hours: Any = 24, limit: Any = 500) -> Dict[str, Any]:
+        """Counts runs by status in the window -- the direct answer to 'how many runs
+        succeeded/failed today', without an agent having to infer it from list_recent_runs."""
+        hours_f = _num(hours, "hours", 0.01, 24 * 90, 24)
+        n = int(_num(limit, "limit", 1, 5000, 500))
+        since = datetime.now(timezone.utc) - timedelta(hours=hours_f)
+        records = self.instance.get_run_records(dg.RunsFilter(created_after=since), limit=n, order_by="create_timestamp")
+        counts: Dict[str, int] = {}
+        for rec in records:
+            key = rec.dagster_run.status.value
+            counts[key] = counts.get(key, 0) + 1
+        truncated = len(records) >= n
+        return {"window_hours": hours_f, "total": len(records), "counts": counts, "truncated": truncated}
 
     def t_get_run_summary(self, run_id: Any = None) -> Dict[str, Any]:
         run = self._get_run(run_id)
@@ -1057,6 +1097,18 @@ def build_mcp_server(tools: DagsterInstanceTools):
     def list_recent_failures(hours: float = 24, limit: int = 10) -> dict:
         """Recent FAILED Dagster runs (newest first) with failed step keys, error class + first message line, and asset keys."""
         return tools.call("list_recent_failures", {"hours": hours, "limit": limit})
+
+    @_tool
+    def list_recent_runs(hours: float = 24, status: Optional[str] = None, limit: int = 20) -> dict:
+        """Recent Dagster runs (newest first), any status -- not restricted to FAILURE like
+        list_recent_failures. Optional status filter (e.g. 'SUCCESS', 'FAILURE', 'STARTED')."""
+        return tools.call("list_recent_runs", {"hours": hours, "status": status, "limit": limit})
+
+    @_tool
+    def run_counts(hours: float = 24, limit: int = 500) -> dict:
+        """Counts of runs by status in the window -- the direct answer to 'how many runs
+        succeeded/failed today', e.g. {"counts": {"SUCCESS": 12, "FAILURE": 1}, "total": 13}."""
+        return tools.call("run_counts", {"hours": hours, "limit": limit})
 
     @_tool
     def get_run_summary(run_id: str) -> dict:

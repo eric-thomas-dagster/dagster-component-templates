@@ -198,3 +198,242 @@ def test_failure_watcher_ignores_a_failed_run_with_no_slack_tags(monkeypatch, mo
     ctx = _real_failed_run_context({})  # not a chat-agent run
     sensor_def(ctx)
     assert client.calls == []
+
+
+# --- receipt-message-links: pure functions (real sqlite, no mocking) -------------------
+
+def _seed_context_receipts(db_path, rows):
+    """rows: [(receipt_id, dagster_run_id), ...]. Minimal columns -- only what the component's
+    own queries touch."""
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE context_receipts (receipt_id TEXT, dagster_run_id TEXT)")
+    conn.executemany("INSERT INTO context_receipts VALUES (?, ?)", rows)
+    conn.execute("CREATE TABLE context_receipt_events (event_id TEXT, receipt_id TEXT, event_type TEXT, occurred_at TEXT, payload_json TEXT)")
+    conn.commit()
+    conn.close()
+
+
+def test_record_and_look_up_message_links(mod, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    mod.record_message_links(db_path, ["r1", "r2"], platform="slack", channel="C1", message_ts="100.001")
+    assert set(mod.receipt_ids_for_message(db_path, platform="slack", channel="C1", message_ts="100.001")) == {"r1", "r2"}
+    # Different platform/channel/ts never matches.
+    assert mod.receipt_ids_for_message(db_path, platform="teams", channel="C1", message_ts="100.001") == []
+    assert mod.receipt_ids_for_message(db_path, platform="slack", channel="C2", message_ts="100.001") == []
+
+
+def test_record_message_links_is_a_no_op_for_an_empty_list(mod, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    mod.record_message_links(db_path, [], platform="slack", channel="C1", message_ts="100.001")
+    import os
+    assert not os.path.exists(db_path)  # never even opened/created the file
+
+
+def test_recent_message_links_orders_most_recent_first_and_is_bounded(mod, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    mod.record_message_links(db_path, ["r1"], platform="slack", channel="C1", message_ts="100.001")
+    mod.record_message_links(db_path, ["r2"], platform="slack", channel="C1", message_ts="200.001")
+    links = mod.recent_message_links(db_path, platform="slack", limit=1)
+    assert links == [{"channel": "C1", "message_ts": "200.001"}]
+
+
+def test_receipt_ids_for_run_reads_context_receipts(mod, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    _seed_context_receipts(db_path, [("r1", "run-a"), ("r2", "run-a"), ("r3", "run-b")])
+    assert set(mod.receipt_ids_for_run(db_path, "run-a")) == {"r1", "r2"}
+    assert mod.receipt_ids_for_run(db_path, "run-c") == []
+
+
+def test_receipt_ids_for_run_returns_empty_when_table_does_not_exist(mod, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    assert mod.receipt_ids_for_run(db_path, "run-a") == []
+
+
+def test_record_outcome_writes_an_event_for_a_known_receipt(mod, tmp_path):
+    import sqlite3
+    db_path = str(tmp_path / "r.sqlite3")
+    _seed_context_receipts(db_path, [("r1", "run-a")])
+    mod.record_outcome(db_path, "r1", signal="thumbs_up", outcome_ref="jane@co.com")
+    conn = sqlite3.connect(db_path)
+    row = conn.execute("SELECT payload_json FROM context_receipt_events WHERE receipt_id = 'r1'").fetchone()
+    assert '"outcome_ref":"jane@co.com"' in row[0] and '"signal":"thumbs_up"' in row[0]
+
+
+def test_record_outcome_unknown_receipt_is_a_no_op(mod, tmp_path):
+    import sqlite3
+    db_path = str(tmp_path / "r.sqlite3")
+    _seed_context_receipts(db_path, [])
+    mod.record_outcome(db_path, "does-not-exist", signal="thumbs_up")
+    conn = sqlite3.connect(db_path)
+    assert conn.execute("SELECT COUNT(*) FROM context_receipt_events").fetchone()[0] == 0
+
+
+def test_record_outcome_missing_tables_is_a_no_op(mod, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    mod.record_outcome(db_path, "r1", signal="thumbs_up")  # must not raise
+
+
+def test_record_outcome_unknown_signal_raises(mod, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    _seed_context_receipts(db_path, [("r1", "run-a")])
+    with pytest.raises(ValueError, match="unknown signal"):
+        mod.record_outcome(db_path, "r1", signal="made_up_signal")
+
+
+# --- receipts_db_path wiring on the success-path asset ----------------------------------
+
+def test_receipts_db_path_links_the_posted_message_to_this_runs_receipts(monkeypatch, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    component = _component(receipts_db_path=db_path)
+    captured = {}
+
+    def fake_receipt_ids_for_run(path, run_id):
+        captured["lookup"] = (path, run_id)
+        return ["r1", "r2"]
+
+    def fake_record_message_links(path, receipt_ids, **kw):
+        captured["linked"] = (path, receipt_ids, kw)
+
+    monkeypatch.setattr(mod_cache["mod"], "receipt_ids_for_run", fake_receipt_ids_for_run)
+    monkeypatch.setattr(mod_cache["mod"], "record_message_links", fake_record_message_links)
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success
+    assert captured["lookup"][0] == db_path
+    path, receipt_ids, kw = captured["linked"]
+    assert path == db_path and receipt_ids == ["r1", "r2"]
+    assert kw == {"platform": "slack", "channel": "C1", "message_ts": "999.0001"}
+
+
+def test_receipts_db_path_lookup_failure_does_not_fail_the_reply(monkeypatch, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    component = _component(receipts_db_path=db_path)
+
+    def boom(*a, **k):
+        raise RuntimeError("db is locked")
+
+    monkeypatch.setattr(mod_cache["mod"], "receipt_ids_for_run", boom)
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success  # the reply itself was already posted successfully
+    assert len(client.calls) == 1
+
+
+def test_receipts_db_path_unset_never_touches_the_db(monkeypatch, tmp_path):
+    component = _component()
+    called = []
+    monkeypatch.setattr(mod_cache["mod"], "receipt_ids_for_run", lambda *a, **k: called.append(1))
+    result, client = _materialize(
+        {"final_answer": "hi"}, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success and called == []
+
+
+# --- watch_reactions / rating_watcher sensor --------------------------------------------
+
+def test_watch_reactions_requires_receipts_db_path():
+    component = _component(watch_reactions=True)
+    with pytest.raises(ValueError, match="watch_reactions requires receipts_db_path"):
+        component.build_defs(None)
+
+
+def test_watch_reactions_emits_a_rating_watcher_sensor_alongside_the_failure_watcher(tmp_path):
+    component = _component(receipts_db_path=str(tmp_path / "r.sqlite3"), watch_reactions=True)
+    defs = component.build_defs(None)
+    assert sorted(s.name for s in defs.sensors) == ["chat_reply_failure_watcher", "chat_reply_rating_watcher"]
+
+
+class _RatingFakeClient:
+    def __init__(self, reactions_by_key=None, email_by_user=None):
+        self.reactions_by_key = reactions_by_key or {}
+        self.email_by_user = email_by_user or {}
+        self.calls = []
+
+    def reactions_get(self, *, channel, timestamp):
+        self.calls.append((channel, timestamp))
+        return {"ok": True, "message": {"reactions": self.reactions_by_key.get(f"{channel}:{timestamp}", [])}}
+
+    def users_info(self, *, user):
+        email = self.email_by_user.get(user)
+        return {"ok": True, "user": {"profile": {"email": email}}} if email else {"ok": False}
+
+
+def _rating_sensor(component):
+    defs = component.build_defs(None)
+    return next(s for s in defs.sensors if s.name.endswith("_rating_watcher"))
+
+
+def test_rating_watcher_records_thumbs_up_for_a_linked_receipt(monkeypatch, tmp_path, mod):
+    db_path = str(tmp_path / "r.sqlite3")
+    _seed_context_receipts(db_path, [("r1", "run-a")])
+    mod.record_message_links(db_path, ["r1"], platform="slack", channel="C1", message_ts="100.001")
+
+    component = _component(receipts_db_path=db_path, watch_reactions=True)
+    sensor_def = _rating_sensor(component)
+    client = _RatingFakeClient(
+        reactions_by_key={"C1:100.001": [{"name": "+1", "users": ["U1"]}]},
+        email_by_user={"U1": "jane@co.com"},
+    )
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    ctx = dg.build_sensor_context(cursor=None)
+    result = sensor_def(ctx)
+
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    row = conn.execute("SELECT payload_json FROM context_receipt_events WHERE receipt_id = 'r1'").fetchone()
+    assert row is not None and '"signal":"thumbs_up"' in row[0] and '"outcome_ref":"jane@co.com"' in row[0]
+    assert result.skip_reason is None  # something changed this tick
+
+
+def test_rating_watcher_does_not_recount_an_unchanged_reaction(monkeypatch, tmp_path, mod):
+    db_path = str(tmp_path / "r.sqlite3")
+    _seed_context_receipts(db_path, [("r1", "run-a")])
+    mod.record_message_links(db_path, ["r1"], platform="slack", channel="C1", message_ts="100.001")
+
+    component = _component(receipts_db_path=db_path, watch_reactions=True, resolve_rater_email=False)
+    sensor_def = _rating_sensor(component)
+    client = _RatingFakeClient(reactions_by_key={"C1:100.001": [{"name": "+1", "users": ["U1"]}]})
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+
+    first = sensor_def(dg.build_sensor_context(cursor=None))
+    second = sensor_def(dg.build_sensor_context(cursor=first.cursor))
+
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM context_receipt_events WHERE receipt_id = 'r1'").fetchone()[0]
+    assert count == 1  # not double-recorded on the second tick
+    assert second.skip_reason is not None
+
+
+def test_rating_watcher_changing_reaction_supersedes_the_earlier_one(monkeypatch, tmp_path, mod):
+    db_path = str(tmp_path / "r.sqlite3")
+    _seed_context_receipts(db_path, [("r1", "run-a")])
+    mod.record_message_links(db_path, ["r1"], platform="slack", channel="C1", message_ts="100.001")
+
+    component = _component(receipts_db_path=db_path, watch_reactions=True, resolve_rater_email=False)
+    sensor_def = _rating_sensor(component)
+    client = _RatingFakeClient(reactions_by_key={"C1:100.001": [{"name": "+1", "users": ["U1"]}]})
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    first = sensor_def(dg.build_sensor_context(cursor=None))
+
+    client.reactions_by_key["C1:100.001"] = [{"name": "-1", "users": ["U1"]}]
+    second = sensor_def(dg.build_sensor_context(cursor=first.cursor))
+
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute("SELECT payload_json FROM context_receipt_events WHERE receipt_id = 'r1' ORDER BY rowid").fetchall()
+    assert len(rows) == 2
+    assert '"signal":"thumbs_up"' in rows[0][0] and '"signal":"thumbs_down"' in rows[1][0]
+    assert second.skip_reason is None  # a genuine change, not a repeat
+
+
+def test_rating_watcher_skips_cleanly_when_no_links_yet(monkeypatch, tmp_path, mod):
+    db_path = str(tmp_path / "r.sqlite3")
+    component = _component(receipts_db_path=db_path, watch_reactions=True)
+    sensor_def = _rating_sensor(component)
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: _RatingFakeClient())
+    result = sensor_def(dg.build_sensor_context(cursor=None))
+    assert isinstance(result, dg.SkipReason)

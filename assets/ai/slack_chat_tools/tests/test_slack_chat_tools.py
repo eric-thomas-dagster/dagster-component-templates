@@ -132,3 +132,54 @@ def test_mcp_server_resource_key_passes_templates_through_verbatim(mod):
     dumped = resource.model_dump()
     assert dumped["env"]["SLACK_CHAT_TOOLS_CHANNEL"] == "{tag.slack/channel}"
     assert dumped["env"]["SLACK_CHAT_TOOLS_THREAD_TS"] == "{tag.slack/thread_ts}"
+
+
+def test_mcp_server_resource_key_includes_receipts_db_path_when_set(mod):
+    component = mod.SlackChatToolsComponent(mcp_server_resource_key="slack_chat_mcp", receipts_db_path="/tmp/r.sqlite3")
+    defs = component.build_defs(None)
+    dumped = defs.resources["slack_chat_mcp"].model_dump()
+    assert dumped["env"]["SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH"] == "/tmp/r.sqlite3"
+
+
+def test_mcp_server_resource_key_omits_receipts_db_path_when_unset(mod):
+    component = mod.SlackChatToolsComponent(mcp_server_resource_key="slack_chat_mcp")
+    defs = component.build_defs(None)
+    dumped = defs.resources["slack_chat_mcp"].model_dump()
+    assert "SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH" not in dumped["env"]
+
+
+# --- receipts_db_path: attaching receipt_ids to bot messages ---------------------------
+
+def _bot_msg(text, ts, bot_id="BBOT"):
+    return {"user": "UBOT", "text": text, "ts": ts, "bot_id": bot_id}
+
+
+def test_bot_message_gets_receipt_ids_attached(mod, monkeypatch, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    mod.record_message_links(db_path, ["r1", "r2"], platform="slack", channel="C1", message_ts="100.002")
+
+    client = _FakeClient(messages=[_msg("U1", "what's our per diem policy?", "100.001"), _bot_msg("It's $50/day.", "100.002")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", receipts_db_path=db_path)
+    result = tools.call("get_thread", {})
+
+    user_row, bot_row = result["messages"]
+    assert "receipt_ids" not in user_row  # never attached to a user message
+    assert set(bot_row["receipt_ids"]) == {"r1", "r2"}
+
+
+def test_bot_message_with_no_linked_receipts_gets_an_empty_list(mod, monkeypatch, tmp_path):
+    db_path = str(tmp_path / "r.sqlite3")
+    client = _FakeClient(messages=[_bot_msg("hi", "100.002")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001", receipts_db_path=db_path)
+    result = tools.call("get_thread", {})
+    assert result["messages"][0]["receipt_ids"] == []
+
+
+def test_receipts_db_path_unset_never_attaches_receipt_ids(mod, monkeypatch):
+    client = _FakeClient(messages=[_bot_msg("hi", "100.002")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001")
+    result = tools.call("get_thread", {})
+    assert "receipt_ids" not in result["messages"][0]

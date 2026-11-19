@@ -72,6 +72,44 @@ def test_list_recent_failures_window_and_limit(mod, world):
     assert t.call("list_recent_failures", {"limit": 10_000})["count"] == 2  # clamped, not crashed
 
 
+# ---------- list_recent_runs / run_counts ----------
+def test_list_recent_runs_returns_every_status_by_default(mod, world):
+    r = tools(mod, world).call("list_recent_runs", {"hours": 1, "limit": 50})
+    assert "error" not in r
+    ids = {x["run_id"]: x["status"] for x in r["runs"]}
+    assert ids[world["bad_run"]] == "FAILURE"
+    assert ids[world["ok_run"]] == "SUCCESS"
+    assert ids[world["part_b_run"]] == "FAILURE"
+    assert ids[world["chk_run"]] == "SUCCESS"
+
+
+def test_list_recent_runs_status_filter(mod, world):
+    r = tools(mod, world).call("list_recent_runs", {"hours": 1, "status": "failure", "limit": 50})
+    assert set(x["status"] for x in r["runs"]) == {"FAILURE"}
+    assert r["status_filter"] == "FAILURE"
+    assert world["bad_run"] in {x["run_id"] for x in r["runs"]}
+
+
+def test_list_recent_runs_unknown_status_errors_clearly(mod, world):
+    r = tools(mod, world).call("list_recent_runs", {"status": "bogus_status"})
+    assert "error" in r and "bogus_status" in r["error"]
+
+
+def test_run_counts_tallies_by_status(mod, world):
+    r = tools(mod, world).call("run_counts", {"hours": 1})
+    assert "error" not in r
+    assert r["counts"]["SUCCESS"] >= 3  # ok_run, part_a run, chk_run
+    assert r["counts"]["FAILURE"] >= 2  # bad_run, part_b_run
+    assert r["total"] == sum(r["counts"].values())
+    assert r["truncated"] is False
+
+
+def test_run_counts_truncated_flag_when_limit_caps_the_window(mod, world):
+    r = tools(mod, world).call("run_counts", {"hours": 1, "limit": 2})
+    assert r["total"] == 2
+    assert r["truncated"] is True
+
+
 def test_get_run_summary(mod, world):
     r = tools(mod, world).call("get_run_summary", {"run_id": world["bad_run"]})
     assert r["status"] == "FAILURE" and r["run_id"] == world["bad_run"]

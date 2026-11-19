@@ -224,6 +224,20 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             "Dagster's own docs are inconsistent about whether this is on by default."
         ),
     )
+    use_in_process_executor: bool = Field(
+        default=True,
+        description=(
+            "Tag every RunRequest with run_config={'execution': {'config': {'in_process': {}}}}, "
+            "so the agent asset and its downstream slack_reply asset run as plain function "
+            "calls in one step-process instead of each spawning its own multiprocess-executor "
+            "subprocess -- real subprocess spawn time otherwise adds up on top of "
+            "set_isolation_disabled_tag's own container-startup savings. Requires the code "
+            "location that owns these assets not to set a non-default executor itself (e.g. "
+            "k8s_job_executor/celery_executor/docker_executor) -- if it does, this run_config "
+            "key is rejected by that executor's own config schema and the run fails with a "
+            "RunConfigValidationInvalid error. Set false to leave execution untouched."
+        ),
+    )
 
     minimum_interval_seconds: int = Field(default=10, description="Minimum seconds between sensor evaluations. Chat latency is roughly this plus the run-queue dequeue time plus the LLM call -- keep this low.")
     default_status: str = Field(default="STOPPED", description="'RUNNING' or 'STOPPED' -- initial status of the sensor.")
@@ -260,6 +274,7 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         post_acknowledgement = self.post_acknowledgement
         acknowledgement_reaction = self.acknowledgement_reaction
         set_isolation_disabled_tag = self.set_isolation_disabled_tag
+        use_in_process_executor = self.use_in_process_executor
         default_status = dg.DefaultSensorStatus.RUNNING if self.default_status.upper() == "RUNNING" else dg.DefaultSensorStatus.STOPPED
         sensor_asset_selection = [dg.AssetKey(k.split("/")) for k in sorted(set(keys))]
 
@@ -330,7 +345,10 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 }
                 if set_isolation_disabled_tag:
                     tags["dagster/isolation"] = "disabled"
-                run_requests.append(dg.RunRequest(run_key=f"{sensor_name}:{m['ts']}", asset_selection=sensor_asset_selection, tags=tags))
+                run_config = {"execution": {"config": {"in_process": {}}}} if use_in_process_executor else {}
+                run_requests.append(dg.RunRequest(
+                    run_key=f"{sensor_name}:{m['ts']}", asset_selection=sensor_asset_selection, tags=tags, run_config=run_config,
+                ))
                 if post_acknowledgement:
                     try:
                         client.reactions_add(channel=channel_id, timestamp=m["ts"], name=acknowledgement_reaction)

@@ -136,6 +136,12 @@ Set `receipts_db_path` to a SQLite file path and:
   with the same `user_id` for the same `receipt_id` supersedes the earlier one, so a user
   changing their mind isn't double-counted.
 - The inspection asset reports `retrievals_recorded`/`outcomes_recorded` counts.
+- Each receipt's `dagster_run_id` column is stamped from `run_id_template` (default `{run_id}`,
+  set via the `KNOWLEDGE_SEARCH_RUN_ID` env var when launched through `mcp_server_resource_key`
+  -- the calling agent's own generic `{run_id}` substitution resolves it before the subprocess
+  is spawned). This is what lets a downstream asset (e.g. `slack_reply`) look up which receipts
+  its own run produced, without parsing anything out of the agent's answer text. Set
+  `run_id_template: null` to skip stamping it.
 
 **Why a plain file path, not a `receipts_resource_key`** (the shape every other
 receipt-integrated component in this repo uses, e.g. `rag_pipeline`'s `receipts.resource_key`):
@@ -207,6 +213,7 @@ plays.
 | `embed_api_key_env_var` | `str` | — | Env var holding the embed provider's API key (openai/cohere/litellm). |
 | `text_metadata_key` | `str` | `"chunk_text"` | Metadata key holding chunk text for non-chromadb stores. Must match write_vector_store's own text_column if it was customized -- and that column must have been included in metadata_columns, since write_vector_store exclu… _(full docs in schema.json + component README)_ |
 | `receipts_db_path` | `str` | — | SQLite file path. When set, search_knowledge records a retrieval receipt per search (chunk ids and scores only, never the query or chunk text) and a new record_feedback(receipt_id, signal, user_id?) tool is exposed so an… _(full docs in schema.json + component README)_ |
+| `run_id_template` | `str` | `"{run_id}"` | Template for the KNOWLEDGE_SEARCH_RUN_ID env var set on the stdio MCP server (only when mcp_server_resource_key is also set) -- the calling agent component's own generic {run_id}/{tag.*} substitution resolves it to the r… _(full docs in schema.json + component README)_ |
 | `inspection_asset_name` | `str` | `"knowledge_search_tools"` | Asset key for the inspection asset reporting this server's configured settings. |
 
 [//]: # (FIELDS:END)

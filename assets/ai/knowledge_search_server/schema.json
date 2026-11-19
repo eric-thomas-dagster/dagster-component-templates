@@ -145,6 +145,12 @@
       "label": "Receipts Db Path",
       "description": "SQLite file path. When set, search_knowledge records a retrieval receipt per search (chunk ids and scores only, never the query or chunk text) and a new record_feedback(receipt_id, signal, user_id?) tool is exposed so an agent or app can report thumbs_up/thumbs_down/accepted/edited/escalated/... Quarantined chunks are always dropped before being returned, whether or not this is set. See KnowledgeSearchResource.receipts_db_path's own docs for why this is a plain file path rather than a Dagster resource_key -- the stdio MCP subprocess that answers searches has no Dagster context to resolve one from.",
       "required": false
+    },
+    "run_id_template": {
+      "type": "string",
+      "label": "Run Id Template",
+      "description": "Template for the KNOWLEDGE_SEARCH_RUN_ID env var set on the stdio MCP server (only when mcp_server_resource_key is also set) -- the calling agent component's own generic {run_id}/{tag.*} substitution resolves it to the real run id before the subprocess is spawned. Stamped onto every receipt's dagster_run_id column, letting a downstream asset (e.g. slack_reply) look up the receipts its own run produced. Set to null to never stamp a run id.",
+      "required": false
     }
   }
 }

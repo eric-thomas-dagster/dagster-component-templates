@@ -29,6 +29,42 @@ dagster_community_components.SlackReplyComponent
    would never even execute to report the failure. A run-status sensor fires independently of
    the run's own step graph.
 
+## Closing the loop: receipts and ratings (`receipts_db_path`, `watch_reactions`)
+
+The agent's answer may have been built from one or more `search_knowledge`/`search` calls
+against a `knowledge_search_server`/`hybrid_knowledge_search_server`, each of which (when
+*that* server's own `receipts_db_path` is set) returns a `receipt_id`. Today, closing the loop
+("the reader thought this answer was good/bad") required the agent to end its reply with
+`ref: <receipt_id>` and have that parsed back out of the thread -- fragile, and visible to
+users. This component gives that a real mechanism instead:
+
+- **`receipts_db_path`**: point it at the SAME SQLite file the agent's search server(s) use.
+  After posting, `{asset_name}` looks up every receipt `context.run.run_id` produced (via that
+  table's `dagster_run_id` column -- make sure the search server's own `run_id_template` is set,
+  the default) and links them to the posted message(s), in a small table
+  (`context_receipt_message_links`) this component and `slack_chat_tools` both read. This is a
+  **small table in the receipts store**, not Slack message metadata -- no new Slack API
+  plumbing, and `slack_chat_tools.get_thread()` can return the linked receipt ids for any bot
+  message without parsing text (see that component's own README).
+- **`watch_reactions`** (needs `receipts_db_path` set): also emits a third thing,
+  **`{asset_name}_rating_watcher`** -- a sensor that polls reactions on every message this
+  asset has linked to a receipt, and records a `thumbs_up`/`thumbs_down` outcome (via the same
+  `record_feedback`-shaped outcome event `knowledge_search_server` itself writes) against each
+  linked `receipt_id`. The reactor's resolved email becomes the outcome's `outcome_ref` --
+  reacting again with the OPPOSITE emoji supersedes the earlier rating when scoring (the same
+  "changing your mind isn't double-counted" behavior `record_feedback`'s own `user_id` already
+  has), and the same reaction is never re-recorded tick after tick. Needs the `reactions:read`
+  bot scope in addition to `chat:write`.
+- This reuses the `reactions.get` + poll shape `slack_approval_gate` already established for
+  watching reactions on a specific message -- but keyed by a bounded cursor
+  (`rating_lookback_messages`) rather than a per-partition sidecar file, since `{asset_name}`
+  isn't partitioned per message the way an approval gate is.
+
+```yaml
+  receipts_db_path: /tmp/receipts.sqlite3
+  watch_reactions: true
+```
+
 ## Minimal example
 
 ```yaml
@@ -58,7 +94,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | The chat agent asset to depend on and read the answer from (slash-delimited). |
+| `upstream_asset_key` | `Union[str, List[str]]` | The chat agent asset to depend on and read the answer from (slash-delimited). Exactly one -- a list of more than one is a validation error. |
 
 ### Catalog metadata
 
@@ -84,6 +120,13 @@ attributes:
 | `webserver_base_url` | `str` | — | Base URL of the Dagster webserver (e.g. 'http://localhost:3000' or your Dagster+ deployment URL) -- used to build the run link. Leave unset to omit the link entirely. |
 | `monitor_failures` | `bool` | `true` | Also emit {asset_name}_failure_watcher, a run-status sensor that posts a short error reply for ANY failed run carrying slack/channel + slack/thread_ts tags -- so a crashed run is never silent in the channel. Set false to… _(full docs in schema.json + component README)_ |
 | `error_message_template` | `str` | `"⚠️ Something went wrong answering this: {error}"` | Template for the failure-path reply. Placeholder: {error}. |
+| `receipts_db_path` | `str` | — | SQLite file path -- the SAME receipts_db_path a knowledge_search_server/hybrid_knowledge_search_server the agent calls is configured with (and which must also have run_id_template set, the default, so its receipts carry… _(full docs in schema.json + component README)_ |
+| `watch_reactions` | `bool` | `false` | Also emit {asset_name}_rating_watcher, a sensor that polls reactions on every Slack message this asset has linked to a receipt (via receipts_db_path, which must also be set) and records a thumbs_up/thumbs_down outcome ag… _(full docs in schema.json + component README)_ |
+| `positive_reaction` | `str` | `"+1"` | Slack reaction name (as reactions.get returns it, e.g. '+1' for 👍) that records a thumbs_up outcome. Only used when watch_reactions is true. |
+| `negative_reaction` | `str` | `"-1"` | Slack reaction name (e.g. '-1' for 👎) that records a thumbs_down outcome. Only used when watch_reactions is true. |
+| `rating_poll_interval_seconds` | `int` | `30` | Minimum seconds between rating_watcher ticks. Only used when watch_reactions is true. |
+| `rating_lookback_messages` | `int` | `200` | Most-recently-linked (channel, message_ts) pairs to keep polling for reactions, and the cursor's bound. Only used when watch_reactions is true. |
+| `resolve_rater_email` | `bool` | `true` | Resolve the reacting user's Slack user id to an email address (needs users:read.email) before using it as the outcome's outcome_ref. When false, the raw Slack user id is used instead. Only used when watch_reactions is true. |
 
 [//]: # (FIELDS:END)
 

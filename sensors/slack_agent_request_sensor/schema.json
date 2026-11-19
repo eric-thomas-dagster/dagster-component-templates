@@ -110,6 +110,12 @@
       "label": "Default Status",
       "description": "'RUNNING' or 'STOPPED' -- initial status of the sensor.",
       "required": false
+    },
+    "use_in_process_executor": {
+      "type": "boolean",
+      "label": "Use In Process Executor",
+      "description": "Tag every RunRequest with run_config={'execution': {'config': {'in_process': {}}}}, so the agent asset and its downstream slack_reply asset run as plain function calls in one step-process instead of each spawning its own multiprocess-executor subprocess -- real subprocess spawn time otherwise adds up on top of set_isolation_disabled_tag's own container-startup savings. Requires the code location that owns these assets not to set a non-default executor itself (e.g. k8s_job_executor/celery_executor/docker_executor) -- if it does, this run_config key is rejected by that executor's own config schema and the run fails with a RunConfigValidationInvalid error. Set false to leave execution untouched.",
+      "required": false
     }
   }
 }

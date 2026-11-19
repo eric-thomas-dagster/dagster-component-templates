@@ -883,6 +883,61 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# ─── quarantine check (quarantine_source) ──────────────────────────────────────────────────
+
+def _quarantined_chunk_ids_from_chromadb(connection_string: Optional[str], collection_name: str, chunk_ids: List[str]) -> set:
+    """Point-checks a batch of chunk ids against a chromadb collection's own
+    feedback_quarantined metadata (the same flag context_engineering_pipeline's receipts
+    policy stamps, and the same point-lookup-by-id pattern hybrid_knowledge_search_server
+    uses for its own graph-expansion quarantine check) -- only chromadb is supported today,
+    a documented limitation, not a silent no-op dressed up as a pass."""
+    if not chunk_ids:
+        return set()
+    import chromadb
+    client = chromadb.PersistentClient(path=connection_string or "./chroma_db")
+    collection = client.get_collection(name=collection_name)
+    out: set = set()
+    ids = [str(c) for c in chunk_ids]
+    for i in range(0, len(ids), 500):
+        got = collection.get(ids=ids[i:i + 500], include=["metadatas"])
+        for cid, meta in zip(got["ids"], got.get("metadatas") or []):
+            if (meta or {}).get("feedback_quarantined"):
+                out.add(cid)
+    return out
+
+
+def _drop_quarantined_chunks(df: pd.DataFrame, quarantine_source: Optional[dict], context) -> pd.DataFrame:
+    """No-op unless quarantine_source is set and df already has a chunk_id column -- called at
+    every point a chunk_id column first becomes available (pre-chunked upstream, and this
+    component's own chunk step), so a quarantined chunk is dropped before any extraction work
+    is spent on it, regardless of which path produced the chunk ids."""
+    if not quarantine_source or "chunk_id" not in df.columns or df.empty:
+        return df
+    provider = quarantine_source.get("provider", "chromadb")
+    if provider != "chromadb":
+        context.log.warning(
+            f"knowledge_graph_builder: quarantine_source.provider={provider!r} is not supported "
+            "for the quarantine check (only 'chromadb' today) -- no chunks were filtered."
+        )
+        return df
+    if not quarantine_source.get("collection_name"):
+        raise ValueError("knowledge_graph_builder: quarantine_source requires collection_name.")
+    try:
+        quarantined = _quarantined_chunk_ids_from_chromadb(
+            quarantine_source.get("connection_string"), quarantine_source["collection_name"],
+            df["chunk_id"].astype(str).tolist(),
+        )
+    except Exception as e:  # noqa: BLE001 -- never fail the whole build over a quarantine lookup
+        context.log.warning(f"knowledge_graph_builder: could not check quarantine status ({type(e).__name__}: {e}) -- no chunks were filtered.")
+        return df
+    if not quarantined:
+        return df
+    before = len(df)
+    out = df[~df["chunk_id"].astype(str).isin(quarantined)].reset_index(drop=True)
+    context.log.info(f"knowledge_graph_builder: dropped {before - len(out)} quarantined chunk(s) before graph extraction.")
+    return out
+
+
 # ─── chunk op ──────────────────────────────────────────────────────────────────────────────
 
 def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, metadata_columns: List[str], context) -> pd.DataFrame:
@@ -1939,6 +1994,21 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
         default=None,
         description="Safety cap on source rows processed per materialize. Pair with partitioning to bound each run to a slice of a large corpus.",
     )
+    quarantine_source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Point this at the SAME chromadb collection a context_engineering_pipeline "
+            "receipts: quarantine policy writes feedback_quarantined=true into (chunk ids "
+            "must match -- see this file's module docstring on byte-identical chunk ids), "
+            "and any chunk already quarantined on the vector side is dropped before graph "
+            "extraction -- this is the ONLY source of truth consulted here (no separate "
+            "threshold is recomputed from raw receipts; this component has no other receipts "
+            "connection). Fields: provider (only 'chromadb' is supported today -- a "
+            "documented limitation, matching hybrid_knowledge_search_server's own "
+            "chromadb-only point-lookup scope), connection_string, collection_name "
+            "(required). Leave unset to skip the check entirely (the default)."
+        ),
+    )
     steps: List[Dict[str, Any]] = Field(
         description=(
             "Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` names a prior "
@@ -2089,6 +2159,7 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
         text_column = self.text_column
         metadata_columns = self.metadata_columns or []
         max_source_rows = self.max_source_rows
+        quarantine_source = self.quarantine_source
         source_cfg = self.source
         upstream_asset_key = self.upstream_asset_key
         partitioned = partitions_def is not None
@@ -2142,6 +2213,7 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
             if max_source_rows is not None and source_rows_available > max_source_rows:
                 context.log.warning(f"max_source_rows={max_source_rows} < {source_rows_available} available -- truncating this run.")
                 upstream_df = upstream_df.head(max_source_rows)
+            upstream_df = _drop_quarantined_chunks(upstream_df, quarantine_source, context)
 
             state: Dict[str, pd.DataFrame] = {}
             prev_id: Optional[str] = None
@@ -2152,6 +2224,7 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
                 df_in = upstream_df if source_id is None else state[source_id]
                 if op == "chunk":
                     df_out = _do_chunk(df_in, step, id_column, text_column, metadata_columns, context)
+                    df_out = _drop_quarantined_chunks(df_out, quarantine_source, context)
                 elif op == "extract":
                     df_out = _do_extract(df_in, step, id_column, context)
                     filter_counts = df_out.attrs.get("filter_counts") or {}

@@ -89,6 +89,18 @@ def test_mcp_server_resource_key_env_includes_optional_settings_when_set(mod):
     assert env["KNOWLEDGE_SEARCH_EMBED_API_KEY_ENV_VAR"] == "OPENAI_KEY"
 
 
+def test_run_id_template_defaults_into_mcp_env(mod):
+    component = _component(mod, resource_key="ks", mcp_server_resource_key="ks_mcp")
+    env = component.build_defs(None).resources["ks_mcp"].model_dump()["env"]
+    assert env["KNOWLEDGE_SEARCH_RUN_ID"] == "{run_id}"
+
+
+def test_run_id_template_can_be_disabled(mod):
+    component = _component(mod, resource_key="ks", mcp_server_resource_key="ks_mcp", run_id_template=None)
+    env = component.build_defs(None).resources["ks_mcp"].model_dump()["env"]
+    assert "KNOWLEDGE_SEARCH_RUN_ID" not in env
+
+
 def test_api_key_env_var_names_wired_into_live_env_passthrough(mod, monkeypatch):
     """The real bug: a search that needs a real API key failed every time, because the
     value was never forwarded to the spawned stdio server -- only the NAME was baked into
@@ -174,6 +186,7 @@ def test_main_builds_matching_resource_from_env(mod, monkeypatch):
     monkeypatch.setenv("KNOWLEDGE_SEARCH_COLLECTION_NAME", "kb")
     monkeypatch.setenv("KNOWLEDGE_SEARCH_PROVIDER", "chromadb")
     monkeypatch.setenv("KNOWLEDGE_SEARCH_EMBED_MODEL", "all-MiniLM-L6-v2")
+    monkeypatch.setenv("KNOWLEDGE_SEARCH_RUN_ID", "run-abc")
 
     captured = {}
 
@@ -190,6 +203,7 @@ def test_main_builds_matching_resource_from_env(mod, monkeypatch):
     assert captured["resource"].provider == "chromadb"
     assert captured["resource"].collection_name == "kb"
     assert captured["resource"].embed_model == "all-MiniLM-L6-v2"
+    assert captured["resource"].run_id == "run-abc"
 
 
 def test_main_requires_collection_name(mod, monkeypatch):

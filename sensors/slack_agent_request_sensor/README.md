@@ -83,6 +83,16 @@ too slow for chat.
 - End-to-end latency is roughly `minimum_interval_seconds` + the run-queue dequeue time + the
   LLM call -- expect something in the 10-40s range, dominated by the first two; this estimate is
   **not** independently confirmed down to the second against Dagster's own docs.
+- **`use_in_process_executor`** (default `true`): also sets
+  `run_config={"execution": {"config": {"in_process": {}}}}` on every `RunRequest`. This is a
+  second, separate knob from `set_isolation_disabled_tag` -- that tag skips container
+  *startup*; this setting skips `multi_or_in_process_executor`'s default subprocess *per step*,
+  so the agent step and the downstream `slack_reply` step run as plain function calls in one
+  process instead of two. Requires the code location that owns these assets to use the default
+  executor (or no explicit `executor=` at all) -- if that `Definitions` sets something else
+  (`k8s_job_executor`, `celery_executor`, `docker_executor`, ...), that executor's own config
+  schema rejects an `in_process` key it doesn't recognize, and the run fails with a
+  `RunConfigValidationInvalid` error. Set `use_in_process_executor: false` if that's the case.
 
 ## Auth -- Slack app setup
 
@@ -178,6 +188,7 @@ See `example.yaml`.
 | `post_acknowledgement` | `bool` | `true` | React to a matched message immediately (acknowledgement_reaction) so the sender sees it was received before the agent run even starts. |
 | `acknowledgement_reaction` | `str` | `"eyes"` | Reaction name for post_acknowledgement (one of Slack's built-in emoji names, e.g. 'eyes', 'thinking_face'). |
 | `set_isolation_disabled_tag` | `bool` | `true` | Tag every RunRequest dagster/isolation: disabled, so the run starts in-process on the code location server instead of spinning up an isolated container (which can take up to 3 minutes on Dagster+ -- far too slow for chat… _(full docs in schema.json + component README)_ |
+| `use_in_process_executor` | `bool` | `true` | Tag every RunRequest with run_config={'execution': {'config': {'in_process': {}}}}, so the agent asset and its downstream slack_reply asset run as plain function calls in one step-process instead of each spawning its own… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

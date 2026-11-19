@@ -34,7 +34,10 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import sys
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
@@ -68,6 +71,120 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
             out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
     return out
 # END field-shape normalization
+
+# BEGIN receipt-message-links (inlined per component; keep copies in slack_reply and
+# slack_chat_tools identical). Links a run's receipt ids (from a receipts-db-path-configured
+# knowledge_search_server/hybrid_knowledge_search_server) to the Slack message that carried
+# the answer built from them, so a later reaction (or slack_chat_tools.get_thread()) can find
+# them back without parsing anything out of the reply text. Not part of the canonical
+# receipt-warehouse block (resources/context_receipt_store) -- this table is SQLite-only and
+# Slack-specific, never synced to a warehouse, so it stays out of that multi-dialect system.
+def _ensure_message_links_table(conn) -> None:
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS context_receipt_message_links ("
+        "receipt_id TEXT NOT NULL, platform TEXT NOT NULL, channel TEXT NOT NULL, "
+        "message_ts TEXT NOT NULL, created_at TEXT NOT NULL)"
+    )
+
+
+def record_message_links(db_path: str, receipt_ids, *, platform: str, channel: str, message_ts: str) -> None:
+    if not receipt_ids:
+        return
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        _ensure_message_links_table(conn)
+        created_at = datetime.now(timezone.utc).isoformat()
+        conn.executemany(
+            "INSERT INTO context_receipt_message_links (receipt_id, platform, channel, message_ts, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            [(rid, platform, channel, message_ts, created_at) for rid in receipt_ids],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def receipt_ids_for_message(db_path: str, *, platform: str, channel: str, message_ts: str) -> List[str]:
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        _ensure_message_links_table(conn)
+        rows = conn.execute(
+            "SELECT DISTINCT receipt_id FROM context_receipt_message_links WHERE platform = ? AND channel = ? AND message_ts = ?",
+            (platform, channel, message_ts),
+        ).fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+def recent_message_links(db_path: str, *, platform: str, limit: int) -> List[Dict[str, str]]:
+    """Distinct (channel, message_ts) pairs this platform has linked, most-recently-linked
+    first -- lets a rating sensor discover which bot messages to poll for reactions without a
+    separate per-partition sidecar file."""
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        _ensure_message_links_table(conn)
+        rows = conn.execute(
+            "SELECT channel, message_ts, MAX(created_at) AS latest FROM context_receipt_message_links "
+            "WHERE platform = ? GROUP BY channel, message_ts ORDER BY latest DESC LIMIT ?",
+            (platform, limit),
+        ).fetchall()
+        return [{"channel": r[0], "message_ts": r[1]} for r in rows]
+    finally:
+        conn.close()
+
+
+def receipt_ids_for_run(db_path: str, dagster_run_id: str) -> List[str]:
+    """Which receipts (from context_receipts, the canonical table knowledge_search_server/
+    hybrid_knowledge_search_server write to when configured with a matching run_id_template)
+    this Dagster run produced. Returns [] (not an error) if the canonical table doesn't exist
+    yet -- a receipts_db_path misconfiguration or an agent that made no searches must never
+    fail the reply post itself."""
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        rows = conn.execute("SELECT receipt_id FROM context_receipts WHERE dagster_run_id = ?", (dagster_run_id,)).fetchall()
+        return [r[0] for r in rows]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+# Same vocabulary as context_receipt_store's own OUTCOME_SIGNALS / knowledge_search_server's
+# own copy of it -- "+1"/"-1" (Slack's own reaction names for 👍/👎) map onto thumbs_up/thumbs_down.
+OUTCOME_SIGNALS = {
+    "thumbs_up": 1.0, "thumbs_down": -1.0, "accepted": 0.5, "edited": -0.3, "escalated": -0.7,
+    "reopened": -0.7, "closed_won": 1.0, "closed_lost": -0.5, "reformulated": -0.2,
+}
+
+
+def record_outcome(db_path: str, receipt_id: str, *, signal: str, outcome_ref: Optional[str] = None) -> None:
+    """Same canonical shape as knowledge_search_server's own _ReceiptWriter.record_outcome --
+    copied, not imported, per this repo's self-contained-component convention. Assumes
+    context_receipts/context_receipt_events already exist (created by whichever
+    knowledge_search_server/hybrid_knowledge_search_server wrote receipts for this run) --
+    no-ops rather than crashing the rating sensor if they don't, or if receipt_id is unknown."""
+    value = OUTCOME_SIGNALS.get(signal)
+    if value is None:
+        raise ValueError(f"unknown signal {signal!r}")
+    payload = {"signal": signal, "value": float(value), "source": "slack_reaction", "outcome_ref": outcome_ref}
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        exists = conn.execute("SELECT 1 FROM context_receipts WHERE receipt_id = ?", (receipt_id,)).fetchone()
+        if exists is None:
+            return
+        conn.execute(
+            "INSERT INTO context_receipt_events (event_id, receipt_id, event_type, occurred_at, payload_json) "
+            "VALUES (?, ?, 'outcome', ?, ?)",
+            (str(uuid.uuid4()), receipt_id, datetime.now(timezone.utc).isoformat(),
+             json.dumps(payload, sort_keys=True, separators=(",", ":"))),
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        return
+    finally:
+        conn.close()
+# END receipt-message-links
 
 _AUDIT = logging.getLogger("slack_chat_tools.audit")
 
@@ -146,6 +263,7 @@ class SlackChatTools:
         thread_ts: Optional[str] = None,
         max_messages: int = 20,
         max_result_chars: int = 8000,
+        receipts_db_path: Optional[str] = None,
         audit=None,
     ):
         self.bot_token_env_var = bot_token_env_var
@@ -153,6 +271,7 @@ class SlackChatTools:
         self.thread_ts = thread_ts
         self.max_messages = max(1, int(max_messages))
         self.max_result_chars = max(200, int(max_result_chars))
+        self.receipts_db_path = receipts_db_path
         self._audit = audit or (lambda line: _AUDIT.info(line))
 
     def tool_names(self) -> List[str]:
@@ -213,7 +332,20 @@ class SlackChatTools:
         if not resp.get("ok"):
             raise ToolError(f"Slack conversations_replies failed: {resp.get('error')}")
         messages = (resp.get("messages") or [])[-self.max_messages:]
-        rows = [{"user": m.get("user"), "text": m.get("text") or "", "ts": m.get("ts")} for m in messages]
+        rows = []
+        for m in messages:
+            row = {"user": m.get("user"), "text": m.get("text") or "", "ts": m.get("ts")}
+            if self.receipts_db_path and m.get("bot_id"):
+                # A bot-authored message is a prior reply from this same chat agent -- look up
+                # which receipt(s) (knowledge-base searches) it was built from, so the model
+                # can cite or reference them directly instead of parsing its own past text.
+                try:
+                    row["receipt_ids"] = receipt_ids_for_message(
+                        self.receipts_db_path, platform="slack", channel=self.channel, message_ts=m["ts"],
+                    )
+                except Exception:  # noqa: BLE001 -- a lookup failure must never break get_thread itself
+                    row["receipt_ids"] = []
+            rows.append(row)
         return {"channel": self.channel, "thread_ts": self.thread_ts, "message_count": len(rows), "messages": rows}
 
 
@@ -240,6 +372,18 @@ class SlackChatToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     max_messages: int = Field(default=20, description="Most recent messages get_thread returns.")
     max_result_chars: int = Field(default=8000, description="Upper bound on the serialized size of any tool result.")
+    receipts_db_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "SQLite file path -- the SAME receipts_db_path a slack_reply instance (and the "
+            "knowledge_search_server/hybrid_knowledge_search_server the agent calls) are "
+            "configured with. When set, get_thread() attaches receipt_ids to any BOT-authored "
+            "message in the thread (a prior reply from this same chat agent, looked up via "
+            "slack_reply's own receipt-message link table) -- so the model can see which "
+            "knowledge-base searches a past answer was built from, without parsing its own "
+            "text for a 'ref: <id>' marker."
+        ),
+    )
     mcp_server_resource_key: Optional[str] = Field(
         default=None,
         description=(
@@ -266,6 +410,7 @@ class SlackChatToolsComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         bot_token_env_var, max_messages, max_result_chars = self.slack_bot_token_env_var, self.max_messages, self.max_result_chars
+        receipts_db_path = self.receipts_db_path
 
         def _init(init_context):
             # The in-process resource_key path has no per-run tag substitution to resolve
@@ -273,7 +418,10 @@ class SlackChatToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             # own compute function) -- a direct caller using this path must set them itself
             # by constructing SlackChatTools directly, same as dagster_workflow_tools'
             # resource_key path has no `requester` either.
-            return SlackChatTools(bot_token_env_var=bot_token_env_var, max_messages=max_messages, max_result_chars=max_result_chars)
+            return SlackChatTools(
+                bot_token_env_var=bot_token_env_var, max_messages=max_messages, max_result_chars=max_result_chars,
+                receipts_db_path=receipts_db_path,
+            )
 
         res = dg.ResourceDefinition(resource_fn=_init, description="Reads the Slack thread a chat-triggered agent run is answering.")
         resources: Dict[str, Any] = {self.resource_key: res}
@@ -287,6 +435,8 @@ class SlackChatToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["SLACK_CHAT_TOOLS_CHANNEL"] = self.channel_template
             if self.thread_ts_template:
                 mcp_env["SLACK_CHAT_TOOLS_THREAD_TS"] = self.thread_ts_template
+            if receipts_db_path:
+                mcp_env["SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH"] = receipts_db_path
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key,
                 type="stdio",
@@ -365,7 +515,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     """Env: SLACK_BOT_TOKEN (or whatever slack_bot_token_env_var names), SLACK_CHAT_TOOLS_CHANNEL,
     SLACK_CHAT_TOOLS_THREAD_TS (both normally resolved per-run by the CALLING agent's own
     {tag.*} substitution -- see README), SLACK_CHAT_TOOLS_MAX_MESSAGES (default 20),
-    SLACK_CHAT_TOOLS_MAX_CHARS (default 8000)."""
+    SLACK_CHAT_TOOLS_MAX_CHARS (default 8000),
+    SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH (optional -- attaches receipt_ids to bot messages)."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     tools = SlackChatTools(
         bot_token_env_var=os.environ.get("SLACK_CHAT_TOOLS_BOT_TOKEN_ENV_VAR", "SLACK_BOT_TOKEN"),
@@ -373,6 +524,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         thread_ts=os.environ.get("SLACK_CHAT_TOOLS_THREAD_TS") or None,
         max_messages=int(os.environ.get("SLACK_CHAT_TOOLS_MAX_MESSAGES", "20")),
         max_result_chars=int(os.environ.get("SLACK_CHAT_TOOLS_MAX_CHARS", "8000")),
+        receipts_db_path=os.environ.get("SLACK_CHAT_TOOLS_RECEIPTS_DB_PATH") or None,
     )
     build_mcp_server(tools).run(transport="stdio")
 

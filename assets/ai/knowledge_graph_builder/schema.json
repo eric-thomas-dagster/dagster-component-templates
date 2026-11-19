@@ -224,6 +224,12 @@
       "label": "Sql Dialect",
       "description": "Required when execution_mode='sql'. Same 3 dialects as context_engineering_pipeline's own execution_mode='sql': 'snowflake_cortex', 'bigquery', 'databricks'.",
       "required": false
+    },
+    "quarantine_source": {
+      "type": "object",
+      "label": "Quarantine Source",
+      "description": "Point this at the SAME chromadb collection a context_engineering_pipeline receipts: quarantine policy writes feedback_quarantined=true into (chunk ids must match -- see this file's module docstring on byte-identical chunk ids), and any chunk already quarantined on the vector side is dropped before graph extraction -- this is the ONLY source of truth consulted here (no separate threshold is recomputed from raw receipts; this component has no other receipts connection). Fields: provider (only 'chromadb' is supported today -- a documented limitation, matching hybrid_knowledge_search_server's own chromadb-only point-lookup scope), connection_string, collection_name (required). Leave unset to skip the check entirely (the default).",
+      "required": false
     }
   }
 }

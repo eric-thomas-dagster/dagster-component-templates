@@ -340,6 +340,7 @@ class _ReceiptWriter:
     def record_retrieval(
         self, *, context_name: str, items: List[Dict[str, Any]],
         eligible_count: Optional[int] = None, purpose: Optional[str] = None, query_hash: Optional[str] = None,
+        dagster_run_id: Optional[str] = None,
     ) -> str:
         receipt_id = _new_receipt_id()
         created_at = datetime.now(timezone.utc).isoformat()
@@ -349,8 +350,8 @@ class _ReceiptWriter:
                     receipt_id, created_at, context_name, context_version, policy_version,
                     caller_id, purpose, query_hash, eligible_count, excluded_count,
                     dagster_asset_key, dagster_run_id, trace_id, mcp_session_id, mcp_request_id, dagster_partition_key
-                ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, 0, NULL, NULL, NULL, NULL, NULL, NULL)""",
-                (receipt_id, created_at, context_name, purpose, query_hash, eligible_count),
+                ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, 0, NULL, ?, NULL, NULL, NULL, NULL)""",
+                (receipt_id, created_at, context_name, purpose, query_hash, eligible_count, dagster_run_id),
             )
             conn.executemany(
                 """INSERT INTO context_receipt_items (
@@ -656,6 +657,16 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
             "why this is a plain file path rather than a Dagster resource_key."
         ),
     )
+    run_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster run id to stamp on the dagster_run_id column of each recorded receipt. "
+            "Always None unless this is running as the stdio MCP server (set via the "
+            "HYBRID_KG_SEARCH_RUN_ID env var, itself resolved from the calling agent's "
+            "{run_id} placeholder) -- there is no live Dagster context at this layer to read "
+            "a run id from otherwise."
+        ),
+    )
 
     def _vector_cfg(self) -> dict:
         return {
@@ -760,6 +771,27 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
         except Exception:  # noqa: BLE001 -- best-effort only
             return None
         return None
+
+    def _graph_only_chunk_is_quarantined(self, chunk_id: str) -> bool:
+        """Point-checks whether a chunk that reached this result purely through graph
+        expansion (never passed through _vector_search's own quarantine filter) is itself
+        quarantined. Only chromadb supports a cheap point lookup by id today (same scope as
+        _backfill_text_from_chromadb) -- for every other vector provider this returns False,
+        a documented limitation, not a silent false negative dressed up as a pass."""
+        vcfg = self._vector_cfg()
+        if vcfg["provider"] != "chromadb" or not vcfg["collection_name"]:
+            return False
+        try:
+            import chromadb
+            client = chromadb.PersistentClient(path=vcfg["connection_string"] or "./chroma_db")
+            collection = client.get_collection(name=vcfg["collection_name"])
+            res = collection.get(ids=[chunk_id], include=["metadatas"])
+            if res["ids"]:
+                meta = (res.get("metadatas") or [{}])[0] or {}
+                return bool(meta.get("feedback_quarantined"))
+        except Exception:  # noqa: BLE001 -- best-effort only, never fail search() over this
+            return False
+        return False
 
     # ─── graph primitives (same shape as knowledge_graph_search_server) ──
 
@@ -1033,6 +1065,15 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
                                 next_frontier.add(nb["name"])
                 frontier = next_frontier
 
+            # Chunks reached purely through graph expansion never passed _vector_search's own
+            # quarantine filter (that filter only runs over vector_hits, above) -- a chunk
+            # quarantined on the vector side could otherwise resurface just by being reachable
+            # via a graph hop. Check and drop those here too.
+            for cid in list(passages):
+                if "vector" not in passages[cid]["paths"] and self._graph_only_chunk_is_quarantined(cid):
+                    del passages[cid]
+            triples = [t for t in triples if t["chunk_id"] in passages]
+
         if mode == "hybrid":
             for cid in list(passages):
                 if not any(p.startswith("graph") for p in passages[cid]["paths"]):
@@ -1058,6 +1099,7 @@ class HybridKnowledgeSearchResource(dg.ConfigurableResource):
                 items=items,
                 eligible_count=eligible_count,
                 query_hash=hashlib.sha256(query.encode("utf-8")).hexdigest(),
+                dagster_run_id=self.run_id,
             )
         return result
 
@@ -1202,6 +1244,17 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
             "context to resolve one from."
         ),
     )
+    run_id_template: Optional[str] = Field(
+        default="{run_id}",
+        description=(
+            "Template for the HYBRID_KG_SEARCH_RUN_ID env var set on the stdio MCP server "
+            "(only when mcp_server_resource_key is also set) -- the calling agent component's "
+            "own generic {run_id}/{tag.*} substitution resolves it to the real run id before "
+            "the subprocess is spawned. Stamped onto every receipt's dagster_run_id column, "
+            "letting a downstream asset (e.g. slack_reply) look up the receipts its own run "
+            "produced. Set to null to never stamp a run id."
+        ),
+    )
     inspection_asset_name: str = Field(default="hybrid_knowledge_search_tools", description="Asset key for the inspection asset reporting this server's configured settings and the corpus-overlap check.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -1239,6 +1292,8 @@ class HybridKnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable
             mcp_env: Dict[str, str] = {"HYBRID_KG_SEARCH_MAX_RESULTS": str(self.max_results)}
             if self.receipts_db_path:
                 mcp_env["HYBRID_KG_SEARCH_RECEIPTS_DB_PATH"] = self.receipts_db_path
+            if self.run_id_template:
+                mcp_env["HYBRID_KG_SEARCH_RUN_ID"] = self.run_id_template
             for field, env_key in _VECTOR_ENV_KEYS.items():
                 v = self.vector_store.get(field)
                 if v is not None:
@@ -1396,7 +1451,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     _GRAPH_SNOWFLAKE_ACCOUNT_ENV_VAR/_USER_ENV_VAR/_PASSWORD_ENV_VAR/_DATABASE/_SCHEMA/_WAREHOUSE,
     _GRAPH_DATABRICKS_HOST_ENV_VAR/_TOKEN_ENV_VAR/_HTTP_PATH, _GRAPH_BIGQUERY_PROJECT_ID.
     HYBRID_KG_SEARCH_MAX_RESULTS (default 50).
-    HYBRID_KG_SEARCH_RECEIPTS_DB_PATH (optional -- enables receipt recording + record_feedback)."""
+    HYBRID_KG_SEARCH_RECEIPTS_DB_PATH (optional -- enables receipt recording + record_feedback).
+    HYBRID_KG_SEARCH_RUN_ID (optional -- stamped onto each receipt's dagster_run_id column)."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
     collection_name = os.environ.get("HYBRID_KG_SEARCH_VECTOR_COLLECTION_NAME")
     if not collection_name:
@@ -1441,6 +1497,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         vector_store=_drop_none(vector_store), graph=_drop_none(graph),
         max_results=int(os.environ.get("HYBRID_KG_SEARCH_MAX_RESULTS", "50")),
         receipts_db_path=os.environ.get("HYBRID_KG_SEARCH_RECEIPTS_DB_PATH"),
+        run_id=os.environ.get("HYBRID_KG_SEARCH_RUN_ID"),
     )
     build_mcp_server(resource).run(transport="stdio")
 

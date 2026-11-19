@@ -68,6 +68,32 @@ attributes:
     - {id: graph, op: write_graph, provider: networkx, path: /tmp/support_kg.json}
 ```
 
+## Receipts / quarantine (`quarantine_source`)
+
+Two direct questions, answered rather than left open:
+
+- **Does a chunk excluded or flagged by receipts also get dropped from the graph build?**
+  Yes, when `quarantine_source` is set -- not automatically, since this component has no other
+  connection to the receipts system (no `receipts_db_path`, no threshold of its own). Point it
+  at the SAME chromadb collection a `context_engineering_pipeline` `receipts:` quarantine
+  policy writes `feedback_quarantined=true` into (chunk ids must match -- see "Shared chunk-id
+  contract" above), and any chunk already flagged there is dropped before extraction spends
+  any work on it -- at whichever point a `chunk_id` column first exists (a pre-chunked
+  upstream, or right after this component's own `chunk` step). Only `provider: chromadb` is
+  supported today, same scope as `hybrid_knowledge_search_server`'s own point-lookup-by-id
+  check -- a documented limitation, not a silent gap, for every other vector provider.
+- **Does `hybrid_knowledge_search_server` honor `feedback_quarantined` for graph-expanded
+  results too, not just vector hits?** Yes, as of this same change -- see that component's own
+  README ("Closed-loop receipts").
+
+Added to the `attributes:` of the knowledge_graph_builder YAML above:
+
+```yaml
+  quarantine_source:
+    connection_string: ./chroma_db
+    collection_name: support_kb
+```
+
 ## Op coverage
 
 - **`chunk`**: fixed-size chunking with sentence-boundary snapping and
@@ -205,6 +231,7 @@ new or changed chunks are (re-)extracted.
 | `source` | `Dict[str, Any]` | — | Pull raw text rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asse… _(full docs in schema.json + component README)_ |
 | `metadata_columns` | `List[str]` | — | Additional source columns carried forward onto every chunk row. |
 | `max_source_rows` | `int` | — | Safety cap on source rows processed per materialize. Pair with partitioning to bound each run to a slice of a large corpus. |
+| `quarantine_source` | `Dict[str, Any]` | — | Point this at the SAME chromadb collection a context_engineering_pipeline receipts: quarantine policy writes feedback_quarantined=true into (chunk ids must match -- see this file's module docstring on byte-identical chun… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"python"` | 'python' (default): extract/resolve run in-process (litellm or spaCy), write_graph stores into networkx/neo4j/falkordb. 'sql': extract runs as a warehouse-native LLM completion (SNOWFLAKE.CORTEX.COMPLETE / ai_query / ML… _(full docs in schema.json + component README)_ |
 | `sql_dialect` | `str` | — | Required when execution_mode='sql'. Same 3 dialects as context_engineering_pipeline's own execution_mode='sql': 'snowflake_cortex', 'bigquery', 'databricks'. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |

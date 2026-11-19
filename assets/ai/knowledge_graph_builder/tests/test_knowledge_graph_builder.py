@@ -833,6 +833,134 @@ def test_pre_chunked_upstream_without_chunk_id_raises_clear_error(mod, tmp_path)
         dg.materialize([not_chunked] + list(comp_assets), resources={"io_manager": dg.InMemoryIOManager()})
 
 
+# ─── quarantine_source ──────────────────────────────────────────────────────
+
+def _build_chroma_with_quarantine_flags(path: str, collection_name: str, flags: dict) -> None:
+    """flags: {chunk_id: bool}. Real chromadb, no embeddings needed -- the quarantine check
+    only reads metadata by id, never queries by vector."""
+    import chromadb
+    client = chromadb.PersistentClient(path=path)
+    collection = client.get_or_create_collection(name=collection_name)
+    ids = list(flags)
+    collection.upsert(
+        ids=ids, embeddings=[[0.0, 0.0]] * len(ids),
+        metadatas=[{"feedback_quarantined": bool(v)} for v in flags.values()],
+    )
+
+
+def test_quarantine_source_drops_a_pre_chunked_quarantined_chunk_before_extraction(mod, tmp_path, monkeypatch):
+    chroma_path = str(tmp_path / "chroma")
+    _build_chroma_with_quarantine_flags(chroma_path, "kb_collection", {"d1_0": True, "d2_0": False})
+
+    calls = []
+
+    def fake_completion(model, messages, api_key, temperature):
+        calls.append(messages)
+        return _FakeResponse(json.dumps([{"subject": "Alice", "relation": "works_at", "object": "Acme"}]))
+
+    import litellm
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+
+    @dg.asset(name="pre_chunked")
+    def pre_chunked():
+        return pd.DataFrame([
+            {"doc_id": "d1", "chunk_id": "d1_0", "chunk_text": "Alice works at Acme.", "content_hash": "h1"},
+            {"doc_id": "d2", "chunk_id": "d2_0", "chunk_text": "Bob founded Beta.", "content_hash": "h2"},
+        ])
+
+    cls = getattr(mod, CLS)
+    comp = cls(
+        asset_name="kg_q1", upstream_asset_key="pre_chunked", id_column="doc_id", text_column="body",
+        quarantine_source={"connection_string": chroma_path, "collection_name": "kb_collection"},
+        steps=[
+            {"id": "triples", "op": "extract", "method": "llm", "model": "gpt-4o-mini"},
+            {"id": "resolved", "op": "resolve"},
+            {"id": "graph", "op": "write_graph", "provider": "networkx", "path": str(tmp_path / "kg.json")},
+        ],
+    )
+    comp_assets = comp.build_defs(None).assets
+    result = dg.materialize([pre_chunked] + list(comp_assets), resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    # Only the non-quarantined chunk (d2_0) should ever have reached extraction -- if d1_0
+    # (quarantined) were still in the frame, this would be 2.
+    assert len(calls) == 1
+
+
+def test_quarantine_source_drops_a_freshly_chunked_quarantined_chunk(mod, tmp_path, monkeypatch):
+    """Same check, but the chunk ids are produced by this component's own 'chunk' step
+    rather than arriving pre-chunked -- the filter must also run right after that step.
+    d1's single chunk is quarantined; d2's is not."""
+    calls = []
+
+    def fake_completion(model, messages, api_key, temperature):
+        calls.append(messages)
+        return _FakeResponse(json.dumps([{"subject": "Alice", "relation": "works_at", "object": "Acme"}]))
+
+    import litellm
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+
+    @dg.asset(name="raw_docs")
+    def raw_docs():
+        return pd.DataFrame([
+            {"doc_id": "d1", "body": "Alice works at Acme."},
+            {"doc_id": "d2", "body": "Bob founded Beta."},
+        ])
+
+    cls = getattr(mod, CLS)
+    # _do_chunk assigns chunk_id = f"{id_prefix}{source_id}_{i}" (no prefix by default, i=0
+    # for a single-sentence chunk of this short text) -- see test_chunk_produces_expected_
+    # columns_and_stable_hash above for the same convention.
+    chroma_path = str(tmp_path / "chroma")
+    _build_chroma_with_quarantine_flags(chroma_path, "kb_collection", {"d1_0": True, "d2_0": False})
+
+    comp = cls(
+        asset_name="kg_q2", upstream_asset_key="raw_docs", id_column="doc_id", text_column="body",
+        quarantine_source={"connection_string": chroma_path, "collection_name": "kb_collection"},
+        steps=[
+            {"id": "chunk", "op": "chunk"},
+            {"id": "triples", "op": "extract", "method": "llm", "model": "gpt-4o-mini"},
+            {"id": "resolved", "op": "resolve"},
+            {"id": "graph", "op": "write_graph", "provider": "networkx", "path": str(tmp_path / "kg.json")},
+        ],
+    )
+    comp_assets = comp.build_defs(None).assets
+    result = dg.materialize([raw_docs] + list(comp_assets), resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    # Only d2's chunk should ever have reached extraction -- if d1's (quarantined) were
+    # still in the frame, this would be 2.
+    assert len(calls) == 1
+
+
+def test_quarantine_source_defaults_to_no_check(mod, tmp_path, monkeypatch):
+    """Control: leaving quarantine_source unset changes nothing (the pre-existing behavior)."""
+    calls = []
+
+    def fake_completion(model, messages, api_key, temperature):
+        calls.append(messages)
+        return _FakeResponse(json.dumps([{"subject": "Alice", "relation": "works_at", "object": "Acme"}]))
+
+    import litellm
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+
+    @dg.asset(name="pre_chunked")
+    def pre_chunked():
+        return pd.DataFrame([{"doc_id": "d1", "chunk_id": "d1_0", "chunk_text": "hello", "content_hash": "h1"}])
+
+    cls = getattr(mod, CLS)
+    comp = cls(
+        asset_name="kg_q3", upstream_asset_key="pre_chunked", id_column="doc_id", text_column="body",
+        steps=[
+            {"id": "triples", "op": "extract", "method": "llm", "model": "gpt-4o-mini"},
+            {"id": "resolved", "op": "resolve"},
+            {"id": "graph", "op": "write_graph", "provider": "networkx", "path": str(tmp_path / "kg.json")},
+        ],
+    )
+    comp_assets = comp.build_defs(None).assets
+    result = dg.materialize([pre_chunked] + list(comp_assets), resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    assert len(calls) == 1  # unaffected: no quarantine_source configured
+
+
 def test_first_step_must_be_chunk_or_extract(mod):
     cls = getattr(mod, CLS)
     comp = cls(asset_name="x", upstream_asset_key="y", id_column="id", text_column="t",

@@ -403,6 +403,7 @@ class _ReceiptWriter:
     def record_retrieval(
         self, *, context_name: str, items: List[Dict[str, Any]],
         eligible_count: Optional[int] = None, purpose: Optional[str] = None, query_hash: Optional[str] = None,
+        dagster_run_id: Optional[str] = None,
     ) -> str:
         receipt_id = _new_receipt_id()
         created_at = datetime.now(timezone.utc).isoformat()
@@ -412,8 +413,8 @@ class _ReceiptWriter:
                     receipt_id, created_at, context_name, context_version, policy_version,
                     caller_id, purpose, query_hash, eligible_count, excluded_count,
                     dagster_asset_key, dagster_run_id, trace_id, mcp_session_id, mcp_request_id, dagster_partition_key
-                ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, 0, NULL, NULL, NULL, NULL, NULL, NULL)""",
-                (receipt_id, created_at, context_name, purpose, query_hash, eligible_count),
+                ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, 0, NULL, ?, NULL, NULL, NULL, NULL)""",
+                (receipt_id, created_at, context_name, purpose, query_hash, eligible_count, dagster_run_id),
             )
             conn.executemany(
                 """INSERT INTO context_receipt_items (
@@ -510,6 +511,17 @@ class KnowledgeSearchResource(dg.ConfigurableResource):
             "from, so it opens this file directly instead."
         ),
     )
+    run_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster run id to stamp on the dagster_run_id column of each recorded receipt. "
+            "Always None unless this is running as the stdio MCP server (set via the "
+            "KNOWLEDGE_SEARCH_RUN_ID env var, itself resolved from the calling agent's "
+            "{run_id} placeholder) -- there is no live Dagster context at this layer to read "
+            "a run id from otherwise. Stamping this is what lets a downstream asset (e.g. "
+            "slack_reply) look up which receipts its own run produced."
+        ),
+    )
 
     def search(self, query: str, top_k: int = 5) -> dict:
         _check_required_env_var(
@@ -559,6 +571,7 @@ class KnowledgeSearchResource(dg.ConfigurableResource):
                 items=items,
                 eligible_count=eligible_count,
                 query_hash=hashlib.sha256(query.encode("utf-8")).hexdigest(),
+                dagster_run_id=self.run_id,
             )
             result["receipt_id"] = receipt_id
         return result
@@ -680,6 +693,17 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
             "searches has no Dagster context to resolve one from."
         ),
     )
+    run_id_template: Optional[str] = Field(
+        default="{run_id}",
+        description=(
+            "Template for the KNOWLEDGE_SEARCH_RUN_ID env var set on the stdio MCP server "
+            "(only when mcp_server_resource_key is also set) -- the calling agent component's "
+            "own generic {run_id}/{tag.*} substitution resolves it to the real run id before "
+            "the subprocess is spawned. Stamped onto every receipt's dagster_run_id column, "
+            "letting a downstream asset (e.g. slack_reply) look up the receipts its own run "
+            "produced. Set to null to never stamp a run id."
+        ),
+    )
     inspection_asset_name: str = Field(default="knowledge_search_tools", description="Asset key for the inspection asset reporting this server's configured settings.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -740,6 +764,8 @@ class KnowledgeSearchServerComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["KNOWLEDGE_SEARCH_RECEIPTS_DB_PATH"] = self.receipts_db_path
             if self.embed_api_key_env_var:
                 mcp_env["KNOWLEDGE_SEARCH_EMBED_API_KEY_ENV_VAR"] = self.embed_api_key_env_var
+            if self.run_id_template:
+                mcp_env["KNOWLEDGE_SEARCH_RUN_ID"] = self.run_id_template
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key,
                 type="stdio",
@@ -867,7 +893,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     KNOWLEDGE_SEARCH_TEXT_METADATA_KEY (default chunk_text),
     KNOWLEDGE_SEARCH_VECTOR_BUCKET_NAME / KNOWLEDGE_SEARCH_AWS_REGION (provider=s3vectors),
     KNOWLEDGE_SEARCH_DEMO_MODE (default 1; provider=s3vectors only),
-    KNOWLEDGE_SEARCH_RECEIPTS_DB_PATH (optional -- enables receipt recording + record_feedback)."""
+    KNOWLEDGE_SEARCH_RECEIPTS_DB_PATH (optional -- enables receipt recording + record_feedback),
+    KNOWLEDGE_SEARCH_RUN_ID (optional -- stamped onto each receipt's dagster_run_id column)."""
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     collection_name = os.environ.get("KNOWLEDGE_SEARCH_COLLECTION_NAME")
     if not collection_name:
@@ -885,6 +912,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         aws_region=os.environ.get("KNOWLEDGE_SEARCH_AWS_REGION"),
         demo_mode=os.environ.get("KNOWLEDGE_SEARCH_DEMO_MODE", "1") != "0",
         receipts_db_path=os.environ.get("KNOWLEDGE_SEARCH_RECEIPTS_DB_PATH"),
+        run_id=os.environ.get("KNOWLEDGE_SEARCH_RUN_ID"),
     )
     build_mcp_server(resource).run(transport="stdio")
 

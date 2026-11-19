@@ -99,6 +99,27 @@ def test_hybrid_mode_graph_only_passage_gets_text_backfilled_from_chromadb(resou
     assert c2["text"] == CHUNK_C2  # backfilled via chromadb get-by-id, not a vector hit
 
 
+def test_graph_only_chunk_quarantined_on_the_vector_side_is_excluded(resource, tmp_path):
+    """c2/Beta Inc is reachable purely via graph traversal (never a vector hit for this
+    query) -- real gap this closes: quarantine filtering used to apply to _vector_search's
+    own hits only, so a chunk flagged feedback_quarantined=true in chromadb metadata could
+    still resurface just by being reachable through a graph hop."""
+    import chromadb
+    client = chromadb.PersistentClient(path=resource._vector_cfg()["connection_string"])
+    collection = client.get_collection(name="support_kb")
+    collection.update(ids=["c2"], metadatas=[{"feedback_quarantined": True}])
+
+    res = resource.search("Bob", top_k=1, hops=1, mode="graph")
+    assert "c2" not in {p["chunk_id"] for p in res["passages"]}
+    assert "c2" not in {t["chunk_id"] for t in res["triples"]}
+
+
+def test_graph_only_chunk_not_quarantined_is_unaffected(resource):
+    """Control: the new quarantine check doesn't drop a normal graph-only chunk."""
+    res = resource.search("Bob", top_k=1, hops=1, mode="graph")
+    assert "c2" in {p["chunk_id"] for p in res["passages"]}
+
+
 def test_search_mode_must_be_valid(resource):
     with pytest.raises(ValueError, match="mode must be"):
         resource.search("x", mode="bogus")
@@ -216,6 +237,19 @@ def test_build_defs_registers_mcp_server_resource(mod, tmp_path):
     assert mcp_resource.type == "stdio"
     assert "PINECONE_API_KEY" in mcp_resource.live_env_passthrough
     assert mcp_resource.env["HYBRID_KG_SEARCH_VECTOR_COLLECTION_NAME"] == "x"
+    assert mcp_resource.env["HYBRID_KG_SEARCH_RUN_ID"] == "{run_id}"
+
+
+def test_build_defs_run_id_template_can_be_disabled(mod, tmp_path):
+    cls = getattr(mod, CLS)
+    comp = cls(
+        vector_store={"collection_name": "x"},
+        graph={"provider": "networkx", "path": str(tmp_path / "kg.json")},
+        mcp_server_resource_key="hybrid_mcp",
+        run_id_template=None,
+    )
+    defs = comp.build_defs(None)
+    assert "HYBRID_KG_SEARCH_RUN_ID" not in defs.resources["hybrid_mcp"].env
 
 
 # ─── MCP tool wrapper: errors surface as data, never crash the agent loop ──

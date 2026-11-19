@@ -10,7 +10,11 @@ Both halves read channel/thread straight off the RUN's own tags (`context.run.ta
 success-path asset, `context.dagster_run.tags` for the failure sensor) -- the same identifiers
 `slack_agent_request_sensor` set, never re-derived or guessed.
 """
+import json
 import re
+import sqlite3
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import dagster as dg
@@ -95,6 +99,133 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
         out["upstream_asset_keys"] = keys or (None if optional else [])
     return out
 # END upstream-asset-key normalization
+
+# BEGIN receipt-message-links (inlined per component; keep copies in slack_reply and
+# slack_chat_tools identical). Links a run's receipt ids (from a receipts-db-path-configured
+# knowledge_search_server/hybrid_knowledge_search_server) to the Slack message that carried
+# the answer built from them, so a later reaction (or slack_chat_tools.get_thread()) can find
+# them back without parsing anything out of the reply text. Not part of the canonical
+# receipt-warehouse block (resources/context_receipt_store) -- this table is SQLite-only and
+# Slack-specific, never synced to a warehouse, so it stays out of that multi-dialect system.
+def _ensure_message_links_table(conn) -> None:
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS context_receipt_message_links ("
+        "receipt_id TEXT NOT NULL, platform TEXT NOT NULL, channel TEXT NOT NULL, "
+        "message_ts TEXT NOT NULL, created_at TEXT NOT NULL)"
+    )
+
+
+def record_message_links(db_path: str, receipt_ids, *, platform: str, channel: str, message_ts: str) -> None:
+    if not receipt_ids:
+        return
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        _ensure_message_links_table(conn)
+        created_at = datetime.now(timezone.utc).isoformat()
+        conn.executemany(
+            "INSERT INTO context_receipt_message_links (receipt_id, platform, channel, message_ts, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            [(rid, platform, channel, message_ts, created_at) for rid in receipt_ids],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def receipt_ids_for_message(db_path: str, *, platform: str, channel: str, message_ts: str) -> List[str]:
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        _ensure_message_links_table(conn)
+        rows = conn.execute(
+            "SELECT DISTINCT receipt_id FROM context_receipt_message_links WHERE platform = ? AND channel = ? AND message_ts = ?",
+            (platform, channel, message_ts),
+        ).fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+def recent_message_links(db_path: str, *, platform: str, limit: int) -> List[Dict[str, str]]:
+    """Distinct (channel, message_ts) pairs this platform has linked, most-recently-linked
+    first -- lets a rating sensor discover which bot messages to poll for reactions without a
+    separate per-partition sidecar file."""
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        _ensure_message_links_table(conn)
+        rows = conn.execute(
+            "SELECT channel, message_ts, MAX(created_at) AS latest FROM context_receipt_message_links "
+            "WHERE platform = ? GROUP BY channel, message_ts ORDER BY latest DESC LIMIT ?",
+            (platform, limit),
+        ).fetchall()
+        return [{"channel": r[0], "message_ts": r[1]} for r in rows]
+    finally:
+        conn.close()
+
+
+def receipt_ids_for_run(db_path: str, dagster_run_id: str) -> List[str]:
+    """Which receipts (from context_receipts, the canonical table knowledge_search_server/
+    hybrid_knowledge_search_server write to when configured with a matching run_id_template)
+    this Dagster run produced. Returns [] (not an error) if the canonical table doesn't exist
+    yet -- a receipts_db_path misconfiguration or an agent that made no searches must never
+    fail the reply post itself."""
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        rows = conn.execute("SELECT receipt_id FROM context_receipts WHERE dagster_run_id = ?", (dagster_run_id,)).fetchall()
+        return [r[0] for r in rows]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+# Same vocabulary as context_receipt_store's own OUTCOME_SIGNALS / knowledge_search_server's
+# own copy of it -- "+1"/"-1" (Slack's own reaction names for 👍/👎) map onto thumbs_up/thumbs_down.
+OUTCOME_SIGNALS = {
+    "thumbs_up": 1.0, "thumbs_down": -1.0, "accepted": 0.5, "edited": -0.3, "escalated": -0.7,
+    "reopened": -0.7, "closed_won": 1.0, "closed_lost": -0.5, "reformulated": -0.2,
+}
+
+
+def record_outcome(db_path: str, receipt_id: str, *, signal: str, outcome_ref: Optional[str] = None) -> None:
+    """Same canonical shape as knowledge_search_server's own _ReceiptWriter.record_outcome --
+    copied, not imported, per this repo's self-contained-component convention. Assumes
+    context_receipts/context_receipt_events already exist (created by whichever
+    knowledge_search_server/hybrid_knowledge_search_server wrote receipts for this run) --
+    no-ops rather than crashing the rating sensor if they don't, or if receipt_id is unknown."""
+    value = OUTCOME_SIGNALS.get(signal)
+    if value is None:
+        raise ValueError(f"unknown signal {signal!r}")
+    payload = {"signal": signal, "value": float(value), "source": "slack_reaction", "outcome_ref": outcome_ref}
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        exists = conn.execute("SELECT 1 FROM context_receipts WHERE receipt_id = ?", (receipt_id,)).fetchone()
+        if exists is None:
+            return
+        conn.execute(
+            "INSERT INTO context_receipt_events (event_id, receipt_id, event_type, occurred_at, payload_json) "
+            "VALUES (?, ?, 'outcome', ?, ?)",
+            (str(uuid.uuid4()), receipt_id, datetime.now(timezone.utc).isoformat(),
+             json.dumps(payload, sort_keys=True, separators=(",", ":"))),
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        return
+    finally:
+        conn.close()
+# END receipt-message-links
+
+
+def _resolve_user_email(client, user_id: str) -> Optional[str]:
+    """`users.info` -> profile.email -- same shape as slack_agent_request_sensor's own copy.
+    Needs `users:read.email`; any failure degrades to None."""
+    try:
+        resp = client.users_info(user=user_id)
+        if not resp.get("ok"):
+            return None
+        return ((resp.get("user") or {}).get("profile") or {}).get("email")
+    except Exception:  # noqa: BLE001
+        return None
+
 
 _REDACTED = "[REDACTED]"
 _REDACT_PATTERNS = [
@@ -182,6 +313,38 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
     monitor_failures: bool = Field(default=True, description="Also emit {asset_name}_failure_watcher, a run-status sensor that posts a short error reply for ANY failed run carrying slack/channel + slack/thread_ts tags -- so a crashed run is never silent in the channel. Set false to handle failure notification some other way.")
     error_message_template: str = Field(default="⚠️ Something went wrong answering this: {error}", description="Template for the failure-path reply. Placeholder: {error}.")
 
+    receipts_db_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "SQLite file path -- the SAME receipts_db_path a knowledge_search_server/"
+            "hybrid_knowledge_search_server the agent calls is configured with (and which must "
+            "also have run_id_template set, the default, so its receipts carry this run's "
+            "dagster_run_id). When set, after posting, this asset looks up every receipt this "
+            "run produced and links them to the posted Slack message(s) -- so a later rating "
+            "(watch_reactions below, or any other feedback path) can find the exact receipt_id "
+            "to record an outcome against, instead of an agent having to end its reply with "
+            "'ref: <receipt_id>' and have that parsed back out of the text. Best-effort: a "
+            "lookup failure here never fails the reply post itself."
+        ),
+    )
+    watch_reactions: bool = Field(
+        default=False,
+        description=(
+            "Also emit {asset_name}_rating_watcher, a sensor that polls reactions on every "
+            "Slack message this asset has linked to a receipt (via receipts_db_path, which "
+            "must also be set) and records a thumbs_up/thumbs_down outcome against each linked "
+            "receipt_id -- the reactor's resolved email (see resolve_rater_email) becomes the "
+            "outcome's `outcome_ref`, so changing a reaction later supersedes the earlier rating "
+            "instead of double-counting (the same outcome_ref-supersede behavior "
+            "record_feedback already has). Needs the `reactions:read` bot scope."
+        ),
+    )
+    positive_reaction: str = Field(default="+1", description="Slack reaction name (as reactions.get returns it, e.g. '+1' for 👍) that records a thumbs_up outcome. Only used when watch_reactions is true.")
+    negative_reaction: str = Field(default="-1", description="Slack reaction name (e.g. '-1' for 👎) that records a thumbs_down outcome. Only used when watch_reactions is true.")
+    rating_poll_interval_seconds: int = Field(default=30, description="Minimum seconds between rating_watcher ticks. Only used when watch_reactions is true.")
+    rating_lookback_messages: int = Field(default=200, description="Most-recently-linked (channel, message_ts) pairs to keep polling for reactions, and the cursor's bound. Only used when watch_reactions is true.")
+    resolve_rater_email: bool = Field(default=True, description="Resolve the reacting user's Slack user id to an email address (needs users:read.email) before using it as the outcome's outcome_ref. When false, the raw Slack user id is used instead. Only used when watch_reactions is true.")
+
     deps: Optional[List[str]] = Field(default=None, description="Lineage-only upstream asset keys, beyond upstream_asset_key -- no value loaded.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -215,6 +378,7 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
         run_link_label = self.run_link_label
         webserver_base_url = self.webserver_base_url
         error_message_template = self.error_message_template
+        receipts_db_path = self.receipts_db_path
 
         @dg.asset(
             key=asset_key,
@@ -241,10 +405,20 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
             if link:
                 parts[-1] = f"{parts[-1]}\n\n<{link}|{run_link_label}>"
             client = _get_slack_client(bot_token_env_var)
+            posted_ts: List[str] = []
             for part in parts:
                 resp = client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=part)
                 if not resp.get("ok"):
                     raise dg.Failure(f"Slack chat_postMessage failed: {resp.get('error')}")
+                posted_ts.append(resp.get("ts"))
+            if receipts_db_path:
+                try:
+                    receipt_ids = receipt_ids_for_run(receipts_db_path, context.run.run_id)
+                    for ts in posted_ts:
+                        if ts:
+                            record_message_links(receipts_db_path, receipt_ids, platform="slack", channel=channel, message_ts=ts)
+                except Exception as e:  # noqa: BLE001 -- linking receipts must never fail an already-posted reply
+                    context.log.warning(f"slack_reply: could not link receipts to the posted message(s): {e}")
             return dg.Output(
                 {"posted_parts": len(parts), "channel": channel, "thread_ts": thread_ts},
                 metadata={"posted_parts": dg.MetadataValue.int(len(parts)), "channel": dg.MetadataValue.text(channel)},
@@ -278,5 +452,74 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                     sensor_context.log.warning(f"slack_reply failure_watcher: could not post error reply: {e}")
 
             defs = dg.Definitions.merge(defs, dg.Definitions(sensors=[_failure_watcher]))
+
+        if self.watch_reactions:
+            if not receipts_db_path:
+                raise ValueError(f"SlackReplyComponent {self.asset_name!r}: watch_reactions requires receipts_db_path.")
+            rating_sensor_name = f"{self.asset_name.replace('/', '_')}_rating_watcher"
+            positive_reaction = self.positive_reaction
+            negative_reaction = self.negative_reaction
+            resolve_rater_email = self.resolve_rater_email
+            lookback = max(1, self.rating_lookback_messages)
+            signal_by_reaction = {positive_reaction: "thumbs_up", negative_reaction: "thumbs_down"}
+
+            @dg.sensor(
+                name=rating_sensor_name,
+                minimum_interval_seconds=self.rating_poll_interval_seconds,
+                default_status=dg.DefaultSensorStatus.RUNNING,
+            )
+            def _rating_watcher(sensor_context: dg.SensorEvaluationContext):
+                try:
+                    client = _get_slack_client(bot_token_env_var)
+                except Exception as e:  # noqa: BLE001
+                    return dg.SkipReason(f"Slack auth failed: {e}")
+                try:
+                    links = recent_message_links(receipts_db_path, platform="slack", limit=lookback)
+                except Exception as e:  # noqa: BLE001
+                    return dg.SkipReason(f"could not read receipt message links: {e}")
+                if not links:
+                    return dg.SkipReason("no receipt-linked messages to poll yet.")
+                try:
+                    seen: Dict[str, Dict[str, str]] = json.loads(sensor_context.cursor) if sensor_context.cursor else {}
+                except Exception:  # noqa: BLE001 -- a corrupt cursor restarts clean rather than crashing the sensor forever
+                    seen = {}
+                email_cache: Dict[str, Optional[str]] = {}
+                changed = 0
+                for link in links:
+                    key = f"{link['channel']}:{link['message_ts']}"
+                    last_seen_for_message = dict(seen.get(key) or {})
+                    try:
+                        resp = client.reactions_get(channel=link["channel"], timestamp=link["message_ts"])
+                    except Exception as e:  # noqa: BLE001 -- one bad message must never block the others
+                        sensor_context.log.warning(f"rating_watcher: reactions_get failed for {key}: {e}")
+                        continue
+                    reactions = (resp.get("message") or {}).get("reactions") or []
+                    for r in reactions:
+                        signal = signal_by_reaction.get(r.get("name"))
+                        if signal is None:
+                            continue
+                        for uid in r.get("users") or []:
+                            if last_seen_for_message.get(uid) == signal:
+                                continue  # already recorded and unchanged -- each reaction counted once
+                            last_seen_for_message[uid] = signal
+                            changed += 1
+                            if uid not in email_cache:
+                                email_cache[uid] = _resolve_user_email(client, uid) if resolve_rater_email else None
+                            rater = email_cache[uid] or uid
+                            try:
+                                for receipt_id in receipt_ids_for_message(
+                                    receipts_db_path, platform="slack", channel=link["channel"], message_ts=link["message_ts"],
+                                ):
+                                    record_outcome(receipts_db_path, receipt_id, signal=signal, outcome_ref=rater)
+                            except Exception as e:  # noqa: BLE001 -- one bad outcome write must never block the others
+                                sensor_context.log.warning(f"rating_watcher: could not record outcome for {key}/{uid}: {e}")
+                    seen[key] = last_seen_for_message
+                bounded = dict(list(seen.items())[-lookback:])
+                return dg.SensorResult(
+                    cursor=json.dumps(bounded),
+                    skip_reason=None if changed else "no new or changed reactions this tick.",
+                )
+
+            defs = dg.Definitions.merge(defs, dg.Definitions(sensors=[_rating_watcher]))
 
         return defs

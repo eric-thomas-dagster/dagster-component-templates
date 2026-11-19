@@ -46,6 +46,12 @@
       "label": "Mcp Server Resource Key",
       "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings. channel_template/thread_ts_template are passed through VERBATIM as env values -- resolved by the calling agent's own {tag.*} substitution at run time, not by this component. Any mcp_servers-aware component (the agent components, agentic_pipeline) can then reference it via server_resource_key instead of hand-writing an inline command+env entry. Leave unset to skip this -- existing resource_key-only behavior is unchanged.",
       "required": false
+    },
+    "receipts_db_path": {
+      "type": "string",
+      "label": "Receipts Db Path",
+      "description": "SQLite file path -- the SAME receipts_db_path a slack_reply instance (and the knowledge_search_server/hybrid_knowledge_search_server the agent calls) are configured with. When set, get_thread() attaches receipt_ids to any BOT-authored message in the thread (a prior reply from this same chat agent, looked up via slack_reply's own receipt-message link table) -- so the model can see which knowledge-base searches a past answer was built from, without parsing its own text for a 'ref: <id>' marker.",
+      "required": false
     }
   }
 }

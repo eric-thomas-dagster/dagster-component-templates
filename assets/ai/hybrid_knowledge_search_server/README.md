@@ -66,12 +66,23 @@ Set `receipts_db_path` to a SQLite file path and:
   retrieval to attribute a receipt to).
 - Quarantined chunks (`feedback_quarantined` metadata, the same field `write_vector_store`'s
   receipts policy stamps) are always dropped from vector results, whether or not
-  `receipts_db_path` is set.
+  `receipts_db_path` is set -- **and from graph-expanded results too**: a chunk reached purely
+  through a graph hop (never a vector hit for that particular query) is point-checked against
+  the same `feedback_quarantined` metadata before being returned, so it can't resurface just by
+  being graph-adjacent to something relevant. This point check only works for `provider:
+  chromadb` today (same scope as the existing text-backfill-from-chromadb path below) -- for
+  every other vector provider a graph-only chunk's quarantine status isn't checked, a real,
+  documented limitation rather than a silent gap.
 - A new `record_feedback(receipt_id, signal, user_id?)` tool is exposed. `signal` is one of
   `thumbs_up`, `thumbs_down`, `accepted`, `edited`, `escalated`, `reopened`, `closed_won`,
   `closed_lost`, `reformulated`. `user_id`, if given, becomes the outcome's `outcome_ref`: a
   later call with the same `user_id` for the same `receipt_id` supersedes the earlier one.
 - The inspection asset reports `retrievals_recorded`/`outcomes_recorded` counts.
+- Each receipt's `dagster_run_id` column is stamped from `run_id_template` (default `{run_id}`,
+  set via the `HYBRID_KG_SEARCH_RUN_ID` env var when launched through `mcp_server_resource_key`
+  -- the calling agent's own generic `{run_id}` substitution resolves it before the subprocess
+  is spawned). This is what lets a downstream asset (e.g. `slack_reply`) look up which receipts
+  its own run produced. Set `run_id_template: null` to skip stamping it.
 
 **Why a plain file path, not a `receipts_resource_key`:** `search`/`record_feedback` run
 inside this server's own stdio MCP subprocess (`python -m <this module>`, launched from plain
@@ -143,6 +154,7 @@ id counts the overlap fraction was computed from.
 | `knowledge_base` | `str` | — | Optional UI-linking label. |
 | `max_results` | `int` | `50` | Cap on rows returned by any list-returning method. |
 | `receipts_db_path` | `str` | — | SQLite file path. When set, search() records a retrieval receipt per call with a vector component (mode='vector' or 'hybrid') and a new record_feedback(receipt_id, signal, user_id?) tool is exposed. Quarantined chunks ar… _(full docs in schema.json + component README)_ |
+| `run_id_template` | `str` | `"{run_id}"` | Template for the HYBRID_KG_SEARCH_RUN_ID env var set on the stdio MCP server (only when mcp_server_resource_key is also set) -- the calling agent component's own generic {run_id}/{tag.*} substitution resolves it to the r… _(full docs in schema.json + component README)_ |
 | `inspection_asset_name` | `str` | `"hybrid_knowledge_search_tools"` | Asset key for the inspection asset reporting this server's configured settings and the corpus-overlap check. |
 
 [//]: # (FIELDS:END)

@@ -5,6 +5,8 @@
 | Tool | Answers |
 |---|---|
 | `list_recent_failures(hours, limit)` | failed runs: failed step keys, root-cause error class + first message line (prefers a failure-observation-contract AssetObservation logged by the failing component over the STEP_FAILURE event's own error chain -- the latter's outermost frame is Dagster's "Execution of step ... failed" wrapper), asset keys |
+| `list_recent_runs(hours, status, limit)` | recent runs of ANY status (not just FAILURE) -- run_id/job_name/status/timings. Answers "what ran" / "did X succeed", which `list_recent_failures` alone can't: an agent with only that tool, seeing zero failures, has wrongly concluded everything succeeded, when really nothing had run at all. |
+| `run_counts(hours, limit)` | counts of runs by status in the window, e.g. `{"counts": {"SUCCESS": 12, "FAILURE": 1}, "total": 13}` -- the direct answer to "how many runs succeeded/failed today". `truncated: true` means more runs exist in the window than `limit` returned; raise `limit` for an exact count on a busy instance. |
 | `get_run_summary(run_id)` | status, timings, steps, failed-step error excerpt (redacted, truncated), tags |
 | `get_run_logs(run_id, level, max_lines)` | tail of event-log messages, secrets redacted |
 | `asset_status(asset_key)` | last materialization (time/run/data+code version), later failed run, `last_failure` (reason, error class/message, run, partition; from a real failure event if the storage keeps one, else a failure observation logged by our components, else the failed run; see `docs/failure_observation_contract.md`), partition counts, latest check results |

@@ -12,15 +12,30 @@ attributes:
   poll_interval: 5.0           # seconds between debug-log polls
 
   # ── Cloud: mirror Cloud jobs as Dagster jobs/assets ─────────────
+  # off (default) / asset (observable only) / job (launchable @job) /
+  # both (asset + @job) / executable (a real, materializable @dg.asset
+  # that triggers + polls + reports -- a dbt Cloud job as an asset step
+  # in a chain, e.g. post_processing.deps on another asset upstream).
   mirror_jobs: both                # AssetSpec + Dagster @job for each Cloud job
-  job_trigger_defaults:            # sent with every mirrored @job's trigger call
-    cause: "Triggered by Dagster"
-    # steps_override: ["dbt build --select tag:daily"]
-    # git_branch: "main"
+  job_trigger_defaults:            # sent with every mirrored @job/executable asset's trigger call
+    steps_override: ["dbt build --select tag:daily"]
 
   # ── Cloud: filter which Cloud jobs get mirrored ─────────────────
   job_selection_include: "type:deploy type:merge"   # only deploy + merge jobs
   job_selection_exclude: "*_experimental"           # skip experimental jobs
+
+  # ── mirror_jobs: executable only (uncomment to use this mode instead of 'both') ──
+  # mirror_jobs: executable
+  # pool: "dbt_cloud_concurrency"              # Dagster's native named concurrency pool
+  # retry_policy_max_retries: 2                # retry transient dbt Cloud API errors
+  # retry_policy_delay_seconds: 30
+  # timeout_seconds: 3600                      # fail the step if the run hasn't finished in an hour
+  # dry_run: false                             # true: log the job id, skip the trigger entirely
+  #
+  # Only want the job-level asset, not the per-model dbt assets? Point `select`
+  # at something that matches nothing -- mirror_jobs's own asset is independent
+  # of the per-model selection:
+  # select: "tag:__never_exists__"
 
   # ── Docs metadata (same shape as EnrichedDbtProjectComponent) ─
   dbt_docs_url: "https://cloud.getdbt.com/accounts/12345/develop/12345/docs"

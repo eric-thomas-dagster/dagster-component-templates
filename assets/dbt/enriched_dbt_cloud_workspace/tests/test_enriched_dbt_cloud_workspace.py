@@ -704,17 +704,25 @@ _FAKE_NODE = {
 class _FakeTriggerClient:
     """Records every trigger_job_run call; no real network access. Mirrors
     the real dagster-dbt cloud_v2 client's actual method signatures."""
-    def __init__(self, run_status=10, result_status="success"):
+    def __init__(self, run_status=10, result_status="success", href=None, runs_batch=None):
         self.calls = []
         self._run_status = run_status  # DbtCloudJobRunStatusType.SUCCESS == 10
         self._result_status = result_status
+        self._href = href
+        self._runs_batch = runs_batch
+
+    def get_runs_batch(self, **kwargs):
+        return (self._runs_batch if self._runs_batch is not None else [{"id": 999, "job_definition_id": 42, "status": 10}], None)
 
     def trigger_job_run(self, job_id, steps_override=None):
         self.calls.append({"job_id": job_id, "steps_override": steps_override})
         return {"id": 999}
 
     def poll_run(self, run_id, poll_interval=None, poll_timeout=None):
-        return {"id": run_id, "status": self._run_status}
+        details = {"id": run_id, "status": self._run_status}
+        if self._href:
+            details["href"] = self._href
+        return details
 
     def get_run_results_json(self, run_id):
         return {"results": [{"unique_id": _FAKE_NODE["unique_id"], "status": self._result_status, "execution_time": 1.23}]}
@@ -916,6 +924,205 @@ def test_dbt_test_without_attached_node_falls_back_to_depends_on(mod, monkeypatc
     ]
     assert len(check_evals) == 1
     assert check_evals[0].event_specific_data.asset_key == dg.AssetKey(["stg_site_details"])
+
+
+# --- mirror_jobs: 'executable' -- a real, materializable asset per Cloud job --
+#
+# Previously mirror_jobs='asset'/'both' only ever emitted an observable
+# AssetSpec: materializing it did nothing, and only the separate mirrored @job
+# actually triggered the Cloud run. 'executable' instead emits a real
+# @dg.asset whose body reuses the exact same trigger+poll+report logic as
+# mirror_jobs='job' (now a shared function, _trigger_poll_and_report_dbt_cloud_run,
+# so the two modes can never silently drift) -- so a migrated orchestration
+# chain can express "run extract, then run dbt Cloud job N" as asset steps.
+
+def _executable_component(mod, fake_client, **overrides):
+    import types
+    from dagster_dbt import DagsterDbtTranslator
+    return make_component(
+        mod,
+        workspace=types.SimpleNamespace(client=fake_client),
+        mirror_jobs="executable",
+        translator=DagsterDbtTranslator(),
+        **overrides,
+    )
+
+
+def _build_executable_asset(mod, component, monkeypatch):
+    monkeypatch.setattr(
+        mod, "_list_dbt_cloud_jobs_via_client",
+        lambda workspace: [{"id": 42, "name": "test_job", "job_type": "other"}],
+    )
+    defs = component._build_mirror_jobs_addendum()
+    (asset,) = defs.assets
+    return asset
+
+
+def test_executable_asset_triggers_and_materializes_real_models(mod, monkeypatch):
+    fake_client = _FakeTriggerClient()
+    component = _executable_component(mod, fake_client)
+    asset = _build_executable_asset(mod, component, monkeypatch)
+
+    result = dg.materialize([asset])
+    assert result.success
+    assert fake_client.calls == [{"job_id": 42, "steps_override": None}]
+
+    materializations = result.asset_materializations_for_node("test_job")
+    # One materialization for the job asset itself, one for the real dbt model
+    # reported from this run's own run_results.json/manifest.json.
+    by_key = {m.asset_key: m for m in materializations}
+    assert dg.AssetKey(["test_job"]) in by_key
+    assert dg.AssetKey(["stg_site_details"]) in by_key
+    job_meta = by_key[dg.AssetKey(["test_job"])].metadata
+    assert job_meta["dry_run"].value is False
+    assert job_meta["dbt_cloud/run_id"].value == 999
+    assert job_meta["dbt_cloud/status"].value == 10
+
+
+def test_executable_asset_dry_run_skips_the_trigger(mod, monkeypatch):
+    fake_client = _FakeTriggerClient()
+    component = _executable_component(mod, fake_client, dry_run=True)
+    asset = _build_executable_asset(mod, component, monkeypatch)
+
+    result = dg.materialize([asset])
+    assert result.success
+    assert fake_client.calls == []  # never triggered
+    materializations = result.asset_materializations_for_node("test_job")
+    assert materializations[0].metadata["dry_run"].value is True
+
+
+def test_executable_asset_failure_message_includes_the_run_url(mod, monkeypatch):
+    fake_client = _FakeTriggerClient(run_status=20, href="https://cloud.getdbt.com/deploy/1/projects/2/runs/999")
+    component = _executable_component(mod, fake_client)
+    asset = _build_executable_asset(mod, component, monkeypatch)
+
+    result = dg.materialize([asset], raise_on_error=False)
+    assert not result.success
+    failure = next(
+        e for e in result.all_events
+        if e.event_type_value == "STEP_FAILURE"
+    )
+    assert "https://cloud.getdbt.com/deploy/1/projects/2/runs/999" in str(failure.event_specific_data.error)
+
+
+def test_executable_asset_accepts_deps_via_post_processing(mod, monkeypatch):
+    """post_processing operates on the resolved Definitions by selector, after
+    build_defs() returns, via Definitions.map_resolved_asset_specs -- it doesn't
+    care whether an asset started life as a plain AssetSpec or a real
+    AssetsDefinition, so deps wire up identically for the executable asset."""
+    @dg.asset(key=dg.AssetKey(["upstream_extract"]))
+    def upstream_extract():
+        return 1
+
+    fake_client = _FakeTriggerClient()
+    component = _executable_component(mod, fake_client)
+    asset = _build_executable_asset(mod, component, monkeypatch)
+
+    defs = dg.Definitions(assets=[upstream_extract, asset])
+    defs = defs.map_resolved_asset_specs(
+        func=lambda spec: spec.replace_attributes(deps=[dg.AssetKey(["upstream_extract"])]),
+        selection=[dg.AssetKey(["test_job"])],
+    )
+    asset_graph = defs.resolve_asset_graph()
+    assert asset_graph.get(dg.AssetKey(["test_job"])).parent_keys == {dg.AssetKey(["upstream_extract"])}
+
+
+def test_executable_asset_respects_pool_and_retry_policy(mod, monkeypatch):
+    fake_client = _FakeTriggerClient()
+    component = _executable_component(
+        mod, fake_client, pool="dbt_cloud_concurrency",
+        retry_policy_max_retries=3, retry_policy_delay_seconds=2, retry_policy_backoff="linear",
+    )
+    asset = _build_executable_asset(mod, component, monkeypatch)
+    assert asset.op.pool == "dbt_cloud_concurrency"
+    assert asset.op.retry_policy.max_retries == 3
+    assert asset.op.retry_policy.delay == 2
+
+
+def test_executable_asset_timeout_raises_failure(mod, monkeypatch):
+    import time as _time
+
+    class _SlowClient(_FakeTriggerClient):
+        def trigger_job_run(self, job_id, steps_override=None):
+            _time.sleep(0.2)
+            return super().trigger_job_run(job_id, steps_override)
+
+    component = _executable_component(mod, _SlowClient(), timeout_seconds=0.01)
+    asset = _build_executable_asset(mod, component, monkeypatch)
+
+    result = dg.materialize([asset], raise_on_error=False)
+    assert not result.success
+    failure = next(e for e in result.all_events if e.event_type_value == "STEP_FAILURE")
+    assert "Exceeded timeout_seconds" in str(failure.event_specific_data.error)
+
+
+def test_mirror_jobs_executable_does_not_also_emit_a_separate_job(mod, monkeypatch):
+    fake_client = _FakeTriggerClient()
+    component = _executable_component(mod, fake_client)
+    monkeypatch.setattr(
+        mod, "_list_dbt_cloud_jobs_via_client",
+        lambda workspace: [{"id": 42, "name": "test_job", "job_type": "other"}],
+    )
+    defs = component._build_mirror_jobs_addendum()
+    assert not defs.jobs
+    assert len(defs.assets) == 1
+
+
+def test_select_nothing_gives_one_asset_per_cloud_job(mod, monkeypatch):
+    """select/exclude already give 'only one asset per Cloud job' when a team
+    doesn't want the per-model dbt assets at all -- mirror_jobs's own job-level
+    asset is built independently of the base DbtCloudComponent's per-model
+    asset emission, so excluding every model leaves just the job asset(s)."""
+    fake_client = _FakeTriggerClient()
+    component = _executable_component(mod, fake_client, select="tag:__never_matches__")
+    monkeypatch.setattr(
+        mod, "_list_dbt_cloud_jobs_via_client",
+        lambda workspace: [{"id": 42, "name": "test_job", "job_type": "other"}],
+    )
+    mirror_defs = component._build_mirror_jobs_addendum()
+    assert len(mirror_defs.assets) == 1
+    assert mirror_defs.assets[0].key == dg.AssetKey(["test_job"])
+
+
+# --- sensor dedup: mirror_jobs='executable' and the polling sensor never double-report --
+
+def test_enhanced_sensor_skips_a_run_already_reported_by_the_executable_asset(mod, monkeypatch):
+    # Same fake_client instance serves both the asset's trigger call (run_id=999, via
+    # trigger_job_run/poll_run) AND the sensor's own run-listing call (get_runs_batch) --
+    # built with the matching default runs_batch ([{"id": 999, ...}]) up front, so there is
+    # no risk of the sensor accidentally closing over a stale, pre-swap client.
+    fake_client = _FakeTriggerClient()
+    component = _executable_component(mod, fake_client)
+    asset = _build_executable_asset(mod, component, monkeypatch)
+
+    instance = dg.DagsterInstance.ephemeral()
+    result = dg.materialize([asset], instance=instance)
+    assert result.success
+
+    manifest = {"nodes": {_FAKE_NODE["unique_id"]: _FAKE_NODE}}
+    sensor = component._build_enhanced_polling_sensor(manifest)
+    ctx = dg.build_sensor_context(instance=instance)
+    sensor_result = sensor(ctx)
+    # The model's latest materialization already carries dbt_cloud/run_id=999 (from the
+    # executable asset above) -- the sensor must not emit a second one for the same run.
+    assert sensor_result.asset_events == []
+
+
+def test_enhanced_sensor_still_reports_a_different_run(mod, monkeypatch):
+    # runs_batch=[{"id": 1000, ...}] -- a run the executable asset never reported -- must
+    # still come through; the dedup only suppresses a run id that's already stored.
+    fake_client = _FakeTriggerClient(runs_batch=[{"id": 1000, "job_definition_id": 42, "status": 10}])
+    component = _executable_component(mod, fake_client)
+    asset = _build_executable_asset(mod, component, monkeypatch)
+
+    instance = dg.DagsterInstance.ephemeral()
+    dg.materialize([asset], instance=instance)  # reports run 999
+
+    manifest = {"nodes": {_FAKE_NODE["unique_id"]: _FAKE_NODE}}
+    sensor = component._build_enhanced_polling_sensor(manifest)
+    ctx = dg.build_sensor_context(instance=instance)
+    sensor_result = sensor(ctx)
+    assert len(sensor_result.asset_events) == 1
 
 
 # --- _patch_dbt_selector_for_missing_config -----------------------------

@@ -43,6 +43,14 @@ Cloud-specific (in addition to the base ``DbtCloudComponent`` fields):
 - ``poll_interval`` (default 5.0)   — seconds between debug-log polls
 - ``job_selection_include`` — selection string, jobs matching are mirrored (default: all)
 - ``job_selection_exclude`` — selection string, jobs matching are dropped after include
+- ``mirror_jobs: executable`` — each mirrored Cloud job becomes a real, materializable
+  ``@dg.asset`` (not just an observable ``AssetSpec``): materializing it triggers the Cloud
+  job, polls to completion, and reports the same per-model materializations/check
+  evaluations ``mirror_jobs: job``'s op already does. Accepts ``deps``/an automation
+  condition via ``post_processing`` like any other asset. ``pool``, ``retry_policy_max_retries``
+  / ``retry_policy_delay_seconds`` / ``retry_policy_backoff``, ``timeout_seconds`` and
+  ``dry_run`` configure it the same way ``snowflake_sql_asset`` configures those on a plain
+  SQL asset.
 
 Enrichment (same vocabulary as ``EnrichedDbtProjectComponent``):
 
@@ -109,6 +117,29 @@ _SEMANTIC_DIMENSIONS_KEY = "dagster_dbt/dimensions"
 _SEMANTIC_ENTITIES_KEY = "dagster_dbt/entities"
 _METRIC_TYPE_KEY = "dagster_dbt/metric_type"
 _METRIC_LABEL_KEY = "dagster_dbt/metric_label"
+
+
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
 
 _DBT_EXPOSURE_TYPE_TO_KIND: Mapping[str, str] = {
     "dashboard": "dashboard",
@@ -1183,6 +1214,215 @@ try:
             except Exception as e:
                 context.log.error(f"Failed to cancel run {self.run_id}: {e}")
 
+    def _trigger_poll_and_report_dbt_cloud_run(
+        context: Any, client: Any, cloud_job_id: Any, cloud_job_name: str,
+        steps_override: Optional[List[str]], translator: Any,
+    ) -> Dict[str, Any]:
+        """Trigger a dbt Cloud job run, poll it to completion, and log per-model
+        AssetMaterializations + dbt-test AssetCheckEvaluations against the real
+        run_results.json + manifest.json for THIS run (not a hand-maintained
+        asset-key list) -- so events always reflect what the job actually built,
+        keyed however the project's own translator would key the same model
+        elsewhere. Raises dg.Failure (with the run's URL, when available) on a
+        non-success run status or a failed model.
+
+        Shared by mirror_jobs='job' (an @dg.op inside a plain @dg.job) and
+        mirror_jobs='executable' (an @dg.asset) -- same trigger+poll+report
+        contract either way; `context` only needs `.log`/`.log_event`, which
+        both OpExecutionContext and AssetExecutionContext provide.
+
+        Returns ``{"run_id", "run_url", "status"}``.
+        """
+        run = client.trigger_job_run(job_id=cloud_job_id, steps_override=steps_override)
+        run_id = getattr(run, "id", None) or (run or {}).get("id")
+        context.log.info(f"Triggered dbt Cloud job {cloud_job_id} → run {run_id}")
+
+        run_details = client.poll_run(run_id)
+        status = (run_details or {}).get("status")
+        try:
+            run_url = DbtCloudRun.from_run_details(run_details or {}).url or (run_details or {}).get("href", "")
+        except Exception:
+            run_url = (run_details or {}).get("href", "")
+        url_suffix = f" ({run_url})" if run_url else ""
+
+        if status != DbtCloudJobRunStatusType.SUCCESS.value:
+            raise dg.Failure(
+                f"dbt Cloud job {cloud_job_id} run {run_id} finished with "
+                f"status {status!r}, not success{url_suffix}"
+            )
+
+        run_results = client.get_run_results_json(run_id)
+        manifest = client.get_run_manifest_json(run_id)
+        nodes = {**(manifest.get("nodes") or {}), **(manifest.get("sources") or {})}
+
+        any_failed = False
+        for result in run_results.get("results") or []:
+            unique_id = result.get("unique_id")
+            result_status = result.get("status")
+            node = nodes.get(unique_id)
+            if node is None:
+                continue
+            # run_results.json covers every node type the invocation touched --
+            # tests, seeds, snapshots, not just models. A dbt test result belongs
+            # on the MODEL asset it tests, as a real AssetCheckEvaluation, not a
+            # materialization of its own -- handled in the branch below. The
+            # overall run's status was already checked above (dg.Failure raised
+            # if the whole dbt Cloud run didn't report success), so a test result
+            # reaching this point is one dbt Cloud's own job settings already
+            # decided wasn't run-blocking -- surfaced here as a real, alertable
+            # check (Dagster+'s "Asset" alert policy fires on check failures),
+            # not escalated into failing this run too.
+            if node.get("resource_type") == "test":
+                # Prefer `attached_node` (newer dbt manifests: the single node
+                # this generic test is attached to) over the first model/seed/
+                # snapshot in depends_on.nodes (a relationship test can depend on
+                # two models; attached_node is dbt's own canonical "this test
+                # belongs to X" answer when there is one).
+                parent_unique_id = node.get("attached_node")
+                if not parent_unique_id:
+                    for dep_id in (node.get("depends_on") or {}).get("nodes") or []:
+                        dep_node = nodes.get(dep_id)
+                        if dep_node and dep_node.get("resource_type") in (
+                            "model", "seed", "snapshot",
+                        ):
+                            parent_unique_id = dep_id
+                            break
+                parent_node = nodes.get(parent_unique_id) if parent_unique_id else None
+                if parent_node is None:
+                    context.log.warning(
+                        f"dbt test {unique_id!r} has no resolvable parent "
+                        f"model/seed/snapshot -- skipping check emission"
+                    )
+                    continue
+                try:
+                    parent_asset_key = translator.get_asset_key(parent_node)
+                except Exception as e:
+                    context.log.warning(
+                        f"could not derive an asset key for test {unique_id!r}'s "
+                        f"parent {parent_unique_id!r}: {e}"
+                    )
+                    continue
+                test_passed = result_status == "pass"
+                context.log_event(
+                    dg.AssetCheckEvaluation(
+                        asset_key=parent_asset_key,
+                        check_name=node.get("name") or unique_id,
+                        passed=test_passed,
+                        severity=(
+                            dg.AssetCheckSeverity.WARN
+                            if result_status == "warn"
+                            else dg.AssetCheckSeverity.ERROR
+                        ),
+                        description=(
+                            result.get("message")
+                            or f"dbt test {node.get('name') or unique_id} "
+                               f"finished with status {result_status!r}"
+                        ),
+                        metadata={
+                            "dbt_cloud/job_id": cloud_job_id,
+                            "dbt_cloud/run_id": run_id,
+                            "dbt/status": result_status,
+                            "dbt/execution_time": result.get("execution_time"),
+                        },
+                    )
+                )
+                continue
+            if node.get("resource_type") not in ("model", "seed", "snapshot"):
+                continue
+            try:
+                asset_key = translator.get_asset_key(node)
+            except Exception as e:
+                context.log.warning(
+                    f"could not derive an asset key for {unique_id!r}: {e}"
+                )
+                continue
+            if result_status in ("success", "pass"):
+                context.log_event(
+                    dg.AssetMaterialization(
+                        asset_key=asset_key,
+                        description=(
+                            f"Materialized via dbt Cloud job "
+                            f"{cloud_job_id} (run {run_id})"
+                        ),
+                        metadata={
+                            "dbt_cloud/job_id": cloud_job_id,
+                            "dbt_cloud/run_id": run_id,
+                            "dbt/status": result_status,
+                            "dbt/execution_time": result.get("execution_time"),
+                        },
+                    )
+                )
+            else:
+                any_failed = True
+                context.log.error(
+                    f"dbt node {unique_id} ({asset_key.to_user_string()}) "
+                    f"finished with status {result_status!r}: {result.get('message')}"
+                )
+        if any_failed:
+            raise dg.Failure(
+                f"dbt Cloud job {cloud_job_id} run {run_id} succeeded overall "
+                f"but one or more models finished with a non-success status "
+                f"(see per-model errors above){url_suffix}"
+            )
+        return {"run_id": run_id, "run_url": run_url, "status": status}
+
+    def _build_executable_dbt_cloud_job_asset(
+        key: dg.AssetKey, cloud_job_id: Any, cloud_job_name: str, description: str,
+        workspace: Any, default_steps_override: Optional[List[str]], translator: Any,
+        pool: Optional[str], retry_policy: Any, dry_run: bool, timeout_seconds: Optional[float],
+    ):
+        """Factory, called once per Cloud job inside a loop -- NOT a nested function defined
+        directly in that loop. @dg.asset treats every extra parameter as an implicit upstream
+        asset dependency by name regardless of any default value (confirmed directly: unlike
+        @dg.op/@dg.job composition, there is no default-valued-parameter escape hatch here), so
+        every per-job value this asset's body needs must come from an enclosing function's own
+        call-local scope, never from a bare parameter OR a closure over the loop variable itself
+        (the latter would late-bind to whichever job the loop last visited, since the asset body
+        runs at materialize time -- long after the loop that builds all these assets has
+        finished, unlike @dg.job composition which consumes its closure synchronously, same
+        iteration). A plain nested function would still close over the LOOP'S variables, not this
+        factory's own arguments -- calling this once per job, with this job's values passed as
+        real arguments, is what gives each returned asset its own correctly-bound scope."""
+
+        class DbtCloudJobTriggerRunConfig(dg.Config):
+            """Per-run override for a mirrored dbt Cloud job trigger -- same contract as
+            mirror_jobs='job's own op-level config (see its docstring)."""
+            steps_override: Optional[List[str]] = None
+
+        @dg.asset(
+            key=key, kinds={"dbt_cloud_job"}, description=description,
+            metadata={
+                _DBT_CLOUD_JOB_ID_METADATA_KEY: cloud_job_id,
+                _DBT_CLOUD_JOB_NAME_METADATA_KEY: cloud_job_name,
+            },
+            pool=pool, retry_policy=retry_policy,
+        )
+        def _executable_asset(context: dg.AssetExecutionContext, config: DbtCloudJobTriggerRunConfig) -> dg.Output:
+            if dry_run:
+                context.log.info(
+                    f"dry_run=true -- skipping trigger of dbt Cloud job {cloud_job_id} ({cloud_job_name!r})"
+                )
+                return dg.Output(None, metadata={"dry_run": dg.MetadataValue.bool(True)})
+
+            client = getattr(workspace, "client", None) or workspace
+            steps_override = (
+                config.steps_override if config.steps_override is not None else default_steps_override
+            )
+            run_info = _run_with_timeout(
+                _trigger_poll_and_report_dbt_cloud_run, timeout_seconds,
+                context, client, cloud_job_id, cloud_job_name, steps_override, translator,
+            )
+            metadata = {
+                "dry_run": dg.MetadataValue.bool(False),
+                "dbt_cloud/run_id": run_info["run_id"],
+                "dbt_cloud/status": run_info["status"],
+            }
+            if run_info["run_url"]:
+                metadata["dbt_cloud/run_url"] = dg.MetadataValue.url(run_info["run_url"])
+            return dg.Output(run_info["run_id"], metadata=metadata)
+
+        return _executable_asset
+
     class EnrichedDbtCloudWorkspaceComponent(_DbtCloudComponent):
         """Enriched drop-in for ``DbtCloudComponent``. See module docstring."""
 
@@ -1203,7 +1443,7 @@ try:
         """Seconds between debug log polls when monitor_runs is enabled.
         Lower values catch failures faster but make more API calls."""
 
-        mirror_jobs: Literal["off", "asset", "job", "both"] = "off"
+        mirror_jobs: Literal["off", "asset", "job", "both", "executable"] = "off"
         """How to surface each dbt Cloud job in Dagster (ports
         ``et/dbt-cloud-mirror-jobs`` PR):
 
@@ -1211,20 +1451,39 @@ try:
         - ``asset`` — Emit an observable AssetSpec per Cloud job (kind
           ``dbt_cloud_job``). Downstream AutomationConditions can react
           when the job runs. Materializations flow through the polling
-          sensor.
+          sensor. Materializing this asset does nothing -- it has no
+          execution of its own.
         - ``job`` — Emit a Dagster @job per Cloud job that triggers +
           waits for the Cloud run. Users can schedule, launch from the
           UI, or wire ``@run_status_sensor`` downstream.
         - ``both`` — Emit both an AssetSpec AND a launchable @job.
+        - ``executable`` — Emit a real, materializable ``@dg.asset`` per
+          Cloud job (same key/kind/metadata as ``asset``, but with
+          execution): materializing it triggers the Cloud job, polls to
+          completion, and reports the same per-model materializations and
+          dbt-test ``AssetCheckEvaluation``s as ``job``'s own trigger op,
+          raising ``dg.Failure`` (with the run's URL) on a non-success
+          status or a failed model. Accepts ``deps``/an automation
+          condition via ``post_processing`` like any other asset -- lets
+          an orchestration chain express "run extract, then run dbt Cloud
+          job N" as asset steps. Configured by ``pool``,
+          ``retry_policy_max_retries``/``retry_policy_delay_seconds``/
+          ``retry_policy_backoff``, ``timeout_seconds`` and ``dry_run``
+          (below). Does not also emit a separate @job -- the asset itself
+          is what you schedule/launch/materialize. The enhanced polling
+          sensor (auto-enabled with this mode) skips any Cloud run this
+          asset already reported, deduped by dbt Cloud run id, so the two
+          never double-report the same run.
         """
 
         job_trigger_defaults: Optional[Dict[str, Any]] = None
-        """Default trigger overrides sent by every mirrored @job (applies
-        with ``mirror_jobs`` = ``job`` or ``both``). The real dbt Cloud
-        Cloud v2 client's ``trigger_job_run(job_id, steps_override=None)``
-        only accepts ``steps_override`` -- confirmed against the installed
-        client directly -- so ``{"steps_override": [...]}`` is the only key
-        this actually affects. A per-run ``steps_override`` set via the
+        """Default trigger overrides sent by every mirrored @job or
+        executable asset (applies with ``mirror_jobs`` = ``job``, ``both``
+        or ``executable``). The real dbt Cloud Cloud v2 client's
+        ``trigger_job_run(job_id, steps_override=None)`` only accepts
+        ``steps_override`` -- confirmed against the installed client
+        directly -- so ``{"steps_override": [...]}`` is the only key this
+        actually affects. A per-run ``steps_override`` set via the
         Dagster UI launchpad or `dg launch --config` overrides this default
         for that run only, with no YAML edit."""
 
@@ -1236,6 +1495,41 @@ try:
         job_selection_exclude: Optional[str] = None
         """Selection string; jobs matching are dropped AFTER include. Default
         None = drop nothing."""
+
+        pool: Optional[str] = None
+        """``mirror_jobs: executable`` only. Dagster's native named
+        concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots
+        shared across every asset/op using the same pool name). The pool's
+        own slot count is configured at the deployment level (dagster.yaml's
+        concurrency: pools:, or the Dagster+ UI), not here."""
+
+        retry_policy_max_retries: Optional[int] = None
+        """``mirror_jobs: executable`` only. Max retries on asset failure.
+        Defines a RetryPolicy. Useful for transient dbt Cloud API errors,
+        not for a genuinely failed dbt run (retrying a bad model won't fix
+        it)."""
+
+        retry_policy_delay_seconds: Optional[int] = None
+        """``mirror_jobs: executable`` only. Seconds between retries
+        (default 1)."""
+
+        retry_policy_backoff: str = "exponential"
+        """``mirror_jobs: executable`` only. Backoff strategy: 'linear' or
+        'exponential'."""
+
+        timeout_seconds: Optional[float] = None
+        """``mirror_jobs: executable`` only. Kill the wait and fail the run
+        if the trigger+poll+report sequence hasn't finished after this many
+        seconds. Enforced via a background-thread wrapper -- the dbt Cloud
+        run itself keeps running past the deadline (Python threads can't be
+        forcibly killed, and this does not cancel the run server-side);
+        this bounds the step's wait, not the Cloud run."""
+
+        dry_run: bool = False
+        """``mirror_jobs: executable`` only. If True, log the Cloud job id
+        and skip the trigger entirely -- no API call, no run. Output
+        metadata still includes ``dry_run: true`` so a materialization
+        history shows which runs were real."""
 
         # ── Enrichment (same vocabulary as EnrichedDbtProjectComponent) ─
         dbt_docs_url: Optional[str] = None
@@ -1944,6 +2238,7 @@ try:
                 self.emit_test_check_evaluations
                 or self.emit_skip_reason_observations
                 or self.filter_external_packages_from_sensor
+                or self.mirror_jobs == "executable"
             )
 
         def _build_enhanced_polling_sensor(
@@ -2033,6 +2328,35 @@ try:
 
                 adhoc_job_ids: set = set(getattr(workspace_data, "adhoc_job_ids", set()) or set())
 
+                # Dedup against a run already reported by a mirror_jobs='executable' asset (or an
+                # earlier tick of this same sensor): the asset's own trigger logic stamps
+                # dbt_cloud/run_id on every materialization it logs, so the LATEST stored
+                # materialization for an asset key reveals whether this exact run already landed
+                # one -- fetched lazily, once per asset key actually seen this tick, not once per
+                # run, since the same key can repeat across many runs in one batch.
+                _latest_mat_by_key: dict = {}
+
+                def _already_reported(asset_key: dg.AssetKey, run_id: Any) -> bool:
+                    if asset_key not in _latest_mat_by_key:
+                        try:
+                            events = context.instance.get_latest_materialization_events([asset_key])
+                        except Exception:
+                            events = {}
+                        _latest_mat_by_key[asset_key] = events.get(asset_key)
+                    entry = _latest_mat_by_key[asset_key]
+                    if entry is None:
+                        return False
+                    try:
+                        stored = entry.dagster_event.event_specific_data.materialization.metadata.get("dbt_cloud/run_id")
+                    except Exception:
+                        return False
+                    if stored is None:
+                        return False
+                    stored_value = getattr(stored, "value", None)
+                    if stored_value is None:
+                        stored_value = getattr(stored, "text", stored)
+                    return str(stored_value) == str(run_id)
+
                 all_events: list = []
                 for run_details in runs:
                     try:
@@ -2064,6 +2388,9 @@ try:
                         asset_key = dg.AssetKey(alias)
 
                         if asset_key in external_asset_keys:
+                            continue
+
+                        if _already_reported(asset_key, run.id):
                             continue
 
                         status = str(result.get("status") or "").lower()
@@ -2143,11 +2470,24 @@ try:
 
             emit_asset = self.mirror_jobs in ("asset", "both")
             emit_job = self.mirror_jobs in ("job", "both")
+            emit_executable = self.mirror_jobs == "executable"
 
             job_specs: List[dg.AssetSpec] = []
             mirrored_jobs: List[Any] = []
+            executable_assets: List[Any] = []
             workspace = self.workspace
             trigger_defaults = self.job_trigger_defaults or {}
+            dry_run = self.dry_run
+            pool = self.pool
+            timeout_seconds = self.timeout_seconds
+            retry_policy = None
+            if self.retry_policy_max_retries is not None:
+                from dagster import Backoff, RetryPolicy
+                retry_policy = RetryPolicy(
+                    max_retries=self.retry_policy_max_retries,
+                    delay=self.retry_policy_delay_seconds or 1,
+                    backoff=Backoff[self.retry_policy_backoff.upper()],
+                )
 
             class DbtCloudJobTriggerRunConfig(dg.Config):
                 """Per-run override for a mirrored dbt Cloud job trigger.
@@ -2207,147 +2547,9 @@ try:
                             if config.steps_override is not None
                             else _default_steps_override
                         )
-
-                        run = client.trigger_job_run(
-                            job_id=_cloud_job_id, steps_override=steps_override
+                        _trigger_poll_and_report_dbt_cloud_run(
+                            context, client, _cloud_job_id, _cloud_job_name, steps_override, _translator,
                         )
-                        run_id = getattr(run, "id", None) or (run or {}).get("id")
-                        context.log.info(f"Triggered dbt Cloud job {_cloud_job_id} → run {run_id}")
-
-                        run_details = client.poll_run(run_id)
-                        status = (run_details or {}).get("status")
-                        if status != DbtCloudJobRunStatusType.SUCCESS.value:
-                            raise dg.Failure(
-                                f"dbt Cloud job {_cloud_job_id} run {run_id} finished with "
-                                f"status {status!r}, not success"
-                            )
-
-                        # Real per-model results (run_results.json) + the real
-                        # manifest for THIS run, not a hand-maintained asset-key
-                        # list -- so materializations always reflect what the
-                        # job actually built, and keys match however the
-                        # project's own translator would key the same model
-                        # elsewhere, instead of a parallel guessed scheme.
-                        run_results = client.get_run_results_json(run_id)
-                        manifest = client.get_run_manifest_json(run_id)
-                        nodes = {**(manifest.get("nodes") or {}), **(manifest.get("sources") or {})}
-
-                        any_failed = False
-                        for result in run_results.get("results") or []:
-                            unique_id = result.get("unique_id")
-                            result_status = result.get("status")
-                            node = nodes.get(unique_id)
-                            if node is None:
-                                continue
-                            # run_results.json covers every node type the
-                            # invocation touched -- tests, seeds, snapshots,
-                            # not just models. A dbt test result belongs on
-                            # the MODEL asset it tests, as a real
-                            # AssetCheckEvaluation, not a materialization of
-                            # its own -- handled in the branch below. The
-                            # overall run's status was already checked above
-                            # (dg.Failure raised if the whole dbt Cloud run
-                            # didn't report success), so a test result
-                            # reaching this point is one dbt Cloud's own job
-                            # settings already decided wasn't run-blocking --
-                            # surfaced here as a real, alertable check
-                            # (Dagster+'s "Asset" alert policy fires on check
-                            # failures), not escalated into failing this op
-                            # too.
-                            if node.get("resource_type") == "test":
-                                # Prefer `attached_node` (newer dbt manifests:
-                                # the single node this generic test is
-                                # attached to) over the first model/seed/
-                                # snapshot in depends_on.nodes (a relationship
-                                # test can depend on two models; attached_node
-                                # is dbt's own canonical "this test belongs to
-                                # X" answer when there is one).
-                                parent_unique_id = node.get("attached_node")
-                                if not parent_unique_id:
-                                    for dep_id in (node.get("depends_on") or {}).get("nodes") or []:
-                                        dep_node = nodes.get(dep_id)
-                                        if dep_node and dep_node.get("resource_type") in (
-                                            "model", "seed", "snapshot",
-                                        ):
-                                            parent_unique_id = dep_id
-                                            break
-                                parent_node = nodes.get(parent_unique_id) if parent_unique_id else None
-                                if parent_node is None:
-                                    context.log.warning(
-                                        f"dbt test {unique_id!r} has no resolvable parent "
-                                        f"model/seed/snapshot -- skipping check emission"
-                                    )
-                                    continue
-                                try:
-                                    parent_asset_key = _translator.get_asset_key(parent_node)
-                                except Exception as e:
-                                    context.log.warning(
-                                        f"could not derive an asset key for test {unique_id!r}'s "
-                                        f"parent {parent_unique_id!r}: {e}"
-                                    )
-                                    continue
-                                test_passed = result_status == "pass"
-                                context.log_event(
-                                    dg.AssetCheckEvaluation(
-                                        asset_key=parent_asset_key,
-                                        check_name=node.get("name") or unique_id,
-                                        passed=test_passed,
-                                        severity=(
-                                            dg.AssetCheckSeverity.WARN
-                                            if result_status == "warn"
-                                            else dg.AssetCheckSeverity.ERROR
-                                        ),
-                                        description=(
-                                            result.get("message")
-                                            or f"dbt test {node.get('name') or unique_id} "
-                                               f"finished with status {result_status!r}"
-                                        ),
-                                        metadata={
-                                            "dbt_cloud/job_id": _cloud_job_id,
-                                            "dbt_cloud/run_id": run_id,
-                                            "dbt/status": result_status,
-                                            "dbt/execution_time": result.get("execution_time"),
-                                        },
-                                    )
-                                )
-                                continue
-                            if node.get("resource_type") not in ("model", "seed", "snapshot"):
-                                continue
-                            try:
-                                asset_key = _translator.get_asset_key(node)
-                            except Exception as e:
-                                context.log.warning(
-                                    f"could not derive an asset key for {unique_id!r}: {e}"
-                                )
-                                continue
-                            if result_status in ("success", "pass"):
-                                context.log_event(
-                                    dg.AssetMaterialization(
-                                        asset_key=asset_key,
-                                        description=(
-                                            f"Materialized via dbt Cloud job "
-                                            f"{_cloud_job_id} (run {run_id})"
-                                        ),
-                                        metadata={
-                                            "dbt_cloud/job_id": _cloud_job_id,
-                                            "dbt_cloud/run_id": run_id,
-                                            "dbt/status": result_status,
-                                            "dbt/execution_time": result.get("execution_time"),
-                                        },
-                                    )
-                                )
-                            else:
-                                any_failed = True
-                                context.log.error(
-                                    f"dbt node {unique_id} ({asset_key.to_user_string()}) "
-                                    f"finished with status {result_status!r}: {result.get('message')}"
-                                )
-                        if any_failed:
-                            raise dg.Failure(
-                                f"dbt Cloud job {_cloud_job_id} run {run_id} succeeded overall "
-                                f"but one or more models finished with a non-success status "
-                                f"(see per-model errors above)"
-                            )
 
                     # NOTE: a job-composition function's parameters are all
                     # treated as graph inputs by Dagster's composition DSL
@@ -2366,8 +2568,18 @@ try:
 
                     mirrored_jobs.append(_mirrored_job)
 
+                if emit_executable:
+                    executable_assets.append(
+                        _build_executable_dbt_cloud_job_asset(
+                            key, cloud_job_id, cloud_job_name,
+                            f"dbt Cloud job {cloud_job_id}: {cloud_job_name!r}",
+                            workspace, trigger_defaults.get("steps_override"), self.translator,
+                            pool, retry_policy, dry_run, timeout_seconds,
+                        )
+                    )
+
             return dg.Definitions(
-                assets=job_specs if job_specs else None,
+                assets=(job_specs + executable_assets) if (job_specs or executable_assets) else None,
                 jobs=mirrored_jobs if mirrored_jobs else None,
             )
 
@@ -2610,10 +2822,16 @@ except ImportError:
         monitor_runs: bool = Field(default=False)
         fail_fast: bool = Field(default=False)
         poll_interval: float = Field(default=5.0)
-        mirror_jobs: Literal["off", "asset", "job", "both"] = Field(default="off")
+        mirror_jobs: Literal["off", "asset", "job", "both", "executable"] = Field(default="off")
         job_trigger_defaults: Optional[Dict[str, Any]] = Field(default=None)
         job_selection_include: Optional[str] = Field(default=None)
         job_selection_exclude: Optional[str] = Field(default=None)
+        pool: Optional[str] = Field(default=None)
+        retry_policy_max_retries: Optional[int] = Field(default=None)
+        retry_policy_delay_seconds: Optional[int] = Field(default=None)
+        retry_policy_backoff: str = Field(default="exponential")
+        timeout_seconds: Optional[float] = Field(default=None)
+        dry_run: bool = Field(default=False)
 
         # Enrichment
         dbt_docs_url: Optional[str] = Field(default=None)

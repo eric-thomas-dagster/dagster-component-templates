@@ -38,20 +38,44 @@ cancels the dbt Cloud run so it doesn't keep consuming compute.
 
 | Field | Default | What |
 |---|---|---|
-| `mirror_jobs` | `off` | `off` / `asset` / `job` / `both`. See table below. |
-| `job_trigger_defaults` | | Trigger overrides sent by every mirrored `@job` (applies with `mirror_jobs` = `job` or `both`). Fields: `cause`, `steps_override`, `git_sha`, `git_branch`, `schema_override`, `threads_override`. Any unset field falls back to the Cloud job's configured value. |
+| `mirror_jobs` | `off` | `off` / `asset` / `job` / `both` / `executable`. See table below. |
+| `job_trigger_defaults` | | Trigger overrides sent by every mirrored `@job` or executable asset (applies with `mirror_jobs` = `job`, `both` or `executable`). The real dbt Cloud Cloud v2 client's `trigger_job_run(job_id, steps_override=None)` only accepts `steps_override` -- that's the only field this affects. Any unset field falls back to the Cloud job's configured value. |
 | `job_selection_include` | | Selection string; jobs matching are mirrored. Selectors: `type:deploy`, `*_prod`, `id:12345`, or bare glob (name-glob shorthand). Space-separated union. Empty = mirror all. |
 | `job_selection_exclude` | | Jobs matching are dropped AFTER include. |
+| `pool` | | `mirror_jobs: executable` only. Dagster's native named concurrency pool. |
+| `retry_policy_max_retries` / `retry_policy_delay_seconds` / `retry_policy_backoff` | `None` / `None` / `exponential` | `mirror_jobs: executable` only. Same fields/defaults as `snowflake_sql_asset`. |
+| `timeout_seconds` | | `mirror_jobs: executable` only. Kills the step's wait (not the Cloud run itself) past this many seconds. |
+| `dry_run` | `false` | `mirror_jobs: executable` only. Logs the Cloud job id and skips the trigger entirely. |
 
 | `mirror_jobs` mode | What Dagster emits per Cloud job |
 |---|---|
 | `off` | Nothing (backward-compatible default) |
-| `asset` | One observable `AssetSpec` (kind: `dbt_cloud_job`). Downstream AutomationConditions react when the job runs. Materialization events flow through the polling sensor. |
+| `asset` | One observable `AssetSpec` (kind: `dbt_cloud_job`). Downstream AutomationConditions react when the job runs. Materialization events flow through the polling sensor. Materializing it does nothing -- no execution of its own. |
 | `job` | One Dagster `@job` that triggers + waits for the Cloud run. Schedulable, launchable from the UI, wireable to `@run_status_sensor` downstream. |
 | `both` | Both AssetSpec + launchable `@job` |
+| `executable` | One real, materializable `@dg.asset` (same key/kind/metadata as `asset`, but with execution): materializing it triggers the Cloud job, polls to completion, and reports the same per-model materializations/check evaluations `job`'s own trigger does -- a dbt Cloud job becomes a real step in an asset-based orchestration chain, not just an observable marker. Accepts `deps`/an automation condition via `post_processing` like any other asset. Does not also emit a separate `@job`. |
 
 Dagster's internal `DAGSTER_ADHOC_JOB__*` pool is filtered out
 automatically.
+
+**One asset per Cloud job, no per-model dbt assets**: `select`/`exclude` are the base
+`DbtCloudComponent`'s own dbt-model-selection fields -- separate from `job_selection_include`/
+`job_selection_exclude`, which filter which *Cloud jobs* get mirrored. Pointing `select` at
+something that matches nothing (e.g. `select: "tag:__never_exists__"`) leaves the per-model dbt
+assets empty while `mirror_jobs`'s own job-level asset(s) are still emitted independently, since
+mirroring doesn't depend on the per-model selection at all:
+
+```yaml
+select: "tag:__never_exists__"   # no per-model dbt assets
+mirror_jobs: executable          # one asset per Cloud job, still emitted
+```
+
+**The polling sensor never double-reports a run `mirror_jobs: executable` already reported**:
+the executable asset stamps `dbt_cloud/run_id` on every materialization it logs; the enhanced
+polling sensor (auto-enabled with `mirror_jobs: executable`, same as `emit_test_check_evaluations`
+etc.) checks each asset's latest stored materialization before emitting a new one for the same run
+id, so a Cloud run triggered via the executable asset is never reported a second time by the
+sensor's own periodic scan.
 
 **Selection DSL examples:**
 
@@ -275,6 +299,7 @@ events.
 | `emit_test_check_evaluations` | Emit `AssetCheckEvaluation` (pass/fail/warn) for every model result in each finished Cloud run. Externally-triggered runs (Cloud schedule, Cloud UI) surface test outcomes as check tiles in the Dagster UI instead of being dropped. |
 | `emit_skip_reason_observations` | For every skipped model in `run_results.json`, emit an `AssetObservation` carrying `skip_reason` (from dbt's `message` field) as metadata. Engineers see WHY a model was skipped (`parent failed`, `state-reuse`, `microbatch batch skipped`, selector exclusion, etc.) without opening dbt Cloud. |
 | `filter_external_packages_from_sensor` | Skip sensor events for models whose `package_name` is in `external_packages` — the upstream Dagster code location owns them. Prevents duplicate materializations when both projects' sensors observe the same run. |
+| `mirror_jobs: executable` | Also enables the enhanced sensor (whether or not any flag above is set), so it can dedup against runs the executable asset already reported — see above. |
 
 ## Full example
 
@@ -295,7 +320,7 @@ attributes:
   # Mirror Cloud jobs
   mirror_jobs: both
   job_trigger_defaults:
-    cause: "Triggered by Dagster"
+    steps_override: ["dbt build --select tag:daily"]
   job_selection_include: "type:deploy type:merge"
   job_selection_exclude: "*_experimental"
 
@@ -392,6 +417,20 @@ available at all.
 
 ## Fields
 
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `timeout_seconds` | `float` | — | — |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | — |
+| `retry_policy_delay_seconds` | `int` | — | — |
+| `retry_policy_backoff` | `str` | `"exponential"` | — |
+
 ### Source / target
 
 | Field | Type | Default | Description |
@@ -409,10 +448,12 @@ available at all.
 | `monitor_runs` | `bool` | `false` | — |
 | `fail_fast` | `bool` | `false` | — |
 | `poll_interval` | `float` | `5.0` | — |
-| `mirror_jobs` | `Literal['off', 'asset', 'job', 'both']` | `"off"` | — |
+| `mirror_jobs` | `Literal['off', 'asset', 'job', 'both', 'executable']` | `"off"` | — |
 | `job_trigger_defaults` | `Dict[str, Any]` | — | — |
 | `job_selection_include` | `str` | — | — |
 | `job_selection_exclude` | `str` | — | — |
+| `pool` | `str` | — | — |
+| `dry_run` | `bool` | `false` | — |
 | `dbt_docs_url` | `str` | — | — |
 | `include_exposures` | `bool` | `false` | — |
 | `include_metrics` | `bool` | `false` | — |

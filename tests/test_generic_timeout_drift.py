@@ -17,6 +17,7 @@ COMPONENTS = [
     "assets/infrastructure/loop_gate_asset",
     "assets/data-warehouse/snowflake_sql_asset",
     "assets/data-warehouse/snowflake_copy_into_asset",
+    "assets/dbt/enriched_dbt_cloud_workspace",
 ]
 BEGIN = "# BEGIN generic timeout wrapper"
 END = "# END generic timeout wrapper"

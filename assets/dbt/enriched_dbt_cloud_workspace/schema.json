@@ -37,17 +37,18 @@
         "off",
         "asset",
         "job",
-        "both"
+        "both",
+        "executable"
       ],
       "label": "Mirror Jobs Mode",
-      "description": "How to surface each dbt Cloud job in Dagster. `off` (default) = don't mirror. `asset` = emit an observable AssetSpec per Cloud job (kind: dbt_cloud_job) so AutomationConditions can react when the job runs. `job` = emit a Dagster @job that triggers + waits for the Cloud run. `both` = emit both.",
+      "description": "How to surface each dbt Cloud job in Dagster. `off` (default) = don't mirror. `asset` = emit an observable AssetSpec per Cloud job (kind: dbt_cloud_job) so AutomationConditions can react when the job runs. `job` = emit a Dagster @job that triggers + waits for the Cloud run. `both` = emit both. `executable` = emit a real, materializable @dg.asset per Cloud job that triggers + polls + reports the same way `job` does, so a dbt Cloud job can be a real step in an asset-based chain.",
       "required": false,
       "default": "off"
     },
     "job_trigger_defaults": {
       "type": "object",
       "label": "Job Trigger Defaults",
-      "description": "Trigger overrides sent by every mirrored @job (applies when mirror_jobs is 'job' or 'both'). Common fields: cause, steps_override, git_sha, git_branch, schema_override, threads_override. Any unset field falls back to the Cloud job's configured value.",
+      "description": "Trigger overrides sent by every mirrored @job or executable asset (applies when mirror_jobs is 'job', 'both' or 'executable'). The real dbt Cloud Cloud v2 client's trigger_job_run(job_id, steps_override=None) only accepts steps_override -- that's the only field this affects. Any unset field falls back to the Cloud job's configured value.",
       "required": false
     },
     "job_selection_include": {
@@ -61,6 +62,49 @@
       "label": "Job Selection Exclude",
       "description": "Jobs matching this selection are dropped AFTER include. Same selector syntax.",
       "required": false
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "mirror_jobs: executable only. Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "mirror_jobs: executable only. Max retries on asset failure. Defines a RetryPolicy. Useful for transient dbt Cloud API errors, not for a genuinely failed dbt run.",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "mirror_jobs: executable only. Seconds between retries (default 1).",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "enum": [
+        "exponential",
+        "linear"
+      ],
+      "label": "Retry Policy Backoff",
+      "description": "mirror_jobs: executable only. Backoff strategy: 'linear' or 'exponential'.",
+      "required": false,
+      "default": "exponential",
+      "ui:widget": "select"
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "description": "mirror_jobs: executable only. Kill the wait and fail the run if the trigger+poll+report sequence hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the dbt Cloud run itself keeps running past the deadline; this bounds the step's wait, not the Cloud run.",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "mirror_jobs: executable only. If True, log the Cloud job id and skip the trigger entirely -- no API call, no run.",
+      "required": false,
+      "default": false
     },
     "dbt_docs_url": {
       "type": "string",

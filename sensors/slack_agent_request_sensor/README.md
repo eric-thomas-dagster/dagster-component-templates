@@ -93,6 +93,12 @@ too slow for chat.
   (`k8s_job_executor`, `celery_executor`, `docker_executor`, ...), that executor's own config
   schema rejects an `in_process` key it doesn't recognize, and the run fails with a
   `RunConfigValidationInvalid` error. Set `use_in_process_executor: false` if that's the case.
+  This conflict is detected at **sensor-evaluation time**, not just when a doomed run starts:
+  every tick, the sensor resolves the implicit job for its asset selection (via
+  `context.repository_def.get_implicit_job_def_for_assets(...)`) and raises a clear error naming
+  the pinned `executor_def` if one is set, instead of silently launching a run that would fail at
+  launch. If `context.repository_def` isn't available (some decoupled test contexts), the check
+  is skipped rather than blocking.
 
 ## Auth -- Slack app setup
 

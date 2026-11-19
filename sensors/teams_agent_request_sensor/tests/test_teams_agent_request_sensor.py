@@ -116,6 +116,56 @@ def test_invalid_default_status_rejected(tmp_path, chat_agent_asset):
         component.build_defs(context=None)
 
 
+# --- use_in_process_executor conflict detection (at sensor-evaluation time) ------------------
+
+def test_use_in_process_executor_raises_when_job_has_pinned_executor(tmp_path, monkeypatch, chat_agent_asset):
+    """A code location that pins a non-default executor (e.g. multiprocess_executor) rejects the
+    in_process run_config this sensor sends -- detected here, at sensor-evaluation time, instead
+    of only once a doomed run actually starts."""
+    from dagster import multiprocess_executor
+
+    component = _component(tmp_path)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    _install_fakes(monkeypatch)  # should never be reached -- the conflict check runs first
+    repo = dg.Definitions(assets=[chat_agent_asset], executor=multiprocess_executor).get_repository_def()
+    ctx = dg.build_sensor_context(repository_def=repo)
+    with pytest.raises(ValueError, match="multiprocess"):
+        sensor_def(ctx)
+
+
+def test_use_in_process_executor_false_skips_the_conflict_check(tmp_path, monkeypatch, chat_agent_asset):
+    from dagster import multiprocess_executor
+
+    component = _component(tmp_path, use_in_process_executor=False)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    _install_fakes(monkeypatch)
+    repo = dg.Definitions(assets=[chat_agent_asset], executor=multiprocess_executor).get_repository_def()
+    ctx = dg.build_sensor_context(repository_def=repo, cursor=json.dumps({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
+    result = sensor_def(ctx)  # no error -- the pinned executor only matters when use_in_process_executor=true
+    assert isinstance(result, dg.SensorResult) and not result.run_requests
+
+
+def test_default_executor_job_passes_the_conflict_check(tmp_path, monkeypatch, chat_agent_asset):
+    component = _component(tmp_path)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    _install_fakes(monkeypatch)
+    repo = dg.Definitions(assets=[chat_agent_asset]).get_repository_def()  # no executor pinned
+    ctx = dg.build_sensor_context(repository_def=repo, cursor=json.dumps({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
+    result = sensor_def(ctx)
+    assert isinstance(result, dg.SensorResult) and not result.run_requests
+
+
+def test_no_repository_def_skips_the_conflict_check_rather_than_blocking(tmp_path, monkeypatch, chat_agent_asset):
+    """context.repository_def is unavailable in some decoupled test contexts (dg.build_sensor_context()
+    with no definitions/repository_def passed) -- fail-open on inability to introspect, not on a
+    conflict we can't actually detect."""
+    component = _component(tmp_path)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    _install_fakes(monkeypatch)
+    result = sensor_def(_ctx({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
+    assert isinstance(result, dg.SensorResult) and not result.run_requests
+
+
 # --- mention / all trigger modes ----------------------------------------------------------
 
 def test_mention_triggers_a_run(tmp_path, monkeypatch, chat_agent_asset):

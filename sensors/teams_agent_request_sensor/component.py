@@ -421,7 +421,10 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             "subprocess. Requires the code location that owns these assets not to set a "
             "non-default executor itself -- if it does, this run_config key is rejected by "
             "that executor's own config schema and the run fails with a "
-            "RunConfigValidationInvalid error. Set false to leave execution untouched."
+            "RunConfigValidationInvalid error. Detected at sensor-evaluation time (via "
+            "context.repository_def), not just when a run starts: every tick raises a clear "
+            "error naming the conflicting executor_def, instead of launching a run doomed to "
+            "fail. Set false to leave execution untouched."
         ),
     )
 
@@ -472,6 +475,21 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         epoch = "1970-01-01T00:00:00.0000000Z"
 
         def sensor_fn(context: dg.SensorEvaluationContext):
+            if use_in_process_executor:
+                repo = getattr(context, "repository_def", None)
+                if repo is not None:
+                    job = repo.get_implicit_job_def_for_assets(sensor_asset_selection)
+                    if job is not None and job.has_specified_executor:
+                        raise ValueError(
+                            f"TeamsAgentRequestSensorComponent {sensor_name!r}: use_in_process_executor=true, "
+                            f"but the code location pins executor_def={job.executor_def.name!r} on the job for "
+                            f"this asset selection -- in_process run_config is rejected by that executor's own "
+                            f"config schema, and every run this sensor launches would fail at launch with "
+                            f"RunConfigValidationInvalid. Set use_in_process_executor: false, or remove the "
+                            f"pinned executor so the default multi_or_in_process_executor (which accepts "
+                            f"in_process config) is used instead."
+                        )
+
             fs = _StateFS(oauth_state_dir)
             try:
                 bearer = _get_teams_bearer(fs, tenant_env, client_env, secret_env, refresh_env)

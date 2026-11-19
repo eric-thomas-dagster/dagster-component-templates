@@ -1173,6 +1173,7 @@ _CLASS_PATHS: dict[str, str] = {
     "RedshiftResourceComponent": "resources/redshift_resource/component.py",
     "RegexParser": "assets/transforms/regex_parser/component.py",
     "RejectionFeedbackLoopComponent": "assets/ai/rejection_feedback_loop/component.py",
+    "ReportToolsServerComponent": "assets/ai/report_tools_server/component.py",
     "RequiresContractComponent": "assets/infrastructure/data_contract/component.py",
     "RerankerComponent": "assets/ai/reranker/component.py",
     "RestApiIngestionComponent": "assets/ingestion/rest_api_ingestion/component.py",

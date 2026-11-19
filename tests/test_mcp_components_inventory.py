@@ -35,6 +35,7 @@ MCP_COMPONENTS = {
     "assets/ai/agentic_pipeline_authoring_tools": "server",
     "assets/ai/slack_chat_tools": "server",
     "assets/ai/teams_chat_tools": "server",
+    "assets/ai/report_tools_server": "server",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

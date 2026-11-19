@@ -33,6 +33,7 @@ on:
       - "assets/ai/agentic_pipeline_authoring_tools/**"
       - "assets/ai/slack_chat_tools/**"
       - "assets/ai/teams_chat_tools/**"
+      - "assets/ai/report_tools_server/**"
       - "tests/test_mcp_*.py"
       - ".github/workflows/mcp-canary.yml"
 
@@ -62,6 +63,7 @@ env:
     assets/ai/agentic_pipeline_authoring_tools/tests
     assets/ai/slack_chat_tools/tests
     assets/ai/teams_chat_tools/tests
+    assets/ai/report_tools_server/tests
 
 jobs:
   mcp:

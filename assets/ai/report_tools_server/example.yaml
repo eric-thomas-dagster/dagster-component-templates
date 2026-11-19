@@ -1,0 +1,7 @@
+type: dagster_community_components.ReportToolsServerComponent
+attributes:
+  mcp_server_resource_key: report_tools_mcp
+  files_dir: /var/dagster/report_tools_files
+  max_file_bytes: 5000000
+  max_files_per_run: 20
+  file_retention_hours: 24

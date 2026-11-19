@@ -55745,6 +55745,75 @@
       ]
     },
     {
+      "id": "report_tools_server",
+      "name": "report_tools_server",
+      "component_type": "dagster_community_components.ReportToolsServerComponent",
+      "path": "assets/ai/report_tools_server",
+      "category": "ai",
+      "icon": "ChartBar",
+      "description": "Deterministic chart / PDF / Word / Excel file builders for a chat agent: make_chart, make_pdf, make_docx, make_xlsx. The model fills in a schema (chart kind + series, or report sections); matplotlib/reportlab/python-docx/openpyxl render it -- no network, no credentials, every tool's output is a pure function of its arguments. Registers a resource and, when mcp_server_resource_key is set, a stdio MCP server any mcp_servers-aware agent (OpenAI/Anthropic/LiteLLM/Gemini) can call. Files are written per dagster/run_id under files_dir with a manifest.json slack_reply/teams_reply read to post every generated file into the chat thread.",
+      "tags": [
+        "agents",
+        "mcp",
+        "chat",
+        "chart",
+        "pdf",
+        "docx",
+        "xlsx",
+        "reporting"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/report_tools_server/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/report_tools_server/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/report_tools_server/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/report_tools_server/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/report_tools_server/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pydantic",
+          "matplotlib",
+          "reportlab",
+          "python-docx",
+          "openpyxl",
+          "mcp>=1.30,<3"
+        ]
+      },
+      "validation": {
+        "level": "unit",
+        "last_validated": "2026-11-19",
+        "evidence": "tests/ in the component dir: real matplotlib/reportlab/python-docx/openpyxl rendering (no mocked renderers) -- chart kind auto-resolution (time/categorical/multi-series/pie-fallback), timestamp bucketing with zero-filled gaps, PDF page count cross-checked against pypdf, chart embedding into PDF/Word via chart_file_id, per-run manifest scoping, max_file_bytes/max_files_per_run caps, retention sweep, and build_defs' plain-resource and mcp_server_resource_key wiring. Not yet exercised against a real chat run end-to-end (see slack_reply/teams_reply's own delivery-path validation for that)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": "files_dir (local directory root), allow (tool allow-list), max_file_bytes, max_files_per_run, file_retention_hours, run_id_template, mcp_server_resource_key.",
+        "outputs": "PNG/PDF/DOCX/XLSX files on disk under files_dir/<run_id>/, recorded in that run's manifest.json.",
+        "side_effects": "Writes files to files_dir; no network calls, no credentials.",
+        "anti_uses": "Does not fetch data itself, and does not post anywhere -- pair with slack_reply/teams_reply for delivery into a chat thread.",
+        "requires_resources": [],
+        "output_type": "none",
+        "requires_pip": [
+          "matplotlib",
+          "reportlab",
+          "python-docx",
+          "openpyxl",
+          "mcp"
+        ]
+      },
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "agents",
+        "mcp",
+        "chat",
+        "chart",
+        "pdf",
+        "docx",
+        "xlsx"
+      ]
+    },
+    {
       "id": "reranker",
       "name": "Reranker",
       "category": "ai",

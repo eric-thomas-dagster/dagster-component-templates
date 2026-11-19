@@ -1,0 +1,80 @@
+{
+  "component_type": "dagster_community_components.ReportToolsServerComponent",
+  "description": "Deterministic chart / PDF / Word / Excel file builders for the chat agent -- a component with mcp_server_resource_key that registers a stdio MCP server any agent (OpenAI/Anthropic/LiteLLM/Gemini) can call to make_chart / make_pdf / make_docx / make_xlsx from data it already has. No network, no credentials.",
+  "category": "ai",
+  "icon": "ChartBar",
+  "x-dagster-io": {},
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key the toolset is registered under",
+      "required": false
+    },
+    "files_dir": {
+      "type": "string",
+      "label": "Files Dir",
+      "description": "Local directory root for generated files, one subfolder per dagster/run_id. Create it with write access for whichever process runs the chat agent.",
+      "required": true
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "`f\"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}.\"`",
+      "required": false
+    },
+    "max_file_bytes": {
+      "type": "integer",
+      "label": "Max File Bytes",
+      "description": "Per-file size cap in bytes. A file over this is rejected, not truncated.",
+      "required": false
+    },
+    "max_files_per_run": {
+      "type": "integer",
+      "label": "Max Files Per Run",
+      "description": "Max files a single run (dagster/run_id) may generate across all tools.",
+      "required": false
+    },
+    "file_retention_hours": {
+      "type": "number",
+      "label": "File Retention Hours",
+      "description": "A run's generated files (and its manifest) are deleted this many hours after they were written -- swept opportunistically on each tool call, not a scheduled job.",
+      "required": false
+    },
+    "run_id_template": {
+      "type": "string",
+      "label": "Run Id Template",
+      "description": "Template for the REPORT_TOOLS_RUN_ID env var set on the stdio MCP server (mcp_server_resource_key only) -- left as the literal string '{run_id}' here; the CALLING agent's own generic {run_id}/{tag.*} substitution resolves it to the real run id before the subprocess is spawned (same mechanism as knowledge_search_server's run_id_template). This is what scopes every generated file and its manifest to the run that made it, so slack_reply / teams_reply only ever post files from their OWN run.",
+      "required": false
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings -- python -m this module, with REPORT_TOOLS_* env vars set from files_dir/allow/max_file_bytes/max_files_per_run/file_retention_hours/run_id_template. DAGSTER_HOME, DAGSTER_CLOUD_DEPLOYMENT_NAME, and anything listed in mcp_extra_env_vars are read fresh from the environment at run time, not baked in at component load. Any mcp_servers-aware component can then reference it via server_resource_key.",
+      "required": false
+    },
+    "mcp_extra_env_vars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Mcp Extra Env Vars",
+      "description": "mcp_server_resource_key only. Extra env var NAMES to copy (read fresh every time a consumer resolves the resource) from this process into the spawned MCP server's env.",
+      "required": false
+    }
+  },
+  "tags": [
+    "agents",
+    "mcp",
+    "chat",
+    "chart",
+    "pdf",
+    "docx",
+    "xlsx",
+    "reporting"
+  ],
+  "name": "report_tools_server"
+}

@@ -1,0 +1,10 @@
+dagster
+pydantic
+matplotlib
+reportlab
+python-docx
+openpyxl
+
+# only for the stdio MCP server entrypoint (python -m ...component); the toolset + resource
+# (resource_key path, no mcp_server_resource_key) do not need it
+mcp>=1.30,<3

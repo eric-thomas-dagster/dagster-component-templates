@@ -23,6 +23,22 @@ skip_on_exit_code: 99
 
 The asset still materializes successfully (Dagster has no native "skipped" status for a single-asset op); metadata records `skipped: true` and the real exit code so you can tell a real no-op apart from a plain success.
 
+## `success_exit_codes` — treat more nonzero codes as plain success
+
+Some legacy scripts exit nonzero on "nothing to do," and that should count as a normal success, not a skip. `success_exit_codes` is distinct from `skip_on_exit_code`: it adds no `skipped` metadata marker at all, just an ordinary successful materialization. Checked before `skip_on_exit_code` and before the exit-code-nonzero failure, so a code can only match one of the two:
+
+```yaml
+success_exit_codes: [5, 6]
+```
+
+## `dry_run` — log the command without running it
+
+```yaml
+dry_run: true
+```
+
+Logs the fully-resolved command (after `{partition_key}` substitution) and returns a successful materialization with no `subprocess.Popen` call at all — no `exit_code`/`stdout_preview` metadata either, since nothing ran. Every materialization (dry or real) always carries a `dry_run: true`/`false` metadata key, so a history shows which runs were real.
+
 ## `return_last_stdout_line` — feed a downstream asset the command's output
 
 A source system's shell step is often read by its downstream steps as its last line of output.
@@ -116,6 +132,8 @@ partition_start: "2024-01-01"
 | `cwd` | `str` | — | Working directory for the command. |
 | `env_vars` | `Dict[str, str]` | — | Additional env vars to pass to the shell (merged with the parent process's own environment). |
 | `skip_on_exit_code` | `int` | — | Exit code treated as a no-op success instead of a failure (Airflow's BashOperator default is 99 -- not defaulted here since this component predates this field and existing YAML may rely on every nonzero exit code failing… _(full docs in schema.json + component README)_ |
+| `success_exit_codes` | `List[int]` | — | Additional exit codes treated as a normal, successful materialization -- unlike skip_on_exit_code, no 'skipped' metadata marker, just success. For legacy scripts that exit nonzero on 'nothing to do' and should count as s… _(full docs in schema.json + component README)_ |
+| `dry_run` | `bool` | `false` | If True, log the fully-resolved command (after {partition_key} substitution) and skip actually running it -- no subprocess is spawned. Output metadata always includes dry_run so a materialization history shows which runs were real. |
 | `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
 | `return_last_stdout_line` | `bool` | `false` | Return the command's last non-empty stdout line as this asset's materialized value (via the IO manager), not just metadata, so a downstream asset can take it as an input the usual way. Mirrors what a source system's last… _(full docs in schema.json + component README)_ |
 | `parse_json_output` | `bool` | `false` | Only with return_last_stdout_line: if that last line parses as valid JSON, return the parsed value instead of the raw string. Falls back to the raw string when it isn't valid JSON. |

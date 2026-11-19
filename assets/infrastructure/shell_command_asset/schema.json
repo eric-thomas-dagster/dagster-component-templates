@@ -73,6 +73,15 @@
       "description": "Kill the command and fail the run if it runs longer than this many seconds. Unset: no timeout.",
       "required": false
     },
+    "success_exit_codes": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      },
+      "label": "Success Exit Codes",
+      "description": "Additional exit codes treated as a normal, successful materialization -- unlike skip_on_exit_code, no 'skipped' metadata marker, just success. For legacy scripts that exit nonzero on 'nothing to do' and should count as success, not a no-op. Checked before skip_on_exit_code and before the exit-code!=0 failure; 0 is always success and never needs to be listed here.",
+      "required": false
+    },
     "partition_type": {
       "default": null,
       "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
@@ -243,6 +252,12 @@
       "type": "boolean",
       "label": "Parse Json Output",
       "description": "Only with return_last_stdout_line: if that last line parses as valid JSON, return the parsed value instead of the raw string. Falls back to the raw string when it isn't valid JSON.",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "If True, log the fully-resolved command (after {partition_key} substitution) and skip actually running it -- no subprocess is spawned. Output metadata always includes dry_run so a materialization history shows which runs were real.",
       "required": false
     }
   },

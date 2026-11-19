@@ -30,6 +30,7 @@ def test_name_and_description_resolved_from_front_matter(mod, tmp_path):
     resource = defs.resources["pdf_skill"]
     assert resource.describe() == {
         "key": "pdf_skill", "name": "pdf-report", "description": "Generate a formatted PDF report from a DataFrame.",
+        "runnable_here": True,
     }
 
 
@@ -184,3 +185,48 @@ def test_unreachable_git_source_fails_clearly(mod, monkeypatch):
     component = mod.SkillResourceComponent(resource_key="broken_skill", git_url="https://example.com/nope-unique.git")
     with pytest.raises(RuntimeError, match="git clone"):
         component.build_defs(None)
+
+
+# --- describe(): runnable_here / needs_code_execution classification -------------------
+
+def test_describe_flags_a_bundled_script_as_needing_code_execution(mod, tmp_path):
+    local_path = _write_local_skill(tmp_path)
+    (tmp_path / "pdf-report" / "scripts").mkdir()
+    (tmp_path / "pdf-report" / "scripts" / "render.py").write_text("print('hi')")
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path)
+    result = component.build_defs(None).resources["pdf_skill"].describe()
+    assert result["runnable_here"] is False
+    assert result["needs_code_execution"] is True
+    assert result["code_execution_files"] == ["scripts/render.py"]
+
+
+def test_describe_flags_a_top_level_py_file_even_outside_scripts_dir(mod, tmp_path):
+    local_path = _write_local_skill(tmp_path)
+    (tmp_path / "pdf-report" / "helper.py").write_text("print('hi')")
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path)
+    result = component.build_defs(None).resources["pdf_skill"].describe()
+    assert result["needs_code_execution"] is True
+    assert result["code_execution_files"] == ["helper.py"]
+
+
+def test_describe_is_runnable_here_with_only_markdown_bundled_files(mod, tmp_path):
+    local_path = _write_local_skill(tmp_path)
+    (tmp_path / "pdf-report" / "reference.md").write_text("extra reference material")
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path)
+    result = component.build_defs(None).resources["pdf_skill"].describe()
+    assert result == {
+        "key": "pdf_skill", "name": "pdf-report", "description": "Generate a formatted PDF report from a DataFrame.",
+        "runnable_here": True,
+    }
+
+
+def test_describe_flags_skill_md_text_that_tells_the_model_to_run_a_script(mod, tmp_path):
+    content = (
+        "---\nname: pdf-report\ndescription: Generate a formatted PDF report from a DataFrame.\n---\n\n"
+        "## Instructions\n\nRun the python script to render the report.\n"
+    )
+    local_path = _write_local_skill(tmp_path, content=content)
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path)
+    result = component.build_defs(None).resources["pdf_skill"].describe()
+    assert result["needs_code_execution"] is True
+    assert result["code_execution_files"] == []

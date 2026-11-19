@@ -24,7 +24,7 @@ def test_collection_registers_one_resource_per_skill_subfolder(mod, tmp_path):
     component = mod.SkillResourceComponent(mode="collection", local_path=str(tmp_path))
     defs = component.build_defs(None)
     assert set(defs.resources) == {"pdf", "docx"}
-    assert defs.resources["pdf"].describe() == {"key": "pdf", "name": "pdf-report", "description": "Generate a PDF report."}
+    assert defs.resources["pdf"].describe() == {"key": "pdf", "name": "pdf-report", "description": "Generate a PDF report.", "runnable_here": True}
     assert defs.resources["docx"].describe()["name"] == "docx-report"
 
 

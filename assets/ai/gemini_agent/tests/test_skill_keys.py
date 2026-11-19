@@ -157,7 +157,7 @@ def test_skills_available_metadata_reflects_configured_skill(mod, monkeypatch, s
     md = result.get_asset_materialization_events()[-1].materialization.metadata
     available = md["skills_available"].value
     assert available == [
-        {"key": "pdf_report_skill", "name": "PDF Report Builder", "description": "Builds a formatted PDF report from tabular data."}
+        {"key": "pdf_report_skill", "name": "PDF Report Builder", "description": "Builds a formatted PDF report from tabular data.", "runnable_here": True}
     ]
     assert md["skills_loaded"].value == []
     assert md["skill_load_count"].value == 0
@@ -280,3 +280,49 @@ def test_dagster_community_skill_tag_absent_when_not_configured(mod):
 def test_skill_keys_accepts_csv_string(mod):
     component = mod.GeminiAgentComponent(asset_name="agent_out", prompt="hi", skill_keys="a, b")
     assert component.skill_keys == ["a", "b"]
+
+
+# --- a skill needing code execution is omitted from the listing/tools, not silently presented ---
+
+@pytest.fixture()
+def code_skill_resource(tmp_path):
+    skill_dir = tmp_path / "chart_skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: chart-skill\ndescription: Makes charts via a bundled script.\n---\n\n"
+        "## Instructions\n\nRun the script.\n"
+    )
+    (skill_dir / "scripts").mkdir()
+    (skill_dir / "scripts" / "make_chart.py").write_text("print('hi')")
+    skill_mod = load_skill_resource_module()
+    component = skill_mod.SkillResourceComponent(resource_key="chart_skill", local_path=str(skill_dir))
+    return component.build_defs(None).resources["chart_skill"]
+
+
+def test_code_execution_skill_omitted_from_listing_and_tools(mod, code_skill_resource, monkeypatch):
+    seen = _fake_genai(monkeypatch)
+    component = mod.GeminiAgentComponent(
+        asset_name="agent_out", prompt="hi", skill_keys=["chart_skill"],
+    )
+    result = _materialize(component, resources={"chart_skill": code_skill_resource})
+    assert result.success
+    cfg = seen["configs"][0]
+    tools = getattr(cfg, "tools", None) or []
+    fn_names = {d.name for t in tools for d in t.function_declarations}
+    assert "load_skill" not in fn_names
+
+
+def test_mixed_skills_listing_only_shows_the_runnable_one(mod, skill_resource, code_skill_resource, monkeypatch):
+    seen = _fake_genai(monkeypatch)
+    component = mod.GeminiAgentComponent(
+        asset_name="agent_out", prompt="hi", skill_keys=["pdf_report_skill", "chart_skill"],
+    )
+    result = _materialize(component, resources={"pdf_report_skill": skill_resource, "chart_skill": code_skill_resource})
+    assert result.success
+    cfg = seen["configs"][0]
+    tools = getattr(cfg, "tools", None) or []
+    fn_names = {d.name for t in tools for d in t.function_declarations}
+    assert "load_skill" in fn_names
+    system_instruction = getattr(cfg, "system_instruction", "") or ""
+    assert "PDF Report Builder" in system_instruction
+    assert "chart-skill" not in system_instruction

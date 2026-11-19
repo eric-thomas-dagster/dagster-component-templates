@@ -320,6 +320,21 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                 info = res.describe()
                 skill_resources[info["name"]] = res
 
+            # A skill that needs code execution (bundled scripts, or SKILL.md text that
+            # tells the model to run one) can't actually be used through load_skill/
+            # read_skill_file -- this loop has no code execution at all. Filtered into a
+            # SEPARATE dict (not `skill_resources` itself) so skills_available metadata
+            # below still shows every CONFIGURED skill; only the model-facing listing and
+            # _run_agent's own dispatch use the filtered one below.
+            _unusable_skills = [name for name, res in skill_resources.items() if not res.describe().get("runnable_here", True)]
+            for _name in _unusable_skills:
+                _d = skill_resources[_name].describe()
+                context.log.warning(
+                    f"skill {_name!r} needs code execution ({_d.get('code_execution_files')}) -- omitted "
+                    "from skill_keys (this agent's load_skill/read_skill_file loop has no code execution)."
+                )
+            usable_skill_resources = {k: v for k, v in skill_resources.items() if k not in _unusable_skills}
+
             substitutions = {"run_id": context.run_id}
             if context.has_partition_key:
                 pk = context.partition_key
@@ -334,9 +349,9 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
 
             # Skills go into context up front as just name + description (cheap); the
             # full SKILL.md body only loads if the model actually calls load_skill.
-            if skill_resources:
+            if usable_skill_resources:
                 _skill_lines = "\n".join(
-                    f"- {name}: {res.describe()['description']}" for name, res in skill_resources.items()
+                    f"- {name}: {res.describe()['description']}" for name, res in usable_skill_resources.items()
                 )
                 _skill_listing = (
                     "\n\nAvailable skills (call load_skill with the skill's name to load "
@@ -363,7 +378,7 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                             reasoning_effort=_self.reasoning_effort,
                             thinking_budget=_self.thinking_budget,
                             prompt_caching=_self.prompt_caching,
-                            skill_resources=skill_resources,
+                            skill_resources=usable_skill_resources,
                             allowed_tools=_self.allowed_tools,
                         )
                     )

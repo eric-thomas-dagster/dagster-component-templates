@@ -91,7 +91,7 @@ def test_do_tool_use_loop_resolves_real_skill_and_loads_real_skill_md(mod, fake_
     assert out["skills_loaded"] == ["pdf-report-skill"]
     assert out["skill_load_count"] == 1
     assert out["skills_available"] == [
-        {"key": "pdf_skill", "name": "pdf-report-skill", "description": "Generate a formatted PDF report from tabular data."}
+        {"key": "pdf_skill", "name": "pdf-report-skill", "description": "Generate a formatted PDF report from tabular data.", "runnable_here": True}
     ]
 
     # The model-facing tool result for load_skill is the real SKILL.md content
@@ -206,3 +206,68 @@ def test_two_skill_keys_do_not_crash_build_defs_on_tag_value_validation(mod, fak
     assert "," not in tag_value
     assert len(tag_value) <= 63
     assert "pdf_skill" in tag_value and "other_skill" in tag_value
+
+
+# --- a skill needing code execution is omitted from the listing/tools, not silently presented ---
+
+@pytest.fixture
+def code_skill_dir(tmp_path):
+    d = tmp_path / "chart_skill"
+    d.mkdir()
+    (d / "SKILL.md").write_text(
+        "---\nname: chart-skill\ndescription: Makes charts via a bundled script.\n---\n\n"
+        "## Instructions\n\nRun the script.\n"
+    )
+    (d / "scripts").mkdir()
+    (d / "scripts" / "make_chart.py").write_text("print('hi')")
+    return d
+
+
+@pytest.fixture
+def code_skill_resource(code_skill_dir):
+    from resources.skill_resource.component import SkillResourceComponent
+
+    component = SkillResourceComponent(resource_key="chart_skill", local_path=str(code_skill_dir))
+    return component.build_defs(None).resources["chart_skill"]
+
+
+def test_code_execution_skill_omitted_from_listing_and_tools(mod, fake_litellm, tool_use_loop_capture, code_skill_resource):
+    from .conftest import new_state
+
+    fake_litellm.reply("", tool_calls=[tool_call("finalize", {"answer": "done"}, id="fin")])
+
+    ctx = _ctx_with_resources(chart_skill=code_skill_resource)
+    step = {
+        "id": "agent", "op": "tool_use_loop", "model": "gpt-4o-mini",
+        "mcp_servers": [{"name": "inline", "type": "stdio", "command": ["x"]}],
+        "skill_keys": ["chart_skill"],
+    }
+    out = mod._do_tool_use_loop(step, new_state(), ctx)
+    assert out["text"] == "done"
+    tool_names = {t["function"]["name"] for t in fake_litellm.calls[0]["tools"]}
+    assert "load_skill" not in tool_names
+    system_msg = next(m for m in fake_litellm.calls[0]["messages"] if m.get("role") == "system")
+    assert "chart-skill" not in system_msg["content"]
+
+
+def test_mixed_skills_listing_only_shows_the_runnable_one(mod, fake_litellm, tool_use_loop_capture, skill_resource, code_skill_resource):
+    from .conftest import new_state
+
+    fake_litellm.reply("", tool_calls=[tool_call("finalize", {"answer": "done"}, id="fin")])
+
+    ctx = _ctx_with_resources(pdf_skill=skill_resource, chart_skill=code_skill_resource)
+    step = {
+        "id": "agent", "op": "tool_use_loop", "model": "gpt-4o-mini",
+        "mcp_servers": [{"name": "inline", "type": "stdio", "command": ["x"]}],
+        "skill_keys": ["pdf_skill", "chart_skill"],
+    }
+    out = mod._do_tool_use_loop(step, new_state(), ctx)
+    assert out["text"] == "done"
+    tool_names = {t["function"]["name"] for t in fake_litellm.calls[0]["tools"]}
+    assert "load_skill" in tool_names
+    system_msg = next(m for m in fake_litellm.calls[0]["messages"] if m.get("role") == "system")
+    assert "pdf-report-skill" in system_msg["content"]
+    assert "chart-skill" not in system_msg["content"]
+    # skills_available still reports BOTH configured skills, including the excluded one.
+    available_names = {d["name"] for d in out["skills_available"]}
+    assert available_names == {"pdf-report-skill", "chart-skill"}

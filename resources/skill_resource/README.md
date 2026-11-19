@@ -130,8 +130,20 @@ a UI would otherwise show as present but empty.
 
 The registered `SkillResource` exposes:
 
-- **`describe() -> {key, name, description}`** -- cheap, no I/O. This is the part an
-  agent sees up front, before choosing whether to use the skill.
+- **`describe() -> {key, name, description, runnable_here, ...}`** -- the part an agent
+  sees up front, before choosing whether to use the skill. Also classifies whether it's
+  usable in a plain (non-code-execution) `load_skill`/`read_skill_file` loop: a
+  markdown-only skill gets `runnable_here: true`; a skill that bundles a script (under
+  `scripts/`, or by extension -- `.py`/`.js`/`.sh`/etc.) or whose own SKILL.md text tells
+  the model to run one gets `runnable_here: false` + `needs_code_execution: true` +
+  `code_execution_files` (the files that triggered it). Every agent component listed
+  above drops a skill like this from its `skill_keys` listing automatically (logging a
+  clear warning instead) -- it can't actually be used through `load_skill`/
+  `read_skill_file` (which only ever return text, never execute anything) -- running one
+  needs a hosted code-execution mechanism instead. This is a heuristic, not a perfect
+  classifier -- the extension/`scripts/` check is exact,
+  the SKILL.md-text check is a conservative regex that can miss an unusually-phrased
+  instruction.
 - **`load() -> {content, files}`** -- `content` is the full `SKILL.md` text; `files` is
   every other file bundled alongside it in the skill folder (relative paths, recursive).
   Only called once an agent has actually chosen the skill -- never inlined into every

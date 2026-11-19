@@ -215,7 +215,7 @@ def test_skills_available_metadata_and_load_skill_tool_use_loop(mod, skill_resou
     md = result.get_asset_materialization_events()[-1].materialization.metadata
     skills_available = md["skills_available"].data
     assert skills_available == [
-        {"key": "pdf_skill", "name": "pdf-report", "description": "Generate a formatted PDF report from a DataFrame."}
+        {"key": "pdf_skill", "name": "pdf-report", "description": "Generate a formatted PDF report from a DataFrame.", "runnable_here": True}
     ]
     assert md["skills_loaded"].data == ["pdf-report"]
     assert md["skill_load_count"].value == 1
@@ -264,3 +264,71 @@ def test_no_skill_metadata_when_skill_keys_not_configured(mod, monkeypatch):
     assert "skills_available" not in md
     assert "skills_loaded" not in md
     assert "skill_load_count" not in md
+
+
+# ---- a skill needing code execution is omitted from the listing, not silently presented --------
+
+@pytest.fixture()
+def code_skill_dir(tmp_path):
+    d = tmp_path / "chart-skill"
+    d.mkdir()
+    (d / "SKILL.md").write_text(
+        "---\nname: chart-skill\ndescription: Makes charts via a bundled script.\n---\n\n"
+        "## Instructions\n\nRun the script.\n"
+    )
+    (d / "scripts").mkdir()
+    (d / "scripts" / "make_chart.py").write_text("print('hi')")
+    return d
+
+
+@pytest.fixture()
+def code_skill_resource(code_skill_dir):
+    skill_resource_mod = _load_skill_resource_module()
+    component = skill_resource_mod.SkillResourceComponent(
+        resource_key="chart_skill", local_path=str(code_skill_dir)
+    )
+    return component.build_defs(None).resources["chart_skill"]
+
+
+def test_a_code_execution_only_skill_registers_no_tools_or_listing(mod, code_skill_resource, monkeypatch):
+    component = mod.AnthropicAgentComponent(
+        asset_name="agent_out", prompt="hi", skill_keys=["chart_skill"],
+    )
+    seen = {}
+
+    def turn1(kw):
+        seen["tools"] = kw.get("tools")
+        seen["system"] = kw.get("system")
+        blk = types.SimpleNamespace(type="text", text="done")
+        return types.SimpleNamespace(content=[blk], stop_reason="end_turn")
+
+    monkeypatch.setitem(sys.modules, "anthropic", _fake_anthropic_module([turn1]))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+
+    result = _run(component, resources={"chart_skill": code_skill_resource})
+    assert result.success
+    assert not seen.get("tools")  # load_skill/read_skill_file never registered -- nothing usable
+    assert "chart-skill" not in (seen.get("system") or "")
+
+
+def test_mixed_skills_listing_only_shows_the_runnable_one(mod, skill_resource, code_skill_resource, monkeypatch):
+    component = mod.AnthropicAgentComponent(
+        asset_name="agent_out", prompt="hi", skill_keys=["pdf_skill", "chart_skill"],
+    )
+    seen = {}
+
+    def turn1(kw):
+        seen["tools"] = kw.get("tools")
+        seen["system"] = kw.get("system")
+        blk = types.SimpleNamespace(type="text", text="done")
+        return types.SimpleNamespace(content=[blk], stop_reason="end_turn")
+
+    monkeypatch.setitem(sys.modules, "anthropic", _fake_anthropic_module([turn1]))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+
+    result = _run(component, resources={"pdf_skill": skill_resource, "chart_skill": code_skill_resource})
+    assert result.success
+    assert "pdf-report" in seen["system"]
+    assert "chart-skill" not in seen["system"]
+    tool_names = {t["name"] for t in seen["tools"]}
+    assert {"load_skill", "read_skill_file"} <= tool_names

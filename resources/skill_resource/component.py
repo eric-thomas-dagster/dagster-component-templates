@@ -196,8 +196,16 @@ class SkillResource(dg.ConfigurableResource):
         return Path(self.local_path)
 
     def describe(self) -> dict:
-        """Cheap, no I/O -- the part of a skill an agent sees before choosing to load it."""
-        return {"key": self.key, "name": self.name, "description": self.description}
+        """The part of a skill an agent sees before choosing to load it -- plus whether it's
+        actually usable in a plain (non-code-execution) tool-use loop: `runnable_here: true`
+        for a markdown-only skill, or `needs_code_execution: true` + `code_execution_files`
+        (scripts and the like) otherwise. No network I/O: by the time any SkillResource
+        instance exists, its skill directory was already fetched once at component load
+        time (to read SKILL.md's own front matter), so this only re-walks an already-local
+        directory."""
+        result = {"key": self.key, "name": self.name, "description": self.description}
+        result.update(_classify_skill_dir(self._skill_dir()))
+        return result
 
     def load(self) -> dict:
         """Returns {"content": <full SKILL.md text>, "files": [<other bundled files in the
@@ -222,6 +230,38 @@ class SkillResource(dg.ConfigurableResource):
         if not target.is_file():
             raise FileNotFoundError(f"No such file {relative_path!r} in skill folder {skill_dir}")
         return target.read_text()
+
+
+_CODE_EXTENSIONS = {".py", ".js", ".ts", ".sh", ".bash", ".rb", ".pl", ".go", ".rs", ".java", ".ipynb", ".ps1"}
+_RUN_HINT_PATTERN = re.compile(
+    r"\b(run|execute|invoke)\b[^.\n]{0,40}\b(python|node|npm|bash|sh|script|command|\.py|\.js|\.sh)\b", re.I,
+)
+
+
+def _classify_skill_dir(skill_dir: Path) -> Dict[str, Any]:
+    """A skill is markdown-only (`runnable_here: true`) when every bundled file is text/
+    markdown and its own SKILL.md body never tells the model to run a script or command --
+    the two things nothing in this repo's plain tool-use loops (load_skill/read_skill_file)
+    can actually do; those need item 1's hosted code execution (anthropic_agent's
+    hosted_skills) instead. A heuristic, not a perfect classifier: the extension/`scripts/`
+    check is exact, the SKILL.md-text check is a conservative regex that can miss an
+    unusually-phrased instruction (a false negative) -- flagging a genuinely markdown-only
+    skill (a false positive) isn't expected in practice."""
+    code_files = []
+    for p in sorted(skill_dir.rglob("*")):
+        if not p.is_file() or p.name == "SKILL.md":
+            continue
+        rel = p.relative_to(skill_dir).as_posix()
+        if p.suffix.lower() in _CODE_EXTENSIONS or rel.startswith("scripts/") or "/scripts/" in rel:
+            code_files.append(rel)
+    run_hint = False
+    skill_md = skill_dir / "SKILL.md"
+    if skill_md.is_file():
+        _, body = _split_frontmatter(skill_md.read_text())
+        run_hint = bool(_RUN_HINT_PATTERN.search(body))
+    if code_files or run_hint:
+        return {"runnable_here": False, "needs_code_execution": True, "code_execution_files": sorted(code_files)}
+    return {"runnable_here": True}
 
 
 def _read_skill_md_or_none(folder: Path) -> Optional[str]:

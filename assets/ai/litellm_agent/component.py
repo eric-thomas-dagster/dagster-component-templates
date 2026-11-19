@@ -737,6 +737,19 @@ async def _run_agent(
     from contextlib import AsyncExitStack
 
     skill_resources = skill_resources or {}
+    # A skill that needs code execution (bundled scripts, or SKILL.md text that tells the
+    # model to run one) can't actually be used through load_skill/read_skill_file -- this
+    # loop has no code execution at all (that's a separate, hosted-sandbox mechanism).
+    # Dropped here, at the very top, so every later use of skill_resources below (the
+    # listing AND the load_skill/read_skill_file dispatch) only ever sees usable skills.
+    _unusable_skills = [name for name, res in skill_resources.items() if not res.describe().get("runnable_here", True)]
+    for _name in _unusable_skills:
+        _d = skill_resources[_name].describe()
+        log.warning(
+            f"skill {_name!r} needs code execution ({_d.get('code_execution_files')}) -- omitted "
+            "from skill_keys (this agent's load_skill/read_skill_file loop has no code execution)."
+        )
+    skill_resources = {k: v for k, v in skill_resources.items() if k not in _unusable_skills}
 
     try:
         import litellm

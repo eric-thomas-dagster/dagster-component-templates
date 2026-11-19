@@ -724,6 +724,22 @@ async def _run_agent(
     client = AsyncAnthropic(**client_kwargs)
 
     skill_resources = skill_resources or {}  # skill display name -> SkillResource
+    # A skill that needs code execution (bundled scripts, or SKILL.md text that tells the
+    # model to run one) can't actually be used through load_skill/read_skill_file -- this
+    # loop has no code execution at all (that's hosted_skills, a separate, hosted-sandbox
+    # mechanism). Dropped here, at the very top, so every later use of skill_resources
+    # below (the listing AND the load_skill/read_skill_file dispatch) only ever sees
+    # usable skills -- never lists one the model would fail to use, and never loads one by
+    # name even if the model somehow guessed it anyway.
+    _unusable = [name for name, res in skill_resources.items() if not res.describe().get("runnable_here", True)]
+    for _name in _unusable:
+        _d = skill_resources[_name].describe()
+        log.warning(
+            f"skill {_name!r} needs code execution ({_d.get('code_execution_files')}) -- omitted "
+            "from skill_keys (this agent's load_skill/read_skill_file loop has no code execution); "
+            "use hosted_skills for a skill like this."
+        )
+    skill_resources = {k: v for k, v in skill_resources.items() if k not in _unusable}
 
     async with AsyncExitStack() as stack:
         tool_index, anthropic_tools, servers_used = await _connect_mcp(stack, log, mcp_servers, allowed_tools)

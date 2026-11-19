@@ -254,3 +254,69 @@ def test_read_skill_file_does_not_increment_load_count(mod, skill_resource, monk
     assert detail["tool"] == "read_skill_file"
     assert detail["is_error"] is False
     assert "report template" in detail["result_preview"]
+
+
+# --- a skill needing code execution is omitted from the listing/tools, not silently presented ---
+
+def _fake_openai_module_capture(monkeypatch):
+    class Msg:
+        content = "done"
+        tool_calls = None
+
+    seen = {}
+
+    class _Completions:
+        async def create(self, **kw):
+            seen["tools"] = kw.get("tools")
+            seen["messages"] = kw.get("messages")
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=Msg(), finish_reason="stop")])
+
+    class AsyncOpenAI:
+        def __init__(self, **kw):
+            self.chat = types.SimpleNamespace(completions=_Completions())
+
+    fake = types.ModuleType("openai")
+    fake.AsyncOpenAI = AsyncOpenAI
+    monkeypatch.setitem(sys.modules, "openai", fake)
+    monkeypatch.setenv("FAKE_VERCEL_KEY", "sk-fake")
+    return seen
+
+
+@pytest.fixture()
+def code_skill_resource(tmp_path):
+    skill_dir = tmp_path / "chart_skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: chart-skill\ndescription: Makes charts via a bundled script.\n---\n\n"
+        "## Instructions\n\nRun the script.\n"
+    )
+    (skill_dir / "scripts").mkdir()
+    (skill_dir / "scripts" / "make_chart.py").write_text("print('hi')")
+    skill_resource_mod = _load_skill_resource_module()
+    component = skill_resource_mod.SkillResourceComponent(resource_key="chart_skill", local_path=str(skill_dir))
+    return component.build_defs(None).resources["chart_skill"]
+
+
+def test_code_execution_skill_omitted_from_listing_and_tools(mod, code_skill_resource, monkeypatch):
+    seen = _fake_openai_module_capture(monkeypatch)
+    component = mod.VercelAIGatewayAgentComponent(
+        asset_name="agent_out", prompt="hi", skill_keys=["chart_skill"], api_key_env_var="FAKE_VERCEL_KEY",
+    )
+    result = _run(component, resources={"chart_skill": code_skill_resource})
+    assert result.success
+    tool_names = {t["function"]["name"] for t in (seen.get("tools") or [])}
+    assert "load_skill" not in tool_names
+
+
+def test_mixed_skills_listing_only_shows_the_runnable_one(mod, skill_resource, code_skill_resource, monkeypatch):
+    seen = _fake_openai_module_capture(monkeypatch)
+    component = mod.VercelAIGatewayAgentComponent(
+        asset_name="agent_out", prompt="hi", skill_keys=["pdf_skill", "chart_skill"], api_key_env_var="FAKE_VERCEL_KEY",
+    )
+    result = _run(component, resources={"pdf_skill": skill_resource, "chart_skill": code_skill_resource})
+    assert result.success
+    tool_names = {t["function"]["name"] for t in (seen.get("tools") or [])}
+    assert "load_skill" in tool_names
+    system_messages = " ".join(m.get("content") or "" for m in seen["messages"] if m.get("role") == "system")
+    assert "pdf-report" in system_messages
+    assert "chart-skill" not in system_messages

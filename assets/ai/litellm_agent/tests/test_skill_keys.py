@@ -202,6 +202,7 @@ def test_skills_available_metadata_reflects_configured_skill(mod, skill_resource
     assert available == [{
         "key": "pdf_report_skill", "name": "pdf-report",
         "description": "Generate a formatted PDF report from a DataFrame.",
+        "runnable_here": True,
     }]
 
 
@@ -349,3 +350,54 @@ def test_skill_keys_csv_string_coerced_to_list(mod):
         asset_name="agent_out", prompt="hi", skill_keys="pdf_report_skill, other_skill",
     )
     assert component.skill_keys == ["pdf_report_skill", "other_skill"]
+
+
+# --- a skill needing code execution is omitted from the listing/tools, not silently presented ---
+
+@pytest.fixture()
+def code_skill_resource(skill_resource_mod, tmp_path):
+    d = tmp_path / "chart-skill"
+    d.mkdir()
+    (d / "SKILL.md").write_text(
+        "---\nname: chart-skill\ndescription: Makes charts via a bundled script.\n---\n\n"
+        "## Instructions\n\nRun the script.\n"
+    )
+    (d / "scripts").mkdir()
+    (d / "scripts" / "make_chart.py").write_text("print('hi')")
+    component = skill_resource_mod.SkillResourceComponent(resource_key="chart_skill", local_path=str(d))
+    return component.build_defs(None).resources["chart_skill"]
+
+
+def _fake_litellm_final_answer(seen):
+    async def acompletion(messages, **kw):
+        seen["last_tools"] = kw.get("tools")
+        seen["last_messages"] = messages
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=_Msg("done"))])
+    return acompletion
+
+
+def test_code_execution_skill_omitted_from_listing_and_tools(mod, code_skill_resource, monkeypatch):
+    seen = {}
+    _install_fake_litellm(monkeypatch, _fake_litellm_final_answer(seen))
+    component = mod.LiteLLMAgentComponent(
+        asset_name="agent_out", prompt="hi", skill_keys=["chart_skill"], api_key_env_var=None,
+    )
+    result = _run(component.build_defs(None).assets, {"chart_skill": code_skill_resource})
+    assert result.success
+    tool_names = {t["function"]["name"] for t in (seen.get("last_tools") or [])}
+    assert "load_skill" not in tool_names
+
+
+def test_mixed_skills_listing_only_shows_the_runnable_one(mod, skill_resource, code_skill_resource, monkeypatch):
+    seen = {}
+    _install_fake_litellm(monkeypatch, _fake_litellm_final_answer(seen))
+    component = mod.LiteLLMAgentComponent(
+        asset_name="agent_out", prompt="hi", skill_keys=["pdf_report_skill", "chart_skill"], api_key_env_var=None,
+    )
+    result = _run(component.build_defs(None).assets, {"pdf_report_skill": skill_resource, "chart_skill": code_skill_resource})
+    assert result.success
+    tool_names = {t["function"]["name"] for t in (seen.get("last_tools") or [])}
+    assert "load_skill" in tool_names
+    system_msg = next(m for m in seen["last_messages"] if m.get("role") == "system")
+    assert "pdf-report" in system_msg["content"]
+    assert "chart-skill" not in system_msg["content"]

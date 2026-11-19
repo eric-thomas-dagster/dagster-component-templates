@@ -3630,10 +3630,26 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         info = res.describe()
         skill_resources[info["name"]] = res
 
-    if skill_resources:
+    # A skill that needs code execution (bundled scripts, or SKILL.md text that tells the
+    # model to run one) can't actually be used through load_skill/read_skill_file -- this
+    # loop has no code execution at all (that's a separate, hosted-sandbox mechanism).
+    # Filtered into a SEPARATE dict (not `skill_resources` itself) so the step's own
+    # skills_available result below still shows every CONFIGURED skill; only the
+    # model-facing listing, the synthetic tool schemas, and the dispatch lookups further
+    # down use the filtered one.
+    _unusable_skills = [name for name, res in skill_resources.items() if not res.describe().get("runnable_here", True)]
+    for _name in _unusable_skills:
+        _d = skill_resources[_name].describe()
+        context.log.warning(
+            f"skill {_name!r} needs code execution ({_d.get('code_execution_files')}) -- omitted "
+            "from skill_keys (tool_use_loop has no code execution)."
+        )
+    usable_skill_resources = {k: v for k, v in skill_resources.items() if k not in _unusable_skills}
+
+    if usable_skill_resources:
         skills_block = "\n".join(
             f"- {res.describe()['name']}: {res.describe()['description']}"
-            for res in skill_resources.values()
+            for res in usable_skill_resources.values()
         )
         system_prompt = system_prompt + (
             "\n\nAvailable skills (call load_skill with the skill's name to load its full "
@@ -3666,7 +3682,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     # one SkillResource. `load_skill` fetches the full SKILL.md body (only
     # once the model actually chooses the skill — progressive disclosure,
     # never inlined up front); `read_skill_file` reads one bundled file.
-    if skill_resources:
+    if usable_skill_resources:
         tool_schemas.append({
             "type": "function",
             "function": {
@@ -3894,9 +3910,9 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             # chooses it). Not an MCP tool, so handled before tool_index routing.
             if tool_name == "load_skill":
                 skill_name = tool_args.get("name")
-                res = skill_resources.get(skill_name)
+                res = usable_skill_resources.get(skill_name)
                 if res is None:
-                    error_msg = f"unknown skill: {skill_name!r}; available: {sorted(skill_resources.keys())}"
+                    error_msg = f"unknown skill: {skill_name!r}; available: {sorted(usable_skill_resources.keys())}"
                     messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"ERROR: {error_msg}"})
                     trajectory.append({
                         "iteration": iteration, "phase": "tool_call_error",
@@ -3926,10 +3942,10 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             if tool_name == "read_skill_file":
                 skill_name = tool_args.get("name")
                 relative_path = tool_args.get("relative_path")
-                res = skill_resources.get(skill_name)
+                res = usable_skill_resources.get(skill_name)
                 error_msg = None
                 if res is None:
-                    error_msg = f"unknown skill: {skill_name!r}; available: {sorted(skill_resources.keys())}"
+                    error_msg = f"unknown skill: {skill_name!r}; available: {sorted(usable_skill_resources.keys())}"
                 elif not relative_path:
                     error_msg = "read_skill_file requires `relative_path`"
                 if error_msg is not None:

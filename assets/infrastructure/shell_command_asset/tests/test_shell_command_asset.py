@@ -97,6 +97,46 @@ def test_skip_on_exit_code_unset_treats_the_same_exit_code_as_a_real_failure(mod
     assert not result.success
 
 
+def test_success_exit_codes_counts_as_a_plain_success_not_skipped(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="exit 5", success_exit_codes=[5, 6])
+    result = materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert md["exit_code"].value == 5
+    assert "skipped" not in md  # distinct from skip_on_exit_code -- no skipped marker
+
+
+def test_success_exit_codes_unset_treats_the_code_as_a_real_failure(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="exit 5")
+    result = materialize(component, raise_on_error=False)
+    assert not result.success
+
+
+def test_success_exit_codes_does_not_affect_other_nonzero_codes(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="exit 7", success_exit_codes=[5, 6])
+    result = materialize(component, raise_on_error=False)
+    assert not result.success
+
+
+def test_dry_run_skips_the_actual_command(mod, tmp_path):
+    marker = tmp_path / "marker"
+    component = mod.ShellCommandAssetComponent(asset_name="t", command=f"touch {marker}", dry_run=True)
+    result = materialize(component)
+    assert result.success
+    assert not marker.exists()
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert md["dry_run"].value is True
+    assert "exit_code" not in md
+
+
+def test_dry_run_false_by_default_and_marks_a_real_run(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="echo hello")
+    result = materialize(component)
+    assert result.success
+    md = result.asset_materializations_for_node("t")[0].metadata
+    assert md["dry_run"].value is False
+
+
 def test_timeout_seconds_kills_a_long_running_command(mod):
     component = mod.ShellCommandAssetComponent(asset_name="t", command="sleep 30", timeout_seconds=1)
     start = time.monotonic()

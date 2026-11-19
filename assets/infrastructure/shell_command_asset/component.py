@@ -220,6 +220,20 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Kill the command and fail the run if it runs longer than this many seconds. Unset: no timeout.",
     )
+    success_exit_codes: Optional[List[int]] = Field(
+        default=None,
+        description=(
+            "Additional exit codes treated as a normal, successful materialization -- unlike "
+            "skip_on_exit_code, no 'skipped' metadata marker, just success. For legacy scripts "
+            "that exit nonzero on 'nothing to do' and should count as success, not a no-op. "
+            "Checked before skip_on_exit_code and before the exit-code!=0 failure; 0 is always "
+            "success and never needs to be listed here."
+        ),
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="If True, log the fully-resolved command (after {partition_key} substitution) and skip actually running it -- no subprocess is spawned. Output metadata always includes dry_run so a materialization history shows which runs were real.",
+    )
     pool: Optional[str] = Field(
         default=None,
         description=(
@@ -285,6 +299,8 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         cwd = self.cwd
         env_vars = self.env_vars or {}
         skip_on_exit_code = self.skip_on_exit_code
+        success_exit_codes = self.success_exit_codes
+        dry_run = self.dry_run
         timeout_seconds = self.timeout_seconds
         return_last_stdout_line = self.return_last_stdout_line
         parse_json_output = self.parse_json_output
@@ -358,6 +374,13 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             else:
                 cwd_resolved = cwd
 
+            if dry_run:
+                context.log.info(f"[dry_run] would run: $ {cmd}")
+                metadata = {"dry_run": dg.MetadataValue.bool(True)}
+                if return_last_stdout_line:
+                    return dg.Output(None, metadata=metadata)
+                return dg.MaterializeResult(metadata=metadata)
+
             merged_env = {**os.environ, **env_vars}
             print(f"$ {cmd}", flush=True)
             # executable="/bin/bash" (not the shell=True default of /bin/sh, which on many Linux
@@ -416,18 +439,20 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 metadata = {
                     "exit_code": dg.MetadataValue.int(proc.returncode),
                     "skipped": dg.MetadataValue.bool(True),
+                    "dry_run": dg.MetadataValue.bool(False),
                     "stdout_preview": dg.MetadataValue.text("".join(stdout_lines)[:2000]),
                 }
                 if return_last_stdout_line:
                     return dg.Output(_last_line_value(), metadata=metadata)
                 return dg.MaterializeResult(metadata=metadata)
-            if proc.returncode != 0:
+            if proc.returncode != 0 and not (success_exit_codes and proc.returncode in success_exit_codes):
                 raise dg.Failure(
                     description=f"Shell command exited {proc.returncode}",
                     metadata={"stderr": dg.MetadataValue.text(stderr_data[:2000])},
                 )
             metadata = {
                 "exit_code": dg.MetadataValue.int(proc.returncode),
+                "dry_run": dg.MetadataValue.bool(False),
                 "stdout_preview": dg.MetadataValue.text("".join(stdout_lines)[:2000]),
             }
             if return_last_stdout_line:

@@ -302,3 +302,60 @@ def test_placeholder_text_post_failure_does_not_block_the_launch(monkeypatch, ch
     result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
     assert len(result.run_requests) == 1
     assert "slack/placeholder_ts" not in result.run_requests[0].tags
+
+
+# --- regression: conversations.replies returning the thread's own parent every tick ------
+
+def test_replies_api_returning_the_parent_message_every_time_does_not_relaunch(monkeypatch, chat_agent_asset):
+    """Regression (0.10.170 with placeholder_text set): Slack's conversations.replies can
+    return the thread's own parent message regardless of `oldest` -- without the
+    ts<=last_seen (and ts==thread_ts) filter, this parent (a human message) is treated as a
+    brand-new reply forever, relaunching the same run_key -- and re-posting the placeholder
+    and acknowledgement reaction -- every tick."""
+    component = _component(placeholder_text="Looking into it…")
+    sensor_def = component.build_defs(context=None).sensors[0]
+    parent = _msg("100.001", "U1", "<@UBOT> original question", thread_ts="100.001")
+    client = _FakeClient(root_messages=[], replies_by_thread={"100.001": [parent]})
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+
+    result = sensor_def(_ctx({"last_ts": "100.002", "threads": {"100.001": "100.005"}}))
+    assert result.run_requests == []
+    assert client.calls["chat_post"] == []
+    assert client.calls["reactions"] == []
+
+
+def test_replies_api_returning_an_already_seen_reply_is_also_filtered(monkeypatch, chat_agent_asset):
+    component = _component()
+    sensor_def = component.build_defs(context=None).sensors[0]
+    already_seen = _msg("100.005", "U1", "a follow-up", thread_ts="100.001")
+    client = _FakeClient(root_messages=[], replies_by_thread={"100.001": [already_seen]})
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+
+    result = sensor_def(_ctx({"last_ts": "100.002", "threads": {"100.001": "100.005"}}))
+    assert result.run_requests == []
+
+
+# --- launched_run_keys: independent defense-in-depth against re-launching -----------------
+
+def test_launched_run_keys_in_cursor_prevents_relaunch_even_if_a_candidate_reappears(monkeypatch, chat_agent_asset):
+    component = _component(placeholder_text="Looking into it…")
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[_msg("100.001", "U1", "<@UBOT> hi")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}, "launched_run_keys": ["ask_dagster:100.001"]}))
+    assert result.run_requests == []
+    assert client.calls["chat_post"] == []
+    assert client.calls["reactions"] == []
+
+
+def test_launched_run_keys_recorded_in_cursor_after_a_real_launch(monkeypatch, chat_agent_asset):
+    component = _component()
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[_msg("100.001", "U1", "<@UBOT> hi")])
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
+    assert len(result.run_requests) == 1
+    cursor = json.loads(result.cursor)
+    assert cursor["launched_run_keys"] == ["ask_dagster:100.001"]

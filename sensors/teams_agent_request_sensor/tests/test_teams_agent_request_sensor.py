@@ -338,3 +338,25 @@ def test_placeholder_text_post_failure_does_not_block_the_launch(tmp_path, monke
     result = sensor_def(_ctx({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
     assert len(result.run_requests) == 1
     assert "teams/placeholder_id" not in result.run_requests[0].tags
+
+
+# --- launched_run_keys: defense-in-depth against re-launching (same fix as slack_agent_request_sensor) ---
+
+def test_launched_run_keys_in_cursor_prevents_relaunch_even_if_a_candidate_reappears(tmp_path, monkeypatch, chat_agent_asset):
+    component = _component(tmp_path, placeholder_text="Looking into it…")
+    sensor_def = component.build_defs(context=None).sensors[0]
+    calls = _install_fakes(monkeypatch, root_messages=[_msg("m1", "2026-01-01T00:00:01Z", "U1", mentions=_mention("BOTAPPID"))])
+    result = sensor_def(_ctx({"last_ts": "2026-01-01T00:00:00Z", "threads": {}, "launched_run_keys": ["ask_dagster_teams:m1"]}))
+    assert result.run_requests == []
+    assert [c for c in calls["post"] if c[0].endswith("/replies")] == []
+    assert [c for c in calls["post"] if "setReaction" in c[0]] == []
+
+
+def test_launched_run_keys_recorded_in_cursor_after_a_real_launch(tmp_path, monkeypatch, chat_agent_asset):
+    component = _component(tmp_path)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    _install_fakes(monkeypatch, root_messages=[_msg("m1", "2026-01-01T00:00:01Z", "U1", mentions=_mention("BOTAPPID"))])
+    result = sensor_def(_ctx({"last_ts": "2026-01-01T00:00:00Z", "threads": {}}))
+    assert len(result.run_requests) == 1
+    cursor = json.loads(result.cursor)
+    assert cursor["launched_run_keys"] == ["ask_dagster_teams:m1"]

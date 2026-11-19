@@ -44,6 +44,8 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import dagster as dg
 from pydantic import Field
 
+_MAX_LAUNCHED_RUN_KEYS = 1000  # bounds the persisted run_key dedup set -- see _launch's own check.
+
 
 def _now_slack_ts() -> str:
     """Slack timestamps are decimal-seconds strings ('1700000000.123456'); this is a synthetic
@@ -317,6 +319,8 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 except Exception:  # noqa: BLE001 -- a corrupt cursor restarts clean rather than crashing the sensor forever
                     state = {"last_ts": "0", "threads": {}}
             last_ts = state.get("last_ts", "0")
+            launched_run_keys: List[str] = list(state.get("launched_run_keys") or [])
+            launched_set = set(launched_run_keys)
             threads: Dict[str, str] = dict(state.get("threads") or {})
 
             bot_id = configured_bot_user_id or _discover_bot_user_id(client)
@@ -341,8 +345,17 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                     except Exception as e:  # noqa: BLE001 -- one bad thread must never block the others
                         notes.append(f"thread {thread_ts}: conversations_replies failed: {e}")
                         continue
+                    last_seen_for_thread = threads[thread_ts]
                     for m in replies:
                         if not m.get("user") or m.get("subtype") or m.get("bot_id") or m.get("user") == bot_id:
+                            continue
+                        if m["ts"] == thread_ts or float(m["ts"]) <= float(last_seen_for_thread):
+                            # conversations.replies always returns the thread's own parent
+                            # message as part of the page, whatever `oldest` is set to --
+                            # confirmed against real Slack behavior, not just its docs, which
+                            # don't carve out this exception explicitly. Re-filter here rather
+                            # than trust `oldest` alone, or the parent (and any reply already
+                            # processed) gets treated as a brand new message forever.
                             continue
                         reply_candidates.append(m)
                     if replies:
@@ -352,6 +365,17 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             email_cache: Dict[str, Optional[str]] = {}
 
             def _launch(m: Dict[str, Any]):
+                run_key = f"{sensor_name}:{m['ts']}"
+                if run_key in launched_set:
+                    # Already launched (this tick or an earlier one) -- Dagster's own
+                    # run_key dedup would silently drop a second RunRequest for it anyway,
+                    # but only AFTER this function's side effects (placeholder post,
+                    # acknowledgement reaction) already ran. Checking here, before any of
+                    # that, is what actually stops a message from being re-launched
+                    # (and re-acknowledged) every tick.
+                    return
+                launched_set.add(run_key)
+                launched_run_keys.append(run_key)
                 sender_id = m["user"]
                 thread_ts = m.get("thread_ts") or m["ts"]
                 threads[thread_ts] = max(threads.get(thread_ts, thread_ts), m["ts"], key=float)
@@ -373,7 +397,7 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                         notes.append(f"message {m['ts']}: placeholder post failed: {e}")
                 run_config = {"execution": {"config": {"in_process": {}}}} if use_in_process_executor else {}
                 run_requests.append(dg.RunRequest(
-                    run_key=f"{sensor_name}:{m['ts']}", asset_selection=sensor_asset_selection, tags=tags, run_config=run_config,
+                    run_key=run_key, asset_selection=sensor_asset_selection, tags=tags, run_config=run_config,
                 ))
                 if post_acknowledgement:
                     try:
@@ -393,7 +417,10 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 _launch(m)
 
             threads = dict(sorted(threads.items(), key=lambda kv: kv[1], reverse=True)[:known_threads_limit])
-            new_cursor = json.dumps({"last_ts": new_last_ts, "threads": threads})
+            new_cursor = json.dumps({
+                "last_ts": new_last_ts, "threads": threads,
+                "launched_run_keys": launched_run_keys[-_MAX_LAUNCHED_RUN_KEYS:],
+            })
 
             for n in notes:
                 context.log.info(n)

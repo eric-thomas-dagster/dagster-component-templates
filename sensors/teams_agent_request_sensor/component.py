@@ -56,6 +56,7 @@ import dagster as dg
 from pydantic import Field
 
 _GRAPH = "https://graph.microsoft.com/v1.0"
+_MAX_LAUNCHED_RUN_KEYS = 1000  # bounds the persisted run_key dedup set -- see _launch's own check.
 
 
 # ── Inline fs helper: local + cloud (s3://, gs://, abfs://) via fsspec. Kept inline per
@@ -492,6 +493,8 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                     state = {"last_ts": epoch, "threads": {}}
             last_ts = state.get("last_ts", epoch)
             threads: Dict[str, str] = dict(state.get("threads") or {})
+            launched_run_keys: List[str] = list(state.get("launched_run_keys") or [])
+            launched_set = set(launched_run_keys)
 
             bot_application_id = configured_bot_application_id or os.environ.get(client_env)
 
@@ -526,6 +529,20 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             email_cache: Dict[str, Optional[str]] = {}
 
             def _launch(m: Dict[str, Any], *, thread_id: str, parent_id_for_reaction: Optional[str]):
+                run_key = f"{sensor_name}:{m['id']}"
+                if run_key in launched_set:
+                    # Already launched (this tick or an earlier one) -- Dagster's own
+                    # run_key dedup would silently drop a second RunRequest for it anyway,
+                    # but only AFTER this function's side effects (placeholder post,
+                    # acknowledgement reaction) already ran. Checking here, before any of
+                    # that, is what actually stops a message from being re-launched (and
+                    # re-acknowledged) every tick -- same fix as slack_agent_request_sensor's
+                    # own launched_run_keys, applied here as defense-in-depth even though
+                    # Teams' own replies endpoint has no known equivalent to the Slack bug
+                    # that motivated it (Graph's replies list never returns the thread root).
+                    return
+                launched_set.add(run_key)
+                launched_run_keys.append(run_key)
                 sender = (m.get("from") or {}).get("user") or {}
                 sender_id = sender.get("id") or ""
                 threads[thread_id] = max(threads.get(thread_id, m.get("createdDateTime", "")), m.get("createdDateTime", ""))
@@ -547,7 +564,7 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                         notes.append(f"message {m['id']}: placeholder post failed: {e}")
                 run_config = {"execution": {"config": {"in_process": {}}}} if use_in_process_executor else {}
                 run_requests.append(dg.RunRequest(
-                    run_key=f"{sensor_name}:{m['id']}", asset_selection=sensor_asset_selection, tags=tags, run_config=run_config,
+                    run_key=run_key, asset_selection=sensor_asset_selection, tags=tags, run_config=run_config,
                 ))
                 if post_acknowledgement:
                     try:
@@ -565,7 +582,10 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 _launch(m, thread_id=thread_id, parent_id_for_reaction=thread_id)
 
             threads = dict(sorted(threads.items(), key=lambda kv: kv[1], reverse=True)[:known_threads_limit])
-            new_cursor = json.dumps({"last_ts": new_last_ts, "threads": threads})
+            new_cursor = json.dumps({
+                "last_ts": new_last_ts, "threads": threads,
+                "launched_run_keys": launched_run_keys[-_MAX_LAUNCHED_RUN_KEYS:],
+            })
 
             for n in notes:
                 context.log.info(n)

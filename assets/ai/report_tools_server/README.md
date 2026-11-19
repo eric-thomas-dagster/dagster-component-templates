@@ -106,13 +106,16 @@ feed it data straight from the standard Dagster+ MCP server instead of needing
   window (`after`/`before`), and a `granularity` (`HOURLY`/`DAILY`/`WEEKLY`/`MONTHLY`), and
   return a time series as a list of `{period` or `timestamp, value}` per entity -- reshape that
   directly into `series` (one `{name, x, y}` per entity) rather than `timestamps`+`bucket`.
-- **We could not confirm whether a run- or step-failure COUNT is among the Insights metric
-  names** -- checked, not assumed: every metrics tool (`list_deployment_metric_types`,
-  `list_job_metric_types`, `get_deployment_metrics`) returned HTTP 500 against the Dagster+
-  deployment we had access to while building this, so we could not list what metric names
-  exist there. If your own deployment's `list_deployment_metric_types`/`list_job_metric_types`
-  turns up nothing failure-shaped, use `list_runs` + the `timestamps`/`bucket`/`group_by` mode
-  instead -- it needs no metric name at all, just raw run rows.
+- **Run- and step-failure counts ARE built-in Insights metric names**, confirmed against
+  Dagster's own docs (not live-tested: every metrics tool -- `list_deployment_metric_types`,
+  `list_job_metric_types`, `get_deployment_metrics` -- returned HTTP 500 against the one
+  Dagster+ deployment we had access to while building this, an access/deployment issue, not
+  evidence the metrics don't exist). Jobs scope: "Run failure count", "Step failures", "Step
+  retries"; deployment scope: "Step failures"; assets scope: "Failure count" (failed
+  materialization attempts). If your own deployment's `list_deployment_metric_types`/
+  `list_job_metric_types` doesn't surface one of these (an outage, a plan tier, a naming
+  difference), fall back to `list_runs` + the `timestamps`/`bucket`/`group_by` mode instead --
+  it needs no metric name at all, just raw run rows.
 - `dagster_instance_tools` keeps working for everyone already using it (its own
   `list_recent_runs`/`run_counts` tools are unaffected); this only means you no longer NEED it
   just to get a chart.

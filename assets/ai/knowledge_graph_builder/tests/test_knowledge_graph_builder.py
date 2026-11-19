@@ -664,6 +664,67 @@ def test_write_graph_sync_mode_must_be_valid(mod, tmp_path):
         mod._do_write_graph(df, {"provider": "networkx", "path": str(tmp_path / "kg.json"), "sync_mode": "bogus"}, "doc_id", _Logger(), partitioned=False)
 
 
+def test_write_graph_prune_missing_sources_deletes_edges_from_a_vanished_source(mod, tmp_path):
+    path = str(tmp_path / "kg.json")
+    first = pd.DataFrame([
+        {"doc_id": "d1", "chunk_id": "c1", "content_hash": "h1", "subject": "Alice", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Acme", "object_type": "ORG", "confidence": 0.9, "evidence": "ev1"},
+        {"doc_id": "d2", "chunk_id": "c2", "content_hash": "h2", "subject": "Bob", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Beta", "object_type": "ORG", "confidence": 0.9, "evidence": "ev2"},
+    ])
+    mod._do_write_graph(first, {"provider": "networkx", "path": path}, "doc_id", _Logger(), partitioned=False)
+    # d2 is gone upstream -- a second run's full snapshot only contains d1.
+    second = pd.DataFrame([
+        {"doc_id": "d1", "chunk_id": "c1", "content_hash": "h1", "subject": "Alice", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Acme", "object_type": "ORG", "confidence": 0.9, "evidence": "ev1"},
+    ])
+    mod._do_write_graph(second, {"provider": "networkx", "path": path, "prune_missing_sources": True}, "doc_id", _Logger(), partitioned=False)
+    g = mod._build_networkx_graph(path)
+    assert g.has_edge("Alice", "Acme")
+    assert not g.has_edge("Bob", "Beta")
+    assert "Bob" not in g.nodes and "Beta" not in g.nodes
+
+
+def test_write_graph_prune_missing_sources_leaves_mixed_source_edges_alone(mod, tmp_path):
+    """An edge whose sources are a MIX of still-valid and vanished ids is left alone -- only pruned
+    once every one of its sources is confirmed gone."""
+    path = str(tmp_path / "kg.json")
+    first = pd.DataFrame([
+        {"doc_id": "d1", "chunk_id": "c1", "content_hash": "h1", "subject": "Alice", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Acme", "object_type": "ORG", "confidence": 0.9, "evidence": "ev1"},
+        {"doc_id": "d2", "chunk_id": "c2", "content_hash": "h2", "subject": "Alice", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Acme", "object_type": "ORG", "confidence": 0.9, "evidence": "ev2"},
+    ])
+    mod._do_write_graph(first, {"provider": "networkx", "path": path}, "doc_id", _Logger(), partitioned=False)
+    second = pd.DataFrame([
+        {"doc_id": "d1", "chunk_id": "c1", "content_hash": "h1", "subject": "Alice", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Acme", "object_type": "ORG", "confidence": 0.9, "evidence": "ev1"},
+    ])
+    mod._do_write_graph(second, {"provider": "networkx", "path": path, "prune_missing_sources": True}, "doc_id", _Logger(), partitioned=False)
+    g = mod._build_networkx_graph(path)
+    assert g.has_edge("Alice", "Acme")
+
+
+def test_write_graph_prune_missing_sources_refused_when_partitioned(mod, tmp_path):
+    df = pd.DataFrame([{"doc_id": "d1", "subject": "A", "relation": "r", "object": "B"}])
+    with pytest.raises(ValueError, match="prune_missing_sources"):
+        mod._do_write_graph(df, {"provider": "networkx", "path": str(tmp_path / "kg.json"), "prune_missing_sources": True}, "doc_id", _Logger(), partitioned=True)
+
+
+def test_write_graph_prune_missing_sources_off_by_default(mod, tmp_path):
+    path = str(tmp_path / "kg.json")
+    first = pd.DataFrame([
+        {"doc_id": "d1", "chunk_id": "c1", "content_hash": "h1", "subject": "Bob", "subject_type": "PERSON",
+         "relation": "works_at", "object": "Beta", "object_type": "ORG", "confidence": 0.9, "evidence": "ev1"},
+    ])
+    mod._do_write_graph(first, {"provider": "networkx", "path": path}, "doc_id", _Logger(), partitioned=False)
+    second = pd.DataFrame([{"doc_id": "d2", "chunk_id": "c2", "content_hash": "h2", "subject": "Alice", "subject_type": "PERSON",
+                            "relation": "works_at", "object": "Acme", "object_type": "ORG", "confidence": 0.9, "evidence": "ev2"}])
+    mod._do_write_graph(second, {"provider": "networkx", "path": path}, "doc_id", _Logger(), partitioned=False)
+    g = mod._build_networkx_graph(path)
+    assert g.has_edge("Bob", "Beta")  # d1 never showed up in the second run, but pruning wasn't requested
+
+
 # ─── graph_preview (run-metadata preview) ──────────────────────────────────
 
 def test_graph_preview_defaults_to_top_60_nodes_untruncated_for_small_graph(mod, tmp_path):
@@ -1126,6 +1187,13 @@ def test_do_write_graph_sql_replace_sources_not_supported(mod):
     session = mod._SqlSession(lambda s: None, lambda s: [])
     with pytest.raises(ValueError, match="replace_sources"):
         mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg", "replace_sources", False, 60, _Ctx())
+
+
+@requires_duckdb
+def test_do_write_graph_sql_prune_missing_sources_not_supported(mod):
+    session = mod._SqlSession(lambda s: None, lambda s: [])
+    with pytest.raises(ValueError, match="prune_missing_sources"):
+        mod._do_write_graph_sql(session, "snowflake_cortex", "staging", "kg", "upsert", False, 60, _Ctx(), prune_missing_sources=True)
 
 
 @requires_duckdb

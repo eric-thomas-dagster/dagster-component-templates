@@ -18,6 +18,25 @@ Native vector storage in S3 (GA since December 2025) -- no separate vector datab
 
 For `provider: chromadb` or `provider: qdrant`, you can point this writer at a shared connection instead of repeating `connection_string`/`api_key` here: set `chroma_resource_key` (or `qdrant_resource_key`) to the `resource_key` of a registered [`ChromaResourceComponent`](../../../resources/chroma_resource) (or [`QdrantResourceComponent`](../../../resources/qdrant_resource)), and that resource's own client is used instead of building a fresh one. This is precedence, not an exclusivity rule -- set the resource key and it wins; leave it unset and `connection_string`/`api_key` keep working exactly as before. Ignored for every other provider.
 
+## Stable ids and pruning deleted sources (`id_column` / `prune_missing_sources`)
+
+By default every vector gets a positional id (`doc_{i}`), derived from the row's position in the
+DataFrame -- fine for a one-shot write, but not idempotent: if row order ever changes between runs,
+a later run can silently overwrite a *different* document's vector at the same position, or leave
+an old document's vector behind forever once it's no longer produced upstream. Set `id_column` to a
+column holding a stable per-row id (a document or chunk id) and every provider derives the vector's
+id from that value instead, so re-running with the same source data updates the same vectors.
+
+With `id_column` set, `prune_missing_sources: true` also deletes any vector already in the
+collection whose id is **not** present in this run's data -- treating this run as the full current
+source catalog, not an incremental batch (the same contract as
+[`knowledge_graph_builder`](../knowledge_graph_builder)'s own `prune_missing_sources`). Supported on
+`chromadb`, `pinecone` and `qdrant` (each can list and delete by id). Not supported on `faiss` (no
+delete API -- would need a full index rebuild) or `s3vectors` (not yet implemented here); either
+raises a clear error at component-construction time rather than silently no-oping. Qdrant requires
+point ids to be an unsigned integer or a UUID, so a non-numeric, non-UUID `id_column` value is
+mapped to a deterministic UUID5 (same input always maps to the same id).
+
 ## Ingestion
 
 Two ways to get embeddings in, set exactly one:
@@ -53,6 +72,8 @@ This mirrors `context_engineering_pipeline`'s dual-ingestion design, so this com
 - **api_key** (string) - API key (`${API_KEY}`)
 - **batch_size** (integer) - default: `100`
 - **upsert** (boolean) - default: `true`
+- **id_column** (string) - stable per-row source id, instead of positional ids
+- **prune_missing_sources** (boolean) - default: `false` - delete vectors whose source is gone (requires `id_column`; chromadb/pinecone/qdrant only)
 
 ## Input & Output
 
@@ -145,6 +166,8 @@ Returns a dictionary with status information:
 | `enabled_column` | `str` | — | Column (bool-like) marking each row enabled/disabled. Written into every vector's own metadata as 'enabled' -- re-running the writer with a changed value updates it in place (upsert), no delete needed. A missing/NaN valu… _(full docs in schema.json + component README)_ |
 | `chroma_resource_key` | `str` | — | Optional key of a registered ChromaResourceComponent (resources/chroma_resource). Only used when provider='chromadb'. When set, the client comes from that resource's get_client() instead of building a fresh chromadb.Pers… _(full docs in schema.json + component README)_ |
 | `qdrant_resource_key` | `str` | — | Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only used when provider='qdrant'. When set, the client comes from that resource's get_client() instead of building a fresh QdrantClient fr… _(full docs in schema.json + component README)_ |
+| `id_column` | `str` | — | Column with a stable per-row source id (e.g. a document or chunk id). When set, vector ids are derived from this column's value instead of the row's position in the DataFrame, so upserts are idempotent across runs (today… _(full docs in schema.json + component README)_ |
+| `prune_missing_sources` | `bool` | `false` | After writing, delete every vector in the collection whose id_column value is not present in this run's data -- treats this run as the FULL current source catalog, not an incremental batch (the same contract as knowledge… _(full docs in schema.json + component README)_ |
 | `upsert` | `bool` | `true` | Upsert if exists |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include a sample of written rows (text/metadata columns, not the raw embedding vectors) in run metadata. |

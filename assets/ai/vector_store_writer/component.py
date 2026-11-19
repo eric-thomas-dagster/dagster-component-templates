@@ -324,6 +324,23 @@ def _build_s3vectors_client(region_name: str) -> Any:
     return boto3.client("s3vectors", region_name=region_name)
 
 
+def _qdrant_point_id(value: Any):
+    """Qdrant point ids must be an unsigned integer or a UUID -- an arbitrary id_column string (a
+    document id, a hash) is neither, so it is mapped to a deterministic UUID5 (same input -> same
+    id every run, so upserts stay idempotent and prune_missing_sources can recognize its own ids)."""
+    import uuid
+
+    s = str(value)
+    try:
+        return int(s)
+    except ValueError:
+        pass
+    try:
+        return str(uuid.UUID(s))
+    except ValueError:
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, s))
+
+
 class _DemoS3VectorsClient:
     """Deterministic, zero-cost stand-in for `boto3.client("s3vectors")`.
     Persists to a local JSON file so a demo writer run and a later demo query
@@ -414,6 +431,27 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             "used when provider='qdrant'. When set, the client comes from that resource's "
             "get_client() instead of building a fresh QdrantClient from connection_string/api_key. "
             "Leave unset to use connection_string/api_key (existing behavior, unchanged)."
+        ),
+    )
+    id_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column with a stable per-row source id (e.g. a document or chunk id). When set, vector ids "
+            "are derived from this column's value instead of the row's position in the DataFrame, so "
+            "upserts are idempotent across runs (today's default, positional 'doc_{i}' ids silently "
+            "collide with whatever content happened to land at that position in an earlier run, if row "
+            "order ever changes). Required when prune_missing_sources is true."
+        ),
+    )
+    prune_missing_sources: bool = Field(
+        default=False,
+        description=(
+            "After writing, delete every vector in the collection whose id_column value is not present "
+            "in this run's data -- treats this run as the FULL current source catalog, not an "
+            "incremental batch (the same contract as knowledge_graph_builder's own prune_missing_sources). "
+            "Requires id_column. Supported on chromadb, pinecone and qdrant (each can list/delete by id); "
+            "not supported on faiss (no delete API -- would need a full index rebuild) or s3vectors "
+            "(not yet implemented here)."
         ),
     )
     batch_size: int = Field(default=100, description="Batch size")
@@ -604,6 +642,19 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             )
         return self
 
+    @model_validator(mode="after")
+    def _validate_prune_missing_sources(self):
+        if self.prune_missing_sources:
+            if not self.id_column:
+                raise ValueError("VectorStoreWriterComponent: prune_missing_sources requires `id_column`.")
+            if self.provider in ("faiss", "s3vectors"):
+                raise ValueError(
+                    f"VectorStoreWriterComponent: prune_missing_sources is not supported for provider={self.provider!r} "
+                    f"({'faiss has no delete API -- would need a full index rebuild' if self.provider == 'faiss' else 'not yet implemented for s3vectors'}). "
+                    "Supported providers: chromadb, pinecone, qdrant."
+                )
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -623,6 +674,8 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         qdrant_resource_key = self.qdrant_resource_key
         batch_size = self.batch_size
         upsert = self.upsert
+        id_column = self.id_column
+        prune_missing_sources = self.prune_missing_sources
         vector_bucket_name = self.vector_bucket_name
         aws_region = self.aws_region
         demo_mode = self.demo_mode
@@ -813,7 +866,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
 
                     embeddings = df[embedding_column].tolist()
                     texts = df[text_column].tolist() if text_column in df.columns else None
-                    ids = [f"doc_{i}" for i in range(len(df))]
+                    ids = df[id_column].astype(str).tolist() if id_column else [f"doc_{i}" for i in range(len(df))]
                     metadatas = df[_effective_metadata_columns].to_dict('records') if _effective_metadata_columns else None
 
                     for i in range(0, len(df), batch_size):
@@ -824,6 +877,13 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                             ids=ids[i:batch_end],
                             metadatas=metadatas[i:batch_end] if metadatas else None
                         )
+
+                    if prune_missing_sources:
+                        existing_ids = collection.get(include=[])["ids"]
+                        stale_ids = [i for i in existing_ids if i not in set(ids)]
+                        if stale_ids:
+                            collection.delete(ids=stale_ids)
+                            context.log.info(f"prune_missing_sources: deleted {len(stale_ids)} vector(s) no longer in the source")
 
             elif provider == "pinecone":
                 from pinecone import Pinecone
@@ -837,13 +897,21 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                         if col in df.columns:
                             metadata[col] = row[col]
                     vectors.append({
-                        "id": f"doc_{idx}",
+                        "id": str(row[id_column]) if id_column else f"doc_{idx}",
                         "values": row[embedding_column],
                         "metadata": metadata
                     })
 
                 for i in range(0, len(vectors), batch_size):
                     index.upsert(vectors=vectors[i:i + batch_size])
+
+                if prune_missing_sources:
+                    this_run_ids = {v["id"] for v in vectors}
+                    existing_ids = [item.id for page in index.list() for item in page.vectors]
+                    stale_ids = [vid for vid in existing_ids if vid not in this_run_ids]
+                    if stale_ids:
+                        index.delete(ids=stale_ids)
+                        context.log.info(f"prune_missing_sources: deleted {len(stale_ids)} vector(s) no longer in the source")
 
             elif provider == "qdrant":
                 from qdrant_client import QdrantClient
@@ -864,15 +932,31 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                         )
 
                     points = []
+                    this_run_point_ids = set()
                     for idx, row in df.iterrows():
                         payload = {text_column: row[text_column]} if text_column in df.columns else {}
                         for col in _effective_metadata_columns:
                             if col in df.columns:
                                 payload[col] = row[col]
-                        points.append(PointStruct(id=idx, vector=row[embedding_column], payload=payload))
+                        point_id = _qdrant_point_id(row[id_column]) if id_column else idx
+                        this_run_point_ids.add(point_id)
+                        points.append(PointStruct(id=point_id, vector=row[embedding_column], payload=payload))
 
                     for i in range(0, len(points), batch_size):
                         client.upsert(collection_name=collection_name, points=points[i:i + batch_size])
+
+                    if prune_missing_sources:
+                        stale_ids = []
+                        offset = None
+                        while True:
+                            records, offset = client.scroll(collection_name=collection_name, with_payload=False, with_vectors=False, offset=offset, limit=256)
+                            stale_ids.extend(r.id for r in records if r.id not in this_run_point_ids)
+                            if offset is None:
+                                break
+                        if stale_ids:
+                            from qdrant_client.models import PointIdsList
+                            client.delete(collection_name=collection_name, points_selector=PointIdsList(points=stale_ids))
+                            context.log.info(f"prune_missing_sources: deleted {len(stale_ids)} vector(s) no longer in the source")
 
             elif provider == "faiss":
                 import faiss
@@ -920,7 +1004,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                         if col in df.columns:
                             metadata[col] = row[col]
                     vectors.append({
-                        "key": f"doc_{idx}",
+                        "key": str(row[id_column]) if id_column else f"doc_{idx}",
                         "data": {"float32": [float(x) for x in row[embedding_column]]},
                         "metadata": metadata,
                     })

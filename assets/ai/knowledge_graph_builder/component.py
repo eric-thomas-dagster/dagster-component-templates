@@ -62,7 +62,14 @@ Op coverage:
                 no longer produces -- a shrunk document stops leaving stale
                 edges behind), or 'replace_all' (the graph becomes exactly
                 this run's triples; refused when partitioned, same rule as
-                `vector_store_writer`'s own replace_all).
+                `vector_store_writer`'s own replace_all). `prune_missing_sources`
+                (bool, default False, any sync_mode): also deletes edges whose
+                source(s) have disappeared from the upstream data altogether --
+                `replace_sources` never catches that case, since a vanished
+                source never again appears in this run's ids to trigger it.
+                Requires this run's `id_column` values to be the FULL current
+                set of valid sources (a complete snapshot, not an incremental
+                batch); refused when partitioned, same reason as replace_all.
 
 Every edge in the resulting graph carries real provenance: which source
 row(s) (`source_ids`), which chunk(s) (`chunk_ids` + `content_hashes`, so a
@@ -688,13 +695,20 @@ def _build_sql_graph_preview_queries(nodes_tbl: str, edges_tbl: str, limit: int)
 
 
 def _do_write_graph_sql(session, dialect: str, staging_tbl: str, output_table: str, sync_mode: str,
-                        partitioned: bool, preview_max_nodes: int, context) -> Dict[str, Any]:
+                        partitioned: bool, preview_max_nodes: int, context, prune_missing_sources: bool = False) -> Dict[str, Any]:
     if sync_mode == "replace_sources":
         raise ValueError(
             "execution_mode='sql': sync_mode='replace_sources' is not supported -- the sql_tables "
             "schema keeps only an aggregate chunk_ids array per edge, not a per-source_id "
             "breakdown, so there's no way to tell whether a source row's contribution should be "
             "removed without re-deriving it. Use 'upsert' or 'replace_all', or execution_mode='python'."
+        )
+    if prune_missing_sources:
+        raise ValueError(
+            "execution_mode='sql': prune_missing_sources is not supported -- same reason as "
+            "sync_mode='replace_sources': the sql_tables schema keeps only an aggregate chunk_ids "
+            "array per edge, not a per-source_id breakdown, so there's no way to tell whether an "
+            "edge's sources have all disappeared. Use execution_mode='python' instead."
         )
     if sync_mode not in ("upsert", "replace_all"):
         raise ValueError(f"execution_mode='sql': sync_mode must be 'upsert' or 'replace_all', got {sync_mode!r}.")
@@ -778,7 +792,8 @@ def _run_knowledge_graph_sql_mode(
         try:
             session.execute(f"CREATE OR REPLACE TABLE {staging_tbl} AS\n{extract_query}")
             stats = _do_write_graph_sql(session, dialect, staging_tbl, output_table, sync_mode, partitioned,
-                                        int(write_step.get("preview_max_nodes", 60)), context)
+                                        int(write_step.get("preview_max_nodes", 60)), context,
+                                        prune_missing_sources=bool(write_step.get("prune_missing_sources", False)))
         finally:
             with contextlib.suppress(Exception):
                 session.execute(f"DROP TABLE IF EXISTS {staging_tbl}")
@@ -1682,15 +1697,32 @@ def _compute_graph_preview(provider: str, step: dict, graph_name: str, max_nodes
 
 def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, partitioned: bool) -> pd.DataFrame:
     """Knobs: provider (networkx|neo4j|falkordb), sync_mode (upsert default | replace_sources |
-    replace_all -- refused when partitioned), graph_name, plus provider connection fields (see
-    the module docstring). Merges this run's triples into node/edge provenance: mention_count,
-    aliases (nodes); chunk_ids/source_ids/content_hashes/evidences parallel arrays (edges)."""
+    replace_all -- refused when partitioned), prune_missing_sources, graph_name, plus provider
+    connection fields (see the module docstring). Merges this run's triples into node/edge
+    provenance: mention_count, aliases (nodes); chunk_ids/source_ids/content_hashes/evidences
+    parallel arrays (edges).
+
+    ``prune_missing_sources`` (default False) is a different cleanup than ``sync_mode='replace_sources'``:
+    that mode only touches edges whose source IS present this run (replacing stale ones with fresh
+    ones); it never deletes an edge whose source has disappeared from the upstream data entirely, since
+    a vanished source never again shows up in ``source_ids_this_run`` to trigger it -- those edges
+    orphan forever. ``prune_missing_sources`` instead treats this run's ``id_column`` values as the
+    FULL current universe of valid sources (so it requires the upstream query/asset to be a complete
+    snapshot, not an incremental batch) and deletes any edge whose ``source_ids`` are entirely outside
+    that set, then any node left with no edges. An edge that mixes a still-valid source with a vanished
+    one is left alone (conservative: only act when every one of its sources is confirmed gone)."""
     provider = step.get("provider", "networkx")
     sync_mode = step.get("sync_mode", "upsert")
+    prune_missing_sources = bool(step.get("prune_missing_sources", False))
     if sync_mode not in ("upsert", "replace_sources", "replace_all"):
         raise ValueError(f"write_graph op: sync_mode must be upsert, replace_sources or replace_all, got {sync_mode!r}")
     if sync_mode == "replace_all" and partitioned:
         raise ValueError("write_graph op: sync_mode='replace_all' would delete other partitions' triples; use replace_sources or upsert.")
+    if prune_missing_sources and partitioned:
+        raise ValueError(
+            "write_graph op: prune_missing_sources would delete other partitions' triples (this run's id_column "
+            "values are only this partition's sources, not the full universe); use it only unpartitioned."
+        )
     required = ("subject", "relation", "object")
     for col in required:
         if col not in df.columns:
@@ -1758,6 +1790,13 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
             g.add_edge(s, o, relation=r, confidence=e["confidence"], mention_count=e["mention_count"],
                        chunk_ids=e["chunk_ids"], source_ids=e["source_ids"], content_hashes=e["content_hashes"],
                        evidences=e["evidences"])
+        if prune_missing_sources and source_ids_this_run:
+            for u, v, k, data in list(g.edges(keys=True, data=True)):
+                sids = set(data.get("source_ids") or [])
+                if sids and sids.isdisjoint(source_ids_this_run):
+                    g.remove_edge(u, v, key=k)
+            for n in [n for n in g.nodes if g.degree(n) == 0]:
+                g.remove_node(n)
         _save_networkx_graph(g, path)
         node_count, edge_count = g.number_of_nodes(), g.number_of_edges()
         degrees = dict(g.degree())
@@ -1803,6 +1842,18 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
                 "MATCH (n {graph: $graph_name}) WHERE NOT (n)--() DETACH DELETE n",
                 {"graph_name": graph_name},
             )
+        if prune_missing_sources and source_ids_this_run:
+            _run_graph_query(
+                provider, step,
+                "MATCH (a)-[r {graph: $graph_name}]->(b) WHERE size(r.source_ids) > 0 "
+                "AND NOT any(sid IN r.source_ids WHERE sid IN $source_ids) DELETE r",
+                {"graph_name": graph_name, "source_ids": list(source_ids_this_run)},
+            )
+            _run_graph_query(
+                provider, step,
+                "MATCH (n {graph: $graph_name}) WHERE NOT (n)--() DETACH DELETE n",
+                {"graph_name": graph_name},
+            )
         counts = _run_graph_query(
             provider, step,
             "MATCH (n {graph: $graph_name}) WITH count(n) AS nodes "
@@ -1828,6 +1879,7 @@ def _do_write_graph(df: pd.DataFrame, step: dict, id_column: str, context, parti
     out.attrs["stats"] = {
         "node_count": node_count, "edge_count": edge_count, "top_entities": top_entities,
         "store_location": store_location, "sync_mode": sync_mode, "provider": provider,
+        "prune_missing_sources": prune_missing_sources,
         "chunk_count": len(chunk_ids_this_run), "entities_linked_to_chunks": len(entities_this_run),
         "graph_preview": {"nodes": graph_preview["nodes"], "edges": graph_preview["edges"]},
         "preview_truncated": graph_preview["truncated"],
@@ -2014,7 +2066,9 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
             "Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` names a prior "
             "step's id to read from; defaults to the immediately preceding step. The first step must be "
             "op='chunk'. Valid ops: 'chunk', 'extract' (method: llm|spacy), 'resolve', 'write_graph' "
-            "(provider: networkx|neo4j|falkordb, sync_mode: upsert|replace_sources|replace_all). "
+            "(provider: networkx|neo4j|falkordb, sync_mode: upsert|replace_sources|replace_all, "
+            "prune_missing_sources: bool -- unlike replace_sources, also deletes edges whose sources "
+            "have vanished from this run entirely; refused when partitioned). "
             "execution_mode='sql' instead requires exactly [extract, write_graph(provider=sql_tables)] "
             "-- see `execution_mode`."
         )
@@ -2261,6 +2315,7 @@ class KnowledgeGraphBuilderComponent(Component, Model, Resolvable):
                 metadata["top_entities"] = MetadataValue.json(final_stats.get("top_entities"))
                 metadata["graph_location"] = MetadataValue.text(str(final_stats.get("store_location")))
                 metadata["sync_mode"] = MetadataValue.text(str(final_stats.get("sync_mode")))
+                metadata["prune_missing_sources"] = MetadataValue.bool(bool(final_stats.get("prune_missing_sources")))
                 metadata["graph_preview"] = MetadataValue.json(final_stats.get("graph_preview"))
                 metadata["preview_truncated"] = MetadataValue.bool(bool(final_stats.get("preview_truncated")))
             sample_cols = [c for c in ("subject", "relation", "object", "confidence") if c in final_df.columns]

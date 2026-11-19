@@ -356,6 +356,18 @@
       "label": "Qdrant Resource Key",
       "description": "Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only used when provider='qdrant'. When set, the client comes from that resource's get_client() instead of building a fresh QdrantClient from connection_string/api_key. Leave unset to use connection_string/api_key (existing behavior, unchanged).",
       "required": false
+    },
+    "id_column": {
+      "type": "string",
+      "label": "Id Column",
+      "description": "Column with a stable per-row source id (e.g. a document or chunk id). When set, vector ids are derived from this column's value instead of the row's position in the DataFrame, so upserts are idempotent across runs (today's default, positional 'doc_{i}' ids silently collide with whatever content happened to land at that position in an earlier run, if row order ever changes). Required when prune_missing_sources is true.",
+      "required": false
+    },
+    "prune_missing_sources": {
+      "type": "boolean",
+      "label": "Prune Missing Sources",
+      "description": "After writing, delete every vector in the collection whose id_column value is not present in this run's data -- treats this run as the FULL current source catalog, not an incremental batch (the same contract as knowledge_graph_builder's own prune_missing_sources). Requires id_column. Supported on chromadb, pinecone and qdrant (each can list/delete by id); not supported on faiss (no delete API -- would need a full index rebuild) or s3vectors (not yet implemented here).",
+      "required": false
     }
   },
   "tags": [

@@ -181,6 +181,29 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN generic timeout wrapper (inlined per component; keep copies identical — see tests/test_generic_timeout_drift.py)
+def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
+    """Bounds how long this step waits for `fn`, raising dg.Failure past timeout_seconds.
+    Python threads can't be forcibly killed -- fn keeps running in the background past the
+    deadline (same documented trade-off as this repo's own @timeout decorator); this bounds
+    the STEP's wait, not the underlying call itself. Deliberately NOT `with ThreadPoolExecutor()`
+    -- that form's __exit__ calls shutdown(wait=True), which blocks until the background call
+    finishes anyway, silently defeating the timeout for a call that hangs indefinitely."""
+    if not timeout_seconds:
+        return fn(*args, **kwargs)
+    import concurrent.futures
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(fn, *args, **kwargs)
+    try:
+        result = future.result(timeout=timeout_seconds)
+    except concurrent.futures.TimeoutError:
+        executor.shutdown(wait=False)
+        raise dg.Failure(description=f"Exceeded timeout_seconds={timeout_seconds}.") from None
+    executor.shutdown(wait=False)
+    return result
+# END generic timeout wrapper
+
+
 # --- Airflow-compat shims: inlined, not a separate importable package (see component README) -----------------
 
 class _AirflowVariable:
@@ -405,7 +428,16 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     # --- Common attributes (same shape as ssh_asset / dataframe_join) ---------------------------------
     group_name: str = Field(default="infrastructure", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Human-readable description surfaced in the Dagster UI.")
-    timeout_seconds: Optional[int] = Field(default=None, description="Unused by this component today (no built-in call timeout) -- kept for schema consistency with sibling infrastructure components.")
+    timeout_seconds: Optional[int] = Field(default=None, description="Kill the wait and fail the run if the callable hasn't returned after this many seconds. Enforced via a background-thread wrapper -- the callable itself may continue running past the deadline (Python threads can't be forcibly killed); this bounds the step's wait, not the call itself. Unset: no timeout.")
+    pool: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed "
+            "number of slots shared across every asset/op using the same pool name). The "
+            "pool's own slot count is configured at the deployment level (dagster.yaml's "
+            "concurrency: pools:, or the Dagster+ UI), not here."
+        ),
+    )
 
     partition_type: Optional[str] = Field(default=None, description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'cron', 'static', 'dynamic', 'multi', or None for unpartitioned.")
     partition_cron_schedule: Optional[str] = Field(default=None, description="Required when partition_type='cron'.")
@@ -503,6 +535,7 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
         ins_keys = {ai.key for ai in ins.values()}
         all_deps = asset_deps + [k for k in metadata_input_deps if k not in ins_keys and k not in asset_deps]
+        timeout_seconds = component.timeout_seconds
 
         @dg.asset(
             key=dg.AssetKey(component.asset_key.split("/")),
@@ -517,6 +550,7 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=component.owners or [],
             tags=component.asset_tags or None,
             kinds=set(component.kinds) if component.kinds else None,
+            pool=component.pool,
         )
         def _the_asset(context: dg.AssetExecutionContext, **upstream_kwargs) -> Any:
             fn = _resolve_callable(component.callable_path)
@@ -645,7 +679,7 @@ class PythonCallableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     call_kwargs.setdefault(name, val)
 
             context.log.info(f"calling {component.callable_path}(args={call_args}, kwargs={list(call_kwargs)})")
-            result = fn(*call_args, **call_kwargs)
+            result = _run_with_timeout(fn, timeout_seconds, *call_args, **call_kwargs)
             context.log.info(f"{component.callable_path} returned: {result!r}"[:500])
             return result
 

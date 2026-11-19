@@ -413,6 +413,35 @@ def test_retry_policy_wires_through(mod, fx):
     assert rp.delay == 5
 
 
+def test_no_pool_by_default(mod, fx):
+    component = mod.PythonCallableAssetComponent(asset_key="d/t", callable_path=f"{FIXTURES_PATH}:wants_nothing")
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool is None
+
+
+def test_pool_wires_through(mod, fx):
+    component = mod.PythonCallableAssetComponent(
+        asset_key="d/t", callable_path=f"{FIXTURES_PATH}:wants_nothing", pool="airflow_worker_pool",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    assert asset_def.op.pool == "airflow_worker_pool"
+
+
+def test_timeout_seconds_fails_a_slow_callable(mod, fx):
+    component = mod.PythonCallableAssetComponent(
+        asset_key="d/t", callable_path=f"{FIXTURES_PATH}:sleeps_briefly", timeout_seconds=1,
+    )
+    result = materialize(component, raise_on_error=False)
+    assert not result.success
+
+
+def test_timeout_seconds_unset_does_not_bound_a_slow_callable(mod, fx):
+    component = mod.PythonCallableAssetComponent(asset_key="d/t", callable_path=f"{FIXTURES_PATH}:sleeps_briefly")
+    result = materialize(component)
+    assert result.success
+    assert fx.CALLS["called"] is True
+
+
 def test_static_partition_type_wires_through(mod, fx):
     component = mod.PythonCallableAssetComponent(
         asset_key="d/t", callable_path=f"{FIXTURES_PATH}:wants_nothing",

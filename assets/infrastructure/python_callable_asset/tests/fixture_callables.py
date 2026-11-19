@@ -31,6 +31,13 @@ def wants_nothing():
     return "no-context"
 
 
+def sleeps_briefly():
+    import time
+    time.sleep(1.5)
+    CALLS["called"] = True
+    return "done"
+
+
 def wants_ds_only(ds):
     CALLS["ds"] = ds
     return ds

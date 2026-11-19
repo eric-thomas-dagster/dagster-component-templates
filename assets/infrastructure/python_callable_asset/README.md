@@ -101,6 +101,17 @@ def report(context):
 - `{{ params.x }}`
 - `{{ var.value.FOO }}` (same `AIRFLOW_VAR_FOO` env var as the `Variable` shim)
 
+## `pool` / `timeout_seconds`
+
+```yaml
+pool: airflow_worker_pool        # Dagster's native named concurrency pool
+timeout_seconds: 300             # kills the step's wait past this many seconds
+```
+
+`timeout_seconds` is enforced by a background-thread wrapper, not a way to cancel the callable
+itself: it may keep running past the deadline (Python threads can't be forcibly killed), but the
+Dagster step fails and moves on. Pairs with `retry_policy_max_retries`/etc. below.
+
 ## What this does NOT do
 
 - No real Airflow metadata database — `Variable`/`dag_run.conf` are env-var/run-tag-backed shims, not a live Airflow deployment.
@@ -124,7 +135,7 @@ def report(context):
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `params` | `Dict[str, Any]` | — | Static dict exposed as `params` (mirrors Airflow's DAG-level params). |
-| `timeout_seconds` | `int` | — | Unused by this component today (no built-in call timeout) -- kept for schema consistency with sibling infrastructure components. |
+| `timeout_seconds` | `int` | — | Kill the wait and fail the run if the callable hasn't returned after this many seconds. Enforced via a background-thread wrapper -- the callable itself may continue running past the deadline (Python threads can't be forc… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -183,6 +194,7 @@ def report(context):
 | `dag_run_conf_tag` | `str` | `"airflow/dag_run_conf"` | Run tag name carrying a JSON-encoded `dag_run.conf` dict -- set `dg launch --tags 'airflow/dag_run_conf={"key": "value"}'` (or your own tag name). Absent tag -> `{}`. Set to None/null to disable. |
 | `airflow_version` | `Literal[2, 3]` | `2` | Controls only `logical_date`: 2 (default) = partition interval start (Airflow 2's execution_date semantics -- the overwhelmingly common case for already-written DAGs). 3 = partition interval end (approximates Airflow 3's… _(full docs in schema.json + component README)_ |
 | `on_missing_date` | `Literal['warn', 'fail']` | `"warn"` | Only matters for context_mode='airflow' on an UN-PARTITIONED asset with no logical_date/data_interval_* run tags available (neither cron_schedule's/interval_schedule's add_logical_date_tag/add_interval_tags nor a partiti… _(full docs in schema.json + component README)_ |
+| `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (partition_type='dynamic'). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. |
 

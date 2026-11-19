@@ -159,3 +159,50 @@ def test_commit_failure_is_tolerated(mod):
     assert result.success
     assert conn.commit_calls == 1
     assert conn.close_calls == 1  # cleanup still ran despite commit() raising
+
+
+# --- pool / retry_policy / timeout_seconds -------------------------------------------------
+
+def test_no_pool_or_retry_policy_by_default(mod):
+    asset_def = _comp(mod, sql="SELECT 1").build_defs(None).assets[0]
+    assert asset_def.op.pool is None
+    assert asset_def.op.retry_policy is None
+
+
+def test_pool_wires_through(mod):
+    asset_def = _comp(mod, sql="SELECT 1", pool="warehouse_concurrency").build_defs(None).assets[0]
+    assert asset_def.op.pool == "warehouse_concurrency"
+
+
+def test_retry_policy_wires_through(mod):
+    asset_def = _comp(
+        mod, sql="SELECT 1", retry_policy_max_retries=3, retry_policy_delay_seconds=2, retry_policy_backoff="linear",
+    ).build_defs(None).assets[0]
+    assert asset_def.op.retry_policy.max_retries == 3
+    assert asset_def.op.retry_policy.delay == 2
+
+
+class _SlowFakeCursor(FakeCursor):
+    def execute(self, sql, parameters=None):
+        import time as _time
+        _time.sleep(0.2)
+        super().execute(sql, parameters)
+
+
+class _SlowFakeConn(FakeConn):
+    def cursor(self):
+        return _SlowFakeCursor(self)
+
+
+def test_timeout_seconds_fails_a_slow_query(mod):
+    conn = _SlowFakeConn()
+    asset_def = _comp(mod, sql="SELECT 1", timeout_seconds=0.01).build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)}, raise_on_error=False)
+    assert not result.success
+
+
+def test_timeout_seconds_unset_does_not_bound_a_slow_query(mod):
+    conn = _SlowFakeConn()
+    asset_def = _comp(mod, sql="SELECT 1").build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
+    assert result.success

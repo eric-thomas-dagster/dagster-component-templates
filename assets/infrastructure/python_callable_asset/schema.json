@@ -268,6 +268,12 @@
       "label": "Input Defaults",
       "description": "Default value for an `inputs` metadata-lookup entry ('asset_key.metadata_key') whose metadata key is missing from the upstream's materialization in this run. Entries with no default raise instead of silently passing None.",
       "required": false
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
+      "required": false
     }
   },
   "tags": [

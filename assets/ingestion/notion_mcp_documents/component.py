@@ -228,17 +228,34 @@ async def _nmo_open_mcp_session(stack, access_token: str):
     2.x -- mcp 2.x moved header support onto an httpx-like client object instead of a `headers=`
     kwarg (same shim this repo's mcp_server_resource/agentic_pipeline components already use for
     their own streamable-HTTP connections, duplicated here per this repo's self-contained-component
-    convention rather than cross-importing)."""
+    convention rather than cross-importing).
+
+    `max_sse_event_size=None` disables the mcp SDK's own default 1 MiB-per-SSE-event cap
+    (confirmed: `mcp.client.streamable_http.DEFAULT_MAX_SSE_EVENT_SIZE`), which otherwise raises
+    an SSEError -- surfacing as a silently-dropped page, not a visible error -- the moment a
+    single notion-fetch result (a large page's JSON envelope) exceeds it. Wrapped in try/except
+    TypeError since an older mcp minor version may not accept the kwarg yet, in which case the
+    SDK's own default cap still applies (better than crashing)."""
     headers = {"Authorization": f"Bearer {access_token}"}
     from mcp import ClientSession
     try:
         from mcp.client.streamable_http import streamable_http_client
         from mcp.shared._httpx_utils import create_mcp_http_client
         http_client = await stack.enter_async_context(create_mcp_http_client(headers=headers))
-        streams = await stack.enter_async_context(streamable_http_client(NOTION_MCP_URL, http_client=http_client))
+        try:
+            streams = await stack.enter_async_context(
+                streamable_http_client(NOTION_MCP_URL, http_client=http_client, max_sse_event_size=None)
+            )
+        except TypeError:
+            streams = await stack.enter_async_context(streamable_http_client(NOTION_MCP_URL, http_client=http_client))
     except ImportError:
         from mcp.client.streamable_http import streamablehttp_client
-        streams = await stack.enter_async_context(streamablehttp_client(NOTION_MCP_URL, headers=headers))
+        try:
+            streams = await stack.enter_async_context(
+                streamablehttp_client(NOTION_MCP_URL, headers=headers, max_sse_event_size=None)
+            )
+        except TypeError:
+            streams = await stack.enter_async_context(streamablehttp_client(NOTION_MCP_URL, headers=headers))
     read, write = streams[0], streams[1]
     session = await stack.enter_async_context(ClientSession(read, write))
     await session.initialize()
@@ -293,6 +310,24 @@ def _nmo_call_tool(
             raise NotionMcpRateLimited(wait_seconds)
         _nmo_time.sleep(wait_seconds)
 # END notion mcp oauth
+
+
+# BEGIN preview-safe metadata (inlined per component; keep copies identical — see tests/test_preview_safe_metadata_drift.py)
+def _safe_preview_markdown(df, preview_rows: int, max_cell_chars: int = 200) -> str:
+    """Row-sample/head to preview_rows, then truncate every cell's text representation to
+    max_cell_chars before rendering to markdown. Without this, a text/content column embeds a
+    document's FULL text in materialization metadata -- confirmed real: a single large page's
+    full body alone pushed a Dagster+ materialization event past its 5 MB per-event limit,
+    failing the run. Truncation happens on the already-sampled rows only (cheap)."""
+    sample = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+
+    def _truncate(v):
+        s = "" if v is None else str(v)
+        return s if len(s) <= max_cell_chars else s[:max_cell_chars] + "…"
+
+    sample = sample.map(_truncate) if hasattr(sample, "map") else sample.applymap(_truncate)
+    return sample.to_markdown(index=False)
+# END preview-safe metadata
 
 
 def _normalize_notion_page_id(s: str) -> str:
@@ -446,12 +481,20 @@ def _crawl_notion_pages(
     new_state). `prior_state` ({doc_id: {content_hash, updated_at}}) lets an unchanged page keep
     its prior updated_at instead of bumping it every run. `skip_info` is
     {"excluded": int, "out_of_scope": int, "errored": int, "excluded_titles": [...],
-    "secrets_redacted": int}."""
+    "secrets_redacted": int, "errored_examples": [...]} -- the last is up to 20 "{ref}: {error}"
+    strings, since "errored" alone gave no way to tell a transient network blip from (say) a page
+    consistently hitting the MCP SDK's SSE size cap. An auth failure (expired/rejected refresh
+    token) is NOT counted here at all -- it propagates as NotionMcpAuthError and fails the whole
+    crawl, since a per-page "errored" count would otherwise hide a total auth failure as if only
+    a few pages had transient problems."""
     normalized_roots = {_normalize_notion_page_id(r) for r in root_page_ids}
     seen: set = set()
     rows: List[Dict[str, Any]] = []
     new_state: Dict[str, Dict[str, Any]] = {}
-    skipped: Dict[str, Any] = {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0}
+    skipped: Dict[str, Any] = {
+        "excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0,
+        "errored_examples": [],
+    }
     lock = threading.Lock()
 
     def _at_cap() -> bool:
@@ -461,9 +504,16 @@ def _crawl_notion_pages(
         doc_id = _normalize_notion_page_id(ref)
         try:
             raw = _nmo_call_tool(oauth_dir, "notion-fetch", {"id": ref}, rate_limiter, on_rate_limit=on_rate_limit)
-        except Exception:
+        except NotionMcpAuthError:
+            # Fatal, not a per-page skip -- propagates out of the whole crawl (and this asset) so
+            # the run fails with a clear "sign in again" message instead of silently reporting
+            # pages_extracted=0 with the real cause buried in an opaque per-page error count.
+            raise
+        except Exception as e:
             with lock:
                 skipped["errored"] += 1
+                if len(skipped["errored_examples"]) < 20:
+                    skipped["errored_examples"].append(f"{ref}: {e}")
             return [], None
 
         envelope = _parse_fetch_envelope(raw)
@@ -646,6 +696,16 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
             "updated_at is 'now' on every run, and pages_pruned is never computed."
         ),
     )
+    allow_empty_crawl: bool = Field(
+        default=False,
+        description=(
+            "By default, a crawl that extracts 0 pages FAILS the run instead of succeeding with "
+            "an empty frame -- a silent 0-page 'success' (e.g. from an expired login or a deleted "
+            "root page) would otherwise look like real data downstream, and (with state_path set) "
+            "would report every previously-seen page as pruned. Set True only if an empty result "
+            "is genuinely expected for this crawl."
+        ),
+    )
 
     write_disposition: Literal["replace", "append", "merge"] = Field(
         default="replace",
@@ -669,7 +729,7 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
     retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure (distinct from max_retries, which retries individual MCP tool calls).")
     retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between asset-level retries (default 1).")
     retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
-    include_preview_metadata: bool = Field(default=True, description="Include a sample data preview in metadata")
+    include_preview_metadata: bool = Field(default=True, description="Include a sample data preview in metadata. Every cell is truncated to 200 chars (see _safe_preview_markdown) so a large page's full content can't blow past a materialization event's size limit.")
     preview_rows: int = Field(default=25, ge=1, le=500, description="Rows to include in the preview metadata.")
 
     partition_type: Optional[str] = Field(default=None, description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'cron', 'static', 'multi', 'dynamic', or None for unpartitioned.")
@@ -734,6 +794,7 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
         redact_secrets = self.redact_secrets
         redact_secrets_extra_patterns = self.redact_secrets_extra_patterns
         state_path = self.state_path
+        allow_empty_crawl = self.allow_empty_crawl
         write_disposition = self.write_disposition
         destination = self.destination
         dataset_name = self.dataset_name or asset_name
@@ -815,6 +876,28 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
             )
             if skipped["excluded_titles"]:
                 context.log.info(f"Excluded {len(skipped['excluded_titles'])} page(s) by title: {skipped['excluded_titles']}")
+            if skipped["errored_examples"]:
+                context.log.warning(f"{skipped['errored']} page(s) errored during crawl: {skipped['errored_examples']}")
+
+            if not rows and not allow_empty_crawl:
+                # Refuse to overwrite state_path or hand an empty frame downstream -- either would
+                # otherwise look like "0 real pages" (and, with state_path set, pages_pruned would
+                # wrongly list EVERY previously-seen page as pruned, since new_state stays empty --
+                # a real risk if that metadata ever feeds a downstream prune_missing_sources step).
+                raise dg.Failure(
+                    description=(
+                        f"Notion MCP crawl extracted 0 pages from {len(root_page_ids)} root page(s) "
+                        f"(excluded={skipped['excluded']}, out_of_scope={skipped['out_of_scope']}, "
+                        f"errored={skipped['errored']}). Set allow_empty_crawl=True if an empty "
+                        "result is genuinely expected (e.g. a brand-new, still-empty root page)."
+                    ),
+                    metadata={
+                        "pages_skipped_excluded": dg.MetadataValue.int(skipped["excluded"]),
+                        "pages_skipped_out_of_scope": dg.MetadataValue.int(skipped["out_of_scope"]),
+                        "pages_skipped_errored": dg.MetadataValue.int(skipped["errored"]),
+                        "pages_errored_examples": dg.MetadataValue.json(skipped["errored_examples"]),
+                    },
+                )
 
             pages_pruned = sorted(set(prior_state) - set(new_state)) if state_path else []
             if state_path:
@@ -853,9 +936,11 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
                 "pages_skipped_excluded": dg.MetadataValue.int(skipped["excluded"]),
                 "pages_skipped_out_of_scope": dg.MetadataValue.int(skipped["out_of_scope"]),
                 "pages_skipped_errored": dg.MetadataValue.int(skipped["errored"]),
-                "pages_excluded_titles": dg.MetadataValue.json(skipped["excluded_titles"][:50]),
+                "pages_errored_examples": dg.MetadataValue.json(skipped["errored_examples"]),
+                "pages_excluded_titles": dg.MetadataValue.json([t[:200] for t in skipped["excluded_titles"][:50]]),
                 "secrets_redacted": dg.MetadataValue.int(skipped["secrets_redacted"]),
-                "pages_pruned": dg.MetadataValue.json(pages_pruned),
+                "pages_pruned_count": dg.MetadataValue.int(len(pages_pruned)),
+                "pages_pruned": dg.MetadataValue.json(pages_pruned[:500]),
                 "rate_limit_hits": dg.MetadataValue.int(rate_limit_stats["hits"]),
                 "rate_limit_total_wait_seconds": dg.MetadataValue.float(rate_limit_stats["total_wait_seconds"]),
                 "write_disposition": dg.MetadataValue.text(write_disposition),
@@ -877,8 +962,7 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
             metadata = {**base_metadata, "row_count": dg.MetadataValue.int(len(df))}
             if include_preview and len(df) > 0:
                 try:
-                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                    metadata["preview"] = dg.MetadataValue.md(_prev.to_markdown(index=False))
+                    metadata["preview"] = dg.MetadataValue.md(_safe_preview_markdown(df, preview_rows))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")
             return dg.Output(value=df, metadata=metadata)

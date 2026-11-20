@@ -242,6 +242,19 @@ def test_crawl_errored_page_is_counted_and_not_fatal(mod, monkeypatch):
     rows, skipped, state = mod._crawl_notion_pages([ROOT], "dir", [], None, 2, rl, {})
     assert rows == []
     assert skipped["errored"] == 1
+    assert len(skipped["errored_examples"]) == 1
+    assert ROOT in skipped["errored_examples"][0]
+    assert "network blip" in skipped["errored_examples"][0]
+
+
+def test_crawl_auth_error_propagates_instead_of_counted_as_errored(mod, monkeypatch):
+    def _fake(oauth_dir, tool_name, arguments, rate_limiter, max_retries=5, on_rate_limit=None, timeout_seconds=60.0):
+        raise mod.NotionMcpAuthError("refresh token rejected -- sign in again")
+
+    monkeypatch.setattr(mod, "_nmo_call_tool", _fake)
+    rl = mod.NotionMcpRateLimiter(max_requests_per_second=1000)
+    with pytest.raises(mod.NotionMcpAuthError, match="sign in again"):
+        mod._crawl_notion_pages([ROOT], "dir", [], None, 2, rl, {})
 
 
 # --- _parse_fetch_envelope / _redact_secrets --------------------------------------------------
@@ -470,7 +483,7 @@ def test_materializes_with_mocked_crawl(mod, monkeypatch, tmp_path):
     def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None, clean_markup=True):
         return (
             [mod._row_from_notion_mcp_page(ROOT, "hello world", "Root", "2026-01-01T00:00:00+00:00")],
-            {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0},
+            {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0, "errored_examples": []},
             {ROOT: {"content_hash": "x", "updated_at": "2026-01-01T00:00:00+00:00"}},
         )
 
@@ -497,7 +510,7 @@ def test_state_path_round_trips_and_reports_pruned_pages(mod, monkeypatch, tmp_p
         assert prior_state[ROOT]["content_hash"] == "x"  # state was read before the crawl
         return (
             [mod._row_from_notion_mcp_page(ROOT, "hello", "Root", "t")],
-            {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0},
+            {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0, "errored_examples": []},
             {ROOT: {"content_hash": "x", "updated_at": "t"}},  # CHILD dropped out -> pruned
         )
 
@@ -510,5 +523,92 @@ def test_state_path_round_trips_and_reports_pruned_pages(mod, monkeypatch, tmp_p
     assert result.success
     md = result.asset_materializations_for_node("notion_pages")[0].metadata
     assert md["pages_pruned"].value == [CHILD]
+    assert md["pages_pruned_count"].value == 1
     on_disk = json.loads(open(state_path).read())
     assert set(on_disk) == {ROOT}
+
+
+# --- zero-extraction fails the run; state_path/pages_pruned is never touched -------------------
+
+def _empty_fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None, clean_markup=True):
+    return (
+        [],
+        {"excluded": 0, "out_of_scope": 0, "errored": 1, "excluded_titles": [], "secrets_redacted": 0, "errored_examples": [f"{ROOT}: auth rejected"]},
+        {},
+    )
+
+
+def test_zero_pages_extracted_fails_the_run_by_default(mod, monkeypatch, tmp_path):
+    from .conftest import install_fake_dlt
+
+    monkeypatch.setattr(mod, "_crawl_notion_pages", _empty_fake_crawl)
+    import pandas as pd
+    install_fake_dlt(monkeypatch, mod, table_rows={"pages": pd.DataFrame([])})
+    component = mod.NotionMcpDocumentsComponent(asset_name="notion_pages", oauth_dir=str(tmp_path), root_page_ids=[ROOT])
+    asset_def = component.build_defs(context=None).assets[0]
+    with pytest.raises(dg.Failure, match="extracted 0 pages"):
+        dg.materialize([asset_def])
+
+
+def test_zero_pages_extracted_never_overwrites_state_path(mod, monkeypatch, tmp_path):
+    from .conftest import install_fake_dlt
+
+    state_path = str(tmp_path / "state.json")
+    with open(state_path, "w") as f:
+        json.dump({ROOT: {"content_hash": "x", "updated_at": "t"}}, f)
+
+    monkeypatch.setattr(mod, "_crawl_notion_pages", _empty_fake_crawl)
+    import pandas as pd
+    install_fake_dlt(monkeypatch, mod, table_rows={"pages": pd.DataFrame([])})
+    component = mod.NotionMcpDocumentsComponent(
+        asset_name="notion_pages", oauth_dir=str(tmp_path), root_page_ids=[ROOT], state_path=state_path,
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    with pytest.raises(dg.Failure):
+        dg.materialize([asset_def])
+    # state_path is untouched -- a real prior crawl's state isn't wiped by this failed run.
+    on_disk = json.loads(open(state_path).read())
+    assert set(on_disk) == {ROOT}
+
+
+def test_allow_empty_crawl_true_succeeds_with_zero_pages(mod, monkeypatch, tmp_path):
+    from .conftest import install_fake_dlt
+
+    monkeypatch.setattr(mod, "_crawl_notion_pages", _empty_fake_crawl)
+    import pandas as pd
+    install_fake_dlt(monkeypatch, mod, table_rows={"pages": pd.DataFrame([])})
+    component = mod.NotionMcpDocumentsComponent(
+        asset_name="notion_pages", oauth_dir=str(tmp_path), root_page_ids=[ROOT], allow_empty_crawl=True,
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([asset_def])
+    assert result.success
+    md = result.asset_materializations_for_node("notion_pages")[0].metadata
+    assert md["pages_extracted"].value == 0
+
+
+# --- preview metadata is truncated per-cell, never embeds a full page body ----------------------
+
+def test_preview_metadata_truncates_long_content(mod, monkeypatch, tmp_path):
+    from .conftest import install_fake_dlt
+
+    long_content = "x" * 5000
+
+    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None, clean_markup=True):
+        return (
+            [mod._row_from_notion_mcp_page(ROOT, long_content, "Root", "2026-01-01T00:00:00+00:00")],
+            {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0, "errored_examples": []},
+            {ROOT: {"content_hash": "x", "updated_at": "2026-01-01T00:00:00+00:00"}},
+        )
+
+    monkeypatch.setattr(mod, "_crawl_notion_pages", fake_crawl)
+    import pandas as pd
+    install_fake_dlt(monkeypatch, mod, table_rows={"pages": pd.DataFrame([{"doc_id": ROOT, "content": long_content}])})
+    component = mod.NotionMcpDocumentsComponent(asset_name="notion_pages", oauth_dir=str(tmp_path), root_page_ids=[ROOT])
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([asset_def])
+    assert result.success
+    md = result.asset_materializations_for_node("notion_pages")[0].metadata
+    preview_md = md["preview"].value
+    assert len(preview_md) < 2000  # far under the full 5000-char content, well under any event-size risk
+    assert "x" * 5000 not in preview_md

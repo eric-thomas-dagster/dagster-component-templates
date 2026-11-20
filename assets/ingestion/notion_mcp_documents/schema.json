@@ -208,7 +208,7 @@
     "include_preview_metadata": {
       "type": "boolean",
       "label": "Include Preview Metadata",
-      "description": "Include a sample data preview in metadata",
+      "description": "Include a sample data preview in metadata. Every cell is truncated to 200 chars so a large page's full content can't blow past a materialization event's size limit.",
       "required": false
     },
     "preview_rows": {
@@ -323,6 +323,12 @@
       "type": "boolean",
       "label": "Clean Markup",
       "description": "Strip/convert Notion's own markup tags out of page content before it's hashed or stored -- real examples from a live crawl: <br />, <page url=...>T</page> and <mention url=...>T</mention> (converted to markdown links [T](url), not dropped), <span>/<b>/<i>/<code> (converted to markdown emphasis or plain text), <columns>/<column> (removed, keeping their content), <table>/<tr>/<td> (converted to 'row: cell \\| cell' lines), and <unknown .../>/<table-of-contents /> (dropped). On by default -- raw markup otherwise pollutes chunks and the snippets an agent quotes. Applied AFTER the crawl's own child-page discovery, which needs the unmodified <page>/<mention> tags to traverse -- this only affects stored content.",
+      "required": false
+    },
+    "allow_empty_crawl": {
+      "type": "boolean",
+      "label": "Allow Empty Crawl",
+      "description": "By default, a crawl that extracts 0 pages FAILS the run instead of succeeding with an empty frame -- a silent 0-page 'success' (e.g. from an expired login or a deleted root page) would otherwise look like real data downstream, and (with state_path set) would report every previously-seen page as pruned. Set True only if an empty result is genuinely expected for this crawl.",
       "required": false
     }
   }

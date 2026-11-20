@@ -123,6 +123,27 @@ not this one. **Actually removing** pruned pages from a vector store or knowledg
 [`prune_missing_sources`](../../ai/vector_store_writer/README.md)'s job on `vector_store_writer` /
 `knowledge_graph_builder`, downstream of this asset — not this component's.
 
+## Safety: a failed/expired sign-in never looks like an empty success
+
+Three fixes from a real ~800-page workspace crawl:
+
+- **Zero pages extracted FAILS the run** (unless `allow_empty_crawl: true`), instead of succeeding
+  with an empty frame. Previously, an expired access token (refresh-token rejected) surfaced as a
+  per-page "errored" count with `pages_extracted=0` and no further detail — the run succeeded, a
+  downstream step then failed far from the real cause (e.g. `text_column='chunk_text' not in
+  upstream columns: []`), and with `state_path` set, every previously-seen page would have been
+  reported as `pages_pruned` (a real risk if that metadata ever drives a downstream
+  `prune_missing_sources` step). Now: an auth failure (`NotionMcpAuthError`) propagates as a fatal
+  error with a "sign in again" message, never counted as a per-page error; any other
+  zero-extraction failure raises with `pages_errored_examples` in the failure's own metadata, and
+  `state_path`/`pages_pruned` are never touched on this path.
+- **Per-page errors are no longer just a count.** `pages_errored_examples` (up to 20
+  `"{ref}: {error}"` strings) is now in materialization metadata and logged, so a network blip, an
+  oversized page, and an auth problem are distinguishable instead of one opaque integer.
+- **No silent per-page size cap.** The mcp SDK's own default 1 MiB-per-SSE-event limit (which
+  raised an `SSEError` — dropping the whole page with no record of why) is disabled outright
+  (`max_sse_event_size=None`) rather than worked around with a smaller chunked read.
+
 ## What this does NOT do
 
 - No real "list every page in the workspace" call — this only crawls `root_page_ids` and whatever
@@ -209,12 +230,13 @@ not this one. **Actually removing** pruned pages from a vector store or knowledg
 | `redact_secrets` | `bool` | `true` | Replace Slack ('xox...'), GitHub ('gh[pousr]_...'), AWS ('AKIA...'), JWT-shaped, and PEM private-key strings found in page content with '[redacted]' before it's hashed or stored -- on by default, since a real runbook pag… _(full docs in schema.json + component README)_ |
 | `redact_secrets_extra_patterns` | `List[str]` | — | Additional regex patterns (strings) to redact alongside the built-in ones. Only used when redact_secrets is True. |
 | `state_path` | `str` | — | Local JSON file tracking {doc_id: {content_hash, updated_at}} across runs, so an unchanged page keeps its prior updated_at instead of bumping it every run. Also used to report how many previously-seen pages fell out of s… _(full docs in schema.json + component README)_ |
+| `allow_empty_crawl` | `bool` | `false` | By default, a crawl that extracts 0 pages FAILS the run instead of succeeding with an empty frame -- a silent 0-page 'success' (e.g. from an expired login or a deleted root page) would otherwise look like real data downs… _(full docs in schema.json + component README)_ |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'filesystem', 'duckdb'). Leave empty for in-memory DuckDB -> DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip the DataFrame return. |
 | `destination_credentials_url` | `str` | — | Inline destination connection string. If unset, dlt resolves credentials from env vars. |
 | `destination_credentials_env_var` | `str` | — | Alternative to destination_credentials_url: env var holding the connection string. |
-| `include_preview_metadata` | `bool` | `true` | Include a sample data preview in metadata |
+| `include_preview_metadata` | `bool` | `true` | Include a sample data preview in metadata. Every cell is truncated to 200 chars (see _safe_preview_markdown) so a large page's full content can't blow past a materialization event's size limit. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (partition_type='dynamic'). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. |

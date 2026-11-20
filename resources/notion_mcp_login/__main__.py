@@ -186,17 +186,34 @@ async def _nmo_open_mcp_session(stack, access_token: str):
     2.x -- mcp 2.x moved header support onto an httpx-like client object instead of a `headers=`
     kwarg (same shim this repo's mcp_server_resource/agentic_pipeline components already use for
     their own streamable-HTTP connections, duplicated here per this repo's self-contained-component
-    convention rather than cross-importing)."""
+    convention rather than cross-importing).
+
+    `max_sse_event_size=None` disables the mcp SDK's own default 1 MiB-per-SSE-event cap
+    (confirmed: `mcp.client.streamable_http.DEFAULT_MAX_SSE_EVENT_SIZE`), which otherwise raises
+    an SSEError -- surfacing as a silently-dropped page, not a visible error -- the moment a
+    single notion-fetch result (a large page's JSON envelope) exceeds it. Wrapped in try/except
+    TypeError since an older mcp minor version may not accept the kwarg yet, in which case the
+    SDK's own default cap still applies (better than crashing)."""
     headers = {"Authorization": f"Bearer {access_token}"}
     from mcp import ClientSession
     try:
         from mcp.client.streamable_http import streamable_http_client
         from mcp.shared._httpx_utils import create_mcp_http_client
         http_client = await stack.enter_async_context(create_mcp_http_client(headers=headers))
-        streams = await stack.enter_async_context(streamable_http_client(NOTION_MCP_URL, http_client=http_client))
+        try:
+            streams = await stack.enter_async_context(
+                streamable_http_client(NOTION_MCP_URL, http_client=http_client, max_sse_event_size=None)
+            )
+        except TypeError:
+            streams = await stack.enter_async_context(streamable_http_client(NOTION_MCP_URL, http_client=http_client))
     except ImportError:
         from mcp.client.streamable_http import streamablehttp_client
-        streams = await stack.enter_async_context(streamablehttp_client(NOTION_MCP_URL, headers=headers))
+        try:
+            streams = await stack.enter_async_context(
+                streamablehttp_client(NOTION_MCP_URL, headers=headers, max_sse_event_size=None)
+            )
+        except TypeError:
+            streams = await stack.enter_async_context(streamablehttp_client(NOTION_MCP_URL, headers=headers))
     read, write = streams[0], streams[1]
     session = await stack.enter_async_context(ClientSession(read, write))
     await session.initialize()

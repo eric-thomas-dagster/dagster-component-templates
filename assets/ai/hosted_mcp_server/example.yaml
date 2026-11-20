@@ -1,0 +1,9 @@
+type: dagster_community_components.HostedMcpServerComponent
+attributes:
+  resource_key: linear
+  url: https://mcp.linear.app/mcp
+  oauth_dir: "{{ env.MCP_OAUTH_DIR }}"
+  allow:
+    - get_issue
+    - list_issues
+  max_requests_per_second: 2

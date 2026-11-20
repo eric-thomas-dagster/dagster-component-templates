@@ -39,6 +39,8 @@ MCP_COMPONENTS = {
     "assets/ingestion/notion_mcp_documents": "client (Notion's hosted MCP server)",
     "assets/ai/notion_mcp_server": "server (local stdio proxy to Notion's hosted MCP server)",
     "resources/notion_mcp_login": "client (sign-in CLI, notion-get-self confirmation)",
+    "assets/ai/hosted_mcp_server": "server (generic stdio proxy to any hosted OAuth MCP server)",
+    "resources/mcp_oauth_login": "client (general sign-in CLI, who-am-I tool confirmation)",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

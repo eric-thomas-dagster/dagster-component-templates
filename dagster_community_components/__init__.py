@@ -675,6 +675,7 @@ _CLASS_PATHS: dict[str, str] = {
     "Hl7V2ParserComponent": "assets/transforms/hl7_v2_parser/component.py",
     "HoneycombIngestionComponent": "assets/ingestion/honeycomb_ingestion/component.py",
     "HooksAssetComponent": "assets/infrastructure/hooks_asset/component.py",
+    "HostedMcpServerComponent": "assets/ai/hosted_mcp_server/component.py",
     "HotjarIngestionComponent": "assets/ingestion/hotjar_ingestion/component.py",
     "HrisNormalizerComponent": "assets/transforms/hris_normalizer/component.py",
     "HtmlParserComponent": "assets/transforms/html_parser/component.py",

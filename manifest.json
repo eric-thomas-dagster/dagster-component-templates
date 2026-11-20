@@ -32949,6 +32949,58 @@
       ]
     },
     {
+      "id": "hosted_mcp_server",
+      "name": "Hosted MCP Server",
+      "category": "ai",
+      "description": "Local stdio MCP server proxying an allow-listed subset of tools from any hosted MCP server that uses OAuth (Linear, GitHub, Salesforce, Sentry, ...), refreshing the signed-in person's token as needed. Generalizes notion_mcp_server.",
+      "path": "assets/ai/hosted_mcp_server",
+      "tags": [
+        "ai",
+        "mcp",
+        "oauth",
+        "chat-agent"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests",
+          "mcp",
+          "anyio"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20"
+      },
+      "vertical": "data-platform",
+      "icon": "Network",
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "A Dagster resource (a local stdio MCP server) other mcp_servers-aware components reference via server_resource_key.",
+        "requires_pip": [
+          "dagster",
+          "requests",
+          "mcp",
+          "anyio"
+        ]
+      },
+      "keywords": [
+        "model context protocol",
+        "mcp server",
+        "oauth",
+        "chat agent tools"
+      ]
+    },
+    {
       "id": "hotjar_ingestion",
       "name": "Hotjar Ingestion",
       "category": "ingestion",

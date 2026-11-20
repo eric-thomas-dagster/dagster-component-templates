@@ -1,0 +1,59 @@
+{
+  "component_type": "dagster_community_components.HostedMcpServerComponent",
+  "description": "Local stdio MCP server proxying an allow-listed subset of tools from any hosted MCP server that uses OAuth, refreshing the signed-in person's token as needed.",
+  "category": "ai",
+  "icon": "Network",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "None",
+      "description": "No asset -- registers a Dagster resource (a stdio MCP server) for other components to reference via server_resource_key."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key other components reference via server_resource_key.",
+      "required": false
+    },
+    "url": {
+      "type": "string",
+      "label": "Url",
+      "description": "The hosted MCP server's URL (e.g. 'https://mcp.example.com/mcp').",
+      "required": true
+    },
+    "oauth_dir": {
+      "type": "string",
+      "label": "Oauth Dir",
+      "description": "Directory holding tokens.json + client_info.json from `python -m dagster_community_components.resources.mcp_oauth_login`. Treat as a secret.",
+      "required": true
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "Tool allow-list -- default EMPTY, so no tools are exposed until you explicitly choose some (unlike notion_mcp_server's 'both tools by default': an arbitrary hosted server's tool surface is unknown ahead of time and may include destructive write/delete tools).",
+      "required": false
+    },
+    "max_requests_per_second": {
+      "type": "number",
+      "label": "Max Requests Per Second",
+      "description": "Shared by every tool call this server process makes -- see HostedMcpRateLimiter.",
+      "required": false
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retries on a real HTTP 429, a soft text-based rate-limit signal, or a transient error before returning {'error': ...} to the agent.",
+      "required": false
+    },
+    "soft_rate_limit_pattern": {
+      "type": "string",
+      "label": "Soft Rate Limit Pattern",
+      "description": "Regex matched against a tool result's TEXT to detect a server that signals rate limits as ordinary text instead of HTTP 429 (Notion's hosted server is the confirmed example -- see notion_mcp_documents). Unset: a generic default pattern ('rate limit', 'too many requests', 'retry...after') is used, which may not match every server's own wording.",
+      "required": false
+    }
+  }
+}

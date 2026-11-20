@@ -71,6 +71,27 @@ aggregate rate once you have more than one worker, which is exactly what a real 
 hit. The run reports `rate_limit_hits` / `rate_limit_total_wait_seconds` in materialization
 metadata, along with `pages_skipped_excluded` / `_out_of_scope` / `_errored`.
 
+## Markup cleanup (`clean_markup`, on by default)
+
+Notion's own markup otherwise ends up verbatim in page content — real examples from a live
+crawl's chunks: `<br />`, `<page url="...">Title</page>` (an inline child-page reference in
+prose, separate from the top-level ones the crawl itself follows), `<mention url="...">Title</mention>`,
+`<span color="orange">...</span>`, `<columns>`/`<column>`, `<table>`/`<tr>`/`<td>`,
+`<unknown url="...#..." alt="alias" />`, `<table-of-contents />` — raw tags like these add noise
+to search and to the snippets an agent quotes. On by default:
+
+- `<page url=U>T</page>` / `<mention url=U>T</mention>` → `[T](U)` (a markdown link, not dropped
+  — a path back to the original page/mention survives).
+- `<br />` → a newline; `<span>`/`<b>`/`<i>`/`<code>` keep their text (`<b>`/`<i>`/`<code>`
+  become markdown `**bold**`/`*italic*`/`` `code` ``; `<span>` just loses the tag).
+- `<columns>`/`<column>` are removed, keeping their content.
+- `<table>` becomes `row: cell | cell` lines (one per `<tr>`).
+- `<unknown .../>` and `<table-of-contents />` are dropped entirely.
+
+Applied AFTER the crawl's own child-page discovery (which needs the unmodified `<page>`/
+`<mention>` tags to traverse) — this only affects the `content` that's actually stored. Set
+`clean_markup: false` to keep the raw markup (not recommended).
+
 ## Secret redaction (`redact_secrets`, on by default)
 
 A real runbook page can easily contain a pasted credential — one live crawl found a GitHub token
@@ -184,6 +205,7 @@ not this one. **Actually removing** pruned pages from a vector store or knowledg
 | `max_pages` | `int` | — | Caps how many pages this run emits. Unset: no cap. |
 | `max_requests_per_second` | `float` | `2.0` | Shared across every concurrent worker through ONE rate limiter -- a per-worker sleep still exceeds Notion's real aggregate limit (a previously-hit problem). Default 2, below Notion's own ~3 req/s average. |
 | `concurrency` | `int` | `2` | Number of pages crawled in parallel. Default 2 -- paired with max_requests_per_second=2, not a separate per-worker throttle. |
+| `clean_markup` | `bool` | `true` | Strip/convert Notion's own markup tags out of page content before it's hashed or stored -- real examples from a live crawl: <br />, <page url=...>T</page> and <mention url=...>T</mention> (converted to markdown links [T]… _(full docs in schema.json + component README)_ |
 | `redact_secrets` | `bool` | `true` | Replace Slack ('xox...'), GitHub ('gh[pousr]_...'), AWS ('AKIA...'), JWT-shaped, and PEM private-key strings found in page content with '[redacted]' before it's hashed or stored -- on by default, since a real runbook pag… _(full docs in schema.json + component README)_ |
 | `redact_secrets_extra_patterns` | `List[str]` | — | Additional regex patterns (strings) to redact alongside the built-in ones. Only used when redact_secrets is True. |
 | `state_path` | `str` | — | Local JSON file tracking {doc_id: {content_hash, updated_at}} across runs, so an unchanged page keeps its prior updated_at instead of bumping it every run. Also used to report how many previously-seen pages fell out of s… _(full docs in schema.json + component README)_ |

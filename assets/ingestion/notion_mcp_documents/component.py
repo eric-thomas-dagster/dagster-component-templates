@@ -375,6 +375,54 @@ def _redact_secrets(text: str, extra_patterns: Optional[List[str]] = None) -> Tu
     return text, count
 
 
+def _clean_notion_markup(text: str) -> str:
+    """Strips/converts Notion's own markup tags out of extracted `content` -- real examples from
+    a live crawl's chunks: `<br />`, `<page url="...">Title</page>` (a child-page reference
+    inline in prose, separate from the top-level ones _extract_child_pages follows for the
+    crawl), `<mention url="...">Title</mention>`, `<span color="...">...</span>`,
+    `<b>`/`<i>`/`<code>`, `<columns>`/`<column>`, `<table>`/`<tr>`/`<td>`, `<unknown url="...#..."
+    alt="..." />`, `<table-of-contents />`. Called AFTER `_extract_child_pages`/the crawl's own
+    traversal already consumed the unmodified envelope text -- converting `<page>`/`<mention>`
+    tags to markdown links here would otherwise destroy the very tags the crawl depends on."""
+    if not text:
+        return text
+
+    # void/self-closing elements with nothing worth keeping
+    text = re.sub(r"<table-of-contents\s*/?>", "", text)
+    text = re.sub(r"<unknown\b[^>]*/?>", "", text)
+    text = re.sub(r"<br\s*/?>", "\n", text)
+
+    # link-shaped tags -> markdown links (keeps a path back to the original page/mention)
+    text = re.sub(r'<page url="([^"]*)">(.*?)</page>', r"[\2](\1)", text, flags=re.DOTALL)
+    text = re.sub(r'<mention url="([^"]*)">(.*?)</mention>', r"[\2](\1)", text, flags=re.DOTALL)
+
+    # tables: one "row: cell | cell" line per <tr>, processed before the outer tag is stripped
+    def _table_sub(m: "re.Match") -> str:
+        rows = re.findall(r"<tr>(.*?)</tr>", m.group(1), flags=re.DOTALL)
+        lines = []
+        for row in rows:
+            cells = [c.strip() for c in re.findall(r"<td>(.*?)</td>", row, flags=re.DOTALL)]
+            lines.append("row: " + " | ".join(cells))
+        return "\n".join(lines)
+    text = re.sub(r"<table>(.*?)</table>", _table_sub, text, flags=re.DOTALL)
+
+    # inline formatting -> markdown equivalents (keeps the text, not the tag)
+    text = re.sub(r"<b>(.*?)</b>", r"**\1**", text, flags=re.DOTALL)
+    text = re.sub(r"<i>(.*?)</i>", r"*\1*", text, flags=re.DOTALL)
+    text = re.sub(r"<code>(.*?)</code>", r"`\1`", text, flags=re.DOTALL)
+    text = re.sub(r"<span[^>]*>(.*?)</span>", r"\1", text, flags=re.DOTALL)
+
+    # layout-only wrappers -> removed, keeping their content
+    text = re.sub(r"</?columns>", "", text)
+    text = re.sub(r"</?column>", "", text)
+
+    # catch-all for any stray tag left by a nesting shape the single-pass substitutions above
+    # didn't fully resolve (e.g. a <span> nested inside another <span>) -- never leaves a raw
+    # tag in the output, even in an edge case this function didn't anticipate by name.
+    text = re.sub(r"</?(?:span|columns|column|b|i|code|page|mention)\b[^>]*>", "", text)
+    return text
+
+
 def _row_from_notion_mcp_page(doc_id: str, content: str, title: str, updated_at: Optional[str], url: Optional[str] = None) -> Dict[str, Any]:
     return {
         "doc_id": doc_id,
@@ -391,6 +439,7 @@ def _crawl_notion_pages(
     root_page_ids: List[str], oauth_dir: str, exclude_title_contains: List[str], max_pages: Optional[int],
     concurrency: int, rate_limiter: "NotionMcpRateLimiter", prior_state: Dict[str, Dict[str, Any]],
     on_rate_limit=None, redact_secrets: bool = True, redact_secrets_extra_patterns: Optional[List[str]] = None,
+    clean_markup: bool = True,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any], Dict[str, Dict[str, Any]]]:
     """Concurrent BFS over root_page_ids, following only `<page url="...">` child tags discovered
     in each fetch's decoded envelope (see _parse_fetch_envelope). Returns (rows, skip_info,
@@ -434,6 +483,9 @@ def _crawl_notion_pages(
                 skipped["excluded"] += 1
                 skipped["excluded_titles"].append(title)
             return [], None  # skips this page AND its sub-pages (children are not returned either)
+
+        if clean_markup:
+            content = _clean_notion_markup(content)
 
         if redact_secrets:
             content, n_redacted = _redact_secrets(content, redact_secrets_extra_patterns)
@@ -555,6 +607,20 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     concurrency: int = Field(default=2, description="Number of pages crawled in parallel. Default 2 -- paired with max_requests_per_second=2, not a separate per-worker throttle.")
     max_retries: int = Field(default=5, description="Retries on Notion's own text-based rate-limit signal (never HTTP 429) or a transient/5xx-shaped error, before failing the run with a clear terminal error.")
+    clean_markup: bool = Field(
+        default=True,
+        description=(
+            "Strip/convert Notion's own markup tags out of page content before it's hashed or "
+            "stored -- real examples from a live crawl: <br />, <page url=...>T</page> and "
+            "<mention url=...>T</mention> (converted to markdown links [T](url), not dropped), "
+            "<span>/<b>/<i>/<code> (converted to markdown emphasis or plain text), "
+            "<columns>/<column> (removed, keeping their content), <table>/<tr>/<td> (converted "
+            "to 'row: cell | cell' lines), and <unknown .../>/<table-of-contents /> (dropped). "
+            "On by default -- raw markup otherwise pollutes chunks and the snippets an agent "
+            "quotes. Applied AFTER the crawl's own child-page discovery, which needs the "
+            "unmodified <page>/<mention> tags to traverse -- this only affects stored content."
+        ),
+    )
     redact_secrets: bool = Field(
         default=True,
         description=(
@@ -664,6 +730,7 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
         max_requests_per_second = self.max_requests_per_second
         concurrency = self.concurrency
         max_retries = self.max_retries
+        clean_markup = self.clean_markup
         redact_secrets = self.redact_secrets
         redact_secrets_extra_patterns = self.redact_secrets_extra_patterns
         state_path = self.state_path
@@ -744,6 +811,7 @@ class NotionMcpDocumentsComponent(dg.Component, dg.Model, dg.Resolvable):
                 root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency,
                 rate_limiter, prior_state, on_rate_limit=_on_rate_limit,
                 redact_secrets=redact_secrets, redact_secrets_extra_patterns=redact_secrets_extra_patterns,
+                clean_markup=clean_markup,
             )
             if skipped["excluded_titles"]:
                 context.log.info(f"Excluded {len(skipped['excluded_titles'])} page(s) by title: {skipped['excluded_titles']}")

@@ -318,6 +318,12 @@
       "label": "Redact Secrets Extra Patterns",
       "description": "Additional regex patterns (strings) to redact alongside the built-in ones. Only used when redact_secrets is True.",
       "required": false
+    },
+    "clean_markup": {
+      "type": "boolean",
+      "label": "Clean Markup",
+      "description": "Strip/convert Notion's own markup tags out of page content before it's hashed or stored -- real examples from a live crawl: <br />, <page url=...>T</page> and <mention url=...>T</mention> (converted to markdown links [T](url), not dropped), <span>/<b>/<i>/<code> (converted to markdown emphasis or plain text), <columns>/<column> (removed, keeping their content), <table>/<tr>/<td> (converted to 'row: cell \\| cell' lines), and <unknown .../>/<table-of-contents /> (dropped). On by default -- raw markup otherwise pollutes chunks and the snippets an agent quotes. Applied AFTER the crawl's own child-page discovery, which needs the unmodified <page>/<mention> tags to traverse -- this only affects stored content.",
+      "required": false
     }
   }
 }

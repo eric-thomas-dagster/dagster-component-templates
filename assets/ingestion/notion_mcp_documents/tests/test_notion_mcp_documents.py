@@ -310,6 +310,55 @@ def test_redact_secrets_leaves_ordinary_text_alone(mod):
     assert redacted == text
 
 
+# --- _clean_notion_markup ------------------------------------------------------------------
+
+def test_clean_markup_converts_page_and_mention_to_markdown_links(mod):
+    text = '<page url="https://notion.so/abc">Child Page</page> and <mention url="https://notion.so/def">A Person</mention>'
+    assert mod._clean_notion_markup(text) == "[Child Page](https://notion.so/abc) and [A Person](https://notion.so/def)"
+
+
+def test_clean_markup_br_becomes_newline(mod):
+    assert mod._clean_notion_markup("line one<br />line two") == "line one\nline two"
+    assert mod._clean_notion_markup("line one<br/>line two") == "line one\nline two"
+
+
+def test_clean_markup_span_keeps_text_strips_tag(mod):
+    assert mod._clean_notion_markup('<span color="orange">warning</span>') == "warning"
+
+
+def test_clean_markup_b_i_code_become_markdown_emphasis(mod):
+    assert mod._clean_notion_markup("<b>bold</b> <i>italic</i> <code>x = 1</code>") == "**bold** *italic* `x = 1`"
+
+
+def test_clean_markup_columns_and_column_removed_keeping_content(mod):
+    text = "<columns><column>left</column><column>right</column></columns>"
+    assert mod._clean_notion_markup(text) == "leftright"
+
+
+def test_clean_markup_table_becomes_row_lines(mod):
+    text = "<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>"
+    assert mod._clean_notion_markup(text) == "row: a | b\nrow: c | d"
+
+
+def test_clean_markup_drops_unknown_and_table_of_contents(mod):
+    text = 'before<unknown url="https://notion.so/x#y" alt="alias" />middle<table-of-contents />after'
+    assert mod._clean_notion_markup(text) == "beforemiddleafter"
+
+
+def test_clean_markup_no_stray_tags_left_in_combined_real_example(mod):
+    text = (
+        "Summary: <b>important</b><br />See <page url=\"https://notion.so/related\">Related Doc</page>. "
+        '<span color="red">Warning</span>: <unknown url="https://notion.so/x#block" alt="broken-ref" />'
+    )
+    cleaned = mod._clean_notion_markup(text)
+    assert "<" not in cleaned and ">" not in cleaned
+
+
+def test_clean_markup_empty_and_none_safe(mod):
+    assert mod._clean_notion_markup("") == ""
+    assert mod._clean_notion_markup(None) is None
+
+
 # --- full crawl against the REAL envelope shape ------------------------------------------------
 
 def test_crawl_against_real_envelope_shape_follows_children_uses_exact_title_and_strips_escapes(mod, monkeypatch):
@@ -383,6 +432,26 @@ def test_crawl_redact_secrets_false_leaves_content_untouched(mod, monkeypatch):
     assert skipped["secrets_redacted"] == 0
 
 
+def test_crawl_cleans_markup_in_content_by_default(mod, monkeypatch):
+    pages = {
+        ROOT: _envelope("Runbook", "https://notion.so/root", '<content>See <span color="red">this</span><br />note.</content>'),
+    }
+    monkeypatch.setattr(mod, "_nmo_call_tool", _fake_call_tool_factory(mod, pages))
+    rl = mod.NotionMcpRateLimiter(max_requests_per_second=1000)
+    rows, skipped, state = mod._crawl_notion_pages([ROOT], "dir", [], None, 2, rl, {})
+    assert rows[0]["content"] == "See this\nnote."
+
+
+def test_crawl_clean_markup_false_leaves_tags_untouched(mod, monkeypatch):
+    pages = {
+        ROOT: _envelope("Runbook", "https://notion.so/root", '<content>See <span color="red">this</span></content>'),
+    }
+    monkeypatch.setattr(mod, "_nmo_call_tool", _fake_call_tool_factory(mod, pages))
+    rl = mod.NotionMcpRateLimiter(max_requests_per_second=1000)
+    rows, skipped, state = mod._crawl_notion_pages([ROOT], "dir", [], None, 2, rl, {}, clean_markup=False)
+    assert "<span" in rows[0]["content"]
+
+
 def test_crawl_unchanged_content_keeps_prior_updated_at(mod, monkeypatch):
     monkeypatch.setattr(mod, "_nmo_call_tool", _fake_call_tool_factory(mod, {ROOT: _PAGES[ROOT].replace(f'<page url="https://notion.so/{CHILD}">Child</page>', "").replace(f'<page url="https://notion.so/{EXCLUDED}">Excluded Draft</page>', "")}))
     rl = mod.NotionMcpRateLimiter(max_requests_per_second=1000)
@@ -398,7 +467,7 @@ def test_crawl_unchanged_content_keeps_prior_updated_at(mod, monkeypatch):
 def test_materializes_with_mocked_crawl(mod, monkeypatch, tmp_path):
     from .conftest import install_fake_dlt
 
-    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None):
+    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None, clean_markup=True):
         return (
             [mod._row_from_notion_mcp_page(ROOT, "hello world", "Root", "2026-01-01T00:00:00+00:00")],
             {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0},
@@ -424,7 +493,7 @@ def test_state_path_round_trips_and_reports_pruned_pages(mod, monkeypatch, tmp_p
     with open(state_path, "w") as f:
         json.dump({ROOT: {"content_hash": "x", "updated_at": "t"}, CHILD: {"content_hash": "y", "updated_at": "t"}}, f)
 
-    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None):
+    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None, clean_markup=True):
         assert prior_state[ROOT]["content_hash"] == "x"  # state was read before the crawl
         return (
             [mod._row_from_notion_mcp_page(ROOT, "hello", "Root", "t")],

@@ -34,7 +34,7 @@ import os
 from typing import Optional
 
 import dagster as dg
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 def _require_env(name: str) -> str:
@@ -106,6 +106,28 @@ class SapRFCResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     user: str = Field(description="RFC user name")
     passwd_env_var: str = Field(description="Env var holding the user's password")
     lang: str = Field(default="EN", description="Logon language code (e.g. 'EN', 'DE')")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_numeric_sap_codes(cls, data):
+        """Dagster's own component-YAML resolution runs every string attribute value through
+        Jinja2's NativeTemplate rendering (ResolutionContext._resolve_inner_value), even a
+        plain value with no `{{ }}` syntax at all -- confirmed directly, not assumed. A
+        numeric-looking string comes back as a Python int: '00' becomes the int 0 (the
+        leading zero is gone by the time this component ever sees it), '100' becomes the int
+        100 -- regardless of how the value was quoted in the source YAML, since Dagster's
+        resolver operates on the already-parsed Python value, not the raw YAML text. client
+        and sysnr are always a fixed digit width in a real SAP system (three digits / two
+        digits respectively), so an int value here is reconstructed by re-zero-padding to
+        that known width -- recovering known-format data, not guessing at it."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if isinstance(out.get("client"), int):
+            out["client"] = f"{out['client']:03d}"
+        if isinstance(out.get("sysnr"), int):
+            out["sysnr"] = f"{out['sysnr']:02d}"
+        return out
 
     # --- TLS / SNC (optional) -----------------------------------------------
 

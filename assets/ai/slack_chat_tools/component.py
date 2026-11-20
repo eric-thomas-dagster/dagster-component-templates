@@ -287,6 +287,28 @@ def _get_slack_client(bot_token_env_var: str):
     return WebClient(token=token)
 
 
+def _slack_retry_after_seconds(exc_or_resp) -> Optional[float]:
+    """Duck-typed on purpose (no slack_sdk import needed): a raised SlackApiError's own
+    `.response` has `.status_code`/`.headers`; a returned response dict has `.get("error")`/
+    `response_metadata`. Returns None for anything that isn't a rate-limit signal. Same shape as
+    slack_agent_request_sensor's own copy (inlined fresh per this repo's convention)."""
+    if isinstance(exc_or_resp, dict):
+        if exc_or_resp.get("error") != "ratelimited":
+            return None
+        try:
+            return float((exc_or_resp.get("response_metadata") or {}).get("retry_after", 1))
+        except (TypeError, ValueError):
+            return 1.0
+    resp = getattr(exc_or_resp, "response", None)
+    if getattr(resp, "status_code", None) != 429:
+        return None
+    headers = getattr(resp, "headers", None) or {}
+    try:
+        return float(headers.get("Retry-After", 1))
+    except (TypeError, ValueError):
+        return 1.0
+
+
 class SlackChatTools:
     """`get_thread()` is the one safe entry point (audit, size cap, redaction, error shaping).
     Reads the SAME channel/thread every call -- there is no per-call argument that could read a
@@ -351,6 +373,29 @@ class SlackChatTools:
         text = json.dumps(result, default=str)[: max(0, cap - 120)]
         return {"truncated": True, "preview": text}
 
+    def _call_conversations_replies_with_retry(self, client) -> Dict[str, Any]:
+        """Retries exactly ONCE, after Slack's own Retry-After, on a rate-limit signal -- either a
+        raised SlackApiError (slack_sdk's default for HTTP 429) or an {"ok": False, "error":
+        "ratelimited"} response. Without this, a rate-limited get_thread call previously surfaced
+        the raw Slack error text to the model as if the request had simply failed (read by the
+        agent as "I could not retrieve the message"), when a short, bounded wait usually succeeds."""
+        import time
+
+        try:
+            resp = client.conversations_replies(channel=self.channel, ts=self.thread_ts, limit=self.max_messages)
+        except Exception as e:  # noqa: BLE001 -- slack_sdk raises SlackApiError on HTTP 429 by default
+            retry_after = _slack_retry_after_seconds(e)
+            if retry_after is None:
+                raise
+            time.sleep(min(retry_after, 30))
+            return client.conversations_replies(channel=self.channel, ts=self.thread_ts, limit=self.max_messages)
+
+        retry_after = _slack_retry_after_seconds(resp)
+        if retry_after is None:
+            return resp
+        time.sleep(min(retry_after, 30))
+        return client.conversations_replies(channel=self.channel, ts=self.thread_ts, limit=self.max_messages)
+
     def t_get_thread(self) -> Dict[str, Any]:
         """The conversation so far: the last `max_messages` messages in the thread this run is
         answering (or the single message, if it isn't part of a thread), oldest first, as
@@ -371,7 +416,7 @@ class SlackChatTools:
                 "see README."
             )
         client = _get_slack_client(self.bot_token_env_var)
-        resp = client.conversations_replies(channel=self.channel, ts=self.thread_ts, limit=self.max_messages)
+        resp = self._call_conversations_replies_with_retry(client)
         if not resp.get("ok"):
             raise ToolError(f"Slack conversations_replies failed: {resp.get('error')}")
         messages = (resp.get("messages") or [])[-self.max_messages:]

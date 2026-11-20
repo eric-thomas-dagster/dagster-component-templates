@@ -54,10 +54,23 @@ oldest=last_seen)` for each tracked thread every tick -- that endpoint's own `ol
 same exclusive-by-default semantics as `conversations.history`'s, so it naturally returns only
 genuine new replies, parent never included again.
 
-This is **N extra Slack API calls per tick**, one per tracked thread (bounded by
-`known_threads_limit`, which keeps only the most-recently-active threads). Set
-`follow_up_threads: false` for a channel with many concurrent long-lived threads, or lower
-`known_threads_limit`.
+This is **N extra Slack API calls per tick**, one per tracked thread, bounded by two independent
+things: `known_threads_limit` (a count cap, default **10** -- lowered from an earlier default of
+200, which on a real workspace exhausted the Slack API quota and made unrelated calls, including
+`slack_chat_tools`' own `get_thread`, fail with "rate limited") and `follow_up_window_minutes`
+(a time cap, default 60 -- only threads whose last-seen reply was within this many minutes are
+polled at all; set `null` to disable). Set `follow_up_threads: false` instead for a channel with
+many concurrent long-lived threads.
+
+## Rate limiting
+
+A rate-limited `conversations.history` call skips the WHOLE tick cleanly (`SkipReason`, honoring
+Slack's own `Retry-After`/`retry_after`) rather than crashing. A rate-limited
+`conversations.replies` call (polling one tracked thread's follow-ups) stops polling any
+remaining tracked threads for the rest of THIS tick -- already-found root messages/replies from
+earlier in the same tick still launch runs normally; only the thread-polling loop is cut short.
+Either way, the next tick (`minimum_interval_seconds` later) tries again from where the cursor
+left off -- nothing is lost, just delayed.
 
 ## Isolation
 
@@ -209,7 +222,8 @@ See `example.yaml`.
 | `bot_user_id` | `str` | — | This bot's own Slack user id, for mention-detection ('<@BOT_ID>' in a message) and self-exclusion. Auto-discovered via auth.test if unset -- set explicitly only to skip that one extra API call per tick. |
 | `trigger_mode` | `Literal['mention', 'dm', 'all']` | `"mention"` | 'mention' (default): only a message that @-mentions the bot starts a NEW conversation (a reply in an already-tracked thread still matches regardless of mode -- see follow_up_threads). 'dm' and 'all' both match every new… _(full docs in schema.json + component README)_ |
 | `follow_up_threads` | `bool` | `true` | Also launch a run for a NEW REPLY in a thread this sensor has already launched a run for -- not gated by trigger_mode, so once a thread is tracked, every new reply in it triggers another run, not just ones that re-mentio… _(full docs in schema.json + component README)_ |
-| `known_threads_limit` | `int` | `200` | Most-recently-active threads to keep polling for follow-ups. Bounds both cursor size and the extra conversations.replies calls follow_up_threads costs per tick. |
+| `known_threads_limit` | `int` | `10` | Most-recently-active threads to keep polling for follow-ups. Bounds both cursor size and the extra conversations.replies calls follow_up_threads costs per tick. Lowered from an earlier default of 200 -- that many convers… _(full docs in schema.json + component README)_ |
+| `follow_up_window_minutes` | `int` | `60` | Only poll a tracked thread for follow-ups if its last-seen reply was within this many minutes -- a second bound alongside known_threads_limit's count cap, so a long-dormant thread doesn't keep costing a conversations.rep… _(full docs in schema.json + component README)_ |
 | `resolve_requester_email` | `bool` | `true` | Resolve the message sender's Slack user id to an email address (needs users:read.email) before setting the slack/user tag -- most owners: checks downstream (e.g. dagster_workflow_tools' launch_job) use emails, not Slack… _(full docs in schema.json + component README)_ |
 | `messages_per_poll` | `int` | `200` | Root messages to request per Slack page (Slack's own recommended max is 200). |
 | `max_pages_per_poll` | `int` | `3` | Follow at most this many pagination cursors per poll, for both new-root-message and (per-thread) new-reply polling. |

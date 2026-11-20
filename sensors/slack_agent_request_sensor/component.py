@@ -47,6 +47,38 @@ from pydantic import Field
 _MAX_LAUNCHED_RUN_KEYS = 1000  # bounds the persisted run_key dedup set -- see _launch's own check.
 
 
+class SlackRateLimited(Exception):
+    """Slack's rate-limit signal, however it arrived -- a raised SlackApiError with HTTP 429 (the
+    slack_sdk WebClient's own default, no retry handler configured), or an {"ok": False, "error":
+    "ratelimited"} response dict. Carries Retry-After (seconds) so a caller can honor it instead
+    of hammering Slack again immediately or crashing the whole tick."""
+
+    def __init__(self, retry_after: float):
+        self.retry_after = retry_after
+        super().__init__(f"Slack rate limited; retry after {retry_after}s")
+
+
+def _slack_retry_after_seconds(exc_or_resp) -> Optional[float]:
+    """Duck-typed on purpose (no slack_sdk import needed): a raised SlackApiError's own
+    `.response` has `.status_code`/`.headers`; a returned response dict has `.get("error")`/
+    `response_metadata`. Returns None for anything that isn't a rate-limit signal."""
+    if isinstance(exc_or_resp, dict):
+        if exc_or_resp.get("error") != "ratelimited":
+            return None
+        try:
+            return float((exc_or_resp.get("response_metadata") or {}).get("retry_after", 1))
+        except (TypeError, ValueError):
+            return 1.0
+    resp = getattr(exc_or_resp, "response", None)
+    if getattr(resp, "status_code", None) != 429:
+        return None
+    headers = getattr(resp, "headers", None) or {}
+    try:
+        return float(headers.get("Retry-After", 1))
+    except (TypeError, ValueError):
+        return 1.0
+
+
 def _now_slack_ts() -> str:
     """Slack timestamps are decimal-seconds strings ('1700000000.123456'); this is a synthetic
     cursor seed, not a real message ts."""
@@ -75,13 +107,24 @@ def _get_slack_client(bot_token_env_var: str):
 
 def _list_new_messages(client, channel_id: str, oldest_ts: str, limit: int, max_pages: int) -> List[Dict[str, Any]]:
     """New ROOT messages only (conversations.history never returns thread replies -- see this
-    module's docstring). Same shape as slack_run_request_sensor's own `_list_new_messages`."""
+    module's docstring). Same shape as slack_run_request_sensor's own `_list_new_messages`.
+    Raises SlackRateLimited (not a generic RuntimeError) on a rate-limit signal, however it
+    arrived, so a caller can tell "back off" apart from a real API failure."""
     out: List[Dict[str, Any]] = []
     cursor: Optional[str] = None
     pages = 0
     while pages < max(max_pages, 1):
-        resp = client.conversations_history(channel=channel_id, oldest=oldest_ts, limit=min(max(limit, 1), 200), cursor=cursor)
+        try:
+            resp = client.conversations_history(channel=channel_id, oldest=oldest_ts, limit=min(max(limit, 1), 200), cursor=cursor)
+        except Exception as e:  # noqa: BLE001 -- slack_sdk raises SlackApiError on HTTP 429 by default
+            retry_after = _slack_retry_after_seconds(e)
+            if retry_after is not None:
+                raise SlackRateLimited(retry_after) from e
+            raise
         if not resp.get("ok"):
+            retry_after = _slack_retry_after_seconds(resp)
+            if retry_after is not None:
+                raise SlackRateLimited(retry_after)
             raise RuntimeError(f"Slack conversations_history failed: {resp.get('error')}")
         out.extend(resp.get("messages", []) or [])
         cursor = (resp.get("response_metadata") or {}).get("next_cursor") or None
@@ -95,9 +138,19 @@ def _list_new_replies(client, channel_id: str, thread_ts: str, oldest_ts: str, l
     """New replies in one thread since `oldest_ts` -- `conversations.replies`' own `oldest` is
     exclusive-by-default, same semantics as `conversations.history`'s (confirmed against Slack's
     own API reference), so setting it to the last reply ts already seen (or the thread root's own
-    ts, the first time) naturally excludes anything already processed, parent included."""
-    resp = client.conversations_replies(channel=channel_id, ts=thread_ts, oldest=oldest_ts, limit=min(max(limit, 1), 200))
+    ts, the first time) naturally excludes anything already processed, parent included. Raises
+    SlackRateLimited (see _list_new_messages) rather than a generic RuntimeError on rate limiting."""
+    try:
+        resp = client.conversations_replies(channel=channel_id, ts=thread_ts, oldest=oldest_ts, limit=min(max(limit, 1), 200))
+    except Exception as e:  # noqa: BLE001
+        retry_after = _slack_retry_after_seconds(e)
+        if retry_after is not None:
+            raise SlackRateLimited(retry_after) from e
+        raise
     if not resp.get("ok"):
+        retry_after = _slack_retry_after_seconds(resp)
+        if retry_after is not None:
+            raise SlackRateLimited(retry_after)
         raise RuntimeError(f"Slack conversations_replies failed: {resp.get('error')}")
     return resp.get("messages", []) or []
 
@@ -204,7 +257,26 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             "set false for a channel with many concurrent long-lived threads."
         ),
     )
-    known_threads_limit: int = Field(default=200, description="Most-recently-active threads to keep polling for follow-ups. Bounds both cursor size and the extra conversations.replies calls follow_up_threads costs per tick.")
+    known_threads_limit: int = Field(
+        default=10,
+        description=(
+            "Most-recently-active threads to keep polling for follow-ups. Bounds both cursor "
+            "size and the extra conversations.replies calls follow_up_threads costs per tick. "
+            "Lowered from an earlier default of 200 -- that many conversations.replies calls "
+            "every tick exhausted a real workspace's Slack quota and made unrelated Slack calls "
+            "(including slack_chat_tools' own get_thread) fail with 'rate limited'. See also "
+            "follow_up_window_minutes, a second, time-based bound on the same set."
+        ),
+    )
+    follow_up_window_minutes: Optional[int] = Field(
+        default=60,
+        description=(
+            "Only poll a tracked thread for follow-ups if its last-seen reply was within this "
+            "many minutes -- a second bound alongside known_threads_limit's count cap, so a "
+            "long-dormant thread doesn't keep costing a conversations.replies call every tick "
+            "forever. Unset: no time bound, only known_threads_limit's count cap applies."
+        ),
+    )
 
     resolve_requester_email: bool = Field(default=True, description="Resolve the message sender's Slack user id to an email address (needs users:read.email) before setting the slack/user tag -- most owners: checks downstream (e.g. dagster_workflow_tools' launch_job) use emails, not Slack user ids. When false, slack/user carries the raw Slack user id instead.")
 
@@ -290,6 +362,7 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         trigger_mode = self.trigger_mode
         follow_up_threads = self.follow_up_threads
         known_threads_limit = max(1, self.known_threads_limit)
+        follow_up_window_minutes = self.follow_up_window_minutes
         resolve_requester_email = self.resolve_requester_email
         messages_per_poll = self.messages_per_poll
         max_pages_per_poll = self.max_pages_per_poll
@@ -345,6 +418,8 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
             try:
                 root_messages = _list_new_messages(client, channel_id, last_ts, messages_per_poll, max_pages_per_poll)
+            except SlackRateLimited as e:
+                return dg.SkipReason(f"Slack rate-limited (retry after {e.retry_after}s) -- skipping this tick entirely.")
             except Exception as e:  # noqa: BLE001
                 return dg.SkipReason(f"Slack conversations_history failed: {e}")
 
@@ -357,9 +432,21 @@ class SlackAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             reply_candidates: List[Dict[str, Any]] = []
             notes: List[str] = []
             if follow_up_threads:
-                for thread_ts in sorted(threads.keys(), key=lambda t: threads[t], reverse=True)[:known_threads_limit]:
+                now = time.time()
+                candidate_threads = sorted(threads.keys(), key=lambda t: threads[t], reverse=True)[:known_threads_limit]
+                if follow_up_window_minutes:
+                    candidate_threads = [
+                        t for t in candidate_threads if (now - float(threads[t])) <= follow_up_window_minutes * 60
+                    ]
+                for thread_ts in candidate_threads:
                     try:
                         replies = _list_new_replies(client, channel_id, thread_ts, threads[thread_ts], messages_per_poll)
+                    except SlackRateLimited as e:
+                        notes.append(
+                            f"Slack rate-limited (retry after {e.retry_after}s) while polling thread replies -- "
+                            "skipping remaining threads this tick."
+                        )
+                        break
                     except Exception as e:  # noqa: BLE001 -- one bad thread must never block the others
                         notes.append(f"thread {thread_ts}: conversations_replies failed: {e}")
                         continue

@@ -44,13 +44,18 @@ def _msg(ts, user, text, thread_ts=None, subtype=None, bot_id=None):
 
 
 class _FakeClient:
-    def __init__(self, *, root_messages=None, replies_by_thread=None, bot_user_id="UBOT", email_by_user=None, history_fail=None, chat_post_fail=None):
+    def __init__(
+        self, *, root_messages=None, replies_by_thread=None, bot_user_id="UBOT", email_by_user=None,
+        history_fail=None, chat_post_fail=None, history_rate_limited=False, rate_limited_threads=None,
+    ):
         self.root_messages = root_messages or []
         self.replies_by_thread = replies_by_thread or {}
         self.bot_user_id = bot_user_id
         self.email_by_user = email_by_user or {}
         self.history_fail = history_fail
         self.chat_post_fail = chat_post_fail
+        self.history_rate_limited = history_rate_limited
+        self.rate_limited_threads = rate_limited_threads or set()
         self._ts_counter = 0
         self.calls = {"history": [], "replies": [], "reactions": [], "chat_post": []}
 
@@ -59,12 +64,16 @@ class _FakeClient:
 
     def conversations_history(self, channel, oldest, limit, cursor=None):
         self.calls["history"].append({"channel": channel, "oldest": oldest})
+        if self.history_rate_limited:
+            return {"ok": False, "error": "ratelimited", "response_metadata": {"retry_after": 7}}
         if self.history_fail:
             return {"ok": False, "error": self.history_fail}
         return {"ok": True, "messages": self.root_messages}
 
     def conversations_replies(self, channel, ts, oldest, limit):
         self.calls["replies"].append({"ts": ts, "oldest": oldest})
+        if ts in self.rate_limited_threads:
+            return {"ok": False, "error": "ratelimited", "response_metadata": {"retry_after": 3}}
         return {"ok": True, "messages": self.replies_by_thread.get(ts, [])}
 
     def users_info(self, user):
@@ -195,7 +204,11 @@ def test_all_mode_matches_every_message_without_a_mention(monkeypatch, chat_agen
 # --- follow_up_threads ----------------------------------------------------------------------
 
 def test_follow_up_reply_in_a_tracked_thread_triggers_without_a_mention(monkeypatch, chat_agent_asset):
-    component = _component()
+    # follow_up_window_minutes=None: this test's synthetic cursor timestamp ("100.001", a tiny
+    # epoch value) would otherwise look billions of seconds old against a REAL time.time() and
+    # get excluded by the window filter -- real Slack ts values are actual epoch seconds, so this
+    # is a test-fixture artifact, not something the window filter should special-case for.
+    component = _component(follow_up_window_minutes=None)
     sensor_def = component.build_defs(context=None).sensors[0]
     client = _FakeClient(
         root_messages=[],
@@ -221,6 +234,63 @@ def test_follow_up_threads_false_ignores_replies_entirely(monkeypatch, chat_agen
     result = sensor_def(_ctx({"last_ts": "100.002", "threads": {"100.001": "100.001"}}))
     assert result.run_requests == []
     assert client.calls["replies"] == []
+
+
+def test_known_threads_limit_default_is_10(chat_agent_asset):
+    assert _component().known_threads_limit == 10
+
+
+def test_history_rate_limited_skips_the_tick_with_a_clear_message(monkeypatch, chat_agent_asset):
+    component = _component()
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(history_rate_limited=True)
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
+    assert isinstance(result, dg.SkipReason)
+    assert "rate-limited" in result.skip_message
+    assert "7" in result.skip_message  # retry_after surfaced
+
+
+def test_thread_rate_limited_stops_polling_remaining_threads_this_tick(monkeypatch, chat_agent_asset):
+    now = __import__("time").time()
+    thread_a, thread_b = f"{now - 1:.3f}", f"{now - 2:.3f}"  # thread_a is more recently active -> polled first
+    component = _component(follow_up_window_minutes=None)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(
+        root_messages=[], rate_limited_threads={thread_a},
+        replies_by_thread={thread_b: [_msg(f"{now:.3f}", "U1", "a follow-up", thread_ts=thread_b)]},
+    )
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": f"{now:.3f}", "threads": {thread_a: thread_a, thread_b: thread_b}}))
+    assert isinstance(result, dg.SensorResult)  # the tick itself doesn't crash/fail
+    assert client.calls["replies"] == [{"ts": thread_a, "oldest": thread_a}]  # thread_b never polled
+    assert result.run_requests == []
+
+
+def test_follow_up_window_minutes_excludes_a_stale_thread(monkeypatch, chat_agent_asset):
+    now = __import__("time").time()
+    thread_ts = f"{now - 7200:.3f}"  # last reply 2 hours ago -- outside the default 60-minute window
+    reply_ts = f"{now - 7100:.3f}"
+    component = _component()  # follow_up_window_minutes defaults to 60
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[], replies_by_thread={thread_ts: [_msg(reply_ts, "U1", "late reply", thread_ts=thread_ts)]})
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": f"{now:.3f}", "threads": {thread_ts: thread_ts}}))
+    assert client.calls["replies"] == []  # never polled -- outside the window
+    assert result.run_requests == []
+
+
+def test_follow_up_window_minutes_none_polls_regardless_of_age(monkeypatch, chat_agent_asset):
+    now = __import__("time").time()
+    thread_ts = f"{now - 7200:.3f}"
+    reply_ts = f"{now - 7100:.3f}"
+    component = _component(follow_up_window_minutes=None)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    client = _FakeClient(root_messages=[], replies_by_thread={thread_ts: [_msg(reply_ts, "U1", "late reply", thread_ts=thread_ts)]})
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    result = sensor_def(_ctx({"last_ts": f"{now:.3f}", "threads": {thread_ts: thread_ts}}))
+    assert client.calls["replies"] == [{"ts": thread_ts, "oldest": thread_ts}]
+    assert len(result.run_requests) == 1
 
 
 def test_known_threads_limit_bounds_the_cursor(monkeypatch, chat_agent_asset):

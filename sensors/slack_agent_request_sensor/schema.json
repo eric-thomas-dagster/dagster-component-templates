@@ -54,7 +54,7 @@
     "known_threads_limit": {
       "type": "integer",
       "label": "Known Threads Limit",
-      "description": "Most-recently-active threads to keep polling for follow-ups. Bounds both cursor size and the extra conversations.replies calls follow_up_threads costs per tick.",
+      "description": "Most-recently-active threads to keep polling for follow-ups. Bounds both cursor size and the extra conversations.replies calls follow_up_threads costs per tick. Lowered from an earlier default of 200 -- that many conversations.replies calls every tick exhausted a real workspace's Slack quota. See also follow_up_window_minutes, a second, time-based bound on the same set.",
       "required": false
     },
     "resolve_requester_email": {
@@ -121,6 +121,12 @@
       "type": "string",
       "label": "Placeholder Text",
       "description": "If set, post this text as a new thread reply right after acknowledging a matched message, and tag the run slack/placeholder_ts with that reply's own ts. slack_reply then updates THIS message with the final answer (chat.update) instead of posting a new one, and its failure_watcher updates it with the error -- so a 20-30s wait shows 'Looking into it…' (or whatever text you set) instead of nothing. Needs chat:write (already required). Leave unset (default) to skip this -- slack_reply just posts new replies, as before. Checked against Slack's own docs, not assumed: the newer agents.sessions.setStatus DOES work in regular channel threads (not just the AI-assistant pane the older assistant.threads.setStatus is scoped to), but it has no free-text status (an enum: active/processing/suspended/closed) and needs the Agents feature enabled on the workspace (feature_disabled error otherwise) -- this placeholder message is what actually shows free text like 'Looking into it…' in an ordinary channel, everywhere, with no feature flag.",
+      "required": false
+    },
+    "follow_up_window_minutes": {
+      "type": "integer",
+      "label": "Follow Up Window Minutes",
+      "description": "Only poll a tracked thread for follow-ups if its last-seen reply was within this many minutes -- a second bound alongside known_threads_limit's count cap, so a long-dormant thread doesn't keep costing a conversations.replies call every tick forever. Unset: no time bound, only known_threads_limit's count cap applies.",
       "required": false
     }
   }

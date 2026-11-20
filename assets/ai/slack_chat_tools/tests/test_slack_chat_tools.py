@@ -1,6 +1,8 @@
 """get_thread() is the chat agent's only window onto the conversation -- always reads THIS run's
 own channel/thread (no per-call argument), fetches fresh every time. Mocks only `_get_slack_client`
 (same convention as slack_run_request_sensor's / slack_approval_gate's own tests)."""
+import time
+
 import pytest
 
 from .conftest import load_component_module
@@ -12,16 +14,20 @@ def mod():
 
 
 class _FakeClient:
-    def __init__(self, messages=None, ok=True, error=None, upload_ok=True):
+    def __init__(self, messages=None, ok=True, error=None, upload_ok=True, rate_limited_calls=0, retry_after=2):
         self._messages = messages or []
         self._ok = ok
         self._error = error
         self._upload_ok = upload_ok
+        self._rate_limited_calls = rate_limited_calls  # how many leading calls return ratelimited
+        self._retry_after = retry_after
         self.calls = []
         self.uploaded = []
 
     def conversations_replies(self, channel, ts, limit):
         self.calls.append({"channel": channel, "ts": ts, "limit": limit})
+        if len(self.calls) <= self._rate_limited_calls:
+            return {"ok": False, "error": "ratelimited", "response_metadata": {"retry_after": self._retry_after}}
         if not self._ok:
             return {"ok": False, "error": self._error}
         return {"ok": True, "messages": self._messages}
@@ -59,6 +65,28 @@ def test_get_thread_works_for_a_solo_non_threaded_message(mod, monkeypatch):
     tools = mod.SlackChatTools(channel="C1", thread_ts="200.001")
     result = tools.call("get_thread", {})
     assert result["message_count"] == 1
+
+
+def test_get_thread_retries_once_after_rate_limit_then_succeeds(mod, monkeypatch):
+    client = _FakeClient(messages=[_msg("U1", "hi", "100.001")], rate_limited_calls=1, retry_after=0.001)
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001")
+    result = tools.call("get_thread", {})
+    assert result["message_count"] == 1
+    assert len(client.calls) == 2  # one rate-limited attempt, one retry
+
+
+def test_get_thread_rate_limited_twice_surfaces_the_error_after_one_retry(mod, monkeypatch):
+    client = _FakeClient(rate_limited_calls=5, retry_after=0.001)  # rate-limited well past the one retry
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: client)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    tools = mod.SlackChatTools(channel="C1", thread_ts="100.001")
+    result = tools.call("get_thread", {})
+    assert "ratelimited" in result["error"]
+    assert len(client.calls) == 2  # exactly one retry -- not a retry loop
 
 
 def test_missing_channel_errors_clearly(mod):

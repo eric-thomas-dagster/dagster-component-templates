@@ -208,6 +208,24 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN preview-safe metadata (inlined per component; keep copies identical — see tests/test_preview_safe_metadata_drift.py)
+def _safe_preview_markdown(df, preview_rows: int, max_cell_chars: int = 200) -> str:
+    """Row-sample/head to preview_rows, then truncate every cell's text representation to
+    max_cell_chars before rendering to markdown. Without this, a text/content column embeds a
+    document's FULL text in materialization metadata -- confirmed real: a single large page's
+    full body alone pushed a Dagster+ materialization event past its 5 MB per-event limit,
+    failing the run. Truncation happens on the already-sampled rows only (cheap)."""
+    sample = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+
+    def _truncate(v):
+        s = "" if v is None else str(v)
+        return s if len(s) <= max_cell_chars else s[:max_cell_chars] + "…"
+
+    sample = sample.map(_truncate) if hasattr(sample, "map") else sample.applymap(_truncate)
+    return sample.to_markdown(index=False)
+# END preview-safe metadata
+
+
 class DocumentIngestionComponent(Component, Model, Resolvable):
     """Component for ingesting documents for RAG/Q&A systems.
 
@@ -719,18 +737,20 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
             file_types = df['file_type'].value_counts().to_dict() if 'file_type' in df.columns else {}
 
             from dagster import TableColumn, TableSchema
-            context.add_output_metadata({
-                    "document_count": len(df),
-                    "skipped_files": len(skipped_files),
-                    "skipped_files_detail": MetadataValue.json(skipped_files[:200]),
-                    "total_characters": int(total_chars),
-                    "file_types": file_types,
-                    "columns": list(df.columns),
-                    "dagster/column_schema": MetadataValue.table_schema(
-                        TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])
-                    ),
-                    "preview": MetadataValue.md(df.head(5).to_markdown())
-                })
+            _output_metadata = {
+                "document_count": len(df),
+                "skipped_files": len(skipped_files),
+                "skipped_files_detail": MetadataValue.json(skipped_files[:200]),
+                "total_characters": int(total_chars),
+                "file_types": file_types,
+                "columns": list(df.columns),
+                "dagster/column_schema": MetadataValue.table_schema(
+                    TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])
+                ),
+            }
+            if include_preview and len(df) > 0:
+                _output_metadata["preview"] = MetadataValue.md(_safe_preview_markdown(df, preview_rows))
+            context.add_output_metadata(_output_metadata)
             return df
 
         return Definitions(assets=[document_ingestion_asset])

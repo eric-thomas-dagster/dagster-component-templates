@@ -374,6 +374,24 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN preview-safe metadata (inlined per component; keep copies identical — see tests/test_preview_safe_metadata_drift.py)
+def _safe_preview_markdown(df, preview_rows: int, max_cell_chars: int = 200) -> str:
+    """Row-sample/head to preview_rows, then truncate every cell's text representation to
+    max_cell_chars before rendering to markdown. Without this, a text/content column embeds a
+    document's FULL text in materialization metadata -- confirmed real: a single large page's
+    full body alone pushed a Dagster+ materialization event past its 5 MB per-event limit,
+    failing the run. Truncation happens on the already-sampled rows only (cheap)."""
+    sample = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+
+    def _truncate(v):
+        s = "" if v is None else str(v)
+        return s if len(s) <= max_cell_chars else s[:max_cell_chars] + "…"
+
+    sample = sample.map(_truncate) if hasattr(sample, "map") else sample.applymap(_truncate)
+    return sample.to_markdown(index=False)
+# END preview-safe metadata
+
+
 class FileIngestionComponent(Component, Model, Resolvable):
     """
     Unified tabular-file ingestion. Reads CSV / TSV / JSON / JSONL / Parquet
@@ -957,7 +975,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
                     "columns": df.columns.tolist(),
                 }
                 if include_preview and len(df) > 0:
-                    meta["preview"] = MetadataValue.md(df.head().to_markdown())
+                    meta["preview"] = MetadataValue.md(_safe_preview_markdown(df, preview_rows))
                 return Output(value=df, metadata=meta)
 
             return Definitions(assets=[csv_ingestion_asset])
@@ -1023,7 +1041,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
                     "columns": df.columns.tolist(),
                 }
                 if include_preview and len(df) > 0:
-                    meta["preview"] = MetadataValue.md(df.head().to_markdown())
+                    meta["preview"] = MetadataValue.md(_safe_preview_markdown(df, preview_rows))
                 return Output(value=df, metadata=meta)
 
             return Definitions(assets=[csv_ingestion_asset])
@@ -1160,7 +1178,7 @@ group_name=group_name,
                     metadata={
                         "row_count": len(df),
                         "columns": df.columns.tolist(),
-                        "preview": MetadataValue.md(df.head().to_markdown())
+                        "preview": MetadataValue.md(_safe_preview_markdown(df, preview_rows))
                     }
                 )
             else:

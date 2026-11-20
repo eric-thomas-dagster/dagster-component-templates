@@ -1,0 +1,36 @@
+"""`_safe_preview_markdown` truncates every cell of a sampled preview DataFrame before rendering
+it to markdown, so a document-ingestion component's `preview` metadata can't embed a document's
+full, unbounded content column -- a real incident: one large Notion page's full body alone pushed
+a Dagster+ materialization event past its 5 MB per-event limit, failing the run.
+
+Inlined per component (no shared helper module -- this repo's self-contained-component
+convention) and guarded against drift the same way test_run_window_drift.py guards its own
+inlined block.
+"""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+_BEGIN = "# BEGIN preview-safe metadata"
+_END = "# END preview-safe metadata"
+
+
+def _component_files():
+    for p in sorted(ROOT.glob("**/component.py")):
+        parts = p.relative_to(ROOT).parts
+        if ".venv" in parts or "site-packages" in parts or parts[0] in ("dist", "quickstarts"):
+            continue
+        yield p
+
+
+def _block(text: str) -> str:
+    return text[text.index(_BEGIN): text.index(_END) + len(_END)]
+
+
+def test_inlined_blocks_are_identical():
+    blocks = {}
+    for p in _component_files():
+        text = p.read_text()
+        if _BEGIN in text:
+            blocks.setdefault(_block(text), []).append(str(p.relative_to(ROOT)))
+    assert len(blocks) == 1, {k[:60]: v for k, v in blocks.items()}
+    assert sum(len(v) for v in blocks.values()) >= 14

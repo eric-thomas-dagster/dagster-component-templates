@@ -355,6 +355,24 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN preview-safe metadata (inlined per component; keep copies identical — see tests/test_preview_safe_metadata_drift.py)
+def _safe_preview_markdown(df, preview_rows: int, max_cell_chars: int = 200) -> str:
+    """Row-sample/head to preview_rows, then truncate every cell's text representation to
+    max_cell_chars before rendering to markdown. Without this, a text/content column embeds a
+    document's FULL text in materialization metadata -- confirmed real: a single large page's
+    full body alone pushed a Dagster+ materialization event past its 5 MB per-event limit,
+    failing the run. Truncation happens on the already-sampled rows only (cheap)."""
+    sample = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+
+    def _truncate(v):
+        s = "" if v is None else str(v)
+        return s if len(s) <= max_cell_chars else s[:max_cell_chars] + "…"
+
+    sample = sample.map(_truncate) if hasattr(sample, "map") else sample.applymap(_truncate)
+    return sample.to_markdown(index=False)
+# END preview-safe metadata
+
+
 def _html_to_text(html: str) -> str:
     """Strip Confluence's storage (XHTML) or view (rendered HTML) markup down to plain
     text -- same BeautifulSoup pattern document_corpus/component.py's `_extract_text`
@@ -1098,9 +1116,8 @@ class ConfluenceDocumentsComponent(Component, Model, Resolvable):
             if include_preview and len(df) > 0:
                 try:
                     _preview_cols = [c for c in ("doc_id", "title", "url", "source_type", "updated_at", "content_hash") if c in df.columns]
-                    _prev = df[_preview_cols] if _preview_cols else df
-                    _prev = _prev.sample(min(preview_rows, len(_prev))) if len(_prev) > preview_rows * 10 else _prev.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    _prev_df = df[_preview_cols] if _preview_cols else df
+                    metadata["preview"] = MetadataValue.md(_safe_preview_markdown(_prev_df, preview_rows))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")
             return Output(value=df, metadata=metadata)

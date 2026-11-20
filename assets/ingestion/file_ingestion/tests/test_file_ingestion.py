@@ -43,6 +43,23 @@ def _materialize(component, partition_key=None, tags=None):
     )
 
 
+# --- preview metadata: respects preview_rows, truncates long cell content ----------------------
+
+def test_preview_respects_preview_rows_and_truncates_long_content(mod, tmp_path):
+    path = tmp_path / "data.csv"
+    lines = ["id,note"] + [f"{i},{'x' * 5000}" for i in range(5)]
+    path.write_text("\n".join(lines) + "\n")
+    component = _make_component(mod, str(path), include_preview_metadata=True, preview_rows=2)
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    preview_md = md["preview"].value
+    data_rows = preview_md.strip().split("\n")[2:]  # markdown table: header + separator + data rows
+    assert len(data_rows) == 2  # preview_rows=2, not all 5
+    assert "x" * 5000 not in preview_md  # truncated, not the full 5000-char cell
+
+
 def test_single_partition_reads_one_file(mod, tmp_path):
     (tmp_path / "sales_2024-01-02.csv").write_text("id,total\n1,10.0\n2,20.0\n")
     component = _make_component(

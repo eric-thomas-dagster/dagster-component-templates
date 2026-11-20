@@ -106,3 +106,30 @@ def test_partitioned_without_filter_column_configured_is_unfiltered(mod, docs_di
     assert result.success
     df = result.output_for_node("docs")
     assert len(df) == 3
+
+
+# --- preview metadata: gated by include_preview_metadata, respects preview_rows, truncates ------
+
+def test_include_preview_metadata_false_suppresses_preview(mod, docs_dir):
+    # include_preview_metadata defaults to False on this component -- confirm the default itself
+    # suppresses the preview now (previously it was unconditionally emitted regardless of config).
+    component = _make_component(mod, docs_dir)
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert "preview" not in md
+
+
+def test_preview_respects_preview_rows_and_truncates_long_content(mod, tmp_path):
+    for i in range(5):
+        (tmp_path / f"doc{i}.txt").write_text("x" * 5000)
+    component = _make_component(mod, tmp_path, include_preview_metadata=True, preview_rows=2)
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    preview_md = md["preview"].value
+    data_rows = preview_md.strip().split("\n")[2:]  # markdown table: header + separator + data rows
+    assert len(data_rows) == 2  # preview_rows=2, not all 5
+    assert "x" * 5000 not in preview_md  # truncated, not the full 5000-char body

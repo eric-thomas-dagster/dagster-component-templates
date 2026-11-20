@@ -455,6 +455,24 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN preview-safe metadata (inlined per component; keep copies identical — see tests/test_preview_safe_metadata_drift.py)
+def _safe_preview_markdown(df, preview_rows: int, max_cell_chars: int = 200) -> str:
+    """Row-sample/head to preview_rows, then truncate every cell's text representation to
+    max_cell_chars before rendering to markdown. Without this, a text/content column embeds a
+    document's FULL text in materialization metadata -- confirmed real: a single large page's
+    full body alone pushed a Dagster+ materialization event past its 5 MB per-event limit,
+    failing the run. Truncation happens on the already-sampled rows only (cheap)."""
+    sample = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+
+    def _truncate(v):
+        s = "" if v is None else str(v)
+        return s if len(s) <= max_cell_chars else s[:max_cell_chars] + "…"
+
+    sample = sample.map(_truncate) if hasattr(sample, "map") else sample.applymap(_truncate)
+    return sample.to_markdown(index=False)
+# END preview-safe metadata
+
+
 class CloudDocumentsComponent(Component, Model, Resolvable):
     """Extract document file CONTENT (real text extraction) from cloud storage / file-sharing
     providers, for RAG pipelines. See the module docstring for the full design and the real
@@ -1445,8 +1463,7 @@ class CloudDocumentsComponent(Component, Model, Resolvable):
             }
             if include_preview and len(df) > 0:
                 try:
-                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    metadata["preview"] = MetadataValue.md(_safe_preview_markdown(df, preview_rows))
                 except Exception as _e:  # noqa: BLE001
                     context.log.warning(f"preview emission failed: {_e}")
             return Output(value=df, metadata=metadata)

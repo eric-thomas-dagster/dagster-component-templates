@@ -153,6 +153,7 @@ attributes:
 |---|---|---|---|
 | `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's 'xoxb-...' token. Needs chat:write. |
 | `answer_field` | `str` | — | Which key of the upstream asset's output dict holds the answer text. Defaults to 'final_answer' (the agent components' own documented output shape) when the upstream value is a dict; used verbatim (str()'d) otherwise. |
+| `convert_markdown` | `bool` | `true` | Convert common markdown a model writes into Slack's mrkdwn dialect before posting: **x**/__x__ -> *x*, [text](url) -> <url\|text>, '# Heading' -> *Heading*, '* item'/'- item' -> bullet list items, and a markdown table ->… _(full docs in schema.json + component README)_ |
 | `max_chars_per_message` | `int` | `3000` | Split or truncate (see on_long_answer) an answer longer than this many characters. |
 | `on_long_answer` | `Literal['split', 'truncate']` | `"split"` | 'split' (default): post as multiple sequential thread replies, each <= max_chars_per_message. 'truncate': post one reply, cut short with an ellipsis. |
 | `include_run_link` | `bool` | `true` | Append a link to the Dagster run (requires webserver_base_url) to the last reply posted. |

@@ -122,6 +122,39 @@ def _materialize(agent_output, component, monkeypatch, tmp_path, *, tags=None, p
 TEAMS_TAGS = {"teams/team_id": "T1", "teams/channel_id": "Ch1", "teams/thread_id": "root1"}
 
 
+# --- markdown stripping ------------------------------------------------------------------
+
+def test_strip_markdown_bold_and_underscore_bold(mod):
+    assert mod._strip_markdown("**bold**") == "bold"
+    assert mod._strip_markdown("__also bold__") == "also bold"
+
+
+def test_strip_markdown_links_keep_both_text_and_url(mod):
+    assert mod._strip_markdown("[Dagster](https://dagster.io)") == "Dagster (https://dagster.io)"
+
+
+def test_strip_markdown_headings(mod):
+    assert mod._strip_markdown("# Big Heading") == "Big Heading"
+    assert mod._strip_markdown("### Smaller Heading") == "Smaller Heading"
+
+
+def test_strip_markdown_bullet_lists(mod):
+    text = "* first\n- second"
+    assert mod._strip_markdown(text) == "• first\n• second"
+
+
+def test_strip_markdown_leaves_code_fences_and_inline_code_untouched(mod):
+    text = "Use **bold** text. Code:\n```python\n**not bold** [not](a-link)\n```\nand `inline **code**` too."
+    stripped = mod._strip_markdown(text)
+    assert "```python\n**not bold** [not](a-link)\n```" in stripped
+    assert "`inline **code**`" in stripped
+    assert "Use bold text" in stripped
+
+
+def test_strip_markdown_empty_text_is_a_no_op(mod):
+    assert mod._strip_markdown("") == ""
+
+
 # --- success path ----------------------------------------------------------------------
 
 def test_posts_final_answer_to_the_tagged_thread(monkeypatch, tmp_path):
@@ -134,6 +167,27 @@ def test_posts_final_answer_to_the_tagged_thread(monkeypatch, tmp_path):
     assert len(reply_posts) == 1
     assert reply_posts[0][0] == "https://graph.microsoft.com/v1.0/teams/T1/channels/Ch1/messages/root1/replies"
     assert reply_posts[0][1]["json"]["body"]["content"] == "The nightly etl failed twice this week."
+
+
+def test_markdown_is_stripped_before_posting_by_default(monkeypatch, tmp_path):
+    component = _component(tmp_path)
+    result, calls = _materialize(
+        {"final_answer": "**Status**: done. See [the run](https://example.com)."},
+        component, monkeypatch, tmp_path, tags=TEAMS_TAGS,
+    )
+    assert result.success
+    reply_posts = [c for c in calls["post"] if c[0].endswith("/replies")]
+    assert reply_posts[0][1]["json"]["body"]["content"] == "Status: done. See the run (https://example.com)."
+
+
+def test_convert_markdown_false_posts_the_answer_verbatim(monkeypatch, tmp_path):
+    component = _component(tmp_path, convert_markdown=False)
+    result, calls = _materialize(
+        {"final_answer": "**Status**: done."}, component, monkeypatch, tmp_path, tags=TEAMS_TAGS,
+    )
+    assert result.success
+    reply_posts = [c for c in calls["post"] if c[0].endswith("/replies")]
+    assert reply_posts[0][1]["json"]["body"]["content"] == "**Status**: done."
 
 
 def test_missing_teams_tags_fails_the_run_clearly(monkeypatch, tmp_path):

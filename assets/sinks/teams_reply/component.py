@@ -545,6 +545,47 @@ def _to_html(text: str) -> str:
     return escaped.replace("\n", "<br>")
 
 
+_CODE_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+
+
+def _strip_markdown(text: str) -> str:
+    """Strips common LLM-written markdown syntax rather than converting it, since a Teams
+    message body is HTML-escaped plain text, not markdown -- `**bold**` posted as-is shows as
+    literal asterisks, not bold. Code fences and inline code spans are protected (via placeholder
+    swap) before any other substitution runs, so a model's own code/examples are never touched."""
+    if not text:
+        return text
+
+    placeholders: List[str] = []
+
+    def _stash(m):
+        placeholders.append(m.group(0))
+        return f"\x00{len(placeholders) - 1}\x00"
+
+    protected = _CODE_FENCE_RE.sub(_stash, text)
+    protected = _INLINE_CODE_RE.sub(_stash, protected)
+
+    out_lines = []
+    for line in protected.split("\n"):
+        m = re.match(r"^#{1,6}\s+(.*)$", line)
+        if m:
+            out_lines.append(m.group(1).strip())
+            continue
+        m = re.match(r"^(\s*)[*-]\s+(.*)$", line)
+        if m:
+            out_lines.append(f"{m.group(1)}• {m.group(2)}")
+            continue
+        out_lines.append(line)
+    protected = "\n".join(out_lines)
+
+    protected = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", r"\1 (\2)", protected)
+    protected = re.sub(r"\*\*(.+?)\*\*", r"\1", protected)
+    protected = re.sub(r"__(.+?)__", r"\1", protected)
+
+    return re.sub(r"\x00(\d+)\x00", lambda m: placeholders[int(m.group(1))], protected)
+
+
 class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
     """Posts a chat agent's answer into the Teams thread named by the run's own
     `teams/team_id`/`teams/channel_id`/`teams/thread_id` tags. Emits TWO things: `{asset_name}`
@@ -564,6 +605,18 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
     answer_field: Optional[str] = Field(
         default=None,
         description="Which key of the upstream asset's output dict holds the answer text. Defaults to 'final_answer' (the agent components' own documented output shape) when the upstream value is a dict; used verbatim (str()'d) otherwise.",
+    )
+    convert_markdown: bool = Field(
+        default=True,
+        description=(
+            "Strip common markdown syntax a model writes (**bold**, '# Heading', '* item'/'- "
+            "item', [text](url)) before posting -- a Teams message body is HTML-escaped plain "
+            "text, not markdown, so posting it as-is shows literal asterisks/brackets rather than "
+            "formatting. Unlike slack_reply's convert_markdown (which maps markdown onto Slack's "
+            "own mrkdwn dialect), this STRIPS the syntax rather than converting it, since there's "
+            "nothing Teams-native to convert bold/links into without risking malformed HTML. Code "
+            "fences and inline code spans are left untouched. Set False to post verbatim."
+        ),
     )
     max_chars_per_message: int = Field(default=3000, description="Split or truncate (see on_long_answer) an answer longer than this many characters.")
     on_long_answer: Literal["split", "truncate"] = Field(default="split", description="'split' (default): post as multiple sequential thread replies, each <= max_chars_per_message. 'truncate': post one reply, cut short with an ellipsis.")
@@ -667,6 +720,7 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         oauth_state_dir = self.oauth_state_dir
         answer_field = self.answer_field
+        convert_markdown = self.convert_markdown
         max_chars = self.max_chars_per_message
         on_long_answer = self.on_long_answer
         include_run_link = self.include_run_link
@@ -703,6 +757,8 @@ class TeamsReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                     "not run standalone."
                 )
             text = _redact(_extract_answer(agent_output, answer_field))
+            if convert_markdown:
+                text = _strip_markdown(text)
             parts = _split_or_truncate(text, max_chars, on_long_answer)
             link = _run_url(webserver_base_url, context.run.run_id) if include_run_link else None
             fs = _StateFS(oauth_state_dir)

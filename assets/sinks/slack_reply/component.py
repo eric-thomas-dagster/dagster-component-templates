@@ -320,6 +320,83 @@ def _split_or_truncate(text: str, max_chars: int, mode: str) -> List[str]:
     return parts or [text]
 
 
+_CODE_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
+_TABLE_ROW_RE = re.compile(r"^[ \t]*\|(.+)\|[ \t]*$")
+_TABLE_SEP_RE = re.compile(r"^[ \t]*\|?[\s:|-]+\|?[ \t]*$")
+
+
+def _convert_markdown_tables(text: str) -> str:
+    """Markdown tables (a header row, a `|---|---|`-shaped separator row, then data rows) become
+    an aligned plain-text table wrapped in a code block -- Slack has no native table rendering."""
+    lines = text.split("\n")
+    out: List[str] = []
+    i = 0
+    while i < len(lines):
+        if (
+            _TABLE_ROW_RE.match(lines[i])
+            and i + 1 < len(lines)
+            and _TABLE_SEP_RE.match(lines[i + 1])
+            and "-" in lines[i + 1]
+        ):
+            block = [lines[i]]
+            i += 2  # header row consumed; separator row dropped entirely
+            while i < len(lines) and _TABLE_ROW_RE.match(lines[i]):
+                block.append(lines[i])
+                i += 1
+            rows = [[c.strip() for c in _TABLE_ROW_RE.match(ln).group(1).split("|")] for ln in block]
+            width = max(len(r) for r in rows)
+            widths = [max((len(r[c]) for r in rows if c < len(r)), default=0) for c in range(width)]
+            rendered = "\n".join(
+                " | ".join((r[c] if c < len(r) else "").ljust(widths[c]) for c in range(width)) for r in rows
+            )
+            out.append("```\n" + rendered + "\n```")
+        else:
+            out.append(lines[i])
+            i += 1
+    return "\n".join(out)
+
+
+def _convert_markdown_to_mrkdwn(text: str) -> str:
+    """Converts common LLM-written markdown to Slack's mrkdwn dialect -- Slack shows
+    **bold**/[text](url)/# Heading/markdown tables as literal characters, not rendered; a model
+    can be told to write mrkdwn instead, but a prompt can't be relied on. Code fences and inline
+    code spans are protected before any other substitution runs (via placeholder swap, restored
+    at the end) so a model's own code/examples are never rewritten."""
+    if not text:
+        return text
+
+    placeholders: List[str] = []
+
+    def _stash(m):
+        placeholders.append(m.group(0))
+        return f"\x00{len(placeholders) - 1}\x00"
+
+    protected = _CODE_FENCE_RE.sub(_stash, text)
+    protected = _INLINE_CODE_RE.sub(_stash, protected)
+
+    protected = _convert_markdown_tables(protected)
+
+    out_lines = []
+    for line in protected.split("\n"):
+        m = re.match(r"^(#{1,6})\s+(.*)$", line)
+        if m:
+            out_lines.append(f"*{m.group(2).strip()}*")
+            continue
+        m = re.match(r"^(\s*)[*-]\s+(.*)$", line)
+        if m:
+            out_lines.append(f"{m.group(1)}• {m.group(2)}")
+            continue
+        out_lines.append(line)
+    protected = "\n".join(out_lines)
+
+    protected = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", r"<\2|\1>", protected)
+    protected = re.sub(r"\*\*(.+?)\*\*", r"*\1*", protected)
+    protected = re.sub(r"__(.+?)__", r"*\1*", protected)
+
+    return re.sub(r"\x00(\d+)\x00", lambda m: placeholders[int(m.group(1))], protected)
+
+
 def _run_url(webserver_base_url: Optional[str], run_id: str) -> Optional[str]:
     if not webserver_base_url:
         return None
@@ -340,6 +417,17 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
     answer_field: Optional[str] = Field(
         default=None,
         description="Which key of the upstream asset's output dict holds the answer text. Defaults to 'final_answer' (the agent components' own documented output shape) when the upstream value is a dict; used verbatim (str()'d) otherwise.",
+    )
+    convert_markdown: bool = Field(
+        default=True,
+        description=(
+            "Convert common markdown a model writes into Slack's mrkdwn dialect before posting: "
+            "**x**/__x__ -> *x*, [text](url) -> <url|text>, '# Heading' -> *Heading*, '* item'/'- "
+            "item' -> bullet list items, and a markdown table -> an aligned code block. Code "
+            "fences and inline code spans are left untouched. Slack otherwise shows raw markdown "
+            "as literal asterisks/brackets -- a prompt telling the model to write mrkdwn directly "
+            "cannot be relied on. Set False to post the answer text verbatim."
+        ),
     )
     max_chars_per_message: int = Field(default=3000, description="Split or truncate (see on_long_answer) an answer longer than this many characters.")
     on_long_answer: Literal["split", "truncate"] = Field(default="split", description="'split' (default): post as multiple sequential thread replies, each <= max_chars_per_message. 'truncate': post one reply, cut short with an ellipsis.")
@@ -438,6 +526,7 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
         upstream_key = dg.AssetKey(self.upstream_asset_key.split("/"))
         bot_token_env_var = self.slack_bot_token_env_var
         answer_field = self.answer_field
+        convert_markdown = self.convert_markdown
         max_chars = self.max_chars_per_message
         on_long_answer = self.on_long_answer
         include_run_link = self.include_run_link
@@ -473,6 +562,8 @@ class SlackReplyComponent(dg.Component, dg.Model, dg.Resolvable):
                     "ever be materialized as part of that chain, not run standalone."
                 )
             text = _redact(_extract_answer(agent_output, answer_field))
+            if convert_markdown:
+                text = _convert_markdown_to_mrkdwn(text)
             parts = _split_or_truncate(text, max_chars, on_long_answer)
             link = _run_url(webserver_base_url, context.run_id) if include_run_link else None
             if link:

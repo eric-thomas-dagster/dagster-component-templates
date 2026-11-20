@@ -83,6 +83,48 @@ def _component(**overrides):
     return mod_cache["mod"].SlackReplyComponent(**defaults)
 
 
+# --- markdown -> mrkdwn conversion ------------------------------------------------------
+
+def test_convert_markdown_bold_and_underscore_bold(mod):
+    assert mod._convert_markdown_to_mrkdwn("**bold**") == "*bold*"
+    assert mod._convert_markdown_to_mrkdwn("__also bold__") == "*also bold*"
+
+
+def test_convert_markdown_links(mod):
+    assert mod._convert_markdown_to_mrkdwn("[Dagster](https://dagster.io)") == "<https://dagster.io|Dagster>"
+
+
+def test_convert_markdown_headings(mod):
+    assert mod._convert_markdown_to_mrkdwn("# Big Heading") == "*Big Heading*"
+    assert mod._convert_markdown_to_mrkdwn("### Smaller Heading") == "*Smaller Heading*"
+
+
+def test_convert_markdown_bullet_lists(mod):
+    text = "* first\n- second\n  * nested"
+    assert mod._convert_markdown_to_mrkdwn(text) == "• first\n• second\n  • nested"
+
+
+def test_convert_markdown_table_becomes_aligned_code_block(mod):
+    text = "| Name | Count |\n|---|---|\n| apples | 3 |\n| bananas | 10 |"
+    converted = mod._convert_markdown_to_mrkdwn(text)
+    assert converted.startswith("```\n")
+    assert converted.endswith("\n```")
+    assert "Name" in converted and "Count" in converted
+    assert "---" not in converted  # separator row dropped, not rendered
+
+
+def test_convert_markdown_leaves_code_fences_and_inline_code_untouched(mod):
+    text = "Use **bold** text. Here's code:\n```python\n**not bold** [not](a-link)\n```\nand `inline **code**` too."
+    converted = mod._convert_markdown_to_mrkdwn(text)
+    assert "```python\n**not bold** [not](a-link)\n```" in converted
+    assert "`inline **code**`" in converted
+    assert "Use *bold* text" in converted
+
+
+def test_convert_markdown_empty_text_is_a_no_op(mod):
+    assert mod._convert_markdown_to_mrkdwn("") == ""
+
+
 # --- success path ----------------------------------------------------------------------
 
 def test_posts_final_answer_to_the_tagged_thread(monkeypatch):
@@ -93,6 +135,26 @@ def test_posts_final_answer_to_the_tagged_thread(monkeypatch):
     )
     assert result.success
     assert client.calls == [{"channel": "C1", "thread_ts": "100.001", "text": "The nightly etl failed twice this week."}]
+
+
+def test_markdown_is_converted_before_posting_by_default(monkeypatch):
+    component = _component()
+    result, client = _materialize(
+        {"final_answer": "**Status**: done. See [the run](https://example.com)."},
+        component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success
+    assert client.calls[0]["text"] == "*Status*: done. See <https://example.com|the run>."
+
+
+def test_convert_markdown_false_posts_the_answer_verbatim(monkeypatch):
+    component = _component(convert_markdown=False)
+    result, client = _materialize(
+        {"final_answer": "**Status**: done."},
+        component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success
+    assert client.calls[0]["text"] == "**Status**: done."
 
 
 def test_missing_slack_tags_fails_the_run_clearly(monkeypatch):

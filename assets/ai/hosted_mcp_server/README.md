@@ -36,6 +36,37 @@ The CLI also tries to confirm **who** signed in, calling the first tool whose na
 identity-shaped (`whoami`, `get_self`, `current_user`, `viewer`, …) with no arguments — a
 best-effort courtesy; not every server has one.
 
+## `token_store: state` — no local folder, for Hybrid/container deployments
+
+`oauth_dir` (the default, `token_store: folder`) needs persistent storage with exactly one
+writer, which is hard to guarantee in a Hybrid or container deployment. `token_store: state`
+instead reads the current access token from Dagster's own `defs_state_storage` (configured in
+your `dagster.yaml`), with a separate [`McpTokenRefresherComponent`](../mcp_token_refresher/README.md)
+as the ONLY thing that ever refreshes and writes a new version:
+
+```
+python -m dagster_community_components.resources.mcp_oauth_login \
+  --url https://mcp.linear.app/mcp --state-key linear
+```
+
+```yaml
+type: dagster_community_components.HostedMcpServerComponent
+attributes:
+  resource_key: linear
+  url: https://mcp.linear.app/mcp
+  token_store: state
+  state_key: linear   # must match --state-key and McpTokenRefresherComponent's own state_key
+  allow: [get_issue, list_issues]
+```
+
+This component (and the stdio proxy subprocess it spawns) only ever **reads** the latest version
+and uses the access token as given — it never refreshes. If the token is already expired and the
+refresher hasn't run recently enough, `build_defs` fails with a clear "refresh job has not run"
+message rather than loading with a stale/expired token. See
+[`McpTokenRefresherComponent`](../mcp_token_refresher/README.md)'s own README for the scheduled
+refresher, the "no portable version pruning" limitation, and why your `defs_state_storage`
+backend needs the same access control as any other secret store.
+
 ## Servers that take a STATIC token instead — skip all of this
 
 | Server | Hosted MCP URL | Header |

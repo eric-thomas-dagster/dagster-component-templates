@@ -54,6 +54,22 @@
       "label": "Soft Rate Limit Pattern",
       "description": "Regex matched against a tool result's TEXT to detect a server that signals rate limits as ordinary text instead of HTTP 429 (Notion's hosted server is the confirmed example -- see notion_mcp_documents). Unset: a generic default pattern ('rate limit', 'too many requests', 'retry...after') is used, which may not match every server's own wording.",
       "required": false
+    },
+    "token_store": {
+      "type": "string",
+      "enum": [
+        "folder",
+        "state"
+      ],
+      "label": "Token Store",
+      "description": "'folder' (default): read tokens.json/client_info.json from oauth_dir, refreshing in place when the access token expires -- needs persistent storage with exactly one writer, which is hard to guarantee in a Hybrid/container deployment. 'state': read the current access token from Dagster's own defs_state_storage (state_key) instead -- a SEPARATE, scheduled McpTokenRefresherComponent is the only thing that ever refreshes and writes a new version; this component (and the stdio subprocess it spawns) only ever reads the latest one and never refreshes it itself. If the access token is already expired and the refresher hasn't run recently enough, build_defs raises a clear 'refresh job has not run' error rather than loading with a stale/expired token.",
+      "required": false
+    },
+    "state_key": {
+      "type": "string",
+      "label": "State Key",
+      "description": "token_store='state' only (required then). The defs_state_storage key this server's token is stored under -- must match the --state-key used at sign-in (`mcp_oauth_login --state-key ...`) and McpTokenRefresherComponent's own state_key.",
+      "required": false
     }
   }
 }

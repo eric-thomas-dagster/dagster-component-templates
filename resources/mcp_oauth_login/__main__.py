@@ -293,6 +293,64 @@ def _hmo_call_tool(
 # END hosted mcp oauth
 
 
+# BEGIN mcp state token store (inlined per component; keep copies identical — see tests/test_mcp_state_token_store_drift.py)
+def _read_mcp_state_token_blob(state_key: str) -> Dict[str, Any]:
+    """Reads the current {access_token, expires_at, refresh_token, client_id, client_secret,
+    token_endpoint} blob for state_key from the Dagster instance's configured
+    defs_state_storage. Only ever called from build_defs (component load time) or a refresher's
+    own run body -- never from the stdio subprocess itself, which gets a resolved access token
+    baked into its env instead (see token_store='state' in the module docstring)."""
+    from dagster._core.storage.defs_state.base import DefsStateStorage
+
+    storage = DefsStateStorage.get()
+    if storage is None:
+        raise RuntimeError(
+            "token_store='state' requires a defs_state_storage configured on this Dagster "
+            "instance (dagster.yaml's defs_state_storage: section) -- none is configured here."
+        )
+    version = storage.get_latest_version(state_key)
+    if version is None:
+        raise RuntimeError(
+            f"No token found in defs_state_storage for state_key={state_key!r}. Sign in first: "
+            f"python -m dagster_community_components.resources.mcp_oauth_login --url <mcp url> "
+            f"--state-key {state_key!r}"
+        )
+    import json as _json
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+
+    with _tempfile.TemporaryDirectory() as tmp_dir:
+        path = _Path(tmp_dir) / "blob.json"
+        storage.download_state_to_path(state_key, version, path)
+        return _json.loads(path.read_text())
+
+
+def _write_mcp_state_token_blob(state_key: str, blob: Dict[str, Any]) -> None:
+    """The ONE place this should ever be called from -- a scheduled refresher
+    (McpTokenRefresherComponent), per this component family's 'one writer' contract (everything
+    else only reads the latest version). upload_state_from_path also sets the latest-version
+    pointer (confirmed against Dagster's own UPathDefsStateStorage implementation -- it calls
+    set_latest_version itself after writing the blob)."""
+    from dagster._core.storage.defs_state.base import DefsStateStorage
+
+    storage = DefsStateStorage.get()
+    if storage is None:
+        raise RuntimeError(
+            "token_store='state' requires a defs_state_storage configured on this Dagster "
+            "instance (dagster.yaml's defs_state_storage: section) -- none is configured here."
+        )
+    import json as _json
+    import tempfile as _tempfile
+    import uuid as _uuid
+    from pathlib import Path as _Path
+
+    with _tempfile.TemporaryDirectory() as tmp_dir:
+        path = _Path(tmp_dir) / "blob.json"
+        path.write_text(_json.dumps(blob))
+        storage.upload_state_from_path(state_key, version=str(_uuid.uuid4()), path=path)
+# END mcp state token store
+
+
 def _hmo_write_client_info(oauth_dir: str, data) -> None:
     """Locked single-shot write for client_info.json -- CLI-only (HostedMcpServerComponent only
     ever reads it), so not part of the shared inlined block above."""
@@ -485,21 +543,27 @@ def run_interactive_authorization(authorization_url: str, redirect_port: int, ti
 
 
 def sign_in(
-    mcp_url: str, oauth_dir: str, *, redirect_port: int = 8765, client_id: Optional[str] = None,
+    mcp_url: str, oauth_dir: Optional[str] = None, *, state_key: Optional[str] = None,
+    redirect_port: int = 8765, client_id: Optional[str] = None,
     client_secret: Optional[str] = None, open_browser=run_interactive_authorization,
 ) -> Dict[str, Any]:
     """Full flow: discover metadata, register a client (or reuse --client-id, or one already
-    saved under oauth_dir), PKCE + browser consent, exchange the code, persist tokens, try to
-    confirm identity via a best-effort who-am-I tool call. Returns {"whoami": str | None,
-    "metadata": the discovered server metadata} for the CLI to print."""
+    saved under oauth_dir), PKCE + browser consent, exchange the code, persist the result to
+    EXACTLY ONE of oauth_dir (a local folder) or state_key (Dagster's own defs_state_storage --
+    requires DAGSTER_HOME to point at an instance with defs_state_storage configured; see
+    HostedMcpServerComponent's token_store='state'), then try to confirm identity via a
+    best-effort who-am-I tool call. Returns {"whoami": str | None, "metadata": the discovered
+    server metadata} for the CLI to print."""
+    if bool(oauth_dir) == bool(state_key):
+        raise ValueError("sign_in: set exactly one of oauth_dir or state_key.")
+
     metadata = discover_oauth_metadata(mcp_url)
     redirect_uri = f"http://localhost:{redirect_port}/callback"
-    os.makedirs(os.path.expanduser(oauth_dir), exist_ok=True)
 
     if client_id:
         client_info = {"client_id": client_id, "client_secret": client_secret}
     else:
-        client_info = _hmo_read_json(_hmo_client_info_path(oauth_dir))
+        client_info = _hmo_read_json(_hmo_client_info_path(oauth_dir)) if oauth_dir else None
         if not client_info:
             if not metadata.get("registration_endpoint"):
                 raise RuntimeError(
@@ -510,10 +574,10 @@ def sign_in(
                 )
             client_info = register_client(metadata["registration_endpoint"], redirect_uri, mcp_url)
 
-    # client_info.json also carries mcp_url/token_endpoint -- HostedMcpServerComponent's later
-    # token refreshes read these back (no OAuth metadata re-discovery needed on every run).
+    # Carries mcp_url/token_endpoint too -- HostedMcpServerComponent's later token refreshes (or,
+    # for token_store='state', McpTokenRefresherComponent's own refresh) read these back, no
+    # OAuth metadata re-discovery needed on every run.
     client_info = {**client_info, "mcp_url": mcp_url, "token_endpoint": metadata["token_endpoint"]}
-    _hmo_write_client_info(oauth_dir, client_info)
 
     verifier, challenge = generate_pkce_pair()
     state = secrets.token_urlsafe(24)
@@ -532,15 +596,29 @@ def sign_in(
         "refresh_token": token_data.get("refresh_token"),
         "expires_at": time.time() + token_data.get("expires_in", 3600),
     }
-    _hmo_write_tokens(oauth_dir, tokens)
+
+    if oauth_dir:
+        os.makedirs(os.path.expanduser(oauth_dir), exist_ok=True)
+        _hmo_write_client_info(oauth_dir, client_info)
+        _hmo_write_tokens(oauth_dir, tokens)
+        confirm_oauth_dir = oauth_dir
+    else:
+        _write_mcp_state_token_blob(state_key, {**client_info, **tokens})
+        # Reuses the UNCHANGED folder-mode call-tool helpers for the who-am-I confirmation, via
+        # a throwaway temp dir -- the same trick HostedMcpServerComponent's own main() uses for
+        # token_store='state', so this confirmation call never needs a parallel code path.
+        import tempfile
+        confirm_oauth_dir = tempfile.mkdtemp(prefix="mcp_oauth_login_state_")
+        _hmo_write_client_info(confirm_oauth_dir, client_info)
+        _hmo_write_tokens(confirm_oauth_dir, tokens)
 
     whoami = None
     try:
         rate_limiter = HostedMcpRateLimiter(max_requests_per_second=2.0)
-        tool_names = __import__("asyncio").run(_hmo_list_tools_async(mcp_url, oauth_dir, metadata["token_endpoint"]))
+        tool_names = __import__("asyncio").run(_hmo_list_tools_async(mcp_url, confirm_oauth_dir, metadata["token_endpoint"]))
         whoami_tool = find_whoami_tool(tool_names)
         if whoami_tool:
-            whoami = _hmo_call_tool(mcp_url, oauth_dir, metadata["token_endpoint"], whoami_tool, {}, rate_limiter)
+            whoami = _hmo_call_tool(mcp_url, confirm_oauth_dir, metadata["token_endpoint"], whoami_tool, {}, rate_limiter)
     except Exception as e:  # noqa: BLE001 -- identity confirmation is a courtesy, never fatal to sign-in
         whoami = f"(signed in, but could not confirm identity: {e})"
 
@@ -550,22 +628,41 @@ def sign_in(
 def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--url", required=True, help="The hosted MCP server's URL (e.g. 'https://mcp.example.com/mcp').")
-    parser.add_argument("--oauth-dir", required=True, help="Directory to write tokens.json + client_info.json into (mode 0600). Treat as a secret.")
+    parser.add_argument("--oauth-dir", default=None, help="Directory to write tokens.json + client_info.json into (mode 0600). Treat as a secret. Set exactly one of --oauth-dir / --state-key.")
+    parser.add_argument(
+        "--state-key", default=None,
+        help=(
+            "Write the sign-in result into Dagster's own defs_state_storage under this key "
+            "instead of a local folder -- requires DAGSTER_HOME to point at an instance with "
+            "defs_state_storage configured. Pair with a McpTokenRefresherComponent using the "
+            "same state_key (the ONLY thing that should ever refresh this token afterward). "
+            "Set exactly one of --oauth-dir / --state-key."
+        ),
+    )
     parser.add_argument("--redirect-port", type=int, default=8765, help="Local port for the OAuth redirect callback (default 8765).")
     parser.add_argument("--client-id", default=None, help="Use this client id instead of dynamic client registration -- required for a server with no registration_endpoint (e.g. Salesforce's External Client App).")
     parser.add_argument("--client-secret-env", default=None, help="Name of an env var holding --client-id's client secret, if it has one.")
     args = parser.parse_args(argv)
 
-    oauth_dir = os.path.expanduser(args.oauth_dir)
-    os.makedirs(oauth_dir, exist_ok=True)
+    if bool(args.oauth_dir) == bool(args.state_key):
+        print("Sign-in failed: set exactly one of --oauth-dir or --state-key.", file=sys.stderr)
+        raise SystemExit(1)
+
+    oauth_dir = os.path.expanduser(args.oauth_dir) if args.oauth_dir else None
+    if oauth_dir:
+        os.makedirs(oauth_dir, exist_ok=True)
     client_secret = os.environ.get(args.client_secret_env) if args.client_secret_env else None
     try:
-        info = sign_in(args.url, oauth_dir, redirect_port=args.redirect_port, client_id=args.client_id, client_secret=client_secret)
+        info = sign_in(
+            args.url, oauth_dir, state_key=args.state_key, redirect_port=args.redirect_port,
+            client_id=args.client_id, client_secret=client_secret,
+        )
     except Exception as e:
         print(f"Sign-in failed: {e}", file=sys.stderr)
         raise SystemExit(1)
 
-    print(f"Signed in to {args.url!r}. oauth_dir={oauth_dir!r}")
+    where = f"oauth_dir={oauth_dir!r}" if oauth_dir else f"state_key={args.state_key!r}"
+    print(f"Signed in to {args.url!r}. {where}")
     if info["whoami"]:
         print(info["whoami"])
     else:

@@ -393,6 +393,66 @@ def test_sign_in_with_explicit_client_id_skips_dcr_and_persists_it(mod, monkeypa
     assert client_info["client_secret"] == "sshh"
 
 
+# --- sign_in with --state-key (token_store='state') ---------------------------------------
+
+def test_sign_in_requires_exactly_one_of_oauth_dir_or_state_key(mod, tmp_path):
+    with pytest.raises(ValueError, match="exactly one"):
+        mod.sign_in("https://mcp.example.com/mcp")
+    with pytest.raises(ValueError, match="exactly one"):
+        mod.sign_in("https://mcp.example.com/mcp", str(tmp_path), state_key="linear")
+
+
+def test_sign_in_with_state_key_writes_to_state_not_a_folder(mod, monkeypatch, tmp_path):
+    import dagster._core.storage.defs_state.base as defs_state_base
+
+    class _FakeStorage:
+        def __init__(self):
+            self.uploaded = None
+
+        def upload_state_from_path(self, key, version, path):
+            import json
+            self.uploaded = (key, json.loads(path.read_text()))
+
+    fake_storage = _FakeStorage()
+    monkeypatch.setattr(defs_state_base.DefsStateStorage, "get", classmethod(lambda cls: fake_storage))
+    monkeypatch.setattr(mod, "discover_oauth_metadata", lambda url: dict(_METADATA))
+    monkeypatch.setattr(mod, "register_client", lambda *a, **k: {"client_id": "cid"})
+    monkeypatch.setattr(mod, "exchange_code_for_tokens", lambda *a, **k: {"access_token": "AT", "refresh_token": "RT", "expires_in": 3600})
+
+    async def fake_list_tools(mcp_url, oauth_dir_, token_endpoint, timeout_seconds=60.0):
+        return []
+
+    monkeypatch.setattr(mod, "_hmo_list_tools_async", fake_list_tools)
+
+    mod.sign_in("https://mcp.example.com/mcp", state_key="linear", open_browser=_fake_open_browser(mod))
+    key, blob = fake_storage.uploaded
+    assert key == "linear"
+    assert blob["access_token"] == "AT"
+    assert blob["client_id"] == "cid"
+    assert blob["token_endpoint"] == _METADATA["token_endpoint"]
+
+
+def test_main_state_key_and_oauth_dir_are_mutually_exclusive(mod, capsys):
+    with pytest.raises(SystemExit) as exc_info:
+        mod.main(["--url", "https://mcp.example.com/mcp"])
+    assert exc_info.value.code == 1
+    assert "exactly one" in capsys.readouterr().err
+
+
+def test_main_with_state_key_calls_sign_in_with_state_key(mod, monkeypatch):
+    captured = {}
+
+    def fake_sign_in(url, oauth_dir, **k):
+        captured["oauth_dir"] = oauth_dir
+        captured.update(k)
+        return {"whoami": None, "metadata": {}}
+
+    monkeypatch.setattr(mod, "sign_in", fake_sign_in)
+    mod.main(["--url", "https://mcp.example.com/mcp", "--state-key", "linear"])
+    assert captured["oauth_dir"] is None
+    assert captured["state_key"] == "linear"
+
+
 def test_sign_in_no_dcr_and_no_client_id_raises_clear_error(mod, monkeypatch, tmp_path):
     oauth_dir = str(tmp_path)
     monkeypatch.setattr(mod, "discover_oauth_metadata", lambda url: {**_METADATA, "registration_endpoint": None})

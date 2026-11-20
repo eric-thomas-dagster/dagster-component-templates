@@ -42056,6 +42056,54 @@
       ]
     },
     {
+      "id": "mcp_token_refresher",
+      "name": "MCP Token Refresher",
+      "category": "ai",
+      "description": "The one writer for a token_store='state' hosted-MCP OAuth token: refreshes via the stored refresh_token and uploads a new version to Dagster's defs_state_storage. Emits a job (not an asset), with an optional inline cron schedule.",
+      "path": "assets/ai/mcp_token_refresher",
+      "tags": [
+        "ai",
+        "mcp",
+        "oauth",
+        "maintenance"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_token_refresher/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_token_refresher/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_token_refresher/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_token_refresher/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_token_refresher/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20"
+      },
+      "vertical": "data-platform",
+      "icon": "RefreshCw",
+      "produces": [
+        "job"
+      ],
+      "agent_hints": {
+        "outputs": "No data value -- a side effect: a new token version written to defs_state_storage.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "keywords": [
+        "oauth",
+        "token refresh",
+        "defs_state_storage",
+        "maintenance job"
+      ]
+    },
+    {
       "id": "mcp_tool_call",
       "name": "mcp_tool_call",
       "category": "source",

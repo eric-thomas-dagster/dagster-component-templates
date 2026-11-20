@@ -1,0 +1,5 @@
+type: dagster_community_components.McpTokenRefresherComponent
+attributes:
+  job_name: linear_mcp_token_refresh
+  state_key: linear
+  cron_schedule: "0 */4 * * *"

@@ -31,6 +31,93 @@ def test_build_defs_allow_list_and_soft_rate_limit_pattern_pass_through(mod, tmp
     assert resource.env["HOSTED_MCP_SOFT_RATE_LIMIT_PATTERN"] == "slow down"
 
 
+# --- token_store='state' ------------------------------------------------------------------------
+
+def test_token_store_folder_requires_oauth_dir(mod):
+    with pytest.raises(ValueError, match="requires `oauth_dir`"):
+        mod.HostedMcpServerComponent(url="https://mcp.example.com/mcp")
+
+
+def test_token_store_state_requires_state_key(mod):
+    with pytest.raises(ValueError, match="requires `state_key`"):
+        mod.HostedMcpServerComponent(url="https://mcp.example.com/mcp", token_store="state")
+
+
+def test_build_defs_state_mode_bakes_access_token_into_env_not_oauth_dir(mod, monkeypatch):
+    import time
+    monkeypatch.setattr(mod, "_read_mcp_state_token_blob", lambda state_key: {"access_token": "AT123", "expires_at": time.time() + 3600})
+    component = mod.HostedMcpServerComponent(url="https://mcp.example.com/mcp", token_store="state", state_key="linear")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["mcp"]
+    assert resource.env["HOSTED_MCP_ACCESS_TOKEN"] == "AT123"
+    assert "HOSTED_MCP_OAUTH_DIR" not in resource.env
+
+
+def test_build_defs_state_mode_raises_when_token_expired_and_no_fresher_version(mod, monkeypatch):
+    monkeypatch.setattr(mod, "_read_mcp_state_token_blob", lambda state_key: {"access_token": "stale", "expires_at": 0})
+    component = mod.HostedMcpServerComponent(url="https://mcp.example.com/mcp", token_store="state", state_key="linear")
+    with pytest.raises(RuntimeError, match="refresher"):
+        component.build_defs(context=None)
+
+
+def test_read_mcp_state_token_blob_raises_clearly_with_no_storage_configured(mod, monkeypatch):
+    import dagster._core.storage.defs_state.base as defs_state_base
+    monkeypatch.setattr(defs_state_base.DefsStateStorage, "get", classmethod(lambda cls: None))
+    with pytest.raises(RuntimeError, match="defs_state_storage"):
+        mod._read_mcp_state_token_blob("linear")
+
+
+def test_read_mcp_state_token_blob_raises_clearly_with_no_version_for_key(mod, monkeypatch):
+    import dagster._core.storage.defs_state.base as defs_state_base
+
+    class _FakeStorage:
+        def get_latest_version(self, key):
+            return None
+
+    monkeypatch.setattr(defs_state_base.DefsStateStorage, "get", classmethod(lambda cls: _FakeStorage()))
+    with pytest.raises(RuntimeError, match="Sign in first"):
+        mod._read_mcp_state_token_blob("linear")
+
+
+def test_write_mcp_state_token_blob_round_trips_through_a_fake_storage(mod, monkeypatch, tmp_path):
+    import dagster._core.storage.defs_state.base as defs_state_base
+
+    class _FakeStorage:
+        def __init__(self):
+            self.uploaded = None
+
+        def upload_state_from_path(self, key, version, path):
+            self.uploaded = (key, version, path.read_text())
+
+    fake = _FakeStorage()
+    monkeypatch.setattr(defs_state_base.DefsStateStorage, "get", classmethod(lambda cls: fake))
+    mod._write_mcp_state_token_blob("linear", {"access_token": "new"})
+    key, version, contents = fake.uploaded
+    assert key == "linear"
+    assert "new" in contents
+
+
+def test_main_state_mode_materializes_a_throwaway_oauth_dir_with_far_future_expiry(mod, monkeypatch, tmp_path):
+    monkeypatch.setenv("HOSTED_MCP_URL", "https://mcp.example.com/mcp")
+    monkeypatch.setenv("HOSTED_MCP_ACCESS_TOKEN", "AT123")
+    monkeypatch.delenv("HOSTED_MCP_OAUTH_DIR", raising=False)
+    captured = {}
+
+    def fake_build_mcp_server(tools):
+        captured["tools"] = tools
+
+        class _FakeServer:
+            def run(self, transport=None):
+                pass
+        return _FakeServer()
+
+    monkeypatch.setattr(mod, "build_mcp_server", fake_build_mcp_server)
+    mod.main([])
+    tools = captured["tools"]
+    token = mod._hmo_get_access_token(tools.oauth_dir, tools.token_endpoint)
+    assert token == "AT123"
+
+
 # --- HostedMcpProxyTools ----------------------------------------------------------------------
 
 def test_proxy_tools_disallowed_tool_is_an_error_not_an_exception(mod, tmp_path):
@@ -195,10 +282,11 @@ def test_build_mcp_server_with_no_allowed_tools_exposes_nothing(mod):
 
 # --- main() env var validation ------------------------------------------------------------------
 
-def test_main_requires_url_and_oauth_dir(mod, monkeypatch):
+def test_main_requires_url_and_oauth_dir_or_access_token(mod, monkeypatch):
     monkeypatch.delenv("HOSTED_MCP_URL", raising=False)
     monkeypatch.delenv("HOSTED_MCP_OAUTH_DIR", raising=False)
-    with pytest.raises(SystemExit, match="HOSTED_MCP_URL and HOSTED_MCP_OAUTH_DIR"):
+    monkeypatch.delenv("HOSTED_MCP_ACCESS_TOKEN", raising=False)
+    with pytest.raises(SystemExit, match="HOSTED_MCP_URL and"):
         mod.main([])
 
 

@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_community_components.McpTokenRefresherComponent",
+  "description": "The one writer for a token_store='state' hosted-MCP OAuth token: refreshes via the stored refresh_token and uploads a new version to Dagster's defs_state_storage. Emits a job (not an asset), with an optional inline cron schedule.",
+  "category": "ai",
+  "icon": "RefreshCw",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "None",
+      "description": "A plain op/job -- no data value. Side effect: a new token version written to defs_state_storage."
+    }
+  },
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name for the refresher.",
+      "required": true
+    },
+    "state_key": {
+      "type": "string",
+      "label": "State Key",
+      "description": "The defs_state_storage key to refresh -- must match the --state-key used at sign-in (mcp_oauth_login) and the consuming component's own state_key (e.g. HostedMcpServerComponent).",
+      "required": true
+    },
+    "cron_schedule": {
+      "type": "string",
+      "label": "Cron Schedule",
+      "description": "Optional cron expression (e.g. '0 */4 * * *' for every 4 hours). When set, a ScheduleDefinition fires this job on this cadence -- pick something comfortably inside the access token's own lifetime (commonly ~1-8h). Leave unset to trigger this job some other way (your own schedule/sensor).",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "default_status": {
+      "type": "string",
+      "enum": ["running", "stopped"],
+      "label": "Default Status",
+      "description": "Status of the emitted schedule (cron_schedule only). Defaults to 'running', unlike most schedules in this repo -- an un-started refresher silently defeats this component's entire purpose.",
+      "required": false,
+      "ui:widget": "select"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Job description.",
+      "required": false
+    }
+  }
+}

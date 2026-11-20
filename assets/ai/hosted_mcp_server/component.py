@@ -284,6 +284,64 @@ def _hmo_call_tool(
 # END hosted mcp oauth
 
 
+# BEGIN mcp state token store (inlined per component; keep copies identical — see tests/test_mcp_state_token_store_drift.py)
+def _read_mcp_state_token_blob(state_key: str) -> Dict[str, Any]:
+    """Reads the current {access_token, expires_at, refresh_token, client_id, client_secret,
+    token_endpoint} blob for state_key from the Dagster instance's configured
+    defs_state_storage. Only ever called from build_defs (component load time) or a refresher's
+    own run body -- never from the stdio subprocess itself, which gets a resolved access token
+    baked into its env instead (see token_store='state' in the module docstring)."""
+    from dagster._core.storage.defs_state.base import DefsStateStorage
+
+    storage = DefsStateStorage.get()
+    if storage is None:
+        raise RuntimeError(
+            "token_store='state' requires a defs_state_storage configured on this Dagster "
+            "instance (dagster.yaml's defs_state_storage: section) -- none is configured here."
+        )
+    version = storage.get_latest_version(state_key)
+    if version is None:
+        raise RuntimeError(
+            f"No token found in defs_state_storage for state_key={state_key!r}. Sign in first: "
+            f"python -m dagster_community_components.resources.mcp_oauth_login --url <mcp url> "
+            f"--state-key {state_key!r}"
+        )
+    import json as _json
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+
+    with _tempfile.TemporaryDirectory() as tmp_dir:
+        path = _Path(tmp_dir) / "blob.json"
+        storage.download_state_to_path(state_key, version, path)
+        return _json.loads(path.read_text())
+
+
+def _write_mcp_state_token_blob(state_key: str, blob: Dict[str, Any]) -> None:
+    """The ONE place this should ever be called from -- a scheduled refresher
+    (McpTokenRefresherComponent), per this component family's 'one writer' contract (everything
+    else only reads the latest version). upload_state_from_path also sets the latest-version
+    pointer (confirmed against Dagster's own UPathDefsStateStorage implementation -- it calls
+    set_latest_version itself after writing the blob)."""
+    from dagster._core.storage.defs_state.base import DefsStateStorage
+
+    storage = DefsStateStorage.get()
+    if storage is None:
+        raise RuntimeError(
+            "token_store='state' requires a defs_state_storage configured on this Dagster "
+            "instance (dagster.yaml's defs_state_storage: section) -- none is configured here."
+        )
+    import json as _json
+    import tempfile as _tempfile
+    import uuid as _uuid
+    from pathlib import Path as _Path
+
+    with _tempfile.TemporaryDirectory() as tmp_dir:
+        path = _Path(tmp_dir) / "blob.json"
+        path.write_text(_json.dumps(blob))
+        storage.upload_state_from_path(state_key, version=str(_uuid.uuid4()), path=path)
+# END mcp state token store
+
+
 def check_token_health(oauth_dir: str) -> Dict[str, Any]:
     """Confirms the refresh token still works, without making a real MCP tool call -- just a
     token refresh/validity check. Returns {"healthy": bool, "message": str}. 'sign in again' in
@@ -407,7 +465,33 @@ class HostedMcpServerComponent(dg.Component, dg.Model, dg.Resolvable):
 
     resource_key: str = Field(default="mcp", description="Dagster resource key other components reference via server_resource_key.")
     url: str = Field(description="The hosted MCP server's URL (e.g. 'https://mcp.example.com/mcp').")
-    oauth_dir: str = Field(description="Directory holding tokens.json + client_info.json from `python -m dagster_community_components.resources.mcp_oauth_login`. Treat as a secret.")
+    token_store: Literal["folder", "state"] = Field(
+        default="folder",
+        description=(
+            "'folder' (default): read tokens.json/client_info.json from oauth_dir, refreshing "
+            "in place when the access token expires -- needs persistent storage with exactly "
+            "one writer, which is hard to guarantee in a Hybrid/container deployment. 'state': "
+            "read the current access token from Dagster's own defs_state_storage (state_key) "
+            "instead -- a SEPARATE, scheduled McpTokenRefresherComponent is the only thing that "
+            "ever refreshes and writes a new version; this component (and the stdio subprocess "
+            "it spawns) only ever reads the latest one and never refreshes it itself. If the "
+            "access token is already expired and the refresher hasn't run recently enough, "
+            "build_defs raises a clear 'refresh job has not run' error rather than loading with "
+            "a stale/expired token."
+        ),
+    )
+    oauth_dir: Optional[str] = Field(
+        default=None,
+        description="token_store='folder' only (required then). Directory holding tokens.json + client_info.json from `python -m dagster_community_components.resources.mcp_oauth_login`. Treat as a secret.",
+    )
+    state_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "token_store='state' only (required then). The defs_state_storage key this "
+            "server's token is stored under -- must match the --state-key used at sign-in "
+            "(`mcp_oauth_login --state-key ...`) and McpTokenRefresherComponent's own state_key."
+        ),
+    )
     allow: List[str] = Field(
         default_factory=list,
         description=(
@@ -435,6 +519,14 @@ class HostedMcpServerComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("allow",), csv=(), tags=())
 
+    @model_validator(mode="after")
+    def _validate_token_store(self):
+        if self.token_store == "folder" and not self.oauth_dir:
+            raise ValueError("HostedMcpServerComponent: token_store='folder' requires `oauth_dir`.")
+        if self.token_store == "state" and not self.state_key:
+            raise ValueError("HostedMcpServerComponent: token_store='state' requires `state_key`.")
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -443,7 +535,6 @@ class HostedMcpServerComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         mcp_env: Dict[str, str] = {
             "HOSTED_MCP_URL": self.url,
-            "HOSTED_MCP_OAUTH_DIR": self.oauth_dir,
             "HOSTED_MCP_MAX_REQUESTS_PER_SECOND": str(self.max_requests_per_second),
             "HOSTED_MCP_MAX_RETRIES": str(self.max_retries),
         }
@@ -451,6 +542,19 @@ class HostedMcpServerComponent(dg.Component, dg.Model, dg.Resolvable):
             mcp_env["HOSTED_MCP_ALLOW"] = ",".join(self.allow)
         if self.soft_rate_limit_pattern:
             mcp_env["HOSTED_MCP_SOFT_RATE_LIMIT_PATTERN"] = self.soft_rate_limit_pattern
+
+        if self.token_store == "state":
+            blob = _read_mcp_state_token_blob(self.state_key)
+            if blob.get("expires_at", 0) <= _hmo_time.time():
+                raise RuntimeError(
+                    f"HostedMcpServerComponent: the access token stored under "
+                    f"state_key={self.state_key!r} is expired and the scheduled refresher "
+                    "has not run recently enough (this component never refreshes it itself). "
+                    "Check McpTokenRefresherComponent's own run history for this key."
+                )
+            mcp_env["HOSTED_MCP_ACCESS_TOKEN"] = blob["access_token"]
+        else:
+            mcp_env["HOSTED_MCP_OAUTH_DIR"] = self.oauth_dir
 
         resource = _McpServerShapeResource(
             name=self.resource_key,
@@ -495,25 +599,44 @@ def build_mcp_server(tools: "HostedMcpProxyTools"):
 
 
 def main(argv: Optional[List[str]] = None) -> None:
-    """Env: HOSTED_MCP_URL, HOSTED_MCP_OAUTH_DIR (required), HOSTED_MCP_ALLOW (csv),
-    _MAX_REQUESTS_PER_SECOND, _MAX_RETRIES, _SOFT_RATE_LIMIT_PATTERN."""
+    """Env: HOSTED_MCP_URL (required), and either HOSTED_MCP_OAUTH_DIR (token_store='folder') or
+    HOSTED_MCP_ACCESS_TOKEN (token_store='state' -- a resolved token baked in at build_defs time;
+    this process never refreshes it, see HostedMcpServerComponent's own token_store docstring).
+    Also: HOSTED_MCP_ALLOW (csv), _MAX_REQUESTS_PER_SECOND, _MAX_RETRIES,
+    _SOFT_RATE_LIMIT_PATTERN."""
     import logging
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     mcp_url = os.environ.get("HOSTED_MCP_URL")
     oauth_dir = os.environ.get("HOSTED_MCP_OAUTH_DIR")
-    if not mcp_url or not oauth_dir:
-        raise SystemExit("HOSTED_MCP_URL and HOSTED_MCP_OAUTH_DIR must both be set")
+    fixed_access_token = os.environ.get("HOSTED_MCP_ACCESS_TOKEN")
+    if not mcp_url or not (oauth_dir or fixed_access_token):
+        raise SystemExit("HOSTED_MCP_URL and (HOSTED_MCP_OAUTH_DIR or HOSTED_MCP_ACCESS_TOKEN) must be set")
     allow_env = os.environ.get("HOSTED_MCP_ALLOW")
     allow = [t.strip() for t in allow_env.split(",") if t.strip()] if allow_env else []
 
-    client_info = _hmo_read_json(_hmo_client_info_path(oauth_dir)) or {}
-    token_endpoint = client_info.get("token_endpoint")
-    if not token_endpoint:
-        raise SystemExit(
-            f"No token_endpoint found under oauth_dir={oauth_dir!r}. Sign in first: python -m "
-            f"dagster_community_components.resources.mcp_oauth_login --url {mcp_url!r} "
-            f"--oauth-dir {oauth_dir!r}"
-        )
+    if fixed_access_token:
+        # token_store='state': materialize a throwaway local tokens.json with a far-future
+        # expires_at, so the UNCHANGED _hmo_get_access_token always hits its "cached, not
+        # expired" fast path and never attempts a network refresh from this subprocess -- no
+        # client_id/secret/token_endpoint is even needed for that path to work. Reuses the
+        # existing, already-tested folder-mode machinery verbatim instead of a parallel
+        # fixed-token code path through the shared/drift-tested call-tool logic.
+        import tempfile
+        oauth_dir = tempfile.mkdtemp(prefix="hosted_mcp_state_")
+        _hmo_atomic_write(_hmo_tokens_path(oauth_dir), {
+            "access_token": fixed_access_token, "refresh_token": None, "expires_at": _hmo_time.time() + 10**9,
+        })
+        _hmo_atomic_write(_hmo_client_info_path(oauth_dir), {"client_id": "token_store_state_placeholder"})
+        token_endpoint = "unused-in-token_store-state-mode"
+    else:
+        client_info = _hmo_read_json(_hmo_client_info_path(oauth_dir)) or {}
+        token_endpoint = client_info.get("token_endpoint")
+        if not token_endpoint:
+            raise SystemExit(
+                f"No token_endpoint found under oauth_dir={oauth_dir!r}. Sign in first: python -m "
+                f"dagster_community_components.resources.mcp_oauth_login --url {mcp_url!r} "
+                f"--oauth-dir {oauth_dir!r}"
+            )
 
     tools = HostedMcpProxyTools(
         mcp_url, oauth_dir, token_endpoint,

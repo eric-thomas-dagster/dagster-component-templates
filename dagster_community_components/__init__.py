@@ -890,6 +890,7 @@ _CLASS_PATHS: dict[str, str] = {
     "MatillionResource": "assets/infrastructure/matillion_run_asset/component.py",
     "MatillionRunAssetComponent": "assets/infrastructure/matillion_run_asset/component.py",
     "MatomoIngestionComponent": "assets/ingestion/matomo_ingestion/component.py",
+    "McpTokenRefresherComponent": "assets/ai/mcp_token_refresher/component.py",
     "MedicalRecordExtractorComponent": "assets/ai/medical_record_extractor/component.py",
     "MeltanoSyncTriggerJobComponent": "jobs/meltano_sync_trigger_job/component.py",
     "MemcachedCacheFlushJobComponent": "jobs/memcached_cache_flush_job/component.py",

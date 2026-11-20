@@ -61,6 +61,36 @@ def _write_prune_state(state_path, state):
 # END dynamic-partition pruning
 
 
+# BEGIN file-size-stability check (local to this component -- see min_age_seconds/min_size_bytes/require_stable_size)
+def _check_file_size_stability(state_path, current_sizes: dict) -> tuple:
+    """Tracks {file_path: last_seen_size_bytes} in a local JSON state file (independent of the
+    sensor's own mtime cursor) across ticks. Returns (stable_paths, updated_state): a path is
+    "stable" when its size in `current_sizes` exactly matches what was recorded on a PRIOR tick --
+    i.e. the file hasn't grown or shrunk since the last time this sensor looked, so it isn't still
+    being written to or transferred in. A path seen for the first time is never stable (nothing to
+    compare against yet), so every file gets at least one full tick of delay before it can fire.
+    `updated_state` keeps only paths present in `current_sizes` this tick, so entries for files
+    that were processed, deleted, or renamed don't accumulate forever."""
+    state = {}
+    if os.path.exists(state_path):
+        try:
+            with open(state_path) as f:
+                state = json.load(f)
+        except Exception:  # noqa: BLE001
+            state = {}
+    stable = {path for path, size in current_sizes.items() if state.get(path) == size}
+    return stable, dict(current_sizes)
+
+
+def _write_json_state(state_path, state):
+    try:
+        with open(state_path, "w") as f:
+            json.dump(state, f)
+    except Exception:  # noqa: BLE001
+        pass
+# END file-size-stability check
+
+
 class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
     """Component for monitoring filesystem directories for new files.
 
@@ -156,6 +186,38 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
         ),
     )
 
+    min_age_seconds: Optional[int] = Field(
+        default=None,
+        description=(
+            "Skip a file whose mtime is younger than this many seconds -- it may still be "
+            "being written or transferred in. Checked against the file's mtime at the time of "
+            "this tick, not when it first appeared. Unset (default): no age check."
+        ),
+    )
+    min_size_bytes: Optional[int] = Field(
+        default=None,
+        description="Skip a file smaller than this many bytes -- catches a file that exists but hasn't finished being written/copied yet. Unset (default): no size check.",
+    )
+    require_stable_size: bool = Field(
+        default=False,
+        description=(
+            "Skip a file whose size has changed since the last tick this sensor ran (tracked "
+            "via file_stability_state_path, independent of the mtime cursor) -- catches an "
+            "in-progress write/transfer even when mtime keeps advancing (e.g. a slow copy that "
+            "touches the file continuously) and min_age_seconds alone wouldn't. A file seen for "
+            "the first time is always skipped and re-checked next tick, so every file gets at "
+            "least one full tick of delay before it can ever fire."
+        ),
+    )
+    file_stability_state_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Where require_stable_size persists its {file_path: last_seen_size} state. Defaults "
+            "to './{sensor_name}_file_stability_state.json'. Ignored when require_stable_size is "
+            "false."
+        ),
+    )
+
     batch_into_one_run: bool = Field(
         default=False,
         description=(
@@ -188,6 +250,10 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
         dynamic_partition_keep_days = self.dynamic_partition_keep_days
         dynamic_partition_state_path = self.dynamic_partition_state_path or f"./{sensor_name}_dynamic_partition_state.json"
         batch_into_one_run = self.batch_into_one_run
+        min_age_seconds = self.min_age_seconds
+        min_size_bytes = self.min_size_bytes
+        require_stable_size = self.require_stable_size
+        file_stability_state_path = self.file_stability_state_path or f"./{sensor_name}_file_stability_state.json"
 
         if batch_into_one_run and partition_mode != "run_config":
             raise ValueError(
@@ -272,6 +338,12 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
 
             # Process each file
             new_partition_keys: list = []
+            # Pass 1: stat every candidate file (pattern match + mtime-cursor + age/size checks).
+            # Arrival-stability (require_stable_size) needs every candidate's size collected
+            # BEFORE deciding which are stable -- one state-file read/write per tick, not one
+            # per file -- so it's applied as a second pass below, not inline here.
+            now_ts = datetime.now(timezone.utc).timestamp()
+            candidates: list = []  # (file_path, mtime, size, file_name, file_stem)
             for file_path in files:
                 try:
                     # Check if file matches pattern
@@ -286,9 +358,33 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
                     if mtime <= last_processed_time:
                         continue
 
+                    # Skip a file that might still be being written/transferred in.
+                    if min_age_seconds and (now_ts - mtime) < min_age_seconds:
+                        continue
+                    size = stat.st_size
+                    if min_size_bytes and size < min_size_bytes:
+                        continue
+
                     file_name = os.path.basename(file_path)
                     file_stem = os.path.splitext(file_name)[0]
+                    candidates.append((file_path, mtime, size, file_name, file_stem))
+                except Exception as e:
+                    context.log.error(f"Error processing file {file_path}: {e}")
+                    continue
 
+            # Pass 2: arrival-stability -- only a file whose size matches what was recorded on a
+            # PRIOR tick counts as done writing. A file seen for the first time is held back
+            # (added to the state file, but filtered out of candidates) until at least one more
+            # tick confirms its size stopped changing.
+            if require_stable_size and candidates:
+                stable_paths, updated_stability_state = _check_file_size_stability(
+                    file_stability_state_path, {c[0]: c[2] for c in candidates}
+                )
+                _write_json_state(file_stability_state_path, updated_stability_state)
+                candidates = [c for c in candidates if c[0] in stable_paths]
+
+            for file_path, mtime, size, file_name, file_stem in candidates:
+                try:
                     if partition_mode in ("static_partition", "dynamic_partition"):
                         # Materialize a specific partition of the downstream asset(s).
                         partition_key = partition_key_template.format(

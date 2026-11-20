@@ -98,6 +98,30 @@
       "label": "Dynamic Partition State Path",
       "description": "Where dynamic_partition_keep_days persists its {partition_key: first_seen} state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored when dynamic_partition_keep_days is unset.",
       "required": false
+    },
+    "min_age_seconds": {
+      "type": "integer",
+      "label": "Min Age Seconds",
+      "description": "Skip a file whose mtime is younger than this many seconds -- it may still be being written or transferred in. Checked against the file's mtime at the time of this tick, not when it first appeared. Unset (default): no age check.",
+      "required": false
+    },
+    "min_size_bytes": {
+      "type": "integer",
+      "label": "Min Size Bytes",
+      "description": "Skip a file smaller than this many bytes -- catches a file that exists but hasn't finished being written/copied yet. Unset (default): no size check.",
+      "required": false
+    },
+    "require_stable_size": {
+      "type": "boolean",
+      "label": "Require Stable Size",
+      "description": "Skip a file whose size has changed since the last tick this sensor ran (tracked via file_stability_state_path, independent of the mtime cursor) -- catches an in-progress write/transfer even when mtime keeps advancing (e.g. a slow copy that touches the file continuously) and min_age_seconds alone wouldn't. A file seen for the first time is always skipped and re-checked next tick, so every file gets at least one full tick of delay before it can ever fire.",
+      "required": false
+    },
+    "file_stability_state_path": {
+      "type": "string",
+      "label": "File Stability State Path",
+      "description": "Where require_stable_size persists its {file_path: last_seen_size} state. Defaults to './{sensor_name}_file_stability_state.json'. Ignored when require_stable_size is false.",
+      "required": false
     }
   },
   "tags": [

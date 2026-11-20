@@ -1,0 +1,21 @@
+type: dagster_community_components.TaskChainAssetComponent
+attributes:
+  asset_key: infra/nightly_batch
+  run_window: "22:00-23:59 America/New_York"
+  steps:
+    - id: extract
+      type: command
+      command: "./scripts/extract.sh {{ partition_key }}"
+    - id: load
+      type: sql
+      resource_key: warehouse
+      sql: "COPY INTO raw.orders FROM @stage/{{ partition_key }}"
+    - id: notify
+      type: python
+      callable_path: myproject.tasks:notify_done
+  group_name: infrastructure
+  description: "Nightly extract -> load -> notify chain."
+  partition_type: daily
+  partition_start: "2024-01-01"
+  retry_policy_max_retries: 2
+  timeout_seconds: 1800

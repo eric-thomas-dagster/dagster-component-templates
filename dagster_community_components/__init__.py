@@ -1407,6 +1407,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TalendCloudWorkspaceComponent": "integrations/talend_cloud_workspace/component.py",
     "TalkdeskIngestionComponent": "assets/ingestion/talkdesk_ingestion/component.py",
     "TaskAssetComponent": "assets/infrastructure/task_asset/component.py",
+    "TaskChainAssetComponent": "assets/infrastructure/task_chain_asset/component.py",
     "TavilyIngestionComponent": "assets/ingestion/tavily_ingestion/component.py",
     "TealiumIngestionComponent": "assets/ingestion/tealium_ingestion/component.py",
     "TeamsAgentRequestSensorComponent": "sensors/teams_agent_request_sensor/component.py",

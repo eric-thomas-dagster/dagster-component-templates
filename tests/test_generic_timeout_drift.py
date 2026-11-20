@@ -20,6 +20,7 @@ COMPONENTS = [
     "assets/dbt/enriched_dbt_cloud_workspace",
     "assets/data-warehouse/sql_asset",
     "assets/infrastructure/python_callable_asset",
+    "assets/infrastructure/task_chain_asset",
 ]
 BEGIN = "# BEGIN generic timeout wrapper"
 END = "# END generic timeout wrapper"

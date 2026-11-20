@@ -425,6 +425,7 @@ class _McpServerShapeResource(dg.ConfigurableResource):
     env: Optional[Dict[str, str]] = None
     headers: Optional[Dict[str, str]] = None
     headers_env: Optional[Dict[str, str]] = None
+    instructions: Optional[str] = None
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
@@ -513,6 +514,15 @@ class HostedMcpServerComponent(dg.Component, dg.Model, dg.Resolvable):
             "every server's own wording."
         ),
     )
+    instructions: Optional[str] = Field(
+        default=None,
+        description=(
+            "Free-text usage guidance for this server -- read by the litellm/openai/anthropic/"
+            "gemini agent components and appended to their system prompt under a heading with "
+            "this resource's name, so every agent referencing it via server_resource_key gets "
+            "the same guidance with no copy-paste."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -561,6 +571,7 @@ class HostedMcpServerComponent(dg.Component, dg.Model, dg.Resolvable):
             type="stdio",
             command=[sys.executable, "-m", _this_module_name()],
             env=mcp_env,
+            instructions=self.instructions,
         )
         return dg.Definitions(resources={self.resource_key: resource})
 

@@ -52,8 +52,9 @@ A Python dict carrying the full agent run:
 | `stopped_reason` | `"final_answer" \| "max_iterations"` | Why the loop terminated. |
 | `model` | `str` | Model string used. |
 | `mcp_servers` | `list[str]` | Names of MCP servers that were connected. |
+| `combined_server_instructions` | `str \| None` | Combined per-server usage guidance actually sent to the model this run (see "Per-server usage guidance" below). `None` when no server set any. |
 
-Materialization metadata surfaces `final_answer` (as markdown), `iterations`, `tool_calls_made`, `tool_calls` (full JSON), and `stopped_reason` directly in the Dagster UI.
+Materialization metadata surfaces `final_answer` (as markdown), `iterations`, `tool_calls_made`, `tool_calls` (full JSON), `stopped_reason`, and (when set) `mcp_server_instructions` directly in the Dagster UI.
 
 ---
 
@@ -99,6 +100,29 @@ Use `headers` for non-secret values, `headers_env` for any header carrying a sec
 ```
 
 Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers). Includes filesystem, git, GitHub, GitLab, Postgres, SQLite, Brave Search, Puppeteer, Slack, and more. The Dagster+ MCP at `mcp.agent.dagster.cloud/mcp/` exposes 34 tools across runs, assets, deployments, alerts, issues, and metrics.
+
+### Per-server usage guidance (`instructions`)
+
+An MCP server's tools carry no built-in knowledge of how a company wants them used (e.g. "link
+each ticket as `https://app.example.com/issues?issueNumber=<number>`", "show names, not IDs",
+"this server is read-only"). Set `instructions` on an `mcp_servers` entry (inline or on the
+`server_resource_key`'d `MCPServerResourceComponent`) to say this once, instead of pasting it
+into every agent's own `prompt`/`system_prompt`:
+
+```yaml
+mcp_servers:
+  - name: tickets
+    type: http
+    url: https://tickets.example.com/mcp
+    instructions: "Link each ticket as https://app.example.com/issues?issueNumber=<number>."
+```
+
+This text is appended to the system prompt under a `## <server name>` heading, combined with
+whatever `instructions` the server itself returns in its own `initialize()` response (if it sets
+one, labeled `(server-provided)`) — every agent that connects to the same server gets the same
+guidance with no copy-paste, and per-agent `system_prompt` text can still add to it. The combined
+text per run is both returned (`combined_server_instructions`) and surfaced in run metadata
+(`mcp_server_instructions`) so it's visible what the model was actually told.
 
 ---
 

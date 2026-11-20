@@ -74,6 +74,12 @@
       "label": "Inspection Timeout Seconds",
       "description": "inspection_asset_name only: bounds connect + handshake + list_tools.",
       "required": false
+    },
+    "instructions": {
+      "type": "string",
+      "label": "Instructions",
+      "description": "Free-text usage guidance for this server (e.g. 'link each ticket as https://.../issues?issueNumber=<number>', 'show names, not IDs', 'this server is read-only') -- read by the litellm/openai/anthropic/gemini agent components and appended to their system prompt under a heading with this server's name, so every agent referencing this resource via `server_resource_key` gets the same guidance with no copy-paste. Combined with whatever `instructions` the MCP server itself returns in its own initialize response, if it sets one.",
+      "required": false
     }
   }
 }

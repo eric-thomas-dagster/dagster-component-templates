@@ -31,6 +31,21 @@ def test_build_defs_allow_list_and_soft_rate_limit_pattern_pass_through(mod, tmp
     assert resource.env["HOSTED_MCP_SOFT_RATE_LIMIT_PATTERN"] == "slow down"
 
 
+def test_instructions_flows_from_component_into_the_registered_resource(mod, tmp_path):
+    component = mod.HostedMcpServerComponent(
+        url="https://mcp.example.com/mcp", oauth_dir=str(tmp_path),
+        instructions="Link each issue as https://app.example.com/issues?issueNumber=<number>.",
+    )
+    resource = component.build_defs(context=None).resources["mcp"]
+    assert resource.instructions == "Link each issue as https://app.example.com/issues?issueNumber=<number>."
+
+
+def test_instructions_defaults_to_none(mod, tmp_path):
+    component = mod.HostedMcpServerComponent(url="https://mcp.example.com/mcp", oauth_dir=str(tmp_path))
+    resource = component.build_defs(context=None).resources["mcp"]
+    assert resource.instructions is None
+
+
 # --- token_store='state' ------------------------------------------------------------------------
 
 def test_token_store_folder_requires_oauth_dir(mod):

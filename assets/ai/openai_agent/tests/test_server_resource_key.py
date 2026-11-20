@@ -62,6 +62,25 @@ def test_server_resource_key_resolves_the_resource_at_runtime(mod, calls):
     assert calls[0][0]["url"] == "http://localhost:1/mcp"
 
 
+def test_server_resource_key_resolves_the_resource_instructions_too(mod, calls):
+    """MCPServerResource's own `instructions` field flows through the same `.model_dump()`
+    resolution as every other field -- a server_resource_key entry gets the saved usage
+    guidance with no extra code."""
+    from resources.mcp_server_resource.component import MCPServerResource
+
+    component = mod.OpenAIAgentComponent(
+        asset_name="agent_out", prompt="hi",
+        mcp_servers=[{"server_resource_key": "shared_mcp"}],
+    )
+    resource = MCPServerResource(
+        name="tickets", type="http", url="http://localhost:1/mcp",
+        instructions="Link each ticket as https://app.example.com/issues?issueNumber=<number>.",
+    )
+    result = _run(component, resources={"shared_mcp": resource})
+    assert result.success
+    assert calls[0][0]["instructions"] == "Link each ticket as https://app.example.com/issues?issueNumber=<number>."
+
+
 def test_inline_server_still_works(mod, calls):
     component = mod.OpenAIAgentComponent(
         asset_name="agent_out", prompt="hi",

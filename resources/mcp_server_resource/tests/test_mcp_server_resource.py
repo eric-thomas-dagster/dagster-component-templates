@@ -34,4 +34,21 @@ def test_resource_dumps_the_same_shape_a_consumer_expects(mod):
     `.model_dump()` -- MCPServerResource must dump to the exact same key set."""
     resource = mod.MCPServerResource(name="s", type="stdio", command=["x"])
     dumped = resource.model_dump()
-    assert set(dumped) >= {"name", "type", "command", "url", "env", "headers", "headers_env"}
+    assert set(dumped) >= {"name", "type", "command", "url", "env", "headers", "headers_env", "instructions"}
+
+
+def test_instructions_flows_from_component_into_the_registered_resource(mod):
+    component = mod.MCPServerResourceComponent(
+        resource_key="tickets", name="tickets", type="stdio", command=["x"],
+        instructions="Link each ticket as https://app.example.com/issues?issueNumber=<number>.",
+    )
+    defs = component.build_defs(context=None)
+    resource = defs.resources["tickets"]
+    assert resource.instructions == "Link each ticket as https://app.example.com/issues?issueNumber=<number>."
+    assert resource.model_dump()["instructions"] == resource.instructions
+
+
+def test_instructions_defaults_to_none(mod):
+    component = mod.MCPServerResourceComponent(resource_key="s", name="s", command=["x"])
+    resource = component.build_defs(context=None).resources["s"]
+    assert resource.instructions is None

@@ -263,3 +263,71 @@ def test_allowed_tools_filters_the_tool_list_sent_to_the_model(mod, stdio_cfg, m
     )))
     names = {t["function"]["name"] for t in seen["tools"]}
     assert names == {"mini__echo"}, f"allowed_tools did not filter out mini__boom: {names}"
+
+
+def test_per_server_instructions_saved_and_server_provided_combine_into_system_prompt(tmp_path, mod, monkeypatch):
+    """Saved config `instructions` + the real server's own initialize() `instructions`
+    (mcp's FastMCP/MCPServer constructor's own `instructions=` kwarg -- confirmed via the
+    installed mcp package to populate InitializeResult.instructions) both end up under one
+    heading in the system prompt and in the returned combined_server_instructions."""
+    server_src = SERVER_SRC.replace(
+        'server = Server("mini")',
+        'server = Server("mini", instructions="(from server) read-only, do not write.")',
+    )
+    p = tmp_path / "mini_mcp_server_instructions.py"
+    p.write_text(server_src)
+    cfg = {
+        "name": "mini", "type": "stdio", "command": [sys.executable, str(p), "stdio"], "env": _child_env(),
+        "instructions": "Saved note: always cite the ticket number.",
+    }
+
+    seen = {}
+
+    class Msg:
+        def __init__(self, content):
+            self.content, self.tool_calls = content, None
+
+        def model_dump(self, exclude_none=True):
+            return {"role": "assistant", "content": self.content}
+
+    async def acompletion(messages, **kw):
+        seen["messages"] = messages
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=Msg("done"))])
+
+    fake = types.ModuleType("litellm")
+    fake.acompletion = acompletion
+    monkeypatch.setitem(sys.modules, "litellm", fake)
+    res = _run(mod._run_agent(**_call_kwargs(mod._run_agent, cfg, api_key_env_var=None, api_base_env_var=None)))
+
+    combined = res["combined_server_instructions"]
+    assert combined is not None
+    assert "## mini" in combined
+    assert "Saved note: always cite the ticket number." in combined
+    assert "(server-provided): (from server) read-only, do not write." in combined
+    system_msg = next(m for m in seen["messages"] if m["role"] == "system")
+    assert combined in system_msg["content"]
+
+
+def test_no_instructions_means_no_combined_block(mod, stdio_cfg, monkeypatch):
+    """The plain `mini` server (no instructions= set) and a config with no saved
+    `instructions` must not manufacture a combined-instructions block at all."""
+    seen = {}
+
+    class Msg:
+        def __init__(self, content):
+            self.content, self.tool_calls = content, None
+
+        def model_dump(self, exclude_none=True):
+            return {"role": "assistant", "content": self.content}
+
+    async def acompletion(messages, **kw):
+        seen["messages"] = messages
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=Msg("done"))])
+
+    fake = types.ModuleType("litellm")
+    fake.acompletion = acompletion
+    monkeypatch.setitem(sys.modules, "litellm", fake)
+    res = _run(mod._run_agent(**_call_kwargs(mod._run_agent, stdio_cfg, api_key_env_var=None, api_base_env_var=None)))
+
+    assert res["combined_server_instructions"] is None
+    assert not any(m["role"] == "system" for m in seen["messages"])

@@ -61,6 +61,17 @@ class MCPServerSpec(dg.Model, dg.Resolvable):
             "spec) or `server_resource_key` is required."
         ),
     )
+    instructions: Optional[str] = Field(
+        default=None,
+        description=(
+            "Free-text usage guidance for this server (e.g. 'link each ticket as "
+            "https://.../issues?issueNumber=<number>', 'show names, not IDs', 'this server is "
+            "read-only') -- appended to the system prompt under a heading with the server's "
+            "name, so every agent that uses this server (inline or via server_resource_key) "
+            "gets the same guidance with no copy-paste. Combined with whatever `instructions` "
+            "the MCP server itself returns in its own initialize response, if it sets one."
+        ),
+    )
 
     @model_validator(mode="after")
     def _exactly_one_server_source(self):
@@ -594,6 +605,8 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
             }
             if result["tool_call_details"]:
                 md["tool_calls"] = MetadataValue.json(result["tool_call_details"])
+            if result.get("combined_server_instructions"):
+                md["mcp_server_instructions"] = MetadataValue.md(result["combined_server_instructions"])
             if skill_keys:
                 md["skills_available"] = MetadataValue.json(
                     [res.describe() for res in skill_resources.values()]
@@ -767,10 +780,13 @@ def _tool_name_allowed(name: str, allowed: Optional[List[str]]) -> bool:
 
 
 async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
-    """Bring up every MCP server. Returns (tool_index, anthropic_tools, servers_used)."""
+    """Bring up every MCP server. Returns (tool_index, anthropic_tools, servers_used,
+    server_instructions) -- the last is name -> combined saved-config `instructions` + the
+    server's own initialize() `instructions` (when either is set)."""
     tool_index: Dict[str, Any] = {}
     anthropic_tools: List[Dict[str, Any]] = []
     servers_used: List[str] = []
+    server_instructions: Dict[str, str] = {}
 
     for cfg in mcp_servers:
         transport = cfg.get("type", "stdio")
@@ -786,7 +802,7 @@ async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
             log.info(f"[mcp:{name}] starting stdio server: {' '.join(cmd)}")
             read, write = await stack.enter_async_context(stdio_client(params))
             session = await stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
+            init_result = await session.initialize()
         elif transport in ("http", "streamable_http", "streamable-http"):
             from mcp import ClientSession
 
@@ -800,7 +816,7 @@ async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
             )
             read, write = await _open_mcp_streamable_http(stack, url, headers)
             session = await stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
+            init_result = await session.initialize()
         elif transport == "sse":
             from mcp import ClientSession
             from mcp.client.sse import sse_client
@@ -815,9 +831,19 @@ async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
             )
             read, write = await stack.enter_async_context(sse_client(url, headers=headers or None))
             session = await stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
+            init_result = await session.initialize()
         else:
             raise ValueError(f"MCP server '{name}' has unknown transport: {transport!r}")
+
+        _saved_instructions = cfg.get("instructions")
+        _server_instructions = getattr(init_result, "instructions", None)
+        if _saved_instructions or _server_instructions:
+            _block = ""
+            if _saved_instructions:
+                _block += _saved_instructions
+            if _server_instructions:
+                _block += ("\n\n" if _block else "") + f"(server-provided): {_server_instructions}"
+            server_instructions[name] = _block
 
         tools_response = await session.list_tools()
         for tool in tools_response.tools:
@@ -835,7 +861,7 @@ async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
         servers_used.append(name)
         log.info(f"[mcp:{name}] discovered {len(tools_response.tools)} tools")
 
-    return tool_index, anthropic_tools, servers_used
+    return tool_index, anthropic_tools, servers_used, server_instructions
 
 
 def _skill_tool_definitions() -> List[Dict[str, Any]]:
@@ -944,7 +970,19 @@ async def _run_agent(
     skill_resources = {k: v for k, v in skill_resources.items() if k not in _unusable}
 
     async with AsyncExitStack() as stack:
-        tool_index, anthropic_tools, servers_used = await _connect_mcp(stack, log, mcp_servers, allowed_tools)
+        tool_index, anthropic_tools, servers_used, server_instructions = await _connect_mcp(
+            stack, log, mcp_servers, allowed_tools
+        )
+
+        # Per-server usage guidance (saved `instructions` + whatever the server itself
+        # returned in its own initialize() response) -- one heading per server, combined in
+        # mcp_servers order so every agent using the same server gets the same text with no
+        # copy-paste; combined text is also surfaced in run metadata (see below).
+        combined_server_instructions = ""
+        if server_instructions:
+            _blocks = [f"## {name}\n{server_instructions[name]}" for name in servers_used if name in server_instructions]
+            combined_server_instructions = "\n\n".join(_blocks)
+            system_prompt = (system_prompt + "\n\n" + combined_server_instructions) if system_prompt else combined_server_instructions
 
         loaded_skill_names: set = set()
         skill_load_count = 0
@@ -1229,6 +1267,7 @@ async def _run_agent(
             "stopped_reason": stopped_reason,
             "model": model,
             "mcp_servers": servers_used,
+            "combined_server_instructions": combined_server_instructions or None,
             "loaded_skill_names": sorted(loaded_skill_names),
             "skill_load_count": skill_load_count,
             "files": downloaded_files,

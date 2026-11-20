@@ -241,7 +241,7 @@ def test_allowed_tools_filters_connected_tools(mod, stdio_cfg):
 
     async def go():
         async with AsyncExitStack() as stack:
-            tool_index, _tools, _servers = await mod._connect_mcp(stack, _Log(), [stdio_cfg], ["mini__ec*"])
+            tool_index, _tools, _servers, _instr = await mod._connect_mcp(stack, _Log(), [stdio_cfg], ["mini__ec*"])
             return set(tool_index)
 
     names = _run(go())

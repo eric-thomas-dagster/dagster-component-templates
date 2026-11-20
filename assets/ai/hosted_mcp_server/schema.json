@@ -70,6 +70,12 @@
       "label": "State Key",
       "description": "token_store='state' only (required then). The defs_state_storage key this server's token is stored under -- must match the --state-key used at sign-in (`mcp_oauth_login --state-key ...`) and McpTokenRefresherComponent's own state_key.",
       "required": false
+    },
+    "instructions": {
+      "type": "string",
+      "label": "Instructions",
+      "description": "Free-text usage guidance for this server -- read by the litellm/openai/anthropic/gemini agent components and appended to their system prompt under a heading with this resource's name, so every agent referencing it via server_resource_key gets the same guidance with no copy-paste.",
+      "required": false
     }
   }
 }

@@ -19,6 +19,20 @@ def test_build_defs_registers_stdio_resource(mod, tmp_path):
     assert resource.env["NOTION_MCP_MAX_REQUESTS_PER_SECOND"] == "2.0"
 
 
+def test_instructions_flows_from_component_into_the_registered_resource(mod, tmp_path):
+    component = mod.NotionMcpServerComponent(
+        oauth_dir=str(tmp_path), instructions="Only search pages under the Engineering workspace.",
+    )
+    resource = component.build_defs(context=None).resources["notion_mcp"]
+    assert resource.instructions == "Only search pages under the Engineering workspace."
+
+
+def test_instructions_defaults_to_none(mod, tmp_path):
+    component = mod.NotionMcpServerComponent(oauth_dir=str(tmp_path))
+    resource = component.build_defs(context=None).resources["notion_mcp"]
+    assert resource.instructions is None
+
+
 def test_allow_list_rejects_unknown_tool(mod, tmp_path):
     with pytest.raises(ValueError, match="unknown tool"):
         mod.NotionMcpServerComponent(oauth_dir=str(tmp_path), allow=["notion-search", "notion-delete-pages"]).build_defs(None)

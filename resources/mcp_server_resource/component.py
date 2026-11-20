@@ -106,6 +106,17 @@ class MCPServerResource(dg.ConfigurableResource):
     headers_env: Optional[Dict[str, str]] = Field(
         default=None, description="http / sse: map of header_name -> env_var_name (value read from env at call time)."
     )
+    instructions: Optional[str] = Field(
+        default=None,
+        description=(
+            "Free-text usage guidance for this server (e.g. 'link each ticket as "
+            "https://.../issues?issueNumber=<number>', 'show names, not IDs', 'this server is "
+            "read-only') -- read by the litellm/openai/anthropic/gemini agent components and "
+            "appended to their system prompt under a heading with this server's name, so every "
+            "agent referencing this resource via `server_resource_key` gets the same guidance "
+            "with no copy-paste."
+        ),
+    )
 
 
 class MCPServerResourceComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -142,6 +153,18 @@ class MCPServerResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     headers_env: Optional[Dict[str, str]] = Field(
         default=None, description="http / sse: map of header_name -> env_var_name (value read from env at call time)."
     )
+    instructions: Optional[str] = Field(
+        default=None,
+        description=(
+            "Free-text usage guidance for this server (e.g. 'link each ticket as "
+            "https://.../issues?issueNumber=<number>', 'show names, not IDs', 'this server is "
+            "read-only') -- read by the litellm/openai/anthropic/gemini agent components and "
+            "appended to their system prompt under a heading with this server's name, so every "
+            "agent referencing this resource via `server_resource_key` gets the same guidance "
+            "with no copy-paste. Combined with whatever `instructions` the MCP server itself "
+            "returns in its own initialize response, if it sets one."
+        ),
+    )
     inspection_asset_name: Optional[str] = Field(
         default=None,
         description=(
@@ -170,6 +193,7 @@ class MCPServerResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             env=self.env,
             headers=self.headers,
             headers_env=self.headers_env,
+            instructions=self.instructions,
         )
         defs = dg.Definitions(resources={self.resource_key: resource})
         if not self.inspection_asset_name:

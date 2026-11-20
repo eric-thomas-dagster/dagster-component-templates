@@ -315,6 +315,7 @@ class _McpServerShapeResource(dg.ConfigurableResource):
     env: Optional[Dict[str, str]] = None
     headers: Optional[Dict[str, str]] = None
     headers_env: Optional[Dict[str, str]] = None
+    instructions: Optional[str] = None
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
@@ -357,6 +358,15 @@ class NotionMcpServerComponent(dg.Component, dg.Model, dg.Resolvable):
     allow: Optional[List[str]] = Field(default=None, description=f"Hard allow-list of tools (default: both). Valid: {', '.join(_ALL_TOOLS)}.")
     max_requests_per_second: float = Field(default=2.0, description="Shared by every tool call this server process makes -- see NotionMcpRateLimiter.")
     max_retries: int = Field(default=5, description="Retries on Notion's own text-based rate-limit signal or a transient error before returning {'error': ...} to the agent.")
+    instructions: Optional[str] = Field(
+        default=None,
+        description=(
+            "Free-text usage guidance for this server -- read by the litellm/openai/anthropic/"
+            "gemini agent components and appended to their system prompt under a heading with "
+            "this resource's name, so every agent referencing it via server_resource_key gets "
+            "the same guidance with no copy-paste."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -388,6 +398,7 @@ class NotionMcpServerComponent(dg.Component, dg.Model, dg.Resolvable):
             type="stdio",
             command=[sys.executable, "-m", _this_module_name()],
             env=mcp_env,
+            instructions=self.instructions,
         )
         return dg.Definitions(resources={self.resource_key: resource})
 

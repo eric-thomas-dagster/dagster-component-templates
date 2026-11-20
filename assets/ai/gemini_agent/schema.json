@@ -99,6 +99,10 @@
           "server_resource_key": {
             "type": "string",
             "description": "Resource key of an MCPServerResource component to use instead of declaring this server inline -- lets several agent components share one registered server. Exactly one of `name` (inline spec) or `server_resource_key` is required."
+          },
+          "instructions": {
+            "type": "string",
+            "description": "Free-text usage guidance for this server -- appended to the system prompt under a heading with the server's name, combined with whatever `instructions` the MCP server itself returns in its own initialize response, if it sets one."
           }
         }
       }

@@ -49,8 +49,32 @@ A Python dict (loaded via Dagster IO manager):
 | `transcript` | Full OpenAI-shaped message list. |
 | `stopped_reason` | `"final_answer"` or `"max_iterations"`. |
 | `model` / `mcp_servers` | What was used. |
+| `combined_server_instructions` | Per-server usage guidance actually sent to the model this run (see below). `None` when no server set any. |
 
 Key fields surface as Dagster materialization metadata.
+
+## Per-server usage guidance (`instructions`)
+
+An MCP server's tools carry no built-in knowledge of how a company wants them used (e.g. "link
+each ticket as `https://app.example.com/issues?issueNumber=<number>`", "show names, not IDs",
+"this server is read-only"). Set `instructions` on an `mcp_servers` entry (inline or on the
+`server_resource_key`'d `MCPServerResourceComponent`) to say this once, instead of pasting it
+into every agent's own `prompt`/`system_prompt`:
+
+```yaml
+mcp_servers:
+  - name: tickets
+    type: http
+    url: https://tickets.example.com/mcp
+    instructions: "Link each ticket as https://app.example.com/issues?issueNumber=<number>."
+```
+
+This text is appended to the system prompt under a `## <server name>` heading, combined with
+whatever `instructions` the server itself returns in its own `initialize()` response (if it sets
+one, labeled `(server-provided)`) — every agent that connects to the same server gets the same
+guidance with no copy-paste, and per-agent `system_prompt` text can still add to it. The combined
+text per run is both returned (`combined_server_instructions`) and surfaced in run metadata
+(`mcp_server_instructions`) so it's visible what the model was actually told.
 
 ## MCP transports
 

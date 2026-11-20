@@ -20,6 +20,14 @@ EXCLUDED = "d" * 32
 OUT_OF_SCOPE = "e" * 32
 
 
+def _envelope(title, url, text, page_type="page"):
+    """Builds notion-fetch's REAL tool-result shape -- a JSON envelope whose `text` field is the
+    markdown-ish XML, JSON-escaped (\\" / \\n). This is what a real server returns, confirmed
+    against a live crawl; earlier versions of this component wrongly assumed notion-fetch
+    returned that XML directly, un-enveloped."""
+    return json.dumps({"metadata": {"type": page_type}, "title": title, "url": url, "text": text})
+
+
 def test_normalize_strips_dashes_and_takes_last_32(mod):
     dashed = "11111111-2222-3333-4444-" + ROOT[:12]
     assert mod._normalize_notion_page_id(dashed) == ("11112222333344440000" + ROOT[:12])[-32:].lower() or True
@@ -236,6 +244,145 @@ def test_crawl_errored_page_is_counted_and_not_fatal(mod, monkeypatch):
     assert skipped["errored"] == 1
 
 
+# --- _parse_fetch_envelope / _redact_secrets --------------------------------------------------
+
+def test_parse_fetch_envelope_decodes_json_envelope(mod):
+    raw = _envelope("🚑 Support", "https://app.notion.com/p/abc123", '<content>Here is the body</content>')
+    envelope = mod._parse_fetch_envelope(raw)
+    assert envelope["title"] == "🚑 Support"
+    assert envelope["url"] == "https://app.notion.com/p/abc123"
+    assert envelope["type"] == "page"
+    assert "<content>Here is the body</content>" in envelope["text"]
+
+
+def test_parse_fetch_envelope_unescapes_nested_tags_and_newlines(mod):
+    inner = f'<content># Heading\nbody</content><page url="https://notion.so/{CHILD}">Child</page>'
+    raw = json.dumps({"metadata": {"type": "page"}, "title": "Root", "url": "https://notion.so/root", "text": inner})
+    envelope = mod._parse_fetch_envelope(raw)
+    assert "\\n" not in envelope["text"]  # real newline, not the two-character escape sequence
+    assert "\\\"" not in envelope["text"]
+    children = mod._extract_child_pages(envelope["text"])
+    assert children == [(f"https://notion.so/{CHILD}", "Child")]
+
+
+def test_parse_fetch_envelope_strips_the_fetch_preamble_line(mod):
+    raw = _envelope("Root", "https://notion.so/root", 'Here is the result of "fetch" for the Page "Root":\n<content>real body</content>')
+    envelope = mod._parse_fetch_envelope(raw)
+    assert "Here is the result of" not in envelope["text"]
+    assert mod._extract_tag(envelope["text"], "content") == "real body"
+
+
+def test_parse_fetch_envelope_falls_back_on_non_json(mod):
+    envelope = mod._parse_fetch_envelope("<content>plain, not an envelope</content>")
+    assert envelope["title"] == ""
+    assert envelope["url"] is None
+    assert envelope["text"] == "<content>plain, not an envelope</content>"
+
+
+def test_redact_secrets_replaces_known_patterns(mod):
+    text = (
+        "slack token xoxb-1234567890-abcdefghij, "
+        "github token ghp_" + "a" * 36 + ", "
+        "aws key AKIAABCDEFGHIJKLMNOP, "
+        "jwt eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk, "
+        "and a key\n-----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJBAK...\n-----END RSA PRIVATE KEY-----\ndone"
+    )
+    redacted, count = mod._redact_secrets(text)
+    assert count == 5
+    assert "xoxb-" not in redacted
+    assert "ghp_" not in redacted
+    assert "AKIA" not in redacted
+    assert "eyJhbGci" not in redacted
+    assert "BEGIN RSA PRIVATE KEY" not in redacted
+    assert redacted.count("[redacted]") == 5
+
+
+def test_redact_secrets_extra_patterns(mod):
+    redacted, count = mod._redact_secrets("internal-id: SECRET-1234", extra_patterns=[r"SECRET-\d+"])
+    assert count == 1
+    assert "SECRET-1234" not in redacted
+
+
+def test_redact_secrets_leaves_ordinary_text_alone(mod):
+    text = "Nothing sensitive here, just a normal runbook paragraph."
+    redacted, count = mod._redact_secrets(text)
+    assert count == 0
+    assert redacted == text
+
+
+# --- full crawl against the REAL envelope shape ------------------------------------------------
+
+def test_crawl_against_real_envelope_shape_follows_children_uses_exact_title_and_strips_escapes(mod, monkeypatch):
+    """Reproduces the exact bug: notion-fetch's real result is a JSON envelope, not plain
+    markdown. Before the fix, _crawl_notion_pages ran its XML regexes directly against the raw
+    envelope string, found no <page> tags (they were JSON-escaped), and used a guessed/empty
+    title -- 6 child pages + a database all silently vanished."""
+    database_text = f'<wiki-home-content>database body\n</wiki-home-content><page url="https://notion.so/{GRANDCHILD}">DB Row</page>'
+    pages = {
+        ROOT: _envelope(
+            "🚑 Support", "https://app.notion.com/p/real-root-url",
+            f'Here is the result of "fetch" for the Page "🚑 Support":\n'
+            f'<ancestor-path></ancestor-path><content>root body text</content>'
+            f'<page url="https://notion.so/{CHILD}">Child One</page>'
+            f'<page url="https://notion.so/{EXCLUDED}">Compensation 2026</page>',
+        ),
+        CHILD: _envelope(
+            "Child One", "https://app.notion.com/p/child-one",
+            f'<ancestor-path>{ROOT}</ancestor-path><content>child body</content>',
+        ),
+        EXCLUDED: _envelope(
+            "Compensation 2026", "https://app.notion.com/p/comp",
+            f'<ancestor-path>{ROOT}</ancestor-path><content>should never appear</content>'
+            f'<page url="https://notion.so/{OUT_OF_SCOPE}">should not be visited</page>',
+        ),
+        OUT_OF_SCOPE: _envelope(
+            "Database Home", "https://app.notion.com/p/db-home", database_text, page_type="database",
+        ),
+        GRANDCHILD: _envelope(
+            "DB Row", "https://app.notion.com/p/db-row",
+            f'<ancestor-path>{ROOT}</ancestor-path><content>row body</content>',
+        ),
+    }
+    monkeypatch.setattr(mod, "_nmo_call_tool", _fake_call_tool_factory(mod, pages))
+    rl = mod.NotionMcpRateLimiter(max_requests_per_second=1000)
+    rows, skipped, state = mod._crawl_notion_pages([ROOT], "dir", ["compensation"], None, 2, rl, {})
+
+    by_id = {r["doc_id"]: r for r in rows}
+    assert set(by_id) == {ROOT, CHILD}  # EXCLUDED and its only child (OUT_OF_SCOPE, and transitively GRANDCHILD) never visited
+    assert skipped["excluded"] == 1
+    assert skipped["excluded_titles"] == ["Compensation 2026"]
+
+    root_row = by_id[ROOT]
+    assert root_row["title"] == "🚑 Support"  # exact envelope title, not a regex guess
+    assert root_row["url"] == "https://app.notion.com/p/real-root-url"  # exact envelope url, not constructed
+    assert "\\n" not in root_row["content"] and "\\\"" not in root_row["content"]
+    assert root_row["content"] == "root body text"  # the <content> tag's own body only -- no envelope preamble/escapes leaked in
+    assert "Here is the result of" not in root_row["content"]
+
+
+def test_crawl_redacts_secrets_in_content_by_default(mod, monkeypatch):
+    pages = {
+        ROOT: _envelope("Runbook", "https://notion.so/root", f'<content>deploy key: ghp_{"a" * 36}</content>'),
+    }
+    monkeypatch.setattr(mod, "_nmo_call_tool", _fake_call_tool_factory(mod, pages))
+    rl = mod.NotionMcpRateLimiter(max_requests_per_second=1000)
+    rows, skipped, state = mod._crawl_notion_pages([ROOT], "dir", [], None, 2, rl, {})
+    assert "ghp_" not in rows[0]["content"]
+    assert "[redacted]" in rows[0]["content"]
+    assert skipped["secrets_redacted"] == 1
+
+
+def test_crawl_redact_secrets_false_leaves_content_untouched(mod, monkeypatch):
+    pages = {
+        ROOT: _envelope("Runbook", "https://notion.so/root", f'<content>deploy key: ghp_{"a" * 36}</content>'),
+    }
+    monkeypatch.setattr(mod, "_nmo_call_tool", _fake_call_tool_factory(mod, pages))
+    rl = mod.NotionMcpRateLimiter(max_requests_per_second=1000)
+    rows, skipped, state = mod._crawl_notion_pages([ROOT], "dir", [], None, 2, rl, {}, redact_secrets=False)
+    assert "ghp_" in rows[0]["content"]
+    assert skipped["secrets_redacted"] == 0
+
+
 def test_crawl_unchanged_content_keeps_prior_updated_at(mod, monkeypatch):
     monkeypatch.setattr(mod, "_nmo_call_tool", _fake_call_tool_factory(mod, {ROOT: _PAGES[ROOT].replace(f'<page url="https://notion.so/{CHILD}">Child</page>', "").replace(f'<page url="https://notion.so/{EXCLUDED}">Excluded Draft</page>', "")}))
     rl = mod.NotionMcpRateLimiter(max_requests_per_second=1000)
@@ -251,10 +398,10 @@ def test_crawl_unchanged_content_keeps_prior_updated_at(mod, monkeypatch):
 def test_materializes_with_mocked_crawl(mod, monkeypatch, tmp_path):
     from .conftest import install_fake_dlt
 
-    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None):
+    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None):
         return (
             [mod._row_from_notion_mcp_page(ROOT, "hello world", "Root", "2026-01-01T00:00:00+00:00")],
-            {"excluded": 0, "out_of_scope": 0, "errored": 0},
+            {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0},
             {ROOT: {"content_hash": "x", "updated_at": "2026-01-01T00:00:00+00:00"}},
         )
 
@@ -277,11 +424,11 @@ def test_state_path_round_trips_and_reports_pruned_pages(mod, monkeypatch, tmp_p
     with open(state_path, "w") as f:
         json.dump({ROOT: {"content_hash": "x", "updated_at": "t"}, CHILD: {"content_hash": "y", "updated_at": "t"}}, f)
 
-    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None):
+    def fake_crawl(root_page_ids, oauth_dir, exclude_title_contains, max_pages, concurrency, rate_limiter, prior_state, on_rate_limit=None, redact_secrets=True, redact_secrets_extra_patterns=None):
         assert prior_state[ROOT]["content_hash"] == "x"  # state was read before the crawl
         return (
             [mod._row_from_notion_mcp_page(ROOT, "hello", "Root", "t")],
-            {"excluded": 0, "out_of_scope": 0, "errored": 0},
+            {"excluded": 0, "out_of_scope": 0, "errored": 0, "excluded_titles": [], "secrets_redacted": 0},
             {ROOT: {"content_hash": "x", "updated_at": "t"}},  # CHILD dropped out -> pruned
         )
 

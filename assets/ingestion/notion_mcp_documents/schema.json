@@ -303,6 +303,21 @@
       "label": "Backfill Policy Max Partitions Per Run",
       "description": "For backfill_policy='multi_run' only.",
       "required": false
+    },
+    "redact_secrets": {
+      "type": "boolean",
+      "label": "Redact Secrets",
+      "description": "Replace Slack ('xox...'), GitHub ('gh[pousr]_...'), AWS ('AKIA...'), JWT-shaped, and PEM private-key strings found in page content with '[redacted]' before it's hashed or stored -- on by default, since a real runbook page can easily contain a pasted credential. The redaction count is reported as secrets_redacted in materialization metadata.",
+      "required": false
+    },
+    "redact_secrets_extra_patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Redact Secrets Extra Patterns",
+      "description": "Additional regex patterns (strings) to redact alongside the built-in ones. Only used when redact_secrets is True.",
+      "required": false
     }
   }
 }

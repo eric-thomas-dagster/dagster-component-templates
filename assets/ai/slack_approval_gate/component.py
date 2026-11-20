@@ -1,10 +1,18 @@
 """SlackApprovalGateComponent.
 
-Human-in-the-loop approval via Slack reactions. Composes with the
-existing `HumanApprovalGateComponent` — Slack side handles the posting
-+ reaction polling + quorum accounting; when quorum is reached, this
-component writes the same JSON token file `HumanApprovalGateComponent`
-already reads. Everything downstream of the gate is unchanged.
+Human-in-the-loop approval via Slack reactions. Three `target` modes:
+
+- `human_approval_gate` (default): composes with the existing
+  `HumanApprovalGateComponent` — Slack side handles posting + reaction
+  polling + quorum accounting; when quorum is reached, this component
+  writes the same JSON token file that gate already reads.
+- `agentic_pipeline`: watches agentic_pipeline's own pending-approval
+  queue directly (see `target` field docs).
+- `run_request`: no token file at all — on quorum, the watcher fires a
+  `RunRequest` directly (a job launch or an asset materialization),
+  with the decision on its tags. Use this when there's no separate gate
+  component to hand a token to and you just want "Slack reaction ->
+  Dagster run."
 
 ## Why reactions polling (not interactive buttons)
 
@@ -14,21 +22,41 @@ short-lived, no fixed URL). Reactions polling is pure outbound HTTPS to
 Slack's API — works everywhere Dagster runs. Trade-off: 30-60s
 approval-detection latency instead of instant. Fine for humans.
 
+## `correlation_mode`: no sidecar file by default
+
+The original version of this component tracked each pending approval's
+own config (required approvers, allowlist, timeout, ...) in a sidecar
+file (`<approval_dir>/<safe_key>.slack_state.json`) written at post time
+and globbed on every sensor tick. `correlation_mode='message_metadata'`
+(the new default) instead embeds that same config as hidden metadata on
+the Slack message itself (`chat.postMessage`'s own `metadata` param --
+invisible in the UI, read back via
+`conversations.history(include_all_metadata=true)` under the same scope
+already needed to read channel history, no extra Slack app scope). The
+watcher discovers pending approvals by scanning the channel instead of
+globbing a directory, and keeps escalation-already-sent /
+already-resolved bookkeeping in Dagster's own native sensor cursor --
+not a file. The posting asset is idempotent the same way: it searches
+recent channel history for an already-posted message before posting a
+new one, using Slack itself (not a local file) as the source of truth.
+Set `correlation_mode='sidecar_file'` to restore the original behavior.
+
 ## Emits (per YAML instance)
 
-1. **`{asset_name}_posted` asset** (partitioned). Materialization posts
-   the report to Slack, seeds it with approve/reject emoji reactions
-   (so voters see the buttons), and stores `message_ts + channel_id + ...`
-   in metadata for the sensor.
+1. **`{asset_name}_posted` asset** (partitioned, target:
+   human_approval_gate / run_request only). Materialization posts the
+   report to Slack and seeds it with approve/reject emoji reactions (so
+   voters see the buttons).
 2. **`{asset_name}_watcher` sensor** (default_status: RUNNING). Polls
-   Slack every `poll_interval_seconds` for each posted-but-not-tokened
-   partition. Counts allowlisted reactions; on quorum, writes the same
-   JSON token `HumanApprovalGateComponent` reads.
+   Slack every `poll_interval_seconds` for each still-open approval.
+   Counts allowlisted reactions; on quorum, writes the token
+   `HumanApprovalGateComponent` reads (target: human_approval_gate) or
+   fires a `RunRequest` directly (target: run_request).
 
-Pair with a `HumanApprovalGateComponent` (`upstream_asset_key:
-{same_report_asset_key}` + `approval_dir: {same_dir}`) to complete the
-gate — Slack handles the human side, the existing gate handles the
-downstream asset-check + blocking.
+For target: human_approval_gate, pair with a `HumanApprovalGateComponent`
+(`upstream_asset_key: {same_report_asset_key}` + `approval_dir:
+{same_dir}`) to complete the gate — Slack handles the human side, the
+existing gate handles the downstream asset-check + blocking.
 """
 
 import json
@@ -295,6 +323,89 @@ def _classify_votes(
     return {"approve": approvers, "reject": rejecters}
 
 
+def _lookup_bot_user_id(client) -> Optional[str]:
+    try:
+        auth = client.auth_test()
+        return auth.get("user_id")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+# ── correlation_mode='message_metadata': no sidecar file at all ───────
+# `chat.postMessage`'s own `metadata` parameter (`{event_type, event_payload}`) is invisible in
+# the Slack UI but round-trips through `conversations.history(include_all_metadata=true)` under
+# the SAME scope already needed to read channel history -- no extra Slack app scope. This lets a
+# pending approval's own config (required_approvers, allowlist, timeout, ...) ride inside the
+# Slack message itself, so the watcher discovers "what's pending" by scanning the channel instead
+# of globbing a directory, and the posting asset discovers "have I already posted this" the same
+# way -- Slack is the source of truth, not a local file.
+_APPROVAL_EVENT_TYPE = "dagster_approval_v1"
+
+
+def _post_slack_message_with_metadata(
+    client, channel: str, text: str, approve_emoji: str, reject_emoji: str, ping_users: List[str],
+    event_payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    pings = " ".join(f"<@{u}>" for u in ping_users) + " " if ping_users else ""
+    body = f"{pings}{text}"
+    resp = client.chat_postMessage(
+        channel=channel, text=body,
+        metadata={"event_type": _APPROVAL_EVENT_TYPE, "event_payload": event_payload},
+    )
+    if not resp.get("ok"):
+        raise RuntimeError(f"Slack chat_postMessage failed: {resp.get('error')}")
+    message_ts = resp["ts"]
+    channel_id = resp["channel"]
+    for emoji in (approve_emoji, reject_emoji):
+        try:
+            client.reactions_add(channel=channel_id, timestamp=message_ts, name=emoji)
+        except Exception:  # noqa: BLE001
+            pass
+    return {"message_ts": message_ts, "channel_id": channel_id}
+
+
+def _iter_approval_metadata_messages(client, channel: str, lookback_hours: float):
+    """Yields {message_ts, payload} for every dagster_approval_v1-tagged message in `channel`
+    within the last `lookback_hours` -- paginated via conversations.history's own cursor."""
+    import time as _time
+    oldest = str(_time.time() - lookback_hours * 3600)
+    cursor = None
+    while True:
+        kwargs: Dict[str, Any] = {"channel": channel, "oldest": oldest, "include_all_metadata": True, "limit": 200}
+        if cursor:
+            kwargs["cursor"] = cursor
+        resp = client.conversations_history(**kwargs)
+        if not resp.get("ok"):
+            raise RuntimeError(f"Slack conversations_history failed: {resp.get('error')}")
+        for m in resp.get("messages", []) or []:
+            meta = m.get("metadata") or {}
+            if meta.get("event_type") != _APPROVAL_EVENT_TYPE:
+                continue
+            yield {"message_ts": m["ts"], "payload": meta.get("event_payload") or {}}
+        cursor = (resp.get("response_metadata") or {}).get("next_cursor")
+        if not cursor:
+            return
+
+
+def _find_existing_approval_message(client, channel: str, safe_key: str, lookback_hours: float) -> Optional[Dict[str, Any]]:
+    """Search recent channel history for a still-open approval message already posted for
+    `safe_key` -- makes (re-)materializing the posting asset idempotent with no local file,
+    using Slack itself as the source of truth for "have I already posted this"."""
+    for item in _iter_approval_metadata_messages(client, channel, lookback_hours):
+        if item["payload"].get("safe_key") == safe_key:
+            return item
+    return None
+
+
+def _scan_pending_approval_messages(client, channel: str, lookback_hours: float, skip_ts: set) -> List[Dict[str, Any]]:
+    """All still-open approval messages in the channel (within the lookback window), excluding
+    any `message_ts` already known-resolved per the sensor's own cursor."""
+    return [
+        item for item in _iter_approval_metadata_messages(client, channel, lookback_hours)
+        if item["message_ts"] not in skip_ts
+    ]
+
+
 # ── Component ─────────────────────────────────────────────────────────
 
 
@@ -394,9 +505,9 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(
-        description="Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline)."
+        description="Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate / run_request), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline)."
     )
-    target: Literal["human_approval_gate", "agentic_pipeline"] = Field(
+    target: Literal["human_approval_gate", "agentic_pipeline", "run_request"] = Field(
         default="human_approval_gate",
         description=(
             "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a "
@@ -408,20 +519,26 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             "agentic_pipeline's own `approve_pending()` reviewer-tooling helper does (copies the pending record's "
             "fingerprint into the token), so the pipeline's own `<asset>_approval_resume_sensor` honours it. "
             "`upstream_asset_key` is ignored in this mode (there is no single upstream asset -- the pipeline's own "
-            "`approve` step is the source of what gets posted); no asset is emitted, only the watcher sensor."
+            "`approve` step is the source of what gets posted); no asset is emitted, only the watcher sensor. "
+            "'run_request': same posting behavior as human_approval_gate, but on quorum the watcher directly fires "
+            "a `RunRequest` (run_request_mode / run_request_job_name / run_request_asset_selection) with the "
+            "decision on its tags -- no token file, no approval_dir, no separate HumanApprovalGateComponent at all. "
+            "Requires correlation_mode='message_metadata' (the default)."
         ),
     )
     upstream_asset_key: Optional[Union[str, List[str]]] = Field(
         default=None,
         description=(
-            "target: human_approval_gate only (required there, ignored for target: agentic_pipeline). "
+            "target: human_approval_gate / run_request only (required there, ignored for target: agentic_pipeline). "
             "Upstream asset whose text is posted to Slack for approval. "
             "String (not AssetKey object); multi-part keys use slash notation."
         )
     )
-    approval_dir: str = Field(
+    approval_dir: Optional[str] = Field(
+        default=None,
         description=(
-            "Absolute path to the shared approval-token directory. target: human_approval_gate -- when quorum is "
+            "Required for target: human_approval_gate / agentic_pipeline; unused (and may be left unset) for "
+            "target: run_request, which writes no file at all. target: human_approval_gate -- when quorum is "
             "reached, writes `<safe_partition_key>.json` here, matching `HumanApprovalGateComponent`'s own "
             "`approval_dir` so the existing gate + sensor pipeline just works. target: agentic_pipeline -- the SAME "
             "`approval_dir` your pipeline's `approve` step uses; this component reads `<approval_dir>/pending/*.json` "
@@ -487,6 +604,57 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     poll_interval_seconds: int = Field(
         default=30,
         description="Sensor cadence — how often to poll Slack for new reactions. 30s default; lower for demos, higher (60-120s) at scale to stay under Slack rate limits."
+    )
+
+    correlation_mode: Literal["message_metadata", "sidecar_file"] = Field(
+        default="message_metadata",
+        description=(
+            "'message_metadata' (default): no per-pending-approval file at all. The approval's own config "
+            "(required_approvers, approver_allowlist, timeout_hours, ...) rides inside the Slack message itself as "
+            "hidden metadata (chat.postMessage's own `metadata` parameter -- invisible in the Slack UI, read back "
+            "via conversations.history(include_all_metadata=true) under the same scope already needed to read "
+            "channel history). The watcher discovers pending approvals by scanning the channel (bounded by "
+            "history_lookback_hours) instead of globbing a directory, and keeps its own escalation-already-sent / "
+            "already-resolved bookkeeping in Dagster's native sensor cursor -- no approval_dir file for any of "
+            "this (target: human_approval_gate still writes the one decision-token file that component reads; "
+            "target: run_request writes no file at all). 'sidecar_file': this component's original behavior -- "
+            "writes `<approval_dir>/<safe_key>.slack_state.json` at post time and globs it every tick. Kept for "
+            "exact backward compatibility, or for a Slack app that can't be granted channel-history read on this "
+            "channel. Not available for target: run_request."
+        ),
+    )
+    history_lookback_hours: float = Field(
+        default=168.0,
+        description=(
+            "correlation_mode='message_metadata' only: how far back (hours) the watcher scans channel history for "
+            "still-open approval messages, bounding the conversations.history call so a busy channel doesn't force "
+            "a full-history scan every tick. Should be >= timeout_hours (when set); a message older than this that "
+            "never resolved stops being found by the watcher."
+        ),
+    )
+
+    run_request_mode: Literal["job", "asset_selection"] = Field(
+        default="asset_selection",
+        description="target: run_request only. 'job': launch run_request_job_name. 'asset_selection': materialize run_request_asset_selection.",
+    )
+    run_request_job_name: Optional[str] = Field(
+        default=None,
+        description="target: run_request + run_request_mode='job' (required then). Job name to launch on quorum.",
+    )
+    run_request_asset_selection: Optional[List[str]] = Field(
+        default=None,
+        description="target: run_request + run_request_mode='asset_selection' (required then). Asset keys to materialize on quorum.",
+    )
+    run_request_run_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="target: run_request only. Optional run config passed through to the launched RunRequest.",
+    )
+    run_request_tag_prefix: str = Field(
+        default="approval",
+        description=(
+            "target: run_request only. Tag namespace on the launched run: '{prefix}/approved' ('true'/'false'), "
+            "'{prefix}/approver', '{prefix}/reason', '{prefix}/partition_key'."
+        ),
     )
 
     # Catalog / governance
@@ -562,6 +730,22 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         optional = isinstance(data, dict) and data.get("target") == "agentic_pipeline"
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=optional)
 
+    @model_validator(mode="after")
+    def _validate_target_requirements(self):
+        if self.target in ("human_approval_gate", "agentic_pipeline") and not self.approval_dir:
+            raise ValueError(f"SlackApprovalGateComponent: target={self.target!r} requires approval_dir.")
+        if self.target == "run_request":
+            if self.correlation_mode != "message_metadata":
+                raise ValueError(
+                    "SlackApprovalGateComponent: target='run_request' requires correlation_mode='message_metadata' "
+                    "(there is no sidecar-file form of run_request -- it writes no file at all)."
+                )
+            if self.run_request_mode == "job" and not self.run_request_job_name:
+                raise ValueError("SlackApprovalGateComponent: target='run_request' with run_request_mode='job' requires run_request_job_name.")
+            if self.run_request_mode == "asset_selection" and not self.run_request_asset_selection:
+                raise ValueError("SlackApprovalGateComponent: target='run_request' with run_request_mode='asset_selection' requires run_request_asset_selection.")
+        return self
+
     @classmethod
     def get_form_config(cls):
         """UI-editable via the Dagster / Dagster+ Components tab."""
@@ -573,9 +757,16 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         target = self.target
         posted_asset_name = f"{asset_name}_posted"
         upstream_asset_key = self.upstream_asset_key
-        if target == "human_approval_gate" and not upstream_asset_key:
-            raise ValueError("target: human_approval_gate requires upstream_asset_key (the asset whose text is posted for approval)")
+        if target in ("human_approval_gate", "run_request") and not upstream_asset_key:
+            raise ValueError(f"target: {target} requires upstream_asset_key (the asset whose text is posted for approval)")
         approval_dir = self.approval_dir
+        correlation_mode = self.correlation_mode
+        history_lookback_hours = self.history_lookback_hours
+        run_request_mode = self.run_request_mode
+        run_request_job_name = self.run_request_job_name
+        run_request_asset_selection = self.run_request_asset_selection
+        run_request_run_config = self.run_request_run_config
+        run_request_tag_prefix = self.run_request_tag_prefix
         slack_channel = self.slack_channel
         bot_token_env_var = self.slack_bot_token_env_var
         approve_emoji = self.approve_emoji
@@ -655,30 +846,6 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             else:
                 raw_key = "default"
             safe_key = _safe_partition_key(raw_key)
-            fs = _ApprovalFS(approval_dir)
-            fs.mkdir()
-            sidecar_path = fs.path(f"{safe_key}{_SLACK_STATE_SUFFIX}")
-
-            if fs.exists(sidecar_path):
-                # Already posted for this partition — re-materializing is a no-op
-                # (safe idempotent re-run; existing message stays valid).
-                state = fs.read_json(sidecar_path)
-                context.log.info(
-                    f"[slack_approval] partition {raw_key!r} already posted "
-                    f"(ts={state.get('message_ts')}); reusing existing message."
-                )
-                return state
-
-            client = _get_slack_client(bot_token_env_var)
-
-            # Look up bot user id so we can exclude the bot's own seed
-            # reactions from vote counting.
-            bot_user_id: Optional[str] = None
-            try:
-                auth = client.auth_test()
-                bot_user_id = auth.get("user_id")
-            except Exception:  # noqa: BLE001
-                pass
 
             upstream_text = _extract_upstream_text(upstream)[:2000]
             body = message_template.format(
@@ -690,16 +857,81 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 partition_key=raw_key,
             )
 
-            posted = _post_slack_message(
-                client, slack_channel, body, approve_emoji, reject_emoji, ping_users,
-            )
-            state = {
-                "message_ts": posted["message_ts"],
-                "channel_id": posted["channel_id"],
+            if correlation_mode == "sidecar_file":
+                fs = _ApprovalFS(approval_dir)
+                fs.mkdir()
+                sidecar_path = fs.path(f"{safe_key}{_SLACK_STATE_SUFFIX}")
+
+                if fs.exists(sidecar_path):
+                    # Already posted for this partition — re-materializing is a no-op
+                    # (safe idempotent re-run; existing message stays valid).
+                    state = fs.read_json(sidecar_path)
+                    context.log.info(
+                        f"[slack_approval] partition {raw_key!r} already posted "
+                        f"(ts={state.get('message_ts')}); reusing existing message."
+                    )
+                    return state
+
+                client = _get_slack_client(bot_token_env_var)
+                bot_user_id = _lookup_bot_user_id(client)
+                posted = _post_slack_message(
+                    client, slack_channel, body, approve_emoji, reject_emoji, ping_users,
+                )
+                state = {
+                    "message_ts": posted["message_ts"],
+                    "channel_id": posted["channel_id"],
+                    "partition_key": raw_key,
+                    "safe_partition_key": safe_key,
+                    "bot_user_id": bot_user_id,
+                    "posted_at": _now_iso(),
+                    "required_approvers": required_approvers,
+                    "approver_allowlist": approver_allowlist,
+                    "approve_emoji": approve_emoji,
+                    "reject_emoji": reject_emoji,
+                    "timeout_hours": timeout_hours,
+                    "on_timeout": on_timeout,
+                    "escalate_slack_user": escalate_slack_user,
+                    "bot_token_env_var": bot_token_env_var,
+                    "approval_dir": fs.root,
+                    "escalated_at": None,
+                }
+                fs.write_json(sidecar_path, state)
+                context.log.info(
+                    f"[slack_approval] posted to {slack_channel} for partition "
+                    f"{raw_key!r} (ts={posted['message_ts']})"
+                )
+                context.add_output_metadata({
+                    "slack_channel": slack_channel,
+                    "slack_message_ts": posted["message_ts"],
+                    "sidecar_path": sidecar_path,
+                    "partition_key": raw_key,
+                    "required_approvers": required_approvers,
+                    "allowlisted": ",".join(approver_allowlist),
+                })
+                return state
+
+            # correlation_mode == "message_metadata": no sidecar file. Slack itself is the
+            # source of truth for "have I already posted this" -- search recent history for a
+            # still-open approval message for this safe_key before posting a new one.
+            client = _get_slack_client(bot_token_env_var)
+            existing = _find_existing_approval_message(client, slack_channel, safe_key, history_lookback_hours)
+            if existing:
+                context.log.info(
+                    f"[slack_approval] partition {raw_key!r} already posted "
+                    f"(ts={existing['message_ts']}); reusing existing message (discovered via "
+                    f"Slack message metadata, no local file)."
+                )
+                context.add_output_metadata({
+                    "slack_channel": slack_channel,
+                    "slack_message_ts": existing["message_ts"],
+                    "partition_key": raw_key,
+                    "correlation_mode": "message_metadata",
+                })
+                return existing
+
+            event_payload = {
+                "safe_key": safe_key,
                 "partition_key": raw_key,
-                "safe_partition_key": safe_key,
-                "bot_user_id": bot_user_id,
-                "posted_at": _now_iso(),
                 "required_approvers": required_approvers,
                 "approver_allowlist": approver_allowlist,
                 "approve_emoji": approve_emoji,
@@ -707,35 +939,30 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 "timeout_hours": timeout_hours,
                 "on_timeout": on_timeout,
                 "escalate_slack_user": escalate_slack_user,
-                "bot_token_env_var": bot_token_env_var,
-                "approval_dir": fs.root,
-                "escalated_at": None,
+                "posted_at": _now_iso(),
             }
-            fs.write_json(sidecar_path, state)
+            posted = _post_slack_message_with_metadata(
+                client, slack_channel, body, approve_emoji, reject_emoji, ping_users, event_payload,
+            )
             context.log.info(
-                f"[slack_approval] posted to {slack_channel} for partition "
-                f"{raw_key!r} (ts={posted['message_ts']})"
+                f"[slack_approval] posted to {slack_channel} for partition {raw_key!r} "
+                f"(ts={posted['message_ts']}) -- correlation via Slack message metadata, no local file."
             )
             context.add_output_metadata({
                 "slack_channel": slack_channel,
                 "slack_message_ts": posted["message_ts"],
-                "sidecar_path": sidecar_path,
                 "partition_key": raw_key,
                 "required_approvers": required_approvers,
                 "allowlisted": ",".join(approver_allowlist),
+                "correlation_mode": "message_metadata",
             })
-            return state
+            return {"message_ts": posted["message_ts"], "channel_id": posted["channel_id"], "payload": event_payload}
 
         # ── Sensor: poll reactions + write token on quorum ─────────────
 
         sensor_name = f"{asset_name}_watcher"
 
-        @dg.sensor(
-            name=sensor_name,
-            minimum_interval_seconds=poll_interval_seconds,
-            default_status=dg.DefaultSensorStatus.RUNNING,
-        )
-        def _watcher(context: dg.SensorEvaluationContext):
+        def _watch_sidecar_file(context: dg.SensorEvaluationContext):
             fs = _ApprovalFS(approval_dir)
             if not fs.is_uri and not Path(fs.root).exists():
                 return dg.SensorResult(skip_reason=f"approval_dir does not exist yet: {fs.root}")
@@ -846,6 +1073,138 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             if not actions:
                 return dg.SensorResult(skip_reason=f"polled {len(sidecars)} partition(s); no quorum changes")
             return dg.SensorResult(skip_reason="; ".join(actions))
+
+        def _watch_message_metadata(context: dg.SensorEvaluationContext):
+            try:
+                cur = json.loads(context.cursor) if context.cursor else {}
+            except Exception:  # noqa: BLE001
+                cur = {}
+            resolved_ts = set(cur.get("resolved_ts") or [])
+            escalated_ts = set(cur.get("escalated_ts") or [])
+
+            client = _get_slack_client(bot_token_env_var)
+            try:
+                pending = _scan_pending_approval_messages(client, slack_channel, history_lookback_hours, resolved_ts)
+            except Exception as e:  # noqa: BLE001
+                context.log.error(f"Slack channel scan failed: {e}. Skipping this tick.")
+                return dg.SensorResult(skip_reason=f"Slack channel scan failed: {e}", cursor=context.cursor)
+
+            if not pending:
+                return dg.SensorResult(skip_reason="no open approval messages in the scanned window", cursor=context.cursor)
+
+            bot_user_id = _lookup_bot_user_id(client)
+            actions: List[str] = []
+            run_requests: List[dg.RunRequest] = []
+            newly_resolved: List[str] = []
+            newly_escalated: List[str] = []
+
+            for item in pending:
+                message_ts, payload = item["message_ts"], item["payload"]
+                safe_key = payload.get("safe_key", "default")
+
+                if target == "human_approval_gate":
+                    fs = _ApprovalFS(approval_dir)
+                    if fs.exists(fs.path(f"{safe_key}.json")):
+                        newly_resolved.append(message_ts)
+                        continue
+
+                try:
+                    reactions = _fetch_reactions(client, slack_channel, message_ts)
+                except Exception as e:  # noqa: BLE001
+                    context.log.error(f"Slack fetch failed for ts={message_ts}: {e}. Skipping this tick.")
+                    continue
+
+                votes = _classify_votes(
+                    reactions, payload["approve_emoji"], payload["reject_emoji"],
+                    payload["approver_allowlist"], bot_user_id,
+                )
+                required = payload["required_approvers"]
+
+                decision: Optional[tuple] = None  # (approved, approver, reason)
+                if len(votes["approve"]) >= required:
+                    decision = (True, ",".join(votes["approve"]), f"Slack quorum reached: {len(votes['approve'])}/{required} approved")
+                elif len(votes["reject"]) >= required:
+                    decision = (False, ",".join(votes["reject"]), f"Slack rejection quorum reached: {len(votes['reject'])}/{required} rejected")
+                else:
+                    timeout = payload.get("timeout_hours")
+                    if timeout is not None:
+                        posted_at = datetime.fromisoformat(payload["posted_at"])
+                        if datetime.now(timezone.utc) - posted_at > timedelta(hours=timeout):
+                            on_to = payload["on_timeout"]
+                            if on_to == "reject":
+                                decision = (False, "timeout", f"Timed out after {timeout}h with no quorum; auto-rejected.")
+                            elif on_to == "approve":
+                                decision = (True, "timeout", f"Timed out after {timeout}h with no quorum; auto-approved (per policy).")
+                            elif on_to == "escalate" and payload.get("escalate_slack_user") and message_ts not in escalated_ts:
+                                try:
+                                    client.chat_postMessage(
+                                        channel=slack_channel,
+                                        thread_ts=message_ts,
+                                        text=(
+                                            f"<@{payload['escalate_slack_user']}> — approval on this "
+                                            f"partition (`{payload.get('partition_key', safe_key)}`) has been "
+                                            f"pending for {timeout}h. Please review."
+                                        ),
+                                    )
+                                    newly_escalated.append(message_ts)
+                                    actions.append(f"{safe_key}: escalated")
+                                except Exception as e:  # noqa: BLE001
+                                    context.log.warning(f"escalation post failed for {safe_key}: {e}")
+
+                if decision is not None:
+                    approved, approver, reason = decision
+                    if target == "human_approval_gate":
+                        token_body = {
+                            "approved": approved, "approver": approver, "reason": reason,
+                            "timestamp": _now_iso(), "source": "slack_approval_gate",
+                            "slack_message_ts": message_ts,
+                        }
+                        fs = _ApprovalFS(approval_dir)
+                        fs.mkdir()
+                        fs.write_json(fs.path(f"{safe_key}.json"), token_body)
+                        actions.append(f"{safe_key}: wrote token ({'approved' if approved else 'rejected'})")
+                    else:  # target == "run_request"
+                        run_key = f"{sensor_name}:{slack_channel}:{message_ts}"
+                        tags = {
+                            f"{run_request_tag_prefix}/approved": str(approved).lower(),
+                            f"{run_request_tag_prefix}/approver": approver,
+                            f"{run_request_tag_prefix}/reason": reason,
+                            f"{run_request_tag_prefix}/partition_key": payload.get("partition_key", safe_key),
+                        }
+                        if run_request_mode == "job":
+                            run_requests.append(dg.RunRequest(
+                                run_key=run_key, job_name=run_request_job_name,
+                                tags=tags, run_config=run_request_run_config,
+                            ))
+                        else:
+                            run_requests.append(dg.RunRequest(
+                                run_key=run_key,
+                                asset_selection=[dg.AssetKey.from_user_string(k) for k in (run_request_asset_selection or [])],
+                                tags=tags, run_config=run_request_run_config,
+                            ))
+                        actions.append(f"{safe_key}: fired run_request ({'approved' if approved else 'rejected'})")
+                    newly_resolved.append(message_ts)
+
+            new_cursor = json.dumps({
+                "resolved_ts": sorted(resolved_ts | set(newly_resolved))[-500:],
+                "escalated_ts": sorted(escalated_ts | set(newly_escalated))[-500:],
+            })
+
+            if run_requests:
+                return dg.SensorResult(run_requests=run_requests, cursor=new_cursor)
+            if not actions:
+                return dg.SensorResult(skip_reason=f"scanned {len(pending)} open approval message(s); no quorum changes", cursor=new_cursor)
+            return dg.SensorResult(skip_reason="; ".join(actions), cursor=new_cursor)
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=poll_interval_seconds,
+            default_status=dg.DefaultSensorStatus.RUNNING,
+        )
+        def _watcher(context: dg.SensorEvaluationContext):
+            if correlation_mode == "sidecar_file":
+                return _watch_sidecar_file(context)
+            return _watch_message_metadata(context)
 
         return dg.Definitions(assets=[_posted_asset], sensors=[_watcher])
 

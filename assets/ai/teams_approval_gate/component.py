@@ -1,6 +1,6 @@
 """TeamsApprovalGateComponent — Microsoft Teams HITL approval gate.
 
-Slack analog for MS Teams. Two modes, picked with `target:` (mirroring `slack_approval_gate` exactly):
+Slack analog for MS Teams. Three modes, picked with `target:` (mirroring `slack_approval_gate` exactly):
 
 - `target: human_approval_gate` (default): composes with `HumanApprovalGateComponent` via the shared
   `approval_dir` — Teams side handles posting + polling + quorum; the existing gate consumes the resulting token
@@ -8,8 +8,26 @@ Slack analog for MS Teams. Two modes, picked with `target:` (mirroring `slack_ap
 - `target: agentic_pipeline`: watches agentic_pipeline's own `approve`/`mode: park` review queue
   (`<approval_dir>/pending/*.json`) directly — no separate `HumanApprovalGateComponent` needed. Emits only
   `{asset_name}_pending_watcher` (no asset).
+- `target: run_request`: same posting behavior as human_approval_gate, but on quorum the watcher fires a
+  `RunRequest` directly — no token file, no approval_dir, no separate gate component at all.
 
 Every partition/pending record that hasn't been tokened yet is polled every `poll_interval_seconds`.
+
+## `correlation_mode`: no sidecar file by default
+
+`correlation_mode='message_metadata'` (the new default) tracks a pending approval's own config
+(required approvers, allowlist, timeout, ...) with no `<approval_dir>/<safe_key>.teams_state.json`
+sidecar at all. A plain Teams chatMessage has no hidden-metadata field the way Slack does, so the
+config instead rides inside an Adaptive Card attachment's `content` -- a custom `_dagster_metadata`
+key alongside the card's own fields. Confirmed against Graph's own docs (not guessed): attachment
+`content` is stored and echoed back as an opaque string (a Loop-component attachment uses the exact
+same field for a completely different schema in Graph's own example), so nothing is rendered to
+the human, and the LIST channel-messages endpoint returns `attachments` inline by default (no
+per-message fetch, no extra Graph scope). The watcher discovers pending approvals by scanning the
+channel (bounded by `history_lookback_hours`) instead of globbing a directory, and keeps
+escalation-already-sent / already-resolved bookkeeping in Dagster's own native sensor cursor, not a
+file. Set `correlation_mode: sidecar_file` to restore the original behavior (not available for
+`target: run_request`, which writes no decision file at all).
 
 ## Auth -- a DELEGATED token, not app-only (corrected; see below)
 
@@ -225,8 +243,12 @@ def _oauth_state_path(fs: "_ApprovalFS") -> str:
     return fs.path(".teams_oauth_state.json")
 
 
-def _get_teams_bearer(fs: "_ApprovalFS", tenant_id_env: str, client_id_env: str, client_secret_env: str, refresh_token_env: str) -> str:
+def _get_teams_bearer(fs: Optional["_ApprovalFS"], tenant_id_env: str, client_id_env: str, client_secret_env: str, refresh_token_env: str) -> str:
     """OAuth2 refresh-token grant against Azure AD. Returns a bearer token.
+
+    `fs` is None for target: run_request with no approval_dir configured -- a rotated refresh
+    token then isn't persisted anywhere (falls back to the env var's seed value on every call),
+    since there's no file at all in that configuration.
 
     **Not client-credentials (app-only)** -- confirmed directly against Microsoft's own Graph docs that sending a
     channel message has no working application permission (only `Teamwork.Migrate.All`, explicitly scoped to
@@ -257,8 +279,8 @@ def _get_teams_bearer(fs: "_ApprovalFS", tenant_id_env: str, client_id_env: str,
             f"(see this component's README)."
         )
     refresh_token = seed_refresh_token
-    state_path = _oauth_state_path(fs)
-    if fs.exists(state_path):
+    state_path = _oauth_state_path(fs) if fs is not None else None
+    if fs is not None and fs.exists(state_path):
         try:
             saved = fs.read_json(state_path)
             if saved.get("refresh_token"):
@@ -281,7 +303,7 @@ def _get_teams_bearer(fs: "_ApprovalFS", tenant_id_env: str, client_id_env: str,
     r.raise_for_status()
     body = r.json()
     new_refresh_token = body.get("refresh_token")
-    if new_refresh_token and new_refresh_token != refresh_token:
+    if fs is not None and new_refresh_token and new_refresh_token != refresh_token:
         fs.write_json(state_path, {"refresh_token": new_refresh_token, "rotated_at": _now_iso()})
     return body["access_token"]
 
@@ -401,6 +423,108 @@ def _fetch_votes(bearer: str, team_id: str, channel_id: str, message_id: str, mo
     return _classify_reply_votes(replies, approve_label, reject_label, allowlist)
 
 
+# ── correlation_mode='message_metadata': no sidecar file at all ───────
+# Unlike Slack, a plain chatMessage has no hidden-metadata field (confirmed against Graph's own
+# chatMessage resource reference -- its property list is closed, no generic metadata dict). What
+# DOES work, confirmed against Graph's own chatmessage-post docs: an Adaptive Card attachment's
+# `content` is stored and echoed back verbatim as an opaque string (the same field also carries a
+# completely different schema for a Loop-component attachment in Graph's own docs, which is direct
+# evidence Graph doesn't parse/validate it against the Adaptive Card schema) -- so a custom
+# `_dagster_metadata` key alongside the card's own fields survives round-trip with nothing
+# rendered to the human (Adaptive Card renderers ignore unrecognized top-level keys), using only
+# the `ChannelMessage.Send`/`ChannelMessage.Read.All` scopes already required. The LIST channel
+# messages endpoint returns `attachments` inline on every message by default (confirmed against
+# Graph's own list-channel-messages reference examples), so the watcher can scan without a
+# per-message fetch.
+_ADAPTIVE_CARD_METADATA_KEY = "_dagster_metadata"
+
+
+def _build_metadata_card(event_payload: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [{"type": "TextBlock", "text": "Dagster approval metadata", "isVisible": False}],
+        _ADAPTIVE_CARD_METADATA_KEY: event_payload,
+    }
+
+
+def _post_teams_message_with_metadata(
+    bearer: str, team_id: str, channel_id: str, html_body: str, event_payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    import requests
+    r = requests.post(
+        f"{_GRAPH}/teams/{team_id}/channels/{channel_id}/messages",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": "application/json"},
+        json={
+            "body": {"contentType": "html", "content": html_body},
+            "attachments": [{
+                "id": "1",
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": json.dumps(_build_metadata_card(event_payload)),
+            }],
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+    body = r.json()
+    return {"message_id": body["id"], "web_url": body.get("webUrl", "")}
+
+
+def _extract_approval_metadata(message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    for att in message.get("attachments") or []:
+        if att.get("contentType") != "application/vnd.microsoft.card.adaptive":
+            continue
+        try:
+            card = json.loads(att.get("content") or "{}")
+        except Exception:  # noqa: BLE001
+            continue
+        if _ADAPTIVE_CARD_METADATA_KEY in card:
+            return card[_ADAPTIVE_CARD_METADATA_KEY]
+    return None
+
+
+def _iter_teams_approval_messages(bearer: str, team_id: str, channel_id: str, lookback_hours: float, max_pages: int = 10):
+    """Yields {message_id, payload} for every _dagster_metadata-tagged message in the channel,
+    newest first, stopping once messages fall outside the lookback window or max_pages is hit --
+    there is no confirmed server-side date filter for this endpoint, so the bound is client-side."""
+    import requests
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
+    url = f"{_GRAPH}/teams/{team_id}/channels/{channel_id}/messages?$top=50"
+    pages = 0
+    while url and pages < max_pages:
+        r = requests.get(url, headers={"Authorization": f"Bearer {bearer}"}, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        stop = False
+        for m in body.get("value", []) or []:
+            created = m.get("createdDateTime")
+            if created and datetime.fromisoformat(created.replace("Z", "+00:00")) < cutoff:
+                stop = True
+                break
+            payload = _extract_approval_metadata(m)
+            if payload is not None:
+                yield {"message_id": m["id"], "payload": payload}
+        if stop:
+            return
+        url = body.get("@odata.nextLink")
+        pages += 1
+
+
+def _find_existing_teams_approval_message(bearer: str, team_id: str, channel_id: str, safe_key: str, lookback_hours: float) -> Optional[Dict[str, Any]]:
+    for item in _iter_teams_approval_messages(bearer, team_id, channel_id, lookback_hours):
+        if item["payload"].get("safe_key") == safe_key:
+            return item
+    return None
+
+
+def _scan_pending_teams_approval_messages(bearer: str, team_id: str, channel_id: str, lookback_hours: float, skip_ids: set) -> List[Dict[str, Any]]:
+    return [
+        item for item in _iter_teams_approval_messages(bearer, team_id, channel_id, lookback_hours)
+        if item["message_id"] not in skip_ids
+    ]
+
+
 # BEGIN agentic-pipeline approval contract (inlined per this repo's self-contained-component convention rather
 # than importing agentic_pipeline's component.py -- that file is not on the import path outside a built/installed
 # wheel; see slack_approval_gate's own identical copy. Mirrors agentic_pipeline's own `approve_pending()`
@@ -518,9 +642,9 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(
-        description="Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline).",
+        description="Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate / run_request), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline).",
     )
-    target: Literal["human_approval_gate", "agentic_pipeline"] = Field(
+    target: Literal["human_approval_gate", "agentic_pipeline", "run_request"] = Field(
         default="human_approval_gate",
         description=(
             "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a "
@@ -530,19 +654,26 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             "records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- "
             "post each pending record's `summary`, and on quorum write the decision the same way agentic_pipeline's "
             "own `approve_pending()` reviewer-tooling helper does (copies the pending record's fingerprint into "
-            "the token). `upstream_asset_key` is ignored in this mode; no asset is emitted, only the watcher sensor."
+            "the token). `upstream_asset_key` is ignored in this mode; no asset is emitted, only the watcher sensor. "
+            "'run_request': same posting behavior as human_approval_gate, but on quorum the watcher directly fires "
+            "a `RunRequest` (run_request_mode / run_request_job_name / run_request_asset_selection) with the "
+            "decision on its tags -- no token file, no approval_dir, no separate HumanApprovalGateComponent at "
+            "all. Requires correlation_mode='message_metadata' (the default)."
         ),
     )
     upstream_asset_key: Optional[Union[str, List[str]]] = Field(
         default=None,
-        description="target: human_approval_gate only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Teams for approval.",
+        description="target: human_approval_gate / run_request only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Teams for approval.",
     )
-    approval_dir: str = Field(
+    approval_dir: Optional[str] = Field(
+        default=None,
         description=(
-            "Absolute path to the shared approval-token directory. Matches "
-            "HumanApprovalGateComponent's `approval_dir` so the existing "
-            "downstream gate + sensor pipeline just works. Also holds "
-            "`.teams_oauth_state.json` (a rotated refresh token, if Microsoft ever issues one)."
+            "Required for target: human_approval_gate / agentic_pipeline; unused (and may be left unset) for "
+            "target: run_request, which writes no file at all. Matches HumanApprovalGateComponent's "
+            "`approval_dir` so the existing downstream gate + sensor pipeline just works. Also holds "
+            "`.teams_oauth_state.json` (a rotated refresh token, if Microsoft ever issues one) -- written "
+            "regardless of target/correlation_mode, so set approval_dir even for target: run_request if your "
+            "Azure AD app is expected to rotate refresh tokens."
         ),
     )
 
@@ -645,6 +776,59 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    correlation_mode: Literal["message_metadata", "sidecar_file"] = Field(
+        default="message_metadata",
+        description=(
+            "'message_metadata' (default): no per-pending-approval file at all. A plain Teams chatMessage has no "
+            "hidden-metadata field the way Slack does, so the approval's own config (required_approvers, "
+            "approver_allowlist, timeout_hours, ...) instead rides inside an Adaptive Card attachment's `content` "
+            "-- a custom `_dagster_metadata` key alongside the card's own fields, invisible in the Teams UI (not "
+            "rendered; confirmed Graph stores attachment content as an opaque string, not parsed against the "
+            "card schema) and read back via the same list-channel-messages call the watcher already needs "
+            "(`attachments` comes back inline by default, no extra Graph scope). The watcher discovers pending "
+            "approvals by scanning the channel (bounded by history_lookback_hours) instead of globbing a "
+            "directory, and keeps its escalation-already-sent / already-resolved bookkeeping in Dagster's native "
+            "sensor cursor -- no approval_dir file for any of this (target: human_approval_gate still writes the "
+            "one decision-token file that component reads; target: run_request writes no file at all, aside from "
+            "the OAuth rotation state file if approval_dir is set). 'sidecar_file': this component's original "
+            "behavior -- writes `<approval_dir>/<safe_key>.teams_state.json` at post time and globs it every "
+            "tick. Not available for target: run_request."
+        ),
+    )
+    history_lookback_hours: float = Field(
+        default=168.0,
+        description=(
+            "correlation_mode='message_metadata' only: how far back (hours) the watcher scans channel messages "
+            "for still-open approval cards, bounding how many pages of the list-channel-messages call it walks "
+            "each tick (there's no confirmed server-side date filter for this endpoint, so the bound is applied "
+            "client-side against each message's createdDateTime). Should be >= timeout_hours (when set)."
+        ),
+    )
+
+    run_request_mode: Literal["job", "asset_selection"] = Field(
+        default="asset_selection",
+        description="target: run_request only. 'job': launch run_request_job_name. 'asset_selection': materialize run_request_asset_selection.",
+    )
+    run_request_job_name: Optional[str] = Field(
+        default=None,
+        description="target: run_request + run_request_mode='job' (required then). Job name to launch on quorum.",
+    )
+    run_request_asset_selection: Optional[List[str]] = Field(
+        default=None,
+        description="target: run_request + run_request_mode='asset_selection' (required then). Asset keys to materialize on quorum.",
+    )
+    run_request_run_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="target: run_request only. Optional run config passed through to the launched RunRequest.",
+    )
+    run_request_tag_prefix: str = Field(
+        default="approval",
+        description=(
+            "target: run_request only. Tag namespace on the launched run: '{prefix}/approved' ('true'/'false'), "
+            "'{prefix}/approver', '{prefix}/reason', '{prefix}/partition_key'."
+        ),
+    )
+
     # Catalog / governance
     group_name: Optional[str] = Field(default=None)
     kinds: Optional[List[str]] = Field(
@@ -719,6 +903,22 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         optional = isinstance(data, dict) and data.get("target") == "agentic_pipeline"
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=optional)
 
+    @model_validator(mode="after")
+    def _validate_target_requirements(self):
+        if self.target in ("human_approval_gate", "agentic_pipeline") and not self.approval_dir:
+            raise ValueError(f"TeamsApprovalGateComponent: target={self.target!r} requires approval_dir.")
+        if self.target == "run_request":
+            if self.correlation_mode != "message_metadata":
+                raise ValueError(
+                    "TeamsApprovalGateComponent: target='run_request' requires correlation_mode='message_metadata' "
+                    "(there is no sidecar-file form of run_request -- it writes no decision file at all)."
+                )
+            if self.run_request_mode == "job" and not self.run_request_job_name:
+                raise ValueError("TeamsApprovalGateComponent: target='run_request' with run_request_mode='job' requires run_request_job_name.")
+            if self.run_request_mode == "asset_selection" and not self.run_request_asset_selection:
+                raise ValueError("TeamsApprovalGateComponent: target='run_request' with run_request_mode='asset_selection' requires run_request_asset_selection.")
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -729,9 +929,16 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         target = self.target
         posted_asset_name = f"{asset_name}_posted"
         upstream_asset_key = self.upstream_asset_key
-        if target == "human_approval_gate" and not upstream_asset_key:
-            raise ValueError("target: human_approval_gate requires upstream_asset_key (the asset whose text is posted for approval)")
+        if target in ("human_approval_gate", "run_request") and not upstream_asset_key:
+            raise ValueError(f"target: {target} requires upstream_asset_key (the asset whose text is posted for approval)")
         approval_dir = self.approval_dir
+        correlation_mode = self.correlation_mode
+        history_lookback_hours = self.history_lookback_hours
+        run_request_mode = self.run_request_mode
+        run_request_job_name = self.run_request_job_name
+        run_request_asset_selection = self.run_request_asset_selection
+        run_request_run_config = self.run_request_run_config
+        run_request_tag_prefix = self.run_request_tag_prefix
 
         tenant_env = self.teams_tenant_id_env_var
         client_id_env = self.teams_client_id_env_var
@@ -828,19 +1035,7 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             else:
                 raw_key = "default"
             safe_key = _safe_partition_key(raw_key)
-            fs = _ApprovalFS(approval_dir)
-            fs.mkdir()
-            sidecar_path = fs.path(f"{safe_key}{_TEAMS_STATE_SUFFIX}")
 
-            if fs.exists(sidecar_path):
-                state = fs.read_json(sidecar_path)
-                context.log.info(
-                    f"[teams_approval] partition {raw_key!r} already posted "
-                    f"(id={state.get('message_id')}); reusing existing message."
-                )
-                return state
-
-            bearer = _get_teams_bearer(fs, tenant_env, client_id_env, client_secret_env, refresh_token_env)
             upstream_text = _extract_upstream_text(upstream)[:2000]
             html = message_template.format(
                 upstream_text=upstream_text.replace("<", "&lt;").replace(">", "&gt;"),
@@ -852,15 +1047,85 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 mode=mode,
                 vote_hint=vote_hint,
             )
-            posted = _post_teams_message(bearer, team_id, channel_id, html)
-            state = {
-                "message_id": posted["message_id"],
-                "web_url": posted.get("web_url", ""),
-                "team_id": team_id,
-                "channel_id": channel_id,
+
+            if correlation_mode == "sidecar_file":
+                fs = _ApprovalFS(approval_dir)
+                fs.mkdir()
+                sidecar_path = fs.path(f"{safe_key}{_TEAMS_STATE_SUFFIX}")
+
+                if fs.exists(sidecar_path):
+                    state = fs.read_json(sidecar_path)
+                    context.log.info(
+                        f"[teams_approval] partition {raw_key!r} already posted "
+                        f"(id={state.get('message_id')}); reusing existing message."
+                    )
+                    return state
+
+                bearer = _get_teams_bearer(fs, tenant_env, client_id_env, client_secret_env, refresh_token_env)
+                posted = _post_teams_message(bearer, team_id, channel_id, html)
+                state = {
+                    "message_id": posted["message_id"],
+                    "web_url": posted.get("web_url", ""),
+                    "team_id": team_id,
+                    "channel_id": channel_id,
+                    "partition_key": raw_key,
+                    "safe_partition_key": safe_key,
+                    "posted_at": _now_iso(),
+                    "required_approvers": required_approvers,
+                    "approver_allowlist": approver_allowlist,
+                    "mode": mode,
+                    "approve_label": approve_label,
+                    "reject_label": reject_label,
+                    "timeout_hours": timeout_hours,
+                    "on_timeout": on_timeout,
+                    "escalate_teams_user": escalate_teams_user,
+                    "tenant_env": tenant_env,
+                    "client_id_env": client_id_env,
+                    "client_secret_env": client_secret_env,
+                    "refresh_token_env": refresh_token_env,
+                    "approval_dir": fs.root,
+                    "escalated_at": None,
+                }
+                fs.write_json(sidecar_path, state)
+                context.log.info(
+                    f"[teams_approval] posted to team={team_id} channel={channel_id} for "
+                    f"partition {raw_key!r} (id={posted['message_id']})"
+                )
+                context.add_output_metadata({
+                    "teams_team_id": team_id,
+                    "teams_channel_id": channel_id,
+                    "teams_message_id": posted["message_id"],
+                    "teams_web_url": posted.get("web_url", ""),
+                    "sidecar_path": sidecar_path,
+                    "partition_key": raw_key,
+                    "required_approvers": required_approvers,
+                    "mode": mode,
+                    "allowlisted": ",".join(approver_allowlist),
+                })
+                return state
+
+            # correlation_mode == "message_metadata": no decision-state file. The approval's config
+            # rides inside an Adaptive Card attachment on the Teams message itself; Teams (the
+            # channel's own message list) is the source of truth for "have I already posted this".
+            fs = _ApprovalFS(approval_dir) if approval_dir else None
+            bearer = _get_teams_bearer(fs, tenant_env, client_id_env, client_secret_env, refresh_token_env)
+            existing = _find_existing_teams_approval_message(bearer, team_id, channel_id, safe_key, history_lookback_hours)
+            if existing:
+                context.log.info(
+                    f"[teams_approval] partition {raw_key!r} already posted "
+                    f"(id={existing['message_id']}); reusing existing message (discovered via "
+                    f"an Adaptive Card attachment, no local file)."
+                )
+                context.add_output_metadata({
+                    "teams_team_id": team_id, "teams_channel_id": channel_id,
+                    "teams_message_id": existing["message_id"], "partition_key": raw_key,
+                    "correlation_mode": "message_metadata",
+                })
+                return existing
+
+            event_payload = {
+                "safe_key": safe_key,
                 "partition_key": raw_key,
-                "safe_partition_key": safe_key,
-                "posted_at": _now_iso(),
                 "required_approvers": required_approvers,
                 "approver_allowlist": approver_allowlist,
                 "mode": mode,
@@ -869,41 +1134,32 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
                 "timeout_hours": timeout_hours,
                 "on_timeout": on_timeout,
                 "escalate_teams_user": escalate_teams_user,
-                "tenant_env": tenant_env,
-                "client_id_env": client_id_env,
-                "client_secret_env": client_secret_env,
-                "refresh_token_env": refresh_token_env,
-                "approval_dir": fs.root,
-                "escalated_at": None,
+                "posted_at": _now_iso(),
             }
-            fs.write_json(sidecar_path, state)
+            posted = _post_teams_message_with_metadata(bearer, team_id, channel_id, html, event_payload)
             context.log.info(
-                f"[teams_approval] posted to team={team_id} channel={channel_id} for "
-                f"partition {raw_key!r} (id={posted['message_id']})"
+                f"[teams_approval] posted to team={team_id} channel={channel_id} for partition "
+                f"{raw_key!r} (id={posted['message_id']}) -- correlation via an Adaptive Card "
+                f"attachment, no local file."
             )
             context.add_output_metadata({
                 "teams_team_id": team_id,
                 "teams_channel_id": channel_id,
                 "teams_message_id": posted["message_id"],
                 "teams_web_url": posted.get("web_url", ""),
-                "sidecar_path": sidecar_path,
                 "partition_key": raw_key,
                 "required_approvers": required_approvers,
                 "mode": mode,
                 "allowlisted": ",".join(approver_allowlist),
+                "correlation_mode": "message_metadata",
             })
-            return state
+            return {"message_id": posted["message_id"], "web_url": posted.get("web_url", ""), "payload": event_payload}
 
         # ── Sensor: poll reactions/replies + write token on quorum ─────
 
         sensor_name = f"{asset_name}_watcher"
 
-        @dg.sensor(
-            name=sensor_name,
-            minimum_interval_seconds=poll_interval_seconds,
-            default_status=dg.DefaultSensorStatus.RUNNING,
-        )
-        def _watcher(context: dg.SensorEvaluationContext):
+        def _watch_sidecar_file(context: dg.SensorEvaluationContext):
             fs = _ApprovalFS(approval_dir)
             if not fs.is_uri and not Path(fs.root).exists():
                 return dg.SensorResult(skip_reason=f"approval_dir does not exist yet: {fs.root}")
@@ -1016,6 +1272,135 @@ class TeamsApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             if not actions:
                 return dg.SensorResult(skip_reason=f"polled {len(sidecars)} partition(s); no quorum changes")
             return dg.SensorResult(skip_reason="; ".join(actions))
+
+        def _watch_message_metadata(context: dg.SensorEvaluationContext):
+            try:
+                cur = json.loads(context.cursor) if context.cursor else {}
+            except Exception:  # noqa: BLE001
+                cur = {}
+            resolved_ids = set(cur.get("resolved_ids") or [])
+            escalated_ids = set(cur.get("escalated_ids") or [])
+
+            fs = _ApprovalFS(approval_dir) if approval_dir else None
+            try:
+                bearer = _get_teams_bearer(fs, tenant_env, client_id_env, client_secret_env, refresh_token_env)
+                pending = _scan_pending_teams_approval_messages(bearer, team_id, channel_id, history_lookback_hours, resolved_ids)
+            except Exception as e:  # noqa: BLE001
+                context.log.error(f"Teams channel scan failed: {e}. Skipping this tick.")
+                return dg.SensorResult(skip_reason=f"Teams channel scan failed: {e}", cursor=context.cursor)
+
+            if not pending:
+                return dg.SensorResult(skip_reason="no open approval messages in the scanned window", cursor=context.cursor)
+
+            actions: List[str] = []
+            run_requests: List[dg.RunRequest] = []
+            newly_resolved: List[str] = []
+            newly_escalated: List[str] = []
+
+            for item in pending:
+                message_id, payload = item["message_id"], item["payload"]
+                safe_key = payload.get("safe_key", "default")
+
+                if target == "human_approval_gate":
+                    token_fs = _ApprovalFS(approval_dir)
+                    if token_fs.exists(token_fs.path(f"{safe_key}.json")):
+                        newly_resolved.append(message_id)
+                        continue
+
+                try:
+                    bearer = _get_teams_bearer(fs, tenant_env, client_id_env, client_secret_env, refresh_token_env)
+                    votes = _fetch_votes(
+                        bearer, team_id, channel_id, message_id, payload["mode"],
+                        payload["approve_label"], payload["reject_label"], payload["approver_allowlist"],
+                    )
+                except Exception as e:  # noqa: BLE001
+                    context.log.error(f"Teams fetch failed for id={message_id}: {e}. Skipping this tick.")
+                    continue
+
+                required = payload["required_approvers"]
+                decision: Optional[tuple] = None  # (approved, approver, reason)
+                if len(votes["approve"]) >= required:
+                    decision = (True, ",".join(votes["approve"]), f"Teams quorum reached: {len(votes['approve'])}/{required} approved")
+                elif len(votes["reject"]) >= required:
+                    decision = (False, ",".join(votes["reject"]), f"Teams rejection quorum reached: {len(votes['reject'])}/{required} rejected")
+                else:
+                    timeout = payload.get("timeout_hours")
+                    if timeout is not None:
+                        posted_at = datetime.fromisoformat(payload["posted_at"])
+                        if datetime.now(timezone.utc) - posted_at > timedelta(hours=timeout):
+                            on_to = payload["on_timeout"]
+                            if on_to == "reject":
+                                decision = (False, "timeout", f"Timed out after {timeout}h with no quorum; auto-rejected.")
+                            elif on_to == "approve":
+                                decision = (True, "timeout", f"Timed out after {timeout}h with no quorum; auto-approved (per policy).")
+                            elif on_to == "escalate" and payload.get("escalate_teams_user") and message_id not in escalated_ids:
+                                try:
+                                    mention_html = f"<at id=\"0\">{payload['escalate_teams_user']}</at>"
+                                    escalation_body = (
+                                        f"{mention_html} — approval on this partition "
+                                        f"(<code>{payload.get('partition_key', safe_key)}</code>) has been "
+                                        f"pending for {timeout}h. Please review."
+                                    )
+                                    _post_teams_reply(bearer, team_id, channel_id, message_id, escalation_body)
+                                    newly_escalated.append(message_id)
+                                    actions.append(f"{safe_key}: escalated")
+                                except Exception as e:  # noqa: BLE001
+                                    context.log.warning(f"escalation post failed for {safe_key}: {e}")
+
+                if decision is not None:
+                    approved, approver, reason = decision
+                    if target == "human_approval_gate":
+                        token_body = {
+                            "approved": approved, "approver": approver, "reason": reason,
+                            "timestamp": _now_iso(), "source": "teams_approval_gate",
+                            "teams_message_id": message_id, "via": "graph.microsoft.com",
+                        }
+                        token_fs = _ApprovalFS(approval_dir)
+                        token_fs.mkdir()
+                        token_fs.write_json(token_fs.path(f"{safe_key}.json"), token_body)
+                        actions.append(f"{safe_key}: wrote token ({'approved' if approved else 'rejected'})")
+                    else:  # target == "run_request"
+                        run_key = f"{sensor_name}:{team_id}:{channel_id}:{message_id}"
+                        tags = {
+                            f"{run_request_tag_prefix}/approved": str(approved).lower(),
+                            f"{run_request_tag_prefix}/approver": approver,
+                            f"{run_request_tag_prefix}/reason": reason,
+                            f"{run_request_tag_prefix}/partition_key": payload.get("partition_key", safe_key),
+                        }
+                        if run_request_mode == "job":
+                            run_requests.append(dg.RunRequest(
+                                run_key=run_key, job_name=run_request_job_name,
+                                tags=tags, run_config=run_request_run_config,
+                            ))
+                        else:
+                            run_requests.append(dg.RunRequest(
+                                run_key=run_key,
+                                asset_selection=[dg.AssetKey.from_user_string(k) for k in (run_request_asset_selection or [])],
+                                tags=tags, run_config=run_request_run_config,
+                            ))
+                        actions.append(f"{safe_key}: fired run_request ({'approved' if approved else 'rejected'})")
+                    newly_resolved.append(message_id)
+
+            new_cursor = json.dumps({
+                "resolved_ids": sorted(resolved_ids | set(newly_resolved))[-500:],
+                "escalated_ids": sorted(escalated_ids | set(newly_escalated))[-500:],
+            })
+
+            if run_requests:
+                return dg.SensorResult(run_requests=run_requests, cursor=new_cursor)
+            if not actions:
+                return dg.SensorResult(skip_reason=f"scanned {len(pending)} open approval message(s); no quorum changes", cursor=new_cursor)
+            return dg.SensorResult(skip_reason="; ".join(actions), cursor=new_cursor)
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=poll_interval_seconds,
+            default_status=dg.DefaultSensorStatus.RUNNING,
+        )
+        def _watcher(context: dg.SensorEvaluationContext):
+            if correlation_mode == "sidecar_file":
+                return _watch_sidecar_file(context)
+            return _watch_message_metadata(context)
 
         return dg.Definitions(assets=[_posted_asset], sensors=[_watcher])
 

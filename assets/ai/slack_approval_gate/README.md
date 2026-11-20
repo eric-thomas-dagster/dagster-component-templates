@@ -1,9 +1,31 @@
 # Slack Approval Gate
 
-Human-in-the-loop approval via Slack reactions. Two modes, picked with `target:`:
+Human-in-the-loop approval via Slack reactions. Three modes, picked with `target:`:
 
 - **`target: human_approval_gate`** (default) — composes with the existing `HumanApprovalGateComponent`: Slack side handles posting + reaction polling + quorum accounting; when quorum is reached, this component writes the same JSON approval token file the existing gate already reads. Everything downstream of the gate is unchanged.
 - **`target: agentic_pipeline`** — watches `agentic_pipeline`'s own `approve` op (`mode: park`) review queue directly: no separate `HumanApprovalGateComponent` needed. See [Using with agentic_pipeline](#using-with-agentic_pipeline) below.
+- **`target: run_request`** — no token file, no separate gate component at all: on quorum, the watcher fires a `RunRequest` directly. See [target: run_request](#target-run_request) below.
+
+## `correlation_mode`: no sidecar file by default
+
+The config of a pending approval (required approvers, allowlist, timeout, ...) used to live in a
+sidecar file (`<approval_dir>/<safe_key>.slack_state.json`) written at post time and globbed on
+every sensor tick. **As of `correlation_mode='message_metadata'` (the new default), it doesn't** —
+that config rides inside the Slack message itself, as hidden metadata (`chat.postMessage`'s own
+`metadata` parameter: invisible in the Slack UI, read back via
+`conversations.history(include_all_metadata=true)` under the same scope already needed to read
+channel history — no extra Slack app scope beyond what posting already needs). The watcher
+discovers pending approvals by scanning the channel (bounded by `history_lookback_hours`) instead
+of globbing a directory, and keeps its escalation-already-sent / already-resolved bookkeeping in
+Dagster's own native sensor cursor — not a file. The posting asset is idempotent the same way: it
+searches recent channel history for an already-posted message for the same partition before
+posting a new one, using Slack itself (not a local file) as the source of truth. `target:
+human_approval_gate` still writes the one decision-token file that component reads (that's an
+intentional, documented cross-component contract); `target: run_request` writes no file at all.
+
+Set `correlation_mode: sidecar_file` to restore the original file-based behavior — e.g. if your
+Slack app can't be granted channel-history read on this channel, or you want pending state
+inspectable as plain files.
 
 ## Why reactions polling (not interactive buttons)
 
@@ -11,10 +33,10 @@ Interactive buttons + slash commands need a public webhook Slack can POST to. Th
 
 ## What ships in one YAML
 
-Two Dagster definitions from a single `SlackApprovalGateComponent` YAML block:
+Two Dagster definitions from a single `SlackApprovalGateComponent` YAML block (target: human_approval_gate / run_request):
 
-1. **`{asset_name}_posted` asset** — materialization posts the upstream asset's text to Slack, seeds the message with approve + reject emoji reactions (so voters see the buttons), and stores `message_ts + channel_id + approver_allowlist + timeout + ...` in a sidecar file. Partitioned to match upstream.
-2. **`{asset_name}_watcher` sensor** (default_status: RUNNING) — polls Slack every `poll_interval_seconds` for each posted-but-not-tokened partition. Counts allowlisted reactions; on quorum, writes the standard JSON approval token file the existing `HumanApprovalGateComponent` reads.
+1. **`{asset_name}_posted` asset** — materialization posts the upstream asset's text to Slack and seeds the message with approve + reject emoji reactions (so voters see the buttons). Partitioned to match upstream.
+2. **`{asset_name}_watcher` sensor** (default_status: RUNNING) — polls Slack every `poll_interval_seconds` for each still-open approval. Counts allowlisted reactions; on quorum, writes the standard JSON approval token file the existing `HumanApprovalGateComponent` reads (target: human_approval_gate), or fires a `RunRequest` directly (target: run_request).
 
 ## Slack bot setup
 
@@ -23,6 +45,7 @@ Two Dagster definitions from a single `SlackApprovalGateComponent` YAML block:
    - `chat:write` — post the approval message
    - `reactions:read` — poll for votes
    - `reactions:write` — seed the initial approve/reject emoji reactions
+   - `channels:history` (public channels) and/or `groups:history` (private channels) — `correlation_mode: message_metadata` (the default) discovers pending approvals via `conversations.history`; not needed with `correlation_mode: sidecar_file`
 3. Install to your workspace, copy the `xoxb-...` bot token
 4. Invite the bot to the approval channel: `/invite @your-bot` in Slack
 5. Export the token: `export SLACK_BOT_TOKEN=xoxb-...`
@@ -56,6 +79,37 @@ This emits only `{asset_name}_pending_watcher` (no asset — there's no single u
 
 `upstream_asset_key` is ignored in this mode. Partitioning / `kinds` / `group_name` / `tags` / `owners` / `backfill_policy` are also ignored — there's no asset for them to apply to.
 
+## `target: run_request`
+
+For when there's no separate gate component to hand a decision token to — just "post to Slack,
+wait for a reaction, launch something":
+
+```yaml
+type: dagster_community_components.SlackApprovalGateComponent
+attributes:
+  asset_name: deploy_gate
+  target: run_request
+  upstream_asset_key: release_notes
+  slack_channel: "#deploys"
+  approver_allowlist: [U1234ALICE, U5678BOB]
+  required_approvers: 1
+  run_request_mode: asset_selection
+  run_request_asset_selection: [deploy_to_prod]
+```
+
+`approval_dir` isn't needed (and can be left unset) — `target: run_request` requires
+`correlation_mode: message_metadata` (the default) and writes no file at all, for either the
+pending state or the decision. On quorum, the watcher fires a `dg.RunRequest` with:
+
+- `run_key`: `{sensor_name}:{slack_channel}:{message_ts}` — Dagster's own run-key dedup (not a
+  local file) is what stops a duplicate launch if the sensor processes the same resolved message
+  twice.
+- `run_request_mode: job` + `run_request_job_name`, or `run_request_mode: asset_selection`
+  (default) + `run_request_asset_selection`.
+- Tags (namespaced by `run_request_tag_prefix`, default `approval`): `approval/approved`
+  (`"true"`/`"false"`), `approval/approver`, `approval/reason`, `approval/partition_key` — read
+  these in the launched job/asset via `context.run.tags` to see who approved what and why.
+
 [//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
 
 ## Fields
@@ -64,8 +118,7 @@ This emits only `{asset_name}_pending_watcher` (no asset — there's no single u
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline). |
-| `approval_dir` | `str` | Absolute path to the shared approval-token directory. target: human_approval_gate -- when quorum is reached, writes `<safe_partition_key>.json` here, matching `HumanApprovalGateComponent`'s own `approval_dir` so the exis… _(full docs in schema.json + component README)_ |
+| `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate / run_request), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline). |
 | `slack_channel` | `str` | Channel to post to (either `C123ABC456` id or `#channel-name`). |
 | `approver_allowlist` | `List[str]` | Slack user IDs (`U123...`) allowed to vote. Reactions from anyone else are ignored. |
 
@@ -103,13 +156,14 @@ This emits only `{asset_name}_pending_watcher` (no asset — there's no single u
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `target` | `Literal['human_approval_gate', 'agentic_pipeline']` | `"human_approval_gate"` | 'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'ag… _(full docs in schema.json + component README)_ |
+| `target` | `Literal['human_approval_gate', 'agentic_pipeline', 'run_req…` | `"human_approval_gate"` | 'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'ag… _(full docs in schema.json + component README)_ |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `Union[str, List[str]]` | — | target: human_approval_gate only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Slack for approval. String (not AssetKey object); multi-part keys use slash notation. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | target: human_approval_gate / run_request only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Slack for approval. String (not AssetKey object); multi-part keys use slash notation. |
+| `approval_dir` | `str` | — | Required for target: human_approval_gate / agentic_pipeline; unused (and may be left unset) for target: run_request, which writes no file at all. target: human_approval_gate -- when quorum is reached, writes `<safe_parti… _(full docs in schema.json + component README)_ |
 | `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's `xoxb-...` token. Bot needs the `chat:write` + `reactions:read` + `reactions:write` scopes. |
 | `approve_emoji` | `str` | `"white_check_mark"` | Emoji name (no colons) approvers react with. Default `white_check_mark` (✅). |
 | `reject_emoji` | `str` | `"x"` | Emoji name (no colons) for explicit rejection. Default `x` (❌). |
@@ -119,6 +173,13 @@ This emits only `{asset_name}_pending_watcher` (no asset — there's no single u
 | `timeout_hours` | `float` | — | Optional. If quorum isn't reached within this many hours, applies `on_timeout` policy. |
 | `on_timeout` | `str` | `"escalate"` | `escalate` (default — ping escalate_slack_user, keep waiting) \| `reject` (write approved=false token) \| `approve` (write approved=true — use with caution). |
 | `escalate_slack_user` | `str` | — | Slack user ID pinged when timeout escalates. Only used when `on_timeout: escalate`. |
+| `correlation_mode` | `Literal['message_metadata', 'sidecar_file']` | `"message_metadata"` | 'message_metadata' (default): no per-pending-approval file at all. The approval's own config (required_approvers, approver_allowlist, timeout_hours, ...) rides inside the Slack message itself as hidden metadata (chat.pos… _(full docs in schema.json + component README)_ |
+| `history_lookback_hours` | `float` | `168.0` | correlation_mode='message_metadata' only: how far back (hours) the watcher scans channel history for still-open approval messages, bounding the conversations.history call so a busy channel doesn't force a full-history sc… _(full docs in schema.json + component README)_ |
+| `run_request_mode` | `Literal['job', 'asset_selection']` | `"asset_selection"` | target: run_request only. 'job': launch run_request_job_name. 'asset_selection': materialize run_request_asset_selection. |
+| `run_request_job_name` | `str` | — | target: run_request + run_request_mode='job' (required then). Job name to launch on quorum. |
+| `run_request_asset_selection` | `List[str]` | — | target: run_request + run_request_mode='asset_selection' (required then). Asset keys to materialize on quorum. |
+| `run_request_run_config` | `Dict[str, Any]` | — | target: run_request only. Optional run config passed through to the launched RunRequest. |
+| `run_request_tag_prefix` | `str` | `"approval"` | target: run_request only. Tag namespace on the launched run: '{prefix}/approved' ('true'/'false'), '{prefix}/approver', '{prefix}/reason', '{prefix}/partition_key'. |
 | `dynamic_partition_name` | `str` | — | — |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
@@ -168,10 +229,14 @@ attributes:
 
 ## Rate-limit considerations
 
-Slack's `reactions.get` is Tier 3 (~50 req/min). At 30s cadence per partition:
+Slack's `reactions.get` is Tier 3 (~50 req/min); `conversations.history` (used every tick under
+`correlation_mode: message_metadata` to discover pending approvals) is also Tier 3. At 30s cadence
+per partition:
 - ≤50 pending partitions → fine (100 polls/min = 2 polls/partition/min)
 - Approaching 100 → bump `poll_interval_seconds` to 60-120
 - Sensor is per-instance (one bot). If you have many gates in one deployment sharing a bot, raise the interval.
+- A busier channel benefits from a tighter `history_lookback_hours` (default 7 days) to bound how
+  much history `conversations.history` has to page through each tick.
 
 ## What this does NOT do
 
@@ -181,9 +246,11 @@ Slack's `reactions.get` is Tier 3 (~50 req/min). At 30s cadence per partition:
 
 ## Cloud storage — `approval_dir` accepts URIs, not just local paths
 
-Dagster+ Serverless containers don't share a local filesystem across
-runs or code locations, so a production Slack-approval deploy needs
-cloud object storage for the sidecar + token files. `approval_dir` accepts:
+Only relevant for `target: human_approval_gate` / `agentic_pipeline` (the decision-token file;
+`target: run_request` writes no file at all) and `correlation_mode: sidecar_file` (the
+pending-state file). Dagster+ Serverless containers don't share a local filesystem across runs or
+code locations, so a production deploy of either needs cloud object storage. `approval_dir`
+accepts:
 
 | Shape | Example | Requires |
 |---|---|---|
@@ -194,6 +261,4 @@ cloud object storage for the sidecar + token files. `approval_dir` accepts:
 
 Auth follows the driver's default credential chain (AWS env vars /
 instance profile, GCP service account key, Azure SP creds). No YAML
-changes — just swap the `approval_dir` value. The sidecar
-`.slack_state.json` and the eventual approval token `.json` both live
-under whatever URI `approval_dir` points at.
+changes — just swap the `approval_dir` value.

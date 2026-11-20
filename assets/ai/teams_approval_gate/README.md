@@ -1,12 +1,36 @@
 # teams_approval_gate
 
 Microsoft Teams HITL approval gate. Slack analog for `SlackApprovalGate`
-— same asset + sensor shape, same JSON token format. Two modes, picked with `target:`:
+— same asset + sensor shape, same JSON token format. Three modes, picked with `target:`:
 
 - **`target: human_approval_gate`** *(default)* — composes with `HumanApprovalGateComponent` via the shared
   `approval_dir` (drop-in swap of Slack for Teams).
 - **`target: agentic_pipeline`** — watches `agentic_pipeline`'s own `approve` op (`mode: park`) review queue
   directly: no separate `HumanApprovalGateComponent` needed. See [Using with agentic_pipeline](#using-with-agentic_pipeline) below.
+- **`target: run_request`** — no token file, no separate gate component at all: on quorum, the watcher fires a
+  `RunRequest` directly. See [target: run_request](#target-run_request) below.
+
+## `correlation_mode`: no sidecar file by default
+
+The config of a pending approval (required approvers, allowlist, timeout, ...) used to live in a
+sidecar file (`<approval_dir>/<safe_key>.teams_state.json`) written at post time and globbed on
+every sensor tick. **As of `correlation_mode='message_metadata'` (the new default), it doesn't** —
+a plain Teams chatMessage has no hidden-metadata field the way Slack does, so that config instead
+rides inside an Adaptive Card attachment's `content`: a custom `_dagster_metadata` key alongside
+the card's own fields. This is real, confirmed against Graph's own docs, not guessed — attachment
+`content` is stored and echoed back as an opaque string (a Loop-component attachment uses the exact
+same field for a completely different schema in one of Graph's own examples), so nothing is
+rendered to a human reading the channel, and the LIST channel-messages endpoint returns
+`attachments` inline by default (confirmed against Graph's own reference examples) — no
+per-message fetch, no extra Graph scope beyond what posting already needs. The watcher discovers
+pending approvals by scanning the channel (bounded by `history_lookback_hours`) instead of
+globbing a directory, and keeps escalation-already-sent / already-resolved bookkeeping in
+Dagster's own native sensor cursor — not a file. `target: human_approval_gate` still writes the
+one decision-token file that component reads; `target: run_request` writes no file at all (aside
+from the OAuth refresh-token rotation file, if `approval_dir` is set).
+
+Set `correlation_mode: sidecar_file` to restore the original file-based behavior (not available
+for `target: run_request`).
 
 ## Type
 
@@ -99,6 +123,38 @@ This emits only `{asset_name}_pending_watcher` (no asset — there's no single u
 
 `upstream_asset_key` is ignored in this mode. Partitioning / `kinds` / `group_name` / `tags` / `owners` / `backfill_policy` are also ignored — there's no asset for them to apply to.
 
+## `target: run_request`
+
+For when there's no separate gate component to hand a decision token to — just "post to Teams,
+wait for a vote, launch something":
+
+```yaml
+type: dagster_community_components.TeamsApprovalGateComponent
+attributes:
+  asset_name: deploy_gate
+  target: run_request
+  upstream_asset_key: release_notes
+  teams_team_id: "19:abc123@thread.tacv2"
+  teams_channel_id: "19:xyz789@thread.tacv2"
+  approver_allowlist: ["aad-user-id-1"]
+  required_approvers: 1
+  run_request_mode: asset_selection
+  run_request_asset_selection: [deploy_to_prod]
+```
+
+`approval_dir` isn't needed (and can be left unset, unless your Azure AD app is expected to rotate
+refresh tokens — see [Auth](#auth-azure-ad-app-registration--a-delegated-token-not-app-only)
+above) — `target: run_request` requires `correlation_mode: message_metadata` (the default) and
+writes no decision file at all. On quorum, the watcher fires a `dg.RunRequest` with:
+
+- `run_key`: `{sensor_name}:{team_id}:{channel_id}:{message_id}` — Dagster's own run-key dedup
+  (not a local file) is what stops a duplicate launch if the sensor processes the same resolved
+  message twice.
+- `run_request_mode: job` + `run_request_job_name`, or `run_request_mode: asset_selection`
+  (default) + `run_request_asset_selection`.
+- Tags (namespaced by `run_request_tag_prefix`, default `approval`): `approval/approved`
+  (`"true"`/`"false"`), `approval/approver`, `approval/reason`, `approval/partition_key`.
+
 ## Minimal example
 
 ```yaml
@@ -130,8 +186,7 @@ See `example.yaml`.
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline). |
-| `approval_dir` | `str` | Absolute path to the shared approval-token directory. Matches HumanApprovalGateComponent's `approval_dir` so the existing downstream gate + sensor pipeline just works. Also holds `.teams_oauth_state.json` (a rotated refr… _(full docs in schema.json + component README)_ |
+| `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor (target: human_approval_gate / run_request), or `{asset_name}_pending_watcher` sensor only (target: agentic_pipeline). |
 | `teams_team_id` | `str` | Teams team id (from Teams client → team → three-dot menu → Get link). |
 | `teams_channel_id` | `str` | Teams channel id inside the team (e.g. `19:xxx@thread.tacv2`). |
 | `approver_allowlist` | `List[str]` | Azure AD object IDs (GUIDs) of users allowed to vote. Reactions/replies from anyone else are ignored. Find via Azure Portal → Azure AD → Users → {user} → Object ID. |
@@ -170,7 +225,7 @@ See `example.yaml`.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `target` | `Literal['human_approval_gate', 'agentic_pipeline']` | `"human_approval_gate"` | 'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'ag… _(full docs in schema.json + component README)_ |
+| `target` | `Literal['human_approval_gate', 'agentic_pipeline', 'run_req…` | `"human_approval_gate"` | 'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'ag… _(full docs in schema.json + component README)_ |
 
 ### Source / target
 
@@ -182,7 +237,8 @@ See `example.yaml`.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `Union[str, List[str]]` | — | target: human_approval_gate only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Teams for approval. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | target: human_approval_gate / run_request only (required there, ignored for target: agentic_pipeline). Upstream asset whose text is posted to Teams for approval. |
+| `approval_dir` | `str` | — | Required for target: human_approval_gate / agentic_pipeline; unused (and may be left unset) for target: run_request, which writes no file at all. Matches HumanApprovalGateComponent's `approval_dir` so the existing downst… _(full docs in schema.json + component README)_ |
 | `teams_tenant_id_env_var` | `str` | `"TEAMS_TENANT_ID"` | Env var holding the Azure AD tenant id. |
 | `teams_client_id_env_var` | `str` | `"TEAMS_CLIENT_ID"` | Env var holding the Azure AD app registration client id. |
 | `teams_client_secret_env_var` | `str` | `"TEAMS_CLIENT_SECRET"` | Env var holding the Azure AD app registration client secret. |
@@ -196,6 +252,13 @@ See `example.yaml`.
 | `timeout_hours` | `float` | — | Optional. If quorum isn't reached within this many hours, applies `on_timeout` policy. |
 | `on_timeout` | `str` | `"escalate"` | `escalate` (default) \| `reject` \| `approve` |
 | `escalate_teams_user` | `str` | — | Azure AD object ID pinged when timeout escalates. Only used when `on_timeout: escalate`. |
+| `correlation_mode` | `Literal['message_metadata', 'sidecar_file']` | `"message_metadata"` | 'message_metadata' (default): no per-pending-approval file at all. A plain Teams chatMessage has no hidden-metadata field the way Slack does, so the approval's own config (required_approvers, approver_allowlist, timeout_… _(full docs in schema.json + component README)_ |
+| `history_lookback_hours` | `float` | `168.0` | correlation_mode='message_metadata' only: how far back (hours) the watcher scans channel messages for still-open approval cards, bounding how many pages of the list-channel-messages call it walks each tick (there's no co… _(full docs in schema.json + component README)_ |
+| `run_request_mode` | `Literal['job', 'asset_selection']` | `"asset_selection"` | target: run_request only. 'job': launch run_request_job_name. 'asset_selection': materialize run_request_asset_selection. |
+| `run_request_job_name` | `str` | — | target: run_request + run_request_mode='job' (required then). Job name to launch on quorum. |
+| `run_request_asset_selection` | `List[str]` | — | target: run_request + run_request_mode='asset_selection' (required then). Asset keys to materialize on quorum. |
+| `run_request_run_config` | `Dict[str, Any]` | — | target: run_request only. Optional run config passed through to the launched RunRequest. |
+| `run_request_tag_prefix` | `str` | `"approval"` | target: run_request only. Tag namespace on the launched run: '{prefix}/approved' ('true'/'false'), '{prefix}/approver', '{prefix}/reason', '{prefix}/partition_key'. |
 | `dynamic_partition_name` | `str` | — | — |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
@@ -252,9 +315,12 @@ attributes:
 
 ## Cloud storage — `approval_dir` accepts URIs, not just local paths
 
-Dagster+ Serverless containers don't share a local filesystem across
-runs or code locations, so a production Teams-approval deploy needs
-cloud object storage for the token directory. `approval_dir` accepts:
+Only relevant for `target: human_approval_gate` / `agentic_pipeline` (the decision-token file;
+`target: run_request` writes no decision file) and the OAuth refresh-token rotation file (written
+regardless of target, if `approval_dir` is set) and `correlation_mode: sidecar_file` (the
+pending-state file). Dagster+ Serverless containers don't share a local filesystem across runs or
+code locations, so a production deploy of any of these needs cloud object storage. `approval_dir`
+accepts:
 
 | Shape | Example | Requires |
 |---|---|---|

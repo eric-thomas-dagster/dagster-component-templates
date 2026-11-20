@@ -36,6 +36,7 @@ def _build(monkeypatch, tmp_path, calls, backfill_policy=None):
         backfill_policy=backfill_policy,
         partition_type="daily",
         partition_start="2024-01-01",
+        correlation_mode="sidecar_file",  # this test is about backfill_policy, not correlation_mode
     )
     defs = comp.build_defs(None)
     posted = next(a for a in defs.assets if hasattr(a, "node_def") and "posted" in str(a.node_def.name))

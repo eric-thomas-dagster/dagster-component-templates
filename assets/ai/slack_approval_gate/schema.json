@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SlackApprovalGateComponent",
-  "description": "Human-in-the-loop approval gate via Slack reactions. Posts the upstream asset's text to a Slack channel, watches for reactions from an allowlisted set of approvers via a companion sensor, writes the same JSON approval token file `HumanApprovalGateComponent` reads — everything downstream of the gate is unchanged. Reactions-polling (not interactive buttons) so it works in Dagster+ Serverless without a public webhook.",
+  "description": "Human-in-the-loop approval gate via Slack reactions. Posts the upstream asset's text to a Slack channel, watches for reactions from an allowlisted set of approvers via a companion sensor, writes the same JSON approval token file `HumanApprovalGateComponent` reads \u2014 everything downstream of the gate is unchanged. Reactions-polling (not interactive buttons) so it works in Dagster+ Serverless without a public webhook.",
   "category": "ai",
   "icon": "Chat",
   "x-dagster-io": {
@@ -24,9 +24,9 @@
     },
     "approval_dir": {
       "type": "string",
-      "required": true,
+      "required": false,
       "label": "Approval Dir",
-      "description": "Approval token directory (shared with HumanApprovalGateComponent). Sensor writes `<safe_partition_key>.json` here on quorum. Accepts local paths (`/tmp/approvals`) OR cloud URIs (`s3://bucket/prefix`, `gs://bucket/prefix`, `abfs://...`). Cloud URIs require the matching fsspec driver (`s3fs` / `gcsfs` / `adlfs`) — required for Dagster+ Serverless or distributed deploys where the local filesystem isn't shared across containers."
+      "description": "Required for target: human_approval_gate / agentic_pipeline; unused (and may be left unset) for target: run_request, which writes no file at all. target: human_approval_gate -- when quorum is reached, writes `<safe_partition_key>.json` here, matching `HumanApprovalGateComponent`'s own `approval_dir` so the existing gate + sensor pipeline just works. target: agentic_pipeline -- the SAME `approval_dir` your pipeline's `approve` step uses; this component reads `<approval_dir>/pending/*.json` from it and writes `<approval_dir>/<key>.json` decisions back into it."
     },
     "slack_channel": {
       "type": "string",
@@ -41,13 +41,13 @@
       "description": "Env var with `xoxb-...` bot token (needs chat:write + reactions:read + reactions:write)."
     },
     "approve_emoji": {
-      "description": "Emoji name (no colons) approvers react with. Default `white_check_mark` (✅).",
+      "description": "Emoji name (no colons) approvers react with. Default `white_check_mark` (\u2705).",
       "type": "string",
       "label": "Approve Emoji",
       "default": "white_check_mark"
     },
     "reject_emoji": {
-      "description": "Emoji name (no colons) for explicit rejection. Default `x` (❌).",
+      "description": "Emoji name (no colons) for explicit rejection. Default `x` (\u274c).",
       "type": "string",
       "label": "Reject Emoji",
       "default": "x"
@@ -89,7 +89,7 @@
       "type": "string",
       "label": "On Timeout",
       "default": "escalate",
-      "description": "`escalate` (default — ping escalate_slack_user, keep waiting) \\| `reject` (write approved=false token) \\| `approve` (write approved=true — use with caution).",
+      "description": "`escalate` (default \u2014 ping escalate_slack_user, keep waiting) \\| `reject` (write approved=false token) \\| `approve` (write approved=true \u2014 use with caution).",
       "enum": [
         "escalate",
         "reject",
@@ -224,10 +224,64 @@
       "type": "string",
       "enum": [
         "human_approval_gate",
-        "agentic_pipeline"
+        "agentic_pipeline",
+        "run_request"
       ],
       "label": "Target",
-      "description": "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'agentic_pipeline': instead of posting an upstream asset, watch `<approval_dir>/pending/*.json` records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- post each pending record's `summary` to Slack, and on quorum write the decision the same way agentic_pipeline's own `approve_pending()` reviewer-tooling helper does (copies the pending record's fingerprint into the token), so the pipeline's own `<asset>_approval_resume_sensor` honours it. `upstream_asset_key` is ignored in this mode (there is no single upstream asset -- the pipeline's own `approve` step is the source of what gets posted); no asset is emitted, only the watcher sensor.",
+      "description": "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'agentic_pipeline': instead of posting an upstream asset, watch `<approval_dir>/pending/*.json` records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- post each pending record's `summary` to Slack, and on quorum write the decision the same way agentic_pipeline's own `approve_pending()` reviewer-tooling helper does (copies the pending record's fingerprint into the token), so the pipeline's own `<asset>_approval_resume_sensor` honours it. `upstream_asset_key` is ignored in this mode (there is no single upstream asset -- the pipeline's own `approve` step is the source of what gets posted); no asset is emitted, only the watcher sensor. 'run_request': same posting behavior as human_approval_gate, but on quorum the watcher directly fires a `RunRequest` (run_request_mode / run_request_job_name / run_request_asset_selection) with the decision on its tags -- no token file, no approval_dir, no separate HumanApprovalGateComponent at all. Requires correlation_mode='message_metadata' (the default).",
+      "required": false
+    },
+    "correlation_mode": {
+      "type": "string",
+      "enum": [
+        "message_metadata",
+        "sidecar_file"
+      ],
+      "label": "Correlation Mode",
+      "description": "'message_metadata' (default): no per-pending-approval file at all. The approval's own config (required_approvers, approver_allowlist, timeout_hours, ...) rides inside the Slack message itself as hidden metadata (chat.postMessage's own `metadata` parameter -- invisible in the Slack UI, read back via conversations.history(include_all_metadata=true) under the same scope already needed to read channel history). The watcher discovers pending approvals by scanning the channel (bounded by history_lookback_hours) instead of globbing a directory, and keeps its own escalation-already-sent / already-resolved bookkeeping in Dagster's native sensor cursor -- no approval_dir file for any of this (target: human_approval_gate still writes the one decision-token file that component reads; target: run_request writes no file at all). 'sidecar_file': this component's original behavior -- writes `<approval_dir>/<safe_key>.slack_state.json` at post time and globs it every tick. Kept for exact backward compatibility, or for a Slack app that can't be granted channel-history read on this channel. Not available for target: run_request.",
+      "required": false
+    },
+    "history_lookback_hours": {
+      "type": "number",
+      "label": "History Lookback Hours",
+      "description": "correlation_mode='message_metadata' only: how far back (hours) the watcher scans channel history for still-open approval messages, bounding the conversations.history call so a busy channel doesn't force a full-history scan every tick. Should be >= timeout_hours (when set); a message older than this that never resolved stops being found by the watcher.",
+      "required": false
+    },
+    "run_request_mode": {
+      "type": "string",
+      "enum": [
+        "job",
+        "asset_selection"
+      ],
+      "label": "Run Request Mode",
+      "description": "target: run_request only. 'job': launch run_request_job_name. 'asset_selection': materialize run_request_asset_selection.",
+      "required": false
+    },
+    "run_request_job_name": {
+      "type": "string",
+      "label": "Run Request Job Name",
+      "description": "target: run_request + run_request_mode='job' (required then). Job name to launch on quorum.",
+      "required": false
+    },
+    "run_request_asset_selection": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Run Request Asset Selection",
+      "description": "target: run_request + run_request_mode='asset_selection' (required then). Asset keys to materialize on quorum.",
+      "required": false
+    },
+    "run_request_run_config": {
+      "type": "object",
+      "label": "Run Request Run Config",
+      "description": "target: run_request only. Optional run config passed through to the launched RunRequest.",
+      "required": false
+    },
+    "run_request_tag_prefix": {
+      "type": "string",
+      "label": "Run Request Tag Prefix",
+      "description": "target: run_request only. Tag namespace on the launched run: '{prefix}/approved' ('true'/'false'), '{prefix}/approver', '{prefix}/reason', '{prefix}/partition_key'.",
       "required": false
     }
   },

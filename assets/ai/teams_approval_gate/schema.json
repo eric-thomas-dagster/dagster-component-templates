@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.TeamsApprovalGateComponent",
-  "description": "Microsoft Teams HITL approval gate. Slack analog — same asset + sensor shape, same JSON token format. target: human_approval_gate (default) composes with HumanApprovalGateComponent via shared `approval_dir`; target: agentic_pipeline watches agentic_pipeline's own approve/mode:park review queue directly. Uses MS Graph API with a DELEGATED OAuth token (app-only/client-credentials does not work for sending a channel message, confirmed against Microsoft's own docs) — a one-time interactive consent captures a refresh token, which this component refreshes (and persists if Microsoft rotates it) on every poll, pure outbound HTTPS. Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
+  "description": "Microsoft Teams HITL approval gate. Slack analog \u2014 same asset + sensor shape, same JSON token format. target: human_approval_gate (default) composes with HumanApprovalGateComponent via shared `approval_dir`; target: agentic_pipeline watches agentic_pipeline's own approve/mode:park review queue directly. Uses MS Graph API with a DELEGATED OAuth token (app-only/client-credentials does not work for sending a channel message, confirmed against Microsoft's own docs) \u2014 a one-time interactive consent captures a refresh token, which this component refreshes (and persists if Microsoft rotates it) on every poll, pure outbound HTTPS. Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji \u2014 like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT \u2014 more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) \u2014 deployable to Dagster+ Serverless with no infra changes.",
   "category": "ai",
   "icon": "GroupAdd",
   "x-dagster-io": {
@@ -28,9 +28,9 @@
     },
     "approval_dir": {
       "type": "string",
-      "required": true,
+      "required": false,
       "label": "Approval Dir",
-      "description": "Shared with HumanApprovalGateComponent — token file lands as `{safe_partition_key}.json`. Accepts local paths (`/tmp/approvals`) OR cloud URIs (`s3://bucket/prefix`, `gs://bucket/prefix`, `abfs://...`). Cloud URIs require the matching fsspec driver (`s3fs` / `gcsfs` / `adlfs`) — required for Dagster+ Serverless or distributed deploys where the local filesystem isn't shared across containers."
+      "description": "Required for target: human_approval_gate / agentic_pipeline; unused (and may be left unset) for target: run_request, which writes no file at all. Matches HumanApprovalGateComponent's `approval_dir` so the existing downstream gate + sensor pipeline just works. Also holds `.teams_oauth_state.json` (a rotated refresh token, if Microsoft ever issues one) -- written regardless of target/correlation_mode, so set approval_dir even for target: run_request if your Azure AD app is expected to rotate refresh tokens."
     },
     "teams_tenant_id_env_var": {
       "description": "Env var holding the Azure AD tenant id.",
@@ -51,7 +51,7 @@
       "default": "TEAMS_CLIENT_SECRET"
     },
     "teams_team_id": {
-      "description": "Teams team id (from Teams client → team → three-dot menu → Get link).",
+      "description": "Teams team id (from Teams client \u2192 team \u2192 three-dot menu \u2192 Get link).",
       "type": "string",
       "required": true,
       "label": "Teams Team ID"
@@ -63,7 +63,7 @@
       "label": "Teams Channel ID"
     },
     "mode": {
-      "description": "'reactions' (default; approvers react with the configured emoji — Teams limits to 6 built-ins: like, heart, laugh, surprised, sad, angry) OR 'reply' (approvers post a thread reply containing the configured keyword — more flexible, allows context).",
+      "description": "'reactions' (default; approvers react with the configured emoji \u2014 Teams limits to 6 built-ins: like, heart, laugh, surprised, sad, angry) OR 'reply' (approvers post a thread reply containing the configured keyword \u2014 more flexible, allows context).",
       "type": "string",
       "label": "Mode",
       "default": "reactions",
@@ -154,7 +154,7 @@
       "label": "Escalate Teams User"
     },
     "poll_interval_seconds": {
-      "description": "Sensor cadence — how often to poll Teams for new votes. Default 60s (Teams API is rate-limited; 30s is fine for a handful of partitions but pump higher at scale).",
+      "description": "Sensor cadence \u2014 how often to poll Teams for new votes. Default 60s (Teams API is rate-limited; 30s is fine for a handful of partitions but pump higher at scale).",
       "type": "integer",
       "label": "Poll Interval Seconds",
       "default": 60
@@ -276,16 +276,70 @@
       "type": "string",
       "enum": [
         "human_approval_gate",
-        "agentic_pipeline"
+        "agentic_pipeline",
+        "run_request"
       ],
       "label": "Target",
-      "description": "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'agentic_pipeline': instead of posting an upstream asset, watch `<approval_dir>/pending/*.json` records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- post each pending record's `summary`, and on quorum write the decision the same way agentic_pipeline's own `approve_pending()` reviewer-tooling helper does (copies the pending record's fingerprint into the token). `upstream_asset_key` is ignored in this mode; no asset is emitted, only the watcher sensor.",
+      "description": "'human_approval_gate' (default): post `upstream_asset_key`'s text, write a bare decision token for a separately-configured `HumanApprovalGateComponent` to consume -- unchanged from this component's original behavior. 'agentic_pipeline': instead of posting an upstream asset, watch `<approval_dir>/pending/*.json` records -- the review queue agentic_pipeline's own `approve` op writes when it has `mode: park` -- post each pending record's `summary`, and on quorum write the decision the same way agentic_pipeline's own `approve_pending()` reviewer-tooling helper does (copies the pending record's fingerprint into the token). `upstream_asset_key` is ignored in this mode; no asset is emitted, only the watcher sensor. 'run_request': same posting behavior as human_approval_gate, but on quorum the watcher directly fires a `RunRequest` (run_request_mode / run_request_job_name / run_request_asset_selection) with the decision on its tags -- no token file, no approval_dir, no separate HumanApprovalGateComponent at all. Requires correlation_mode='message_metadata' (the default).",
       "required": false
     },
     "teams_refresh_token_env_var": {
       "type": "string",
       "label": "Teams Refresh Token Env Var",
       "description": "Env var holding the INITIAL OAuth refresh token (from the one-time interactive consent for the dedicated approval-bot account -- see this file's module docstring, 'Auth'). Only the seed -- if Microsoft ever rotates it, the rotated token is persisted to `<approval_dir>/.teams_oauth_state.json` and preferred over this env var from then on.",
+      "required": false
+    },
+    "correlation_mode": {
+      "type": "string",
+      "enum": [
+        "message_metadata",
+        "sidecar_file"
+      ],
+      "label": "Correlation Mode",
+      "description": "'message_metadata' (default): no per-pending-approval file at all. A plain Teams chatMessage has no hidden-metadata field the way Slack does, so the approval's own config (required_approvers, approver_allowlist, timeout_hours, ...) instead rides inside an Adaptive Card attachment's `content` -- a custom `_dagster_metadata` key alongside the card's own fields, invisible in the Teams UI (not rendered; confirmed Graph stores attachment content as an opaque string, not parsed against the card schema) and read back via the same list-channel-messages call the watcher already needs (`attachments` comes back inline by default, no extra Graph scope). The watcher discovers pending approvals by scanning the channel (bounded by history_lookback_hours) instead of globbing a directory, and keeps its escalation-already-sent / already-resolved bookkeeping in Dagster's native sensor cursor -- no approval_dir file for any of this (target: human_approval_gate still writes the one decision-token file that component reads; target: run_request writes no file at all, aside from the OAuth rotation state file if approval_dir is set). 'sidecar_file': this component's original behavior -- writes `<approval_dir>/<safe_key>.teams_state.json` at post time and globs it every tick. Not available for target: run_request.",
+      "required": false
+    },
+    "history_lookback_hours": {
+      "type": "number",
+      "label": "History Lookback Hours",
+      "description": "correlation_mode='message_metadata' only: how far back (hours) the watcher scans channel messages for still-open approval cards, bounding how many pages of the list-channel-messages call it walks each tick (there's no confirmed server-side date filter for this endpoint, so the bound is applied client-side against each message's createdDateTime). Should be >= timeout_hours (when set).",
+      "required": false
+    },
+    "run_request_mode": {
+      "type": "string",
+      "enum": [
+        "job",
+        "asset_selection"
+      ],
+      "label": "Run Request Mode",
+      "description": "target: run_request only. 'job': launch run_request_job_name. 'asset_selection': materialize run_request_asset_selection.",
+      "required": false
+    },
+    "run_request_job_name": {
+      "type": "string",
+      "label": "Run Request Job Name",
+      "description": "target: run_request + run_request_mode='job' (required then). Job name to launch on quorum.",
+      "required": false
+    },
+    "run_request_asset_selection": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Run Request Asset Selection",
+      "description": "target: run_request + run_request_mode='asset_selection' (required then). Asset keys to materialize on quorum.",
+      "required": false
+    },
+    "run_request_run_config": {
+      "type": "object",
+      "label": "Run Request Run Config",
+      "description": "target: run_request only. Optional run config passed through to the launched RunRequest.",
+      "required": false
+    },
+    "run_request_tag_prefix": {
+      "type": "string",
+      "label": "Run Request Tag Prefix",
+      "description": "target: run_request only. Tag namespace on the launched run: '{prefix}/approved' ('true'/'false'), '{prefix}/approver', '{prefix}/reason', '{prefix}/partition_key'.",
       "required": false
     }
   }

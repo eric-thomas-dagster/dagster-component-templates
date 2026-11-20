@@ -34,6 +34,9 @@ on:
       - "assets/ai/slack_chat_tools/**"
       - "assets/ai/teams_chat_tools/**"
       - "assets/ai/report_tools_server/**"
+      - "assets/ingestion/notion_mcp_documents/**"
+      - "assets/ai/notion_mcp_server/**"
+      - "resources/notion_mcp_login/**"
       - "tests/test_mcp_*.py"
       - ".github/workflows/mcp-canary.yml"
 
@@ -64,6 +67,9 @@ env:
     assets/ai/slack_chat_tools/tests
     assets/ai/teams_chat_tools/tests
     assets/ai/report_tools_server/tests
+    assets/ingestion/notion_mcp_documents/tests
+    assets/ai/notion_mcp_server/tests
+    resources/notion_mcp_login/tests
 
 jobs:
   mcp:

@@ -36,6 +36,9 @@ MCP_COMPONENTS = {
     "assets/ai/slack_chat_tools": "server",
     "assets/ai/teams_chat_tools": "server",
     "assets/ai/report_tools_server": "server",
+    "assets/ingestion/notion_mcp_documents": "client (Notion's hosted MCP server)",
+    "assets/ai/notion_mcp_server": "server (local stdio proxy to Notion's hosted MCP server)",
+    "resources/notion_mcp_login": "client (sign-in CLI, notion-get-self confirmation)",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

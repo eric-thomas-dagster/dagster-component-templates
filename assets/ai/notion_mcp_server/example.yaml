@@ -1,0 +1,5 @@
+type: dagster_community_components.NotionMcpServerComponent
+attributes:
+  resource_key: notion_mcp
+  oauth_dir: "{{ env.NOTION_MCP_OAUTH_DIR }}"
+  max_requests_per_second: 2

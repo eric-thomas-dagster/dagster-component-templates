@@ -1,0 +1,11 @@
+type: dagster_community_components.NotionMcpDocumentsComponent
+attributes:
+  asset_name: notion_pages
+  oauth_dir: "{{ env.NOTION_MCP_OAUTH_DIR }}"
+  root_page_ids:
+    - a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+  exclude_title_contains:
+    - DRAFT
+  max_requests_per_second: 2
+  concurrency: 2
+  group_name: notion_mcp_documents

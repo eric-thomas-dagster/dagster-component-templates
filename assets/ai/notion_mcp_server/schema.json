@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_community_components.NotionMcpServerComponent",
+  "description": "Registers a local stdio MCP server proxying notion-search/notion-fetch to Notion's hosted MCP server, refreshing the signed-in person's OAuth token as needed.",
+  "category": "ai",
+  "icon": "si:notion",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "None",
+      "description": "No asset -- registers a Dagster resource (a stdio MCP server) for other components to reference via server_resource_key."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key other components reference via server_resource_key.",
+      "required": false
+    },
+    "oauth_dir": {
+      "type": "string",
+      "label": "Oauth Dir",
+      "description": "Directory holding tokens.json + client_info.json from the sign-in CLI. Treat as a secret.",
+      "required": true
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "`f\"Hard allow-list of tools (default: both). Valid: {', '.join(_ALL_TOOLS)}.\"`",
+      "required": false
+    },
+    "max_requests_per_second": {
+      "type": "number",
+      "label": "Max Requests Per Second",
+      "description": "Shared by every tool call this server process makes -- see NotionMcpRateLimiter.",
+      "required": false
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retries on Notion's own text-based rate-limit signal or a transient error before returning {'error': ...} to the agent.",
+      "required": false
+    }
+  }
+}

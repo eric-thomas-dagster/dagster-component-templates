@@ -961,6 +961,8 @@ _CLASS_PATHS: dict[str, str] = {
     "NotionDatabaseUpsertComponent": "assets/reverse_etl/notion_database_upsert/component.py",
     "NotionDocumentsComponent": "assets/ingestion/notion_documents/component.py",
     "NotionIngestionComponent": "assets/ingestion/notion_ingestion/component.py",
+    "NotionMcpDocumentsComponent": "assets/ingestion/notion_mcp_documents/component.py",
+    "NotionMcpServerComponent": "assets/ai/notion_mcp_server/component.py",
     "NotionPageSyncComponent": "assets/reverse_etl/notion_page_sync/component.py",
     "NotionResource": "resources/notion_resource/component.py",
     "NotionResourceComponent": "resources/notion_resource/component.py",

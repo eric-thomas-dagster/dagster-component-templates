@@ -4,17 +4,29 @@ Single-shot LLM agent with MCP tool support, using the OpenAI SDK directly
 (no LiteLLM dependency). For multi-vendor support via LiteLLM, see
 LiteLLMAgentComponent.
 
-The agent loop is the standard tool-calling shape:
+Runs on the RESPONSES API (`client.responses.create`), not Chat Completions --
+switched specifically so `hosted_code_execution` (OpenAI's hosted
+`code_interpreter` tool) can exist at all; Chat Completions has no
+provider-hosted code execution, only caller-implemented function calling.
+
+The agent loop is the standard tool-calling shape, in Responses API terms:
   1. List tools from every configured MCP server (prefix tool names by
-     server name so cross-server collisions are impossible).
-  2. Send the system + user prompt to OpenAI with all tool defs.
-  3. If the model emits tool calls, dispatch each to the owning MCP
-     session, append the result as a `role: tool` message, and loop.
-  4. Stop when the model returns a plain text response or
+     server name so cross-server collisions are impossible) as flat
+     `{"type": "function", "name": ..., "parameters": ...}` tool defs (the
+     Responses API's tool shape has no nested `function` wrapper, unlike
+     Chat Completions').
+  2. Send `input` (an accumulating list of message/function_call/
+     function_call_output items) + `instructions` (the system prompt) to
+     OpenAI with all tool defs.
+  3. If the model emits `function_call` items, dispatch each to the owning
+     MCP session and append a matching `function_call_output` item, then
+     loop.
+  4. Stop when a turn's `output` has no `function_call` items, or
      `max_iterations` is hit.
 
 Output is a Python dict (loaded by IO manager) carrying the final answer,
-full transcript, and tool-call/iteration counts.
+full transcript, tool-call/iteration counts, and (when `hosted_code_execution`
+generated any) the files the model's code produced.
 """
 from typing import Any, Dict, List, Optional
 import dagster as dg
@@ -129,6 +141,84 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
     return out
 # END field-shape normalization
 
+# BEGIN report-manifest (inlined per component; keep copies identical across report_tools_server / anthropic_agent /
+# openai_agent / slack_reply / teams_reply / slack_chat_tools -- see tests/test_report_manifest_drift.py)
+import json as _rm_json  # noqa: E402,F401
+import os as _rm_os  # noqa: E402,F401
+import shutil as _rm_shutil  # noqa: E402,F401
+import threading as _rm_threading  # noqa: E402,F401
+import time as _rm_time  # noqa: E402,F401
+
+_REPORT_MANIFEST_LOCK = _rm_threading.Lock()
+
+
+def _report_run_dir(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_rm_os.path.expanduser(files_dir), run_id or "_unscoped")
+
+
+def _report_manifest_path(files_dir: str, run_id: Optional[str]) -> str:
+    return _rm_os.path.join(_report_run_dir(files_dir, run_id), "manifest.json")
+
+
+def read_run_manifest(files_dir: str, run_id: Optional[str]) -> List[Dict[str, Any]]:
+    """Every file {file_id, name, media_type, path, size_bytes, tool, created_at} report_tools_server has
+    written for this run so far. Trusted, run-scoped lookup -- same reasoning as receipts_db_path's own
+    receipt_ids_for_run: a caller only ever reads its OWN run's files by the run id Dagster itself put on the
+    run (never an argument an agent could spoof)."""
+    path = _report_manifest_path(files_dir, run_id)
+    if not _rm_os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = _rm_json.load(f)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def append_to_report_manifest(files_dir: str, run_id: Optional[str], entry: Dict[str, Any]) -> None:
+    run_dir = _report_run_dir(files_dir, run_id)
+    with _REPORT_MANIFEST_LOCK:
+        _rm_os.makedirs(run_dir, exist_ok=True)
+        existing = read_run_manifest(files_dir, run_id)
+        existing.append(entry)
+        manifest_path = _report_manifest_path(files_dir, run_id)
+        tmp_path = manifest_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            _rm_json.dump(existing, f)
+        _rm_os.replace(tmp_path, manifest_path)
+
+
+def lookup_report_file(files_dir: str, run_id: Optional[str], file_id: str) -> Optional[Dict[str, Any]]:
+    for entry in read_run_manifest(files_dir, run_id):
+        if entry.get("file_id") == file_id:
+            return entry
+    return None
+
+
+def sweep_old_report_runs(files_dir: str, retention_hours: float) -> int:
+    """Delete run folders under files_dir whose manifest.json is older than retention_hours. Best-effort: a run
+    folder with no manifest.json yet, or one that loses a race with a concurrent writer, is skipped rather than
+    raised -- this runs opportunistically on every tool call, not as a scheduled job."""
+    base = _rm_os.path.expanduser(files_dir)
+    if not _rm_os.path.isdir(base):
+        return 0
+    cutoff = _rm_time.time() - max(0.0, retention_hours) * 3600
+    removed = 0
+    for name in list(_rm_os.listdir(base)):
+        run_dir = _rm_os.path.join(base, name)
+        manifest = _rm_os.path.join(run_dir, "manifest.json")
+        if not _rm_os.path.isdir(run_dir) or not _rm_os.path.isfile(manifest):
+            continue
+        try:
+            if _rm_os.path.getmtime(manifest) < cutoff:
+                _rm_shutil.rmtree(run_dir, ignore_errors=True)
+                removed += 1
+        except OSError:
+            continue
+    return removed
+# END report-manifest
+
 
 class OpenAIAgentComponent(Component, Model, Resolvable):
     """Single-shot agent using the OpenAI SDK directly + MCP tools.
@@ -217,6 +307,39 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
         default=None,
         description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
     )
+    hosted_code_execution: bool = Field(
+        default=False,
+        description=(
+            "Enable OpenAI's hosted code_interpreter tool. A skill_keys entry that needs "
+            "code execution (skill_kind='code_execution', or the auto-detected heuristic) "
+            "is no longer omitted with a warning when this is true -- its SKILL.md plus "
+            "bundled files are uploaded via the Files API (purpose='user_data') and "
+            "attached to the code_interpreter container's file_ids, so the model can "
+            "actually read and run them, instead of just being told it can't. Generated "
+            "files come back in this asset's own output (`files`) and materialization "
+            "metadata, and -- when hosted_code_execution_files_dir is also set -- are "
+            "written there too, in the same manifest.json shape report_tools_server uses. "
+            "NOT live-verified against a real OpenAI account in this repo's environment -- "
+            "confirmed against OpenAI's own current API reference instead (the container/"
+            "file_ids request shape, the container_file_citation annotation fields, and "
+            "the container-files content-retrieval endpoint's purpose are all documented; "
+            "the exact async SDK call for reading the downloaded bytes was not pinned down "
+            "to one certain shape, so that one step tries a few plausible forms rather than "
+            "assuming one). A container expires after 20 minutes of inactivity (OpenAI's "
+            "own limit, not configurable here)."
+        ),
+    )
+    hosted_code_execution_files_dir: Optional[str] = Field(
+        default=None,
+        description=(
+            "Local directory root -- hosted_code_execution only. When set, every file the "
+            "code_interpreter tool generates is ALSO written here (one subfolder per "
+            "dagster/run_id, a manifest.json per run) in the exact same shape "
+            "report_tools_server/anthropic_agent's hosted_skills_files_dir use -- so "
+            "slack_reply/teams_reply's own report_files_dir (and slack_chat_tools' "
+            "upload_files) deliver these files with zero changes needed there."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -296,6 +419,8 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
         mcp_servers = self.mcp_servers
         allowed_tools = self.allowed_tools
         skill_keys = self.skill_keys
+        hosted_code_execution = self.hosted_code_execution
+        hosted_code_execution_files_dir = self.hosted_code_execution_files_dir
         group_name = self.group_name
         description = self.description
         owners = self.owners or []
@@ -401,12 +526,19 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
             # only the model-facing listing and _run_agent's own dispatch use the filtered
             # one below.
             _unusable_skills = [name for name, res in skill_resources.items() if not res.describe().get("runnable_here", True)]
-            for _name in _unusable_skills:
-                _d = skill_resources[_name].describe()
-                context.log.warning(
-                    f"skill {_name!r} needs code execution ({_d.get('code_execution_files')}) -- omitted "
-                    "from skill_keys (this agent's load_skill/read_skill_file loop has no code execution)."
-                )
+            if hosted_code_execution:
+                # Routed to the code_interpreter path inside _run_agent instead of being
+                # dropped -- their files get uploaded and attached to the container.
+                code_execution_skill_resources = {name: skill_resources[name] for name in _unusable_skills}
+            else:
+                for _name in _unusable_skills:
+                    _d = skill_resources[_name].describe()
+                    context.log.warning(
+                        f"skill {_name!r} needs code execution ({_d.get('code_execution_files')}) -- omitted "
+                        "from skill_keys (this agent's load_skill/read_skill_file loop has no code execution "
+                        "unless hosted_code_execution is enabled)."
+                    )
+                code_execution_skill_resources = {}
             usable_skill_resources = {k: v for k, v in skill_resources.items() if k not in _unusable_skills}
 
             substitutions = {"run_id": context.run_id, "tags": dict(context.run.tags or {})}
@@ -440,6 +572,16 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                 )
                 resolved_system = (resolved_system or "") + _skill_listing
 
+            if code_execution_skill_resources:
+                _ce_lines = "\n".join(
+                    f"- {name}: {res.describe()['description']}" for name, res in code_execution_skill_resources.items()
+                )
+                resolved_system = (resolved_system or "") + (
+                    "\n\nSkills available with code execution (their SKILL.md and bundled files "
+                    f"are already in your code execution environment -- read and run them "
+                    f"directly, no load_skill call needed):\n{_ce_lines}"
+                )
+
             result = asyncio.run(
                 _run_agent(
                     log=context.log,
@@ -456,6 +598,10 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                     reasoning_effort=reasoning_effort,
                     skill_resources=usable_skill_resources,
                     allowed_tools=allowed_tools,
+                    hosted_code_execution=hosted_code_execution,
+                    code_execution_skill_resources=code_execution_skill_resources,
+                    hosted_code_execution_files_dir=hosted_code_execution_files_dir,
+                    run_id=context.run_id,
                 )
             )
 
@@ -476,6 +622,12 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                 )
                 md["skills_loaded"] = MetadataValue.json(sorted(result.get("loaded_skill_names") or []))
                 md["skill_load_count"] = MetadataValue.int(result.get("skill_load_count") or 0)
+            if hosted_code_execution:
+                md["hosted_code_execution_used"] = MetadataValue.bool(bool(result.get("files")))
+                md["hosted_code_execution_files"] = MetadataValue.json([
+                    {"name": f["name"], "size_bytes": len(f["bytes"]) if "bytes" in f else f.get("size_bytes")}
+                    for f in result.get("files", [])
+                ])
             context.add_output_metadata(md)
             return result
 
@@ -653,10 +805,15 @@ async def _run_agent(
     reasoning_effort: Optional[str] = None,
     skill_resources: Optional[Dict[str, Any]] = None,
     allowed_tools: Optional[List[str]] = None,
+    hosted_code_execution: bool = False,
+    code_execution_skill_resources: Optional[Dict[str, Any]] = None,
+    hosted_code_execution_files_dir: Optional[str] = None,
+    run_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     import json
     import os
     from contextlib import AsyncExitStack
+    from datetime import datetime, timezone
 
     try:
         from openai import AsyncOpenAI
@@ -756,12 +913,13 @@ async def _run_agent(
                 tool_index[prefixed] = (session, tool, tool.name)
                 openai_tools.append(
                     {
+                        # Responses API tool shape is FLAT (no nested "function" key, unlike
+                        # Chat Completions') -- confirmed against OpenAI's own current API
+                        # reference.
                         "type": "function",
-                        "function": {
-                            "name": prefixed,
-                            "description": tool.description or "",
-                            "parameters": _mcp_field(tool, "inputSchema", None) or {"type": "object", "properties": {}},
-                        },
+                        "name": prefixed,
+                        "description": tool.description or "",
+                        "parameters": _mcp_field(tool, "inputSchema", None) or {"type": "object", "properties": {}},
                     }
                 )
             servers_used.append(name)
@@ -773,45 +931,80 @@ async def _run_agent(
             openai_tools.append(
                 {
                     "type": "function",
-                    "function": {
-                        "name": "load_skill",
-                        "description": "Load the full SKILL.md instructions for a skill, by its name, before using it. Only call this once you've decided a skill is actually relevant.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string",
-                                    "description": "The skill's name, exactly as shown in the available-skills listing.",
-                                }
-                            },
-                            "required": ["name"],
+                    "name": "load_skill",
+                    "description": "Load the full SKILL.md instructions for a skill, by its name, before using it. Only call this once you've decided a skill is actually relevant.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The skill's name, exactly as shown in the available-skills listing.",
+                            }
                         },
+                        "required": ["name"],
                     },
                 }
             )
             openai_tools.append(
                 {
                     "type": "function",
-                    "function": {
-                        "name": "read_skill_file",
-                        "description": "Read one bundled file from a skill's folder, by path relative to that folder (see the `files` list returned by load_skill).",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string",
-                                    "description": "The skill's name, exactly as shown in the available-skills listing.",
-                                },
-                                "relative_path": {
-                                    "type": "string",
-                                    "description": "Path to the file, relative to the skill's folder.",
-                                },
+                    "name": "read_skill_file",
+                    "description": "Read one bundled file from a skill's folder, by path relative to that folder (see the `files` list returned by load_skill).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "The skill's name, exactly as shown in the available-skills listing.",
                             },
-                            "required": ["name", "relative_path"],
+                            "relative_path": {
+                                "type": "string",
+                                "description": "Path to the file, relative to the skill's folder.",
+                            },
                         },
+                        "required": ["name", "relative_path"],
                     },
                 }
             )
+
+        # hosted_code_execution: upload every code-execution skill's SKILL.md + bundled files
+        # (text only -- SkillResource.read_file() reads as text, so a binary bundled file is
+        # skipped with a warning rather than crashing the run) to the Files API, then attach
+        # them to the code_interpreter container's file_ids so the model can read/run them
+        # directly -- no load_skill call needed, unlike the plain markdown-skill path above.
+        if hosted_code_execution:
+            uploaded_file_ids: List[str] = []
+            if code_execution_skill_resources:
+                for _name, _res in code_execution_skill_resources.items():
+                    try:
+                        _loaded = _res.load()
+                    except Exception as e:  # noqa: BLE001 -- one bad skill must never fail the whole run
+                        log.warning(f"hosted_code_execution: could not load skill {_name!r} for upload: {e}")
+                        continue
+                    try:
+                        _skill_md_file = await client.files.create(
+                            file=(f"{_name}_SKILL.md", _loaded["content"].encode("utf-8")), purpose="user_data",
+                        )
+                        uploaded_file_ids.append(_skill_md_file.id)
+                    except Exception as e:  # noqa: BLE001
+                        log.warning(f"hosted_code_execution: could not upload SKILL.md for skill {_name!r}: {e}")
+                    for _rel in _loaded.get("files") or []:
+                        try:
+                            _text = _res.read_file(_rel)
+                        except Exception as e:  # noqa: BLE001 -- binary bundled files aren't readable as text; skip them
+                            log.warning(f"hosted_code_execution: could not read {_rel!r} from skill {_name!r}: {e}")
+                            continue
+                        try:
+                            _f = await client.files.create(
+                                file=(_rel.replace("/", "_"), _text.encode("utf-8")), purpose="user_data",
+                            )
+                            uploaded_file_ids.append(_f.id)
+                        except Exception as e:  # noqa: BLE001
+                            log.warning(f"hosted_code_execution: could not upload {_rel!r} for skill {_name!r}: {e}")
+            _container_param: Dict[str, Any] = {"type": "auto"}
+            if uploaded_file_ids:
+                _container_param["file_ids"] = uploaded_file_ids
+            openai_tools.append({"type": "code_interpreter", "container": _container_param})
 
         # Per-server usage guidance (saved `instructions` + whatever the server itself
         # returned in its own initialize() response) -- one heading per server, combined in
@@ -823,10 +1016,11 @@ async def _run_agent(
             combined_server_instructions = "\n\n".join(_blocks)
             system_prompt = (system_prompt + "\n\n" + combined_server_instructions) if system_prompt else combined_server_instructions
 
-        messages: List[Dict[str, Any]] = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+        # input_list is BOTH the running conversation (resent in full every turn -- the
+        # Responses API's stateless multi-turn shape, confirmed against OpenAI's own function-
+        # calling guide: no previous_response_id is used here, so every item the model needs to
+        # see again must already be in this list) and the returned "transcript".
+        input_list: List[Dict[str, Any]] = [{"role": "user", "content": prompt}]
 
         tool_call_details: List[Dict[str, Any]] = []
         iterations = 0
@@ -837,38 +1031,44 @@ async def _run_agent(
             iterations = i + 1
             kwargs: Dict[str, Any] = {
                 "model": model,
-                "messages": messages,
+                "input": input_list,
                 "temperature": temperature,
-                "max_tokens": max_tokens,
+                "max_output_tokens": max_tokens,
             }
+            if system_prompt:
+                kwargs["instructions"] = system_prompt
             # Forward reasoning_effort to o1/o3/o4 models. If the caller
             # sets it on a non-reasoning model, OpenAI returns 400 — that's
             # a user config error, not something we should silently swallow.
             if reasoning_effort is not None:
-                kwargs["reasoning_effort"] = reasoning_effort
+                kwargs["reasoning"] = {"effort": reasoning_effort}
             if openai_tools:
                 kwargs["tools"] = openai_tools
 
-            response = await client.chat.completions.create(**kwargs)
-            msg = response.choices[0].message
-            try:
-                msg_dict = msg.model_dump(exclude_none=True)
-            except AttributeError:
-                msg_dict = msg.dict(exclude_none=True)
-            msg_dict.setdefault("role", "assistant")
-            messages.append(msg_dict)
+            response = await client.responses.create(**kwargs)
 
-            if msg.content:
-                last_assistant_content = msg.content
+            output_items: List[Dict[str, Any]] = []
+            for item in response.output:
+                try:
+                    d = item.model_dump(exclude_none=True)
+                except AttributeError:
+                    d = item.dict(exclude_none=True) if hasattr(item, "dict") else {"type": getattr(item, "type", "unknown")}
+                output_items.append(d)
+            input_list.extend(output_items)
 
-            tool_calls = msg.tool_calls or []
-            if not tool_calls:
+            _output_text = getattr(response, "output_text", None)
+            if _output_text:
+                last_assistant_content = _output_text
+
+            function_calls = [d for d in output_items if d.get("type") == "function_call"]
+            if not function_calls:
                 stopped_reason = "final_answer"
                 break
 
-            for tc in tool_calls:
-                fn_name = tc.function.name
-                fn_args_raw = tc.function.arguments or "{}"
+            for fc in function_calls:
+                fn_name = fc.get("name")
+                call_id = fc.get("call_id")
+                fn_args_raw = fc.get("arguments") or "{}"
                 try:
                     fn_args = json.loads(fn_args_raw)
                 except json.JSONDecodeError as e:
@@ -887,9 +1087,7 @@ async def _run_agent(
                         tool_output, is_error = loaded["content"], False
                         loaded_skill_names.add(skill_name)
                         skill_load_count += 1
-                    messages.append(
-                        {"role": "tool", "tool_call_id": tc.id, "content": tool_output}
-                    )
+                    input_list.append({"type": "function_call_output", "call_id": call_id, "output": tool_output})
                     tool_call_details.append(
                         {
                             "iteration": iterations, "tool": fn_name, "args": fn_args,
@@ -911,9 +1109,7 @@ async def _run_agent(
                             tool_output, is_error = skill_res.read_file(relative_path), False
                         except (ValueError, FileNotFoundError) as e:
                             tool_output, is_error = f"Error: {e}", True
-                    messages.append(
-                        {"role": "tool", "tool_call_id": tc.id, "content": tool_output}
-                    )
+                    input_list.append({"type": "function_call_output", "call_id": call_id, "output": tool_output})
                     tool_call_details.append(
                         {
                             "iteration": iterations, "tool": fn_name, "args": fn_args,
@@ -925,9 +1121,7 @@ async def _run_agent(
                 if fn_name not in tool_index:
                     err = f"tool {fn_name!r} not registered with any MCP server"
                     log.warning(err)
-                    messages.append(
-                        {"role": "tool", "tool_call_id": tc.id, "content": f"Error: {err}"}
-                    )
+                    input_list.append({"type": "function_call_output", "call_id": call_id, "output": f"Error: {err}"})
                     tool_call_details.append(
                         {"iteration": iterations, "tool": fn_name, "args": fn_args, "error": err}
                     )
@@ -944,9 +1138,7 @@ async def _run_agent(
                     is_error = True
                     log.warning(f"tool {fn_name} raised: {e}")
 
-                messages.append(
-                    {"role": "tool", "tool_call_id": tc.id, "content": tool_output}
-                )
+                input_list.append({"type": "function_call_output", "call_id": call_id, "output": tool_output})
                 tool_call_details.append(
                     {
                         "iteration": iterations,
@@ -957,18 +1149,79 @@ async def _run_agent(
                     }
                 )
 
+        downloaded_files: List[Dict[str, Any]] = []
+        if hosted_code_execution:
+            # Generated files are discovered from container_file_citation annotations on
+            # output_text content items (confirmed against OpenAI's own code_interpreter
+            # guide) -- scan every "message" item accumulated across the whole run, not just
+            # the last turn's, since a file generated mid-conversation is still cited there.
+            _seen_refs: set = set()
+            _refs: List[tuple] = []
+            for item in input_list:
+                if item.get("type") != "message":
+                    continue
+                for _c in item.get("content") or []:
+                    for _ann in (_c.get("annotations") or []):
+                        if _ann.get("type") == "container_file_citation":
+                            _ref = (_ann.get("container_id"), _ann.get("file_id"), _ann.get("filename") or _ann.get("file_id"))
+                            if _ref not in _seen_refs:
+                                _seen_refs.add(_ref)
+                                _refs.append(_ref)
+            for _container_id, _file_id, _filename in _refs:
+                if not _container_id or not _file_id:
+                    continue
+                try:
+                    # Exact async download shape wasn't pinned down to one certain form in
+                    # OpenAI's docs at the time this was written -- try the plausible ones
+                    # rather than assume a single shape (see hosted_code_execution's own
+                    # field description).
+                    _content_resp = client.containers.files.content.retrieve(file_id=_file_id, container_id=_container_id)
+                    if hasattr(_content_resp, "__await__"):
+                        _content_resp = await _content_resp
+                    if hasattr(_content_resp, "aread"):
+                        _data = await _content_resp.aread()
+                    elif hasattr(_content_resp, "read"):
+                        _r = _content_resp.read()
+                        _data = await _r if hasattr(_r, "__await__") else _r
+                    else:
+                        _data = bytes(_content_resp)
+                except Exception as e:  # noqa: BLE001 -- one bad download must never fail the whole run
+                    log.warning(f"hosted_code_execution: could not download generated file {_file_id!r}: {e}")
+                    continue
+                _entry: Dict[str, Any] = {"file_id": _file_id, "container_id": _container_id, "name": _filename}
+                if hosted_code_execution_files_dir:
+                    try:
+                        _run_dir = _report_run_dir(hosted_code_execution_files_dir, run_id)
+                        os.makedirs(_run_dir, exist_ok=True)
+                        _path = os.path.join(_run_dir, f"{_file_id}_{_filename}")
+                        with open(_path, "wb") as f:
+                            f.write(_data)
+                        _entry["path"] = _path
+                        append_to_report_manifest(hosted_code_execution_files_dir, run_id, {
+                            "file_id": _file_id, "name": _filename, "media_type": "application/octet-stream",
+                            "path": _path, "size_bytes": len(_data), "tool": "hosted_code_execution",
+                            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        })
+                    except Exception as e:  # noqa: BLE001 -- a manifest write failure must never lose the file itself
+                        log.warning(f"hosted_code_execution: could not write {_file_id!r} to hosted_code_execution_files_dir: {e}")
+                        _entry["bytes"] = _data
+                else:
+                    _entry["bytes"] = _data
+                downloaded_files.append(_entry)
+
         return {
             "final_answer": last_assistant_content or "",
             "iterations": iterations,
             "tool_calls_made": len(tool_call_details),
             "tool_call_details": tool_call_details,
-            "transcript": messages,
+            "transcript": input_list,
             "stopped_reason": stopped_reason,
             "model": model,
             "mcp_servers": servers_used,
             "combined_server_instructions": combined_server_instructions or None,
             "loaded_skill_names": sorted(loaded_skill_names),
             "skill_load_count": skill_load_count,
+            "files": downloaded_files,
         }
 
 

@@ -34,27 +34,30 @@ def _call_kwargs(fn, cfg, **extra):
     return {k: v for k, v in cand.items() if k in params}
 
 
-class _Msg:
-    def __init__(self, content):
-        self.content, self.tool_calls = content, None
+class _MessageItem:
+    def __init__(self, text):
+        self.type = "message"
+        self._text = text
 
     def model_dump(self, exclude_none=True):
-        return {"role": "assistant", "content": self.content}
+        return {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": self._text, "annotations": []}]}
+
+
+def _fake_response(output_items, output_text):
+    return types.SimpleNamespace(output=output_items, output_text=output_text)
 
 
 def _drive(mod, cfg, monkeypatch):
     seen = {}
 
-    class _Completions:
+    class _Responses:
         async def create(self, **kw):
             seen["kw"] = kw
-            return types.SimpleNamespace(
-                choices=[types.SimpleNamespace(message=_Msg("done"), finish_reason="stop")]
-            )
+            return _fake_response([_MessageItem("done")], "done")
 
     class AsyncOpenAI:
         def __init__(self, **kw):
-            self.chat = types.SimpleNamespace(completions=_Completions())
+            self.responses = _Responses()
 
     fake = types.ModuleType("openai")
     fake.AsyncOpenAI = AsyncOpenAI
@@ -84,8 +87,7 @@ def test_per_server_instructions_combine_into_system_message(tmp_path, monkeypat
     assert "## mini" in combined
     assert "Saved note: always cite the ticket number." in combined
     assert "(server-provided): (from server) read-only, do not write." in combined
-    system_msg = next(m for m in kw["messages"] if m["role"] == "system")
-    assert combined in system_msg["content"]
+    assert combined in kw["instructions"]
 
 
 def test_no_instructions_means_no_combined_block_or_system_message(tmp_path, monkeypatch):
@@ -97,7 +99,7 @@ def test_no_instructions_means_no_combined_block_or_system_message(tmp_path, mon
     res, kw = _drive(mod, cfg, monkeypatch)
 
     assert res["combined_server_instructions"] is None
-    assert not any(m["role"] == "system" for m in kw["messages"])
+    assert "instructions" not in kw or not kw["instructions"]
 
 
 def test_saved_instructions_surface_in_run_metadata(tmp_path, monkeypatch):
@@ -109,15 +111,13 @@ def test_saved_instructions_surface_in_run_metadata(tmp_path, monkeypatch):
         "instructions": "Always show amounts in cents.",
     }
 
-    class _Completions:
+    class _Responses:
         async def create(self, **kw):
-            return types.SimpleNamespace(
-                choices=[types.SimpleNamespace(message=_Msg("done"), finish_reason="stop")]
-            )
+            return _fake_response([_MessageItem("done")], "done")
 
     class AsyncOpenAI:
         def __init__(self, **kw):
-            self.chat = types.SimpleNamespace(completions=_Completions())
+            self.responses = _Responses()
 
     fake = types.ModuleType("openai")
     fake.AsyncOpenAI = AsyncOpenAI

@@ -4,9 +4,10 @@ reads its generated files back (slack_reply/teams_reply to deliver them, slack_c
 mid-conversation). Kept byte-identical (via a real AST comparison, not a text-diff of surrounding
 BEGIN/END markers) so a fix to the manifest shape in the writer lands everywhere that reads it.
 
-anthropic_agent is a SECOND writer (its own hosted_skills-generated files land in the same
-manifest.json shape, via hosted_skills_files_dir) -- checked separately against the full
-function set, including the write-only `append_to_report_manifest`/`sweep_old_report_runs`."""
+anthropic_agent and openai_agent are SECOND writers (their own hosted-code-execution-generated
+files land in the same manifest.json shape, via hosted_skills_files_dir /
+hosted_code_execution_files_dir) -- checked separately against the full function set, including
+the write-only `append_to_report_manifest`/`sweep_old_report_runs`."""
 import ast
 import pathlib
 
@@ -14,7 +15,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent / "assets"
 
 WRITER = "ai/report_tools_server"
 READERS = ["sinks/slack_reply", "sinks/teams_reply", "ai/slack_chat_tools"]
-SECOND_WRITERS = ["ai/anthropic_agent"]
+SECOND_WRITERS = ["ai/anthropic_agent", "ai/openai_agent"]
 SHARED_FUNCS = ("_report_run_dir", "_report_manifest_path", "read_run_manifest", "lookup_report_file")
 WRITE_FUNCS = SHARED_FUNCS + ("append_to_report_manifest", "sweep_old_report_runs")
 

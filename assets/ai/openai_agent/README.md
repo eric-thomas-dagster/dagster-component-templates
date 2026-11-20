@@ -12,11 +12,16 @@ For multi-vendor support via the same shape, use `litellm_agent` instead.
 
 ## How it works
 
+Runs on OpenAI's **Responses API** (`client.responses.create`), not Chat Completions — switched
+specifically so `hosted_code_execution` (OpenAI's hosted `code_interpreter` tool) can exist at
+all; Chat Completions has no provider-hosted code execution, only caller-implemented function
+calling.
+
 1. On materialization, connects to every MCP server in `mcp_servers` (stdio / streamable-http / sse).
-2. Lists all tools from each server, registers them with OpenAI as function-calling defs (prefixed `<server_name>__<tool_name>` to avoid cross-server collisions).
-3. Sends the system + user prompt with all tool defs to the model.
-4. If the model emits tool calls, dispatches each to the owning MCP session and feeds the result back as a `role: tool` message. Loops up to `max_iterations`.
-5. Stops when the model returns plain text (the final answer).
+2. Lists all tools from each server, registers them with OpenAI as flat function-tool defs (prefixed `<server_name>__<tool_name>` to avoid cross-server collisions) — the Responses API's tool shape has no nested `function` wrapper, unlike Chat Completions'.
+3. Sends `input` (an accumulating list of message/`function_call`/`function_call_output` items) + `instructions` (the system prompt) with all tool defs to the model.
+4. If the model emits `function_call` items, dispatches each to the owning MCP session and appends a matching `function_call_output` item. Loops up to `max_iterations`.
+5. Stops when a turn's output has no `function_call` items (the final answer).
 
 ## Prompt placeholders
 
@@ -46,10 +51,11 @@ A Python dict (loaded via Dagster IO manager):
 | `iterations` | Model calls made. |
 | `tool_calls_made` | Total tool invocations. |
 | `tool_call_details` | Per-call `{iteration, tool, args, result_preview, is_error}`. |
-| `transcript` | Full OpenAI-shaped message list. |
+| `transcript` | The full Responses API `input` list (message/`function_call`/`function_call_output` items), accumulated across every turn. |
 | `stopped_reason` | `"final_answer"` or `"max_iterations"`. |
 | `model` / `mcp_servers` | What was used. |
 | `combined_server_instructions` | Per-server usage guidance actually sent to the model this run (see below). `None` when no server set any. |
+| `files` | Files OpenAI's hosted code_interpreter tool generated this run (see `hosted_code_execution` below). `[]` when unset or nothing was generated. |
 
 Key fields surface as Dagster materialization metadata.
 
@@ -135,6 +141,41 @@ skill's `describe()`), `skills_loaded` (names actually loaded via `load_skill` d
 `skill_load_count` (total `load_skill` calls, including repeats). The asset is also tagged
 `dagster-community/skill` (the configured `skill_keys`, joined — Dagster's own strict tag-value
 validation doesn't allow commas, so multiple keys are `-`-joined instead).
+
+## Hosted code execution (`hosted_code_execution`)
+
+A `skill_keys` entry that needs code execution (bundled scripts, or `SKILL.md` text that tells
+the model to run one) is normally **omitted** from the plain `load_skill`/`read_skill_file` loop
+above, with a warning — that loop has no code execution at all. Set `hosted_code_execution: true`
+to route those skills through OpenAI's hosted `code_interpreter` tool instead:
+
+```yaml
+skill_keys: [chart_skill]
+hosted_code_execution: true
+hosted_code_execution_files_dir: /var/lib/dagster/openai_agent_files   # optional
+```
+
+Every code-execution skill's `SKILL.md` plus bundled files (text only — a binary bundled file is
+skipped with a warning, not a crash) are uploaded via the Files API and attached to the
+`code_interpreter` container's `file_ids`, so the model can read and run them directly — no
+`load_skill` call needed; the files are just already there. Generated files come back in this
+asset's own `files` output and materialization metadata (`hosted_code_execution_used`,
+`hosted_code_execution_files`), and — when `hosted_code_execution_files_dir` is also set — are
+written there too, in the same `manifest.json` shape `report_tools_server`/`anthropic_agent`'s
+own `hosted_skills_files_dir` use, so `slack_reply`/`teams_reply`'s `report_files_dir` (and
+`slack_chat_tools`' `upload_files`) deliver them with zero changes needed there.
+
+A skill's `skill_kind` (on the registering `SkillResourceComponent`) can explicitly declare
+`'code_execution'` instead of relying on the auto-detected heuristic, if the heuristic
+misclassifies it.
+
+**Not live-verified against a real OpenAI account in this repo's environment** — confirmed
+against OpenAI's own current API reference instead: the `container`/`file_ids` request shape, the
+`container_file_citation` annotation fields, and the container-files content-retrieval endpoint
+are all documented, but the exact async SDK call for reading a downloaded file's bytes wasn't
+pinned down to one certain shape, so that one step tries a few plausible forms rather than
+assuming one. A container expires after 20 minutes of inactivity (OpenAI's own limit, not
+configurable here).
 
 ## When to use vs `litellm_agent`
 
@@ -228,6 +269,8 @@ validation doesn't allow commas, so multiple keys are `-`-joined instead).
 | `mcp_servers` | `List[MCPServerSpec]` | `list()` | List of MCP servers to expose as tools. |
 | `allowed_tools` | `List[str]` | — | Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), '*' wildcards supported (fnmatch), applied across every mcp_servers entry. Default: all discovered tools. A server can expose many tools the a… _(full docs in schema.json + component README)_ |
 | `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
+| `hosted_code_execution` | `bool` | `false` | Enable OpenAI's hosted code_interpreter tool. A skill_keys entry that needs code execution (skill_kind='code_execution', or the auto-detected heuristic) is no longer omitted with a warning when this is true -- its SKILL… _(full docs in schema.json + component README)_ |
+| `hosted_code_execution_files_dir` | `str` | — | Local directory root -- hosted_code_execution only. When set, every file the code_interpreter tool generates is ALSO written here (one subfolder per dagster/run_id, a manifest.json per run) in the exact same shape report… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

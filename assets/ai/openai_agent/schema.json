@@ -285,6 +285,18 @@
       "label": "Allowed Tools",
       "description": "Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), '*' wildcards supported (fnmatch), applied across every mcp_servers entry. Default: all discovered tools. A server can expose many tools the agent shouldn't be able to call (e.g. a hosted Dagster+ MCP server's terminate_run/rerun_run/delete_alert_policy alongside read-only ones) -- this is the lever to restrict an agent to a safe subset, e.g. ['dagster_plus__list_*', 'dagster_plus__get_*'].",
       "required": false
+    },
+    "hosted_code_execution": {
+      "type": "boolean",
+      "label": "Hosted Code Execution",
+      "description": "Enable OpenAI's hosted code_interpreter tool. A skill_keys entry that needs code execution (skill_kind='code_execution', or the auto-detected heuristic) is no longer omitted with a warning when this is true -- its SKILL.md plus bundled files are uploaded via the Files API (purpose='user_data') and attached to the code_interpreter container's file_ids, so the model can actually read and run them, instead of just being told it can't. Generated files come back in this asset's own output (`files`) and materialization metadata, and -- when hosted_code_execution_files_dir is also set -- are written there too, in the same manifest.json shape report_tools_server uses. NOT live-verified against a real OpenAI account in this repo's environment -- confirmed against OpenAI's own current API reference instead (the container/file_ids request shape, the container_file_citation annotation fields, and the container-files content-retrieval endpoint's purpose are all documented; the exact async SDK call for reading the downloaded bytes was not pinned down to one certain shape, so that one step tries a few plausible forms rather than assuming one). A container expires after 20 minutes of inactivity (OpenAI's own limit, not configurable here).",
+      "required": false
+    },
+    "hosted_code_execution_files_dir": {
+      "type": "string",
+      "label": "Hosted Code Execution Files Dir",
+      "description": "Local directory root -- hosted_code_execution only. When set, every file the code_interpreter tool generates is ALSO written here (one subfolder per dagster/run_id, a manifest.json per run) in the exact same shape report_tools_server/anthropic_agent's hosted_skills_files_dir use -- so slack_reply/teams_reply's own report_files_dir (and slack_chat_tools' upload_files) deliver these files with zero changes needed there.",
+      "required": false
     }
   }
 }

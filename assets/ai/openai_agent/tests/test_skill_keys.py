@@ -130,38 +130,47 @@ def test_tag_absent_when_no_skill_keys(mod):
     assert "dagster-community/skill" not in tags
 
 
+class _FnCallItem:
+    def __init__(self, call_id, name, arguments):
+        self.type = "function_call"
+        self.call_id = call_id
+        self.name = name
+        self.arguments = arguments
+
+    def model_dump(self, exclude_none=True):
+        return {"type": "function_call", "call_id": self.call_id, "name": self.name, "arguments": self.arguments}
+
+
+class _MessageItem:
+    def __init__(self, text):
+        self.type = "message"
+        self._text = text
+
+    def model_dump(self, exclude_none=True):
+        return {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": self._text, "annotations": []}]}
+
+
+def _fake_response(output_items, output_text):
+    return types.SimpleNamespace(output=output_items, output_text=output_text)
+
+
 def _fake_openai_module(monkeypatch, tool_name, tool_args):
     """Turn 1: model emits a tool call for `tool_name`. Turn 2: model returns final text.
     Mirrors test_mcp_real_server.py's own `drive()` fake-client shape exactly."""
     state = {"n": 0}
     seen = {}
 
-    class Msg:
-        def __init__(self, content, tool_calls=None):
-            self.content, self.tool_calls = content, tool_calls
-
-        def model_dump(self, exclude_none=True):
-            return {"role": "assistant", "content": self.content}
-
-    class _Completions:
+    class _Responses:
         async def create(self, **kw):
             state["n"] += 1
             seen["tools"] = kw.get("tools")
             if state["n"] == 1:
-                tc = types.SimpleNamespace(
-                    id="c1", type="function",
-                    function=types.SimpleNamespace(name=tool_name, arguments=json.dumps(tool_args)),
-                )
-                msg = Msg(None, [tc])
-            else:
-                msg = Msg("Done, used the skill.")
-            return types.SimpleNamespace(
-                choices=[types.SimpleNamespace(message=msg, finish_reason="tool_calls" if msg.tool_calls else "stop")]
-            )
+                return _fake_response([_FnCallItem("c1", tool_name, json.dumps(tool_args))], None)
+            return _fake_response([_MessageItem("Done, used the skill.")], "Done, used the skill.")
 
     class AsyncOpenAI:
         def __init__(self, **kw):
-            self.chat = types.SimpleNamespace(completions=_Completions())
+            self.responses = _Responses()
 
     fake = types.ModuleType("openai")
     fake.AsyncOpenAI = AsyncOpenAI
@@ -186,7 +195,7 @@ def test_load_skill_tool_call_loop(mod, skill_resource, monkeypatch):
     assert mat["skill_load_count"] == 1
 
     # The first (turn 1) model call already saw load_skill/read_skill_file as tools.
-    tool_names = {t["function"]["name"] for t in seen["tools"]}
+    tool_names = {t["name"] for t in seen["tools"]}
     assert "load_skill" in tool_names
     assert "read_skill_file" in tool_names
 
@@ -210,20 +219,13 @@ def test_skills_metadata_on_materialization(mod, skill_resource, monkeypatch):
 
 def _fake_openai_module_no_tools(monkeypatch):
     """No tool call at all -- the model answers directly on turn 1."""
-    class Msg:
-        content = "hi there"
-        tool_calls = None
-
-        def model_dump(self, exclude_none=True):
-            return {"role": "assistant", "content": self.content}
-
-    class _Completions:
+    class _Responses:
         async def create(self, **kw):
-            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=Msg(), finish_reason="stop")])
+            return _fake_response([_MessageItem("hi there")], "hi there")
 
     class AsyncOpenAI:
         def __init__(self, **kw):
-            self.chat = types.SimpleNamespace(completions=_Completions())
+            self.responses = _Responses()
 
     fake = types.ModuleType("openai")
     fake.AsyncOpenAI = AsyncOpenAI
@@ -264,24 +266,17 @@ def test_read_skill_file_does_not_increment_load_count(mod, skill_resource, monk
 # --- a skill needing code execution is omitted from the listing/tools, not silently presented ---
 
 def _fake_openai_module_capture(monkeypatch):
-    class Msg:
-        content = "done"
-        tool_calls = None
-
-        def model_dump(self, exclude_none=True):
-            return {"role": "assistant", "content": self.content}
-
     seen = {}
 
-    class _Completions:
+    class _Responses:
         async def create(self, **kw):
             seen["tools"] = kw.get("tools")
-            seen["messages"] = kw.get("messages")
-            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=Msg(), finish_reason="stop")])
+            seen["instructions"] = kw.get("instructions")
+            return _fake_response([_MessageItem("done")], "done")
 
     class AsyncOpenAI:
         def __init__(self, **kw):
-            self.chat = types.SimpleNamespace(completions=_Completions())
+            self.responses = _Responses()
 
     fake = types.ModuleType("openai")
     fake.AsyncOpenAI = AsyncOpenAI
@@ -312,7 +307,7 @@ def test_code_execution_skill_omitted_from_listing_and_tools(mod, code_skill_res
     )
     result = _run(component, resources={"chart_skill": code_skill_resource})
     assert result.success
-    tool_names = {t["function"]["name"] for t in (seen.get("tools") or [])}
+    tool_names = {t["name"] for t in (seen.get("tools") or [])}
     assert "load_skill" not in tool_names
 
 
@@ -323,8 +318,8 @@ def test_mixed_skills_listing_only_shows_the_runnable_one(mod, skill_resource, c
     )
     result = _run(component, resources={"pdf_skill": skill_resource, "chart_skill": code_skill_resource})
     assert result.success
-    tool_names = {t["function"]["name"] for t in (seen.get("tools") or [])}
+    tool_names = {t["name"] for t in (seen.get("tools") or [])}
     assert "load_skill" in tool_names
-    system_messages = " ".join(m.get("content") or "" for m in seen["messages"] if m.get("role") == "system")
-    assert "pdf-report" in system_messages
-    assert "chart-skill" not in system_messages
+    instructions = seen.get("instructions") or ""
+    assert "pdf-report" in instructions
+    assert "chart-skill" not in instructions

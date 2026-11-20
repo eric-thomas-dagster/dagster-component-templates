@@ -148,32 +148,48 @@ def _tool_details(result):
     assert result["stopped_reason"] == "final_answer", result
     return d["result_preview"], d["is_error"]
 
+class _FnCallItem:
+    """A Responses API function_call output item -- real shape confirmed against OpenAI's own
+    function-calling guide (type/id/call_id/name/arguments, arguments as a JSON string)."""
+    def __init__(self, call_id, name, arguments):
+        self.type = "function_call"
+        self.call_id = call_id
+        self.name = name
+        self.arguments = arguments
+
+    def model_dump(self, exclude_none=True):
+        return {"type": "function_call", "call_id": self.call_id, "name": self.name, "arguments": self.arguments}
+
+
+class _MessageItem:
+    """A Responses API final-answer message item (type=message, content=[{type:output_text,...}])."""
+    def __init__(self, text):
+        self.type = "message"
+        self._text = text
+
+    def model_dump(self, exclude_none=True):
+        return {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": self._text, "annotations": []}]}
+
+
+def _fake_response(output_items, output_text):
+    return types.SimpleNamespace(output=output_items, output_text=output_text)
+
+
 def drive(mod, cfg, tool, args, monkeypatch):
     seen = {}
     state = {"n": 0}
 
-    class Msg:
-        def __init__(self, content, tool_calls=None):
-            self.content, self.tool_calls = content, tool_calls
-
-        def model_dump(self, exclude_none=True):
-            return {"role": "assistant", "content": self.content}
-
-    class _Completions:
+    class _Responses:
         async def create(self, **kw):
             state["n"] += 1
             if state["n"] == 1:
                 seen["tools"] = kw["tools"]
-                tc = types.SimpleNamespace(id="c1", type="function",
-                                           function=types.SimpleNamespace(name=f"mini__{tool}", arguments=json.dumps(args)))
-                msg = Msg(None, [tc])
-            else:
-                msg = Msg("done")
-            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg, finish_reason="tool_calls" if msg.tool_calls else "stop")])
+                return _fake_response([_FnCallItem("c1", f"mini__{tool}", json.dumps(args))], None)
+            return _fake_response([_MessageItem("done")], "done")
 
     class AsyncOpenAI:
         def __init__(self, **kw):
-            self.chat = types.SimpleNamespace(completions=_Completions())
+            self.responses = _Responses()
 
     fake = types.ModuleType("openai")
     fake.AsyncOpenAI = AsyncOpenAI
@@ -182,7 +198,7 @@ def drive(mod, cfg, tool, args, monkeypatch):
     res = _run(mod._run_agent(**_call_kwargs(mod._run_agent, cfg, api_key_env_var="FAKE_KEY", base_url_env_var=None,
                                             organization_env_var=None, api_base_url="http://unused.invalid", model="openai/m")))
     out, is_error = _tool_details(res)
-    return seen["tools"][0]["function"]["parameters"], out, is_error
+    return seen["tools"][0]["parameters"], out, is_error
 
 
 
@@ -249,22 +265,14 @@ def test_allowed_tools_filters_the_tool_list_sent_to_the_model(mod, stdio_cfg, m
     shouldn't be able to call (terminate_run/rerun_run alongside read-only ones)."""
     seen = {}
 
-    class Msg:
-        def __init__(self, content):
-            self.content, self.tool_calls = content, None
-
-        def model_dump(self, exclude_none=True):
-            return {"role": "assistant", "content": self.content}
-
-    class _Completions:
+    class _Responses:
         async def create(self, **kw):
             seen["tools"] = kw["tools"]
-            msg = Msg("done")
-            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=msg, finish_reason="stop")])
+            return _fake_response([_MessageItem("done")], "done")
 
     class AsyncOpenAI:
         def __init__(self, **kw):
-            self.chat = types.SimpleNamespace(completions=_Completions())
+            self.responses = _Responses()
 
     fake = types.ModuleType("openai")
     fake.AsyncOpenAI = AsyncOpenAI
@@ -275,5 +283,5 @@ def test_allowed_tools_filters_the_tool_list_sent_to_the_model(mod, stdio_cfg, m
         organization_env_var=None, api_base_url="http://unused.invalid", model="openai/m",
         allowed_tools=["mini__ec*"],
     )))
-    names = {t["function"]["name"] for t in seen["tools"]}
+    names = {t["name"] for t in seen["tools"]}
     assert names == {"mini__echo"}, f"allowed_tools did not filter out mini__boom: {names}"

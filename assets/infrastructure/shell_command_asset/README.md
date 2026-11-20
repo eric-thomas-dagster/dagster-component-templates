@@ -56,6 +56,18 @@ parse_json_output: true
 
 Kills the process and fails the run if it runs longer than this many seconds. Unset (default): no timeout.
 
+## `run_window` — skip cleanly, don't fail, outside a time window
+
+```yaml
+run_window: "09:00-17:00 America/New_York mon,tue,wed,thu,fri"
+```
+
+Checked once per materialization, before `dry_run` or the command itself runs. Outside the
+window, the asset **skips cleanly** — no subprocess is spawned, the run succeeds, and real
+downstream dependents skip too, rather than failing or blocking the DAG. A malformed spec fails
+open (always runs) rather than silently blocking the command forever. Unset (default): always
+runs.
+
 ## Partitioning
 
 With `partition_type` set, `{partition_key}` is substituted into both `command` and `cwd` before running:
@@ -134,6 +146,7 @@ partition_start: "2024-01-01"
 | `skip_on_exit_code` | `int` | — | Exit code treated as a no-op success instead of a failure (Airflow's BashOperator default is 99 -- not defaulted here since this component predates this field and existing YAML may rely on every nonzero exit code failing… _(full docs in schema.json + component README)_ |
 | `success_exit_codes` | `List[int]` | — | Additional exit codes treated as a normal, successful materialization -- unlike skip_on_exit_code, no 'skipped' metadata marker, just success. For legacy scripts that exit nonzero on 'nothing to do' and should count as s… _(full docs in schema.json + component README)_ |
 | `dry_run` | `bool` | `false` | If True, log the fully-resolved command (after {partition_key} substitution) and skip actually running it -- no subprocess is spawned. Output metadata always includes dry_run so a materialization history shows which runs were real. |
+| `run_window` | `str` | — | 'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of running or failing -- the command does not run, and real downstream depend… _(full docs in schema.json + component README)_ |
 | `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
 | `return_last_stdout_line` | `bool` | `false` | Return the command's last non-empty stdout line as this asset's materialized value (via the IO manager), not just metadata, so a downstream asset can take it as an input the usual way. Mirrors what a source system's last… _(full docs in schema.json + component README)_ |
 | `parse_json_output` | `bool` | `false` | Only with return_last_stdout_line: if that last line parses as valid JSON, return the parsed value instead of the raw string. Falls back to the raw string when it isn't valid JSON. |

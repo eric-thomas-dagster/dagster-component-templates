@@ -22,8 +22,10 @@ universal contract here, and are called out in the README instead:
     `pre_sql`, not a set of structured warehouse/database/schema/role fields (which would only
     make sense for Snowflake-shaped dialects).
 """
+import time
 from contextlib import nullcontext
-from typing import Any, Dict, List, Optional, Union
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import dagster as dg
 from pydantic import Field, model_validator
@@ -82,6 +84,59 @@ def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
 # END generic timeout wrapper
 
 
+# BEGIN run_window (inlined per component; keep copies identical — ported verbatim from
+# sensors/event_automation's own business_hours_only parser/checker, same format and same
+# fail-open-on-malformed-input behavior, just renamed for this field's own name)
+_WEEKDAY_MAP = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+
+
+def _parse_run_window(spec: str) -> Tuple[int, int, str, Optional[List[int]]]:
+    """Parse 'HH:MM-HH:MM tz [day,day,...]' into (start_min, end_min, tz, weekdays). Raises
+    ValueError on malformed input."""
+    parts = spec.strip().split()
+    if len(parts) < 2:
+        raise ValueError(f"run_window needs 'HH:MM-HH:MM tz [days]', got '{spec}'")
+    window, tz_name = parts[0], parts[1]
+    start_str, _, end_str = window.partition("-")
+    sh, _, sm = start_str.partition(":")
+    eh, _, em = end_str.partition(":")
+    start_min = int(sh) * 60 + int(sm or 0)
+    end_min = int(eh) * 60 + int(em or 0)
+    weekdays: Optional[List[int]] = None
+    if len(parts) >= 3:
+        weekdays = []
+        for day in parts[2].split(","):
+            key = day.strip().lower()[:3]
+            if key in _WEEKDAY_MAP:
+                weekdays.append(_WEEKDAY_MAP[key])
+    return start_min, end_min, tz_name, weekdays
+
+
+def _is_in_run_window(now_ts: float, spec: str) -> bool:
+    """True if now_ts falls in the daily window (and optional day-of-week list). Fails open
+    (returns True -- never blocks) on a malformed spec or any unexpected error."""
+    try:
+        start_min, end_min, tz_name, weekdays = _parse_run_window(spec)
+    except Exception:
+        return True
+    try:
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(tz_name) if tz_name.upper() != "UTC" else timezone.utc
+        except Exception:
+            tz = timezone.utc
+        local = datetime.fromtimestamp(now_ts, tz=tz)
+        cur_min = local.hour * 60 + local.minute
+        if weekdays is not None and local.weekday() not in weekdays:
+            return False
+        if start_min <= end_min:
+            return start_min <= cur_min < end_min
+        return cur_min >= start_min or cur_min < end_min  # overnight window, e.g. 22:00-06:00
+    except Exception:
+        return True
+# END run_window
+
+
 class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Run one or more SQL statements against any registered resource exposing
     `.get_connection()` -- one component serving every DBAPI-style dialect in this repo
@@ -128,6 +183,16 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Kill the wait and fail the run if the SQL hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying query may continue running past the deadline (Python threads can't be forcibly killed, and this does not cancel the query server-side); this bounds the step's wait, not the call itself.",
     )
+    run_window: Optional[str] = Field(
+        default=None,
+        description=(
+            "'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York "
+            "mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of "
+            "running or failing -- no SQL runs, and real downstream dependents skip too (not "
+            "fail). Checked once per materialization, before any statement runs. A malformed "
+            "spec fails open (never blocks). Unset (default): always runs."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -152,6 +217,7 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         resource_key = component.resource_key
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (component.deps or [])]
         timeout_seconds = component.timeout_seconds
+        run_window = component.run_window
 
         _retry_policy = None
         if component.retry_policy_max_retries is not None:
@@ -162,20 +228,31 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 backoff=Backoff[component.retry_policy_backoff.upper()],
             )
 
-        @dg.asset(
-            key=dg.AssetKey(component.asset_key.split("/")),
-            description=component.description or "SQL statement(s) against a registered database resource",
+        outs = {
+            "result": dg.AssetOut(
+                key=dg.AssetKey(component.asset_key.split("/")),
+                description=component.description or "SQL statement(s) against a registered database resource",
+                is_required=False,
+                kinds=kinds,
+                owners=component.owners or None,
+                tags=component.asset_tags or None,
+            ),
+        }
+
+        @dg.multi_asset(
+            name=dg.AssetKey(component.asset_key.split("/")).to_python_identifier(),
+            outs=outs,
             group_name=component.group_name,
-            kinds=kinds,
-            owners=component.owners,
-            tags=component.asset_tags,
             deps=deps_keys,
             required_resource_keys={resource_key},
             retry_policy=_retry_policy,
             pool=component.pool,
         )
-        def _sql_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            return _run_with_timeout(_execute, timeout_seconds, context)
+        def _sql_asset(context: dg.AssetExecutionContext):
+            if run_window and not _is_in_run_window(time.time(), run_window):
+                context.log.info(f"run_window={run_window!r}: outside the configured window -- skipping (not failing).")
+                return
+            yield _run_with_timeout(_execute, timeout_seconds, context)
 
         def _execute(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             resource = getattr(context.resources, resource_key)

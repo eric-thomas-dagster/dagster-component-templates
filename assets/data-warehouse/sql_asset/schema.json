@@ -141,6 +141,12 @@
       "label": "Timeout Seconds",
       "description": "Kill the wait and fail the run if the SQL hasn't finished after this many seconds. Enforced via a background-thread wrapper -- the underlying query may continue running past the deadline (Python threads can't be forcibly killed, and this does not cancel the query server-side); this bounds the step's wait, not the call itself.",
       "required": false
+    },
+    "run_window": {
+      "type": "string",
+      "label": "Run Window",
+      "description": "'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of running or failing -- no SQL runs, and real downstream dependents skip too (not fail). Checked once per materialization, before any statement runs. A malformed spec fails open (never blocks). Unset (default): always runs.",
+      "required": false
     }
   }
 }

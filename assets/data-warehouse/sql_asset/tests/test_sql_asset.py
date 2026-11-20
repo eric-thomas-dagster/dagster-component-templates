@@ -206,3 +206,38 @@ def test_timeout_seconds_unset_does_not_bound_a_slow_query(mod):
     asset_def = _comp(mod, sql="SELECT 1").build_defs(None).assets[0]
     result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
     assert result.success
+
+
+# --- run_window ------------------------------------------------------------------------------
+
+def test_run_window_outside_the_window_skips_cleanly(mod):
+    conn = FakeConn()
+    asset_def = _comp(mod, sql="SELECT 1", run_window="00:00-00:01 UTC").build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
+    assert result.success  # skip, not fail
+    assert conn.executed == []
+    assert result.asset_materializations_for_node(asset_def.op.name) == []
+
+
+def test_run_window_covering_all_day_always_runs(mod):
+    conn = FakeConn()
+    asset_def = _comp(mod, sql="SELECT 1", run_window="00:00-23:59 UTC").build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
+    assert result.success
+    assert conn.executed[0]["sql"] == "SELECT 1"
+
+
+def test_run_window_unset_always_runs(mod):
+    conn = FakeConn()
+    asset_def = _comp(mod, sql="SELECT 1").build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
+    assert result.success
+    assert conn.executed[0]["sql"] == "SELECT 1"
+
+
+def test_run_window_malformed_spec_fails_open_and_still_runs(mod):
+    conn = FakeConn()
+    asset_def = _comp(mod, sql="SELECT 1", run_window="not a valid window spec").build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
+    assert result.success
+    assert conn.executed[0]["sql"] == "SELECT 1"

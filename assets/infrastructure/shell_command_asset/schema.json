@@ -259,6 +259,12 @@
       "label": "Dry Run",
       "description": "If True, log the fully-resolved command (after {partition_key} substitution) and skip actually running it -- no subprocess is spawned. Output metadata always includes dry_run so a materialization history shows which runs were real.",
       "required": false
+    },
+    "run_window": {
+      "type": "string",
+      "label": "Run Window",
+      "description": "'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of running or failing -- the command does not run, and real downstream dependents skip too (not fail). Checked once per materialization, before dry_run or the command itself. A malformed spec fails open (never blocks). Unset (default): always runs.",
+      "required": false
     }
   },
   "tags": [

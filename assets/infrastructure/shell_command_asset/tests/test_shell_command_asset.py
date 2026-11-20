@@ -230,3 +230,44 @@ def test_static_partition_type_wires_through(mod):
         [asset_def], resources={"io_manager": dg.InMemoryIOManager()}, partition_key="b",
     )
     assert result.success
+
+
+# --- run_window ------------------------------------------------------------------------------
+
+def test_run_window_outside_the_window_skips_cleanly(tmp_path, mod):
+    marker = tmp_path / "never.txt"
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command=f"touch {marker}", run_window="00:00-00:01 UTC",
+    )
+    result = materialize(component)
+    assert result.success  # skip, not fail
+    assert not marker.exists()
+    assert result.asset_materializations_for_node("t") == []
+
+
+def test_run_window_covering_all_day_always_runs(tmp_path, mod):
+    marker = tmp_path / "ran.txt"
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command=f"touch {marker}", run_window="00:00-23:59 UTC",
+    )
+    result = materialize(component)
+    assert result.success
+    assert marker.exists()
+
+
+def test_run_window_unset_always_runs(tmp_path, mod):
+    marker = tmp_path / "ran.txt"
+    component = mod.ShellCommandAssetComponent(asset_name="t", command=f"touch {marker}")
+    result = materialize(component)
+    assert result.success
+    assert marker.exists()
+
+
+def test_run_window_malformed_spec_fails_open_and_still_runs(tmp_path, mod):
+    marker = tmp_path / "ran.txt"
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command=f"touch {marker}", run_window="not a valid window spec",
+    )
+    result = materialize(component)
+    assert result.success
+    assert marker.exists()

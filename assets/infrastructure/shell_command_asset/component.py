@@ -10,7 +10,8 @@ with `bash -c` specifically (not the OS default `/bin/sh`, which on many Linux d
 default executable. Captured stdout/stderr in the run log, exit code -> asset success/failure,
 optional cwd + env vars (merged with the parent process's own environment, same as Airflow).
 """
-from typing import Any, Dict, List, Literal, Optional, Union
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import dagster as dg
 from pydantic import Field
@@ -151,6 +152,59 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
 # END freshness-policy compat
 
 
+# BEGIN run_window (inlined per component; keep copies identical — ported verbatim from
+# sensors/event_automation's own business_hours_only parser/checker, same format and same
+# fail-open-on-malformed-input behavior, just renamed for this field's own name)
+_WEEKDAY_MAP = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+
+
+def _parse_run_window(spec: str) -> Tuple[int, int, str, Optional[List[int]]]:
+    """Parse 'HH:MM-HH:MM tz [day,day,...]' into (start_min, end_min, tz, weekdays). Raises
+    ValueError on malformed input."""
+    parts = spec.strip().split()
+    if len(parts) < 2:
+        raise ValueError(f"run_window needs 'HH:MM-HH:MM tz [days]', got '{spec}'")
+    window, tz_name = parts[0], parts[1]
+    start_str, _, end_str = window.partition("-")
+    sh, _, sm = start_str.partition(":")
+    eh, _, em = end_str.partition(":")
+    start_min = int(sh) * 60 + int(sm or 0)
+    end_min = int(eh) * 60 + int(em or 0)
+    weekdays: Optional[List[int]] = None
+    if len(parts) >= 3:
+        weekdays = []
+        for day in parts[2].split(","):
+            key = day.strip().lower()[:3]
+            if key in _WEEKDAY_MAP:
+                weekdays.append(_WEEKDAY_MAP[key])
+    return start_min, end_min, tz_name, weekdays
+
+
+def _is_in_run_window(now_ts: float, spec: str) -> bool:
+    """True if now_ts falls in the daily window (and optional day-of-week list). Fails open
+    (returns True -- never blocks) on a malformed spec or any unexpected error."""
+    try:
+        start_min, end_min, tz_name, weekdays = _parse_run_window(spec)
+    except Exception:
+        return True
+    try:
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(tz_name) if tz_name.upper() != "UTC" else timezone.utc
+        except Exception:
+            tz = timezone.utc
+        local = datetime.fromtimestamp(now_ts, tz=tz)
+        cur_min = local.hour * 60 + local.minute
+        if weekdays is not None and local.weekday() not in weekdays:
+            return False
+        if start_min <= end_min:
+            return start_min <= cur_min < end_min
+        return cur_min >= start_min or cur_min < end_min  # overnight window, e.g. 22:00-06:00
+    except Exception:
+        return True
+# END run_window
+
+
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
 from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
@@ -234,6 +288,17 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=False,
         description="If True, log the fully-resolved command (after {partition_key} substitution) and skip actually running it -- no subprocess is spawned. Output metadata always includes dry_run so a materialization history shows which runs were real.",
     )
+    run_window: Optional[str] = Field(
+        default=None,
+        description=(
+            "'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York "
+            "mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of "
+            "running or failing -- the command does not run, and real downstream dependents "
+            "skip too (not fail). Checked once per materialization, before dry_run or the "
+            "command itself. A malformed spec fails open (never blocks). Unset (default): "
+            "always runs."
+        ),
+    )
     pool: Optional[str] = Field(
         default=None,
         description=(
@@ -301,6 +366,7 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         skip_on_exit_code = self.skip_on_exit_code
         success_exit_codes = self.success_exit_codes
         dry_run = self.dry_run
+        run_window = self.run_window
         timeout_seconds = self.timeout_seconds
         return_last_stdout_line = self.return_last_stdout_line
         parse_json_output = self.parse_json_output
@@ -339,19 +405,27 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
-        @dg.asset(
-            key=dg.AssetKey.from_user_string(self.asset_name),
+        outs = {
+            "result": dg.AssetOut(
+                key=dg.AssetKey.from_user_string(self.asset_name),
+                description=self.description or (f"Run shell: {static_cmd[:60]}..." if static_cmd else "Run shell command from upstream asset"),
+                is_required=False,
+                freshness_policy=_freshness_policy_obj,
+                owners=self.owners or None,
+                tags=self.asset_tags or None,
+                kinds=set(self.kinds) if self.kinds else None,
+            ),
+        }
+
+        @dg.multi_asset(
+            name=dg.AssetKey.from_user_string(self.asset_name).to_python_identifier(),
+            outs=outs,
             ins=ins,
-            description=self.description or (f"Run shell: {static_cmd[:60]}..." if static_cmd else "Run shell command from upstream asset"),
             group_name=self.group_name,
             deps=deps_keys,
             partitions_def=partitions_def,
             backfill_policy=_backfill_policy_obj,
             retry_policy=_retry_policy,
-            freshness_policy=_freshness_policy_obj,
-            owners=self.owners or [],
-            tags=self.asset_tags or None,
-            kinds=set(self.kinds) if self.kinds else None,
             pool=self.pool,
         )
         def _shell_asset(context: dg.AssetExecutionContext, **upstream_kwargs):
@@ -360,6 +434,11 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             import subprocess
             import sys
             import threading
+            import time
+
+            if run_window and not _is_in_run_window(time.time(), run_window):
+                context.log.info(f"run_window={run_window!r}: outside the configured window -- skipping (not failing).")
+                return
 
             upstream_cmd = upstream_kwargs.get("_command_upstream")
             cmd = str(upstream_cmd) if upstream_cmd else static_cmd
@@ -378,8 +457,10 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 context.log.info(f"[dry_run] would run: $ {cmd}")
                 metadata = {"dry_run": dg.MetadataValue.bool(True)}
                 if return_last_stdout_line:
-                    return dg.Output(None, metadata=metadata)
-                return dg.MaterializeResult(metadata=metadata)
+                    yield dg.Output(None, metadata=metadata)
+                else:
+                    yield dg.MaterializeResult(metadata=metadata)
+                return
 
             merged_env = {**os.environ, **env_vars}
             print(f"$ {cmd}", flush=True)
@@ -443,8 +524,10 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     "stdout_preview": dg.MetadataValue.text("".join(stdout_lines)[:2000]),
                 }
                 if return_last_stdout_line:
-                    return dg.Output(_last_line_value(), metadata=metadata)
-                return dg.MaterializeResult(metadata=metadata)
+                    yield dg.Output(_last_line_value(), metadata=metadata)
+                else:
+                    yield dg.MaterializeResult(metadata=metadata)
+                return
             if proc.returncode != 0 and not (success_exit_codes and proc.returncode in success_exit_codes):
                 raise dg.Failure(
                     description=f"Shell command exited {proc.returncode}",
@@ -456,6 +539,7 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "stdout_preview": dg.MetadataValue.text("".join(stdout_lines)[:2000]),
             }
             if return_last_stdout_line:
-                return dg.Output(_last_line_value(), metadata=metadata)
-            return dg.MaterializeResult(metadata=metadata)
+                yield dg.Output(_last_line_value(), metadata=metadata)
+            else:
+                yield dg.MaterializeResult(metadata=metadata)
         return dg.Definitions(assets=[_shell_asset])

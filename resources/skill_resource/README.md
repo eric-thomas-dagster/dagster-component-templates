@@ -143,7 +143,11 @@ The registered `SkillResource` exposes:
   needs a hosted code-execution mechanism instead. This is a heuristic, not a perfect
   classifier -- the extension/`scripts/` check is exact,
   the SKILL.md-text check is a conservative regex that can miss an unusually-phrased
-  instruction.
+  instruction. Set `skill_kind: 'markdown'` or `'code_execution'` on this component to
+  override the heuristic entirely (and skip the directory walk it would otherwise do) --
+  useful if it misclassifies a particular skill. `anthropic_agent`'s `hosted_skills` and
+  `openai_agent`'s `hosted_code_execution` are the two hosted code-execution mechanisms a
+  `needs_code_execution: true` skill actually needs.
 - **`load() -> {content, files}`** -- `content` is the full `SKILL.md` text; `files` is
   every other file bundled alongside it in the skill folder (relative paths, recursive).
   Only called once an agent has actually chosen the skill -- never inlined into every
@@ -191,5 +195,6 @@ The registered `SkillResource` exposes:
 | `exclude` | `List[str]` | — | mode='collection' only: subfolder names to skip, applied after include. |
 | `publish_as_custom_skill` | `bool` | `false` | Also upload this skill (or, in mode='collection', every skill in it) to Anthropic's Skills API as a custom skill, at component load time -- idempotent by content hash, so unchanged content is never re-uploaded. The resol… _(full docs in schema.json + component README)_ |
 | `custom_skill_api_key_env_var` | `str` | `"ANTHROPIC_API_KEY"` | publish_as_custom_skill only. Env var holding the Anthropic API key used to upload. |
+| `skill_kind` | `Literal['markdown', 'code_execution']` | — | mode='single' only. Explicit override for whether this skill is markdown-only ('markdown' -- usable via the plain load_skill/read_skill_file tool loop) or needs code execution ('code_execution' -- an anthropic_agent host… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

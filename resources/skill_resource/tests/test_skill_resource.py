@@ -232,6 +232,42 @@ def test_describe_flags_skill_md_text_that_tells_the_model_to_run_a_script(mod, 
     assert result["code_execution_files"] == []
 
 
+# --- skill_kind: explicit override, skips the heuristic entirely -----------------------
+
+def test_skill_kind_markdown_overrides_a_heuristic_that_would_say_code_execution(mod, tmp_path):
+    local_path = _write_local_skill(tmp_path)
+    (tmp_path / "pdf-report" / "scripts").mkdir()
+    (tmp_path / "pdf-report" / "scripts" / "render.py").write_text("print('hi')")
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path, skill_kind="markdown")
+    result = component.build_defs(None).resources["pdf_skill"].describe()
+    assert result["runnable_here"] is True
+    assert "needs_code_execution" not in result
+
+
+def test_skill_kind_code_execution_overrides_a_heuristic_that_would_say_markdown(mod, tmp_path):
+    local_path = _write_local_skill(tmp_path)  # no scripts, no run-hint text -- heuristic alone would say runnable_here
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path, skill_kind="code_execution")
+    result = component.build_defs(None).resources["pdf_skill"].describe()
+    assert result["runnable_here"] is False
+    assert result["needs_code_execution"] is True
+    assert result["code_execution_files"] == []  # directory deliberately not walked when skill_kind is set
+
+
+def test_skill_kind_unset_falls_back_to_the_heuristic(mod, tmp_path):
+    local_path = _write_local_skill(tmp_path)
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path)
+    result = component.build_defs(None).resources["pdf_skill"].describe()
+    assert result["runnable_here"] is True
+
+
+def test_skill_kind_rejected_with_mode_collection(mod, tmp_path):
+    collection_root = tmp_path / "skills"
+    collection_root.mkdir()
+    _write_local_skill(collection_root, dirname="pdf-report")
+    with pytest.raises(ValueError, match="mode='collection'"):
+        mod.SkillResourceComponent(mode="collection", local_path=str(collection_root), skill_kind="markdown")
+
+
 # --- publish_as_custom_skill: upload to Anthropic's Skills API, idempotent by content hash --------
 
 def test_publish_as_custom_skill_uploads_and_exposes_skill_id(mod, monkeypatch, tmp_path):

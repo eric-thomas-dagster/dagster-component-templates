@@ -188,6 +188,14 @@ class SkillResource(dg.ConfigurableResource):
     url: Optional[str] = Field(default=None, description="URL the skill was downloaded from (a raw SKILL.md file or a .zip archive).")
     url_headers_env: Optional[str] = Field(default=None, description="Env var holding a JSON object of HTTP headers, if the download needs to be re-fetched.")
     anthropic_skill_id: Optional[str] = Field(default=None, description="Set when publish_as_custom_skill was true at component load -- the resolved Anthropic custom skill_id, for an anthropic_agent hosted_skills entry to reference via skill_resource_key.")
+    skill_kind: Optional[str] = Field(
+        default=None,
+        description=(
+            "Explicit override for describe()'s runnable_here/needs_code_execution -- "
+            "'markdown' or 'code_execution'. Set on the registering SkillResourceComponent, "
+            "not here directly; this field just carries the resolved value through to describe()."
+        ),
+    )
 
     def _skill_dir(self) -> Path:
         if self.git_url:
@@ -204,9 +212,18 @@ class SkillResource(dg.ConfigurableResource):
         (scripts and the like) otherwise. No network I/O: by the time any SkillResource
         instance exists, its skill directory was already fetched once at component load
         time (to read SKILL.md's own front matter), so this only re-walks an already-local
-        directory."""
+        directory -- unless `skill_kind` is set, an explicit override that skips the
+        directory walk (and the heuristic's false-negative risk) entirely."""
         result = {"key": self.key, "name": self.name, "description": self.description}
-        result.update(_classify_skill_dir(self._skill_dir()))
+        if self.skill_kind == "markdown":
+            result.update({"runnable_here": True})
+        elif self.skill_kind == "code_execution":
+            # code_execution_files is left empty here -- an explicit skill_kind means we
+            # deliberately skip the directory walk that would enumerate them; load() still
+            # walks the directory for real when a caller actually needs the file list.
+            result.update({"runnable_here": False, "needs_code_execution": True, "code_execution_files": []})
+        else:
+            result.update(_classify_skill_dir(self._skill_dir()))
         if self.anthropic_skill_id:
             result["anthropic_skill_id"] = self.anthropic_skill_id
         return result
@@ -507,6 +524,18 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
     custom_skill_api_key_env_var: str = Field(default="ANTHROPIC_API_KEY", description="publish_as_custom_skill only. Env var holding the Anthropic API key used to upload.")
+    skill_kind: Optional[Literal["markdown", "code_execution"]] = Field(
+        default=None,
+        description=(
+            "mode='single' only. Explicit override for whether this skill is markdown-only "
+            "('markdown' -- usable via the plain load_skill/read_skill_file tool loop) or "
+            "needs code execution ('code_execution' -- an anthropic_agent hosted_skills "
+            "entry, or an openai_agent with hosted_code_execution=true), instead of the "
+            "auto-detected heuristic (bundled file extensions + a SKILL.md run-hint regex, "
+            "see _classify_skill_dir). Set this if the heuristic misclassifies this skill, "
+            "or to answer describe()'s question without walking the skill directory."
+        ),
+    )
 
     @model_validator(mode="after")
     def _exactly_one_source(self):
@@ -519,6 +548,8 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError("SkillResourceComponent: `url` isn't usable with mode='collection' (a collection needs a directory of skill subfolders, not a single download).")
             if self.name or self.description:
                 raise ValueError("SkillResourceComponent: `name`/`description` aren't usable with mode='collection' (they're per-skill, read from each subfolder's own SKILL.md instead).")
+            if self.skill_kind:
+                raise ValueError("SkillResourceComponent: `skill_kind` isn't usable with mode='collection' (it's per-skill; each subfolder is still auto-detected).")
         elif self.include or self.exclude:
             raise ValueError("SkillResourceComponent: `include`/`exclude` are only usable with mode='collection'.")
         return self
@@ -579,6 +610,7 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             url=self.url,
             url_headers_env=self.url_headers_env,
             anthropic_skill_id=anthropic_skill_id,
+            skill_kind=self.skill_kind,
         )
         return dg.Definitions(resources={self.resource_key: resource})
 

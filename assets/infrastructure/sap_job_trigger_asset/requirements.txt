@@ -1,0 +1,2 @@
+pyrfc>=3.3
+# REQUIRES SAP NW RFC SDK — see sap_rfc_resource README.

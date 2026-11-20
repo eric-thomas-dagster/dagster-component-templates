@@ -1,0 +1,211 @@
+{
+  "component_type": "dagster_community_components.SapJobTriggerAssetComponent",
+  "description": "Start an SAP background job (via the XBP external interface) or BW process chain, then poll until it finishes, raising with the SAP job/chain log on failure.",
+  "category": "integration",
+  "icon": "database",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "SAP job/chain trigger result"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "description": "Dagster asset key (e.g. 'sap/nightly_close').",
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "sap_rfc_resource_key": {
+      "type": "string",
+      "label": "Sap Rfc Resource Key",
+      "description": "Key of a registered sap_rfc_resource (provides the RFC connection).",
+      "required": true
+    },
+    "target_type": {
+      "type": "string",
+      "enum": [
+        "background_job",
+        "process_chain"
+      ],
+      "label": "Target Type",
+      "description": "'background_job': start an ABAP background job via the XBP (External Background Processing) interface. 'process_chain': start a BW process chain.",
+      "required": false
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "ABAP background job name (background_job mode; required then).",
+      "required": false
+    },
+    "job_count": {
+      "type": "string",
+      "label": "Job Count",
+      "description": "If set, start this already-scheduled job (job_name + job_count) immediately via BAPI_XBP_JOB_START_IMMEDIATE, instead of creating a new one-step job. Takes precedence over program_name/variant_name when both are set.",
+      "required": false
+    },
+    "program_name": {
+      "type": "string",
+      "label": "Program Name",
+      "description": "ABAP program to run as the job's one step, used when job_count is unset -- a new job is opened (BAPI_XBP_JOB_OPEN), this program added as its only step (BAPI_XBP_JOB_ADD_STEP), then closed and started immediately (BAPI_XBP_JOB_CLOSE).",
+      "required": false
+    },
+    "variant_name": {
+      "type": "string",
+      "label": "Variant Name",
+      "description": "ABAP program variant (optional; program_name's own default variant is used when unset).",
+      "required": false
+    },
+    "process_chain_id": {
+      "type": "string",
+      "label": "Process Chain Id",
+      "description": "BW process chain technical ID (process_chain mode; required then).",
+      "required": false
+    },
+    "xmi_interface": {
+      "type": "string",
+      "label": "Xmi Interface",
+      "description": "BAPI_XMI_LOGON INTERFACE value -- the external interface this component identifies itself as.",
+      "required": false
+    },
+    "xmi_version": {
+      "type": "string",
+      "label": "Xmi Version",
+      "description": "BAPI_XMI_LOGON VERSION value.",
+      "required": false
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls.",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for the job/chain to finish before raising a timeout error.",
+      "required": false
+    },
+    "status_field": {
+      "type": "string",
+      "label": "Status Field",
+      "description": "Field name read off the status-poll response (BAPI_XBP_JOB_STATUS_GET / RSPC_API_CHAIN_STATUS) to determine job/chain state.",
+      "required": false
+    },
+    "success_statuses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Success Statuses",
+      "description": "status_field values (case-insensitive) treated as success.",
+      "required": false
+    },
+    "failure_statuses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Failure Statuses",
+      "description": "status_field values (case-insensitive) treated as failure. Any other value keeps polling.",
+      "required": false
+    },
+    "trigger_params": {
+      "type": "object",
+      "label": "Trigger Params",
+      "description": "Extra kwargs merged into the trigger call (e.g. job-step print parameters not covered by variant_name).",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Log what would be triggered and skip opening a connection entirely -- no resource is looked up, no RFC call is made. Output metadata always includes dry_run so a materialization history shows which runs were real.",
+      "required": false
+    },
+    "run_window": {
+      "type": "string",
+      "label": "Run Window",
+      "description": "'HH:MM-HH:MM tz [day,day,...]' (e.g. '22:00-05:00 Europe/Berlin mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of triggering or failing -- no SAP job/chain is started, and real downstream dependents skip too (not fail). Checked once per materialization, before any RFC call. A malformed spec fails open (never blocks). Unset (default): always runs.",
+      "required": false
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name, e.g. a cap on concurrent SAP background-job triggers). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    }
+  }
+}

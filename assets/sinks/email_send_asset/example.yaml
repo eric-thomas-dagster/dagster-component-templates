@@ -1,0 +1,12 @@
+type: dagster_community_components.EmailSendAssetComponent
+attributes:
+  asset_key: notifications/nightly_close_complete
+  provider: smtp
+  resource_key: smtp_resource
+
+  to: [ops-team@example.com]
+  subject: "Nightly close complete"
+  body: "The nightly close chain finished successfully."
+
+  deps: [sap/nightly_close]
+  group_name: notifications

@@ -12,7 +12,7 @@ Owns the SendGrid Marketing wire protocol:
 
 Docs: https://docs.sendgrid.com/api-reference/contacts/add-or-update-a-contact
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import dagster as dg
 from pydantic import Field
@@ -119,6 +119,63 @@ class SendGridResource(dg.ConfigurableResource):
                     logger.warning(f"SendGrid PUT failed: HTTP {resp.status_code} body={(resp.text or '')[:400]}")
 
         return {"sent": sent, "failed": failed, "batches": batches, "job_ids": job_ids}
+
+    def send_email(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        from_addr: str = "",
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        html_body: Optional[str] = None,
+        reply_to: Optional[str] = None,
+        attachments: Optional[List[Tuple[str, bytes, str]]] = None,
+    ) -> None:
+        """Send one transactional email via SendGrid's v3 Mail Send API
+        (``POST /v3/mail/send`` -- https://docs.sendgrid.com/api-reference/mail-send/mail-send).
+
+        Same signature as ``SMTPResource.send_email`` so a caller can treat both resources
+        uniformly. ``to`` accepts a single address or a comma-separated list. ``attachments``
+        is a list of (filename, content_bytes, mime_type) tuples, base64-encoded here. Unlike
+        SMTP, SendGrid has no notion of a sender address tied to this resource's own auth --
+        ``from_addr`` is required.
+        """
+        import base64
+
+        if not from_addr:
+            raise dg.Failure("SendGridResource.send_email: from_addr is required (SendGrid has no default sender).")
+
+        to_list = [a.strip() for a in to.split(",") if a.strip()]
+        personalization: Dict[str, Any] = {"to": [{"email": a} for a in to_list]}
+        if cc:
+            personalization["cc"] = [{"email": a} for a in cc]
+        if bcc:
+            personalization["bcc"] = [{"email": a} for a in bcc]
+
+        content = [{"type": "text/plain", "value": body}]
+        if html_body:
+            content.append({"type": "text/html", "value": html_body})
+
+        payload: Dict[str, Any] = {
+            "personalizations": [personalization],
+            "from": {"email": from_addr},
+            "subject": subject,
+            "content": content,
+        }
+        if reply_to:
+            payload["reply_to"] = {"email": reply_to}
+        if attachments:
+            payload["attachments"] = [
+                {
+                    "content": base64.b64encode(content_bytes).decode("ascii"),
+                    "filename": filename,
+                    "type": mime_type or "application/octet-stream",
+                }
+                for filename, content_bytes, mime_type in attachments
+            ]
+
+        self.post("/v3/mail/send", payload)
 
 
 class SendGridResourceComponent(dg.Component, dg.Model, dg.Resolvable):

@@ -1,0 +1,15 @@
+type: dagster_community_components.SapJobTriggerAssetComponent
+attributes:
+  asset_key: sap/nightly_close
+  sap_rfc_resource_key: sap_ecc      # registered via sap_rfc_resource
+
+  target_type: background_job
+  job_name: ZNIGHTLY_CLOSE
+  program_name: ZNIGHTLY_CLOSE_PROG
+  variant_name: PROD_VARIANT
+
+  poll_interval_seconds: 30
+  timeout_seconds: 7200
+
+  group_name: sap
+  kinds: [sap, ecc]

@@ -23995,6 +23995,59 @@
       ]
     },
     {
+      "id": "email_send_asset",
+      "name": "Email Send Asset",
+      "category": "sink",
+      "description": "Send one email through a registered smtp_resource or sendgrid_resource -- a mid-chain notification step (RunMyJobs' System_Mail_Send shape: To, Subject, Text, JobFile), not a bulk per-row campaign tool.",
+      "path": "assets/sinks/email_send_asset",
+      "tags": [
+        "sink",
+        "email",
+        "smtp",
+        "sendgrid",
+        "notification"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/email_send_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/email_send_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/email_send_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/email_send_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/email_send_asset/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20"
+      },
+      "icon": "Mail",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:smtp",
+        "resource:sendgrid"
+      ],
+      "agent_hints": {
+        "inputs": "None -- static to/cc/bcc/subject/body/attachment_paths configuration.",
+        "outputs": "None (sink -- sends one email).",
+        "side_effects": "Sends one email via the registered smtp_resource or sendgrid_resource.",
+        "anti_uses": "For bulk per-row email campaigns use smtp_send_asset instead.",
+        "requires_resources": [
+          "smtp_resource or sendgrid_resource (via resource_key)"
+        ],
+        "output_type": null
+      },
+      "keywords": [
+        "notify",
+        "alert",
+        "write to"
+      ]
+    },
+    {
       "id": "embeddings_generator",
       "name": "Embeddings Generator",
       "category": "ai",
@@ -58272,6 +58325,64 @@
         "sap hana",
         "connection",
         "connect"
+      ]
+    },
+    {
+      "id": "sap_job_trigger_asset",
+      "name": "SAP Job Trigger Asset",
+      "category": "infrastructure",
+      "description": "Start an SAP background job (via the XBP external interface) or BW process chain, then poll until it finishes, raising with the SAP job/chain log on failure.",
+      "path": "assets/infrastructure/sap_job_trigger_asset",
+      "tags": [
+        "infrastructure",
+        "sap",
+        "rfc",
+        "bapi",
+        "xbp",
+        "process-chain",
+        "ecc",
+        "bw"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sap_job_trigger_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sap_job_trigger_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sap_job_trigger_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sap_job_trigger_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sap_job_trigger_asset/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyrfc>=3.3"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20"
+      },
+      "icon": "si:sap",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:sap_rfc"
+      ],
+      "agent_hints": {
+        "inputs": "None (trigger asset) -- starts an SAP background job or BW process chain.",
+        "outputs": "MaterializeResult with sap/run_id, sap/status metadata.",
+        "side_effects": "Starts a real SAP background job/process chain and waits for completion. Requires sap_rfc_resource + pyrfc + SAP NW RFC SDK.",
+        "anti_uses": "For reading SAP tables/BAPIs without triggering a job, use sap_rfc_ingestion instead.",
+        "requires_pip": [
+          "pyrfc"
+        ],
+        "requires_resources": [
+          "sap_rfc_resource"
+        ],
+        "output_type": null
+      },
+      "keywords": [
+        "trigger",
+        "run",
+        "poll"
       ]
     },
     {

@@ -1,0 +1,193 @@
+{
+  "component_type": "dagster_community_components.EmailSendAssetComponent",
+  "description": "Send one email through a registered smtp_resource or sendgrid_resource -- a mid-chain notification step, not a bulk per-row campaign tool.",
+  "category": "integration",
+  "icon": "mail",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Email send result"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "description": "Dagster asset key (e.g. 'notifications/nightly_close_complete').",
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "smtp",
+        "sendgrid"
+      ],
+      "label": "Provider",
+      "description": "Which registered resource's send_email(...) to call -- an SMTPResourceComponent's or a SendGridResourceComponent's resource_key.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the registered smtp_resource / sendgrid_resource (matching `provider`).",
+      "required": true
+    },
+    "to": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "To",
+      "description": "Recipient email addresses.",
+      "required": true
+    },
+    "cc": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Cc",
+      "description": "Cc recipient email addresses.",
+      "required": false
+    },
+    "bcc": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Bcc",
+      "description": "Bcc recipient email addresses -- receive the message, never added as a header.",
+      "required": false
+    },
+    "subject": {
+      "type": "string",
+      "label": "Subject",
+      "description": "Email subject.",
+      "required": true
+    },
+    "body": {
+      "type": "string",
+      "label": "Body",
+      "description": "Plain-text email body.",
+      "required": true
+    },
+    "html_body": {
+      "type": "string",
+      "label": "Html Body",
+      "description": "Optional HTML alternative body (multipart/alternative alongside `body`).",
+      "required": false
+    },
+    "reply_to": {
+      "type": "string",
+      "label": "Reply To",
+      "description": "Reply-To address.",
+      "required": false
+    },
+    "from_addr": {
+      "type": "string",
+      "label": "From Addr",
+      "description": "Sender address. For provider='smtp', defaults to the resource's own configured username when unset. For provider='sendgrid', required (SendGrid has no notion of a default sender tied to API-key auth).",
+      "required": false
+    },
+    "attachment_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Attachment Paths",
+      "description": "Local file paths to attach, read and attached at materialization time. MIME type is guessed from the file extension.",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Log what would be sent (recipients, subject, attachment paths) and skip the actual send -- no resource is looked up, nothing goes over the network. Output metadata always includes dry_run so a materialization history shows which runs were real.",
+      "required": false
+    },
+    "run_window": {
+      "type": "string",
+      "label": "Run Window",
+      "description": "'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of sending or failing -- no email goes out. Checked once per materialization, before any send. A malformed spec fails open (never blocks). Unset (default): always runs.",
+      "required": false
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name, e.g. an SMTP-server connection-rate cap). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    }
+  }
+}

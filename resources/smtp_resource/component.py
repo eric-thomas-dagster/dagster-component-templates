@@ -1,4 +1,6 @@
 """SMTP Resource component."""
+from typing import List, Optional, Tuple
+
 import dagster as dg
 from pydantic import Field
 
@@ -12,18 +14,50 @@ class SMTPResource(dg.ConfigurableResource):
     password: str
     use_tls: bool = True
 
-    def send_email(self, to: str, subject: str, body: str, from_addr: str = "") -> None:
+    def send_email(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        from_addr: str = "",
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        html_body: Optional[str] = None,
+        reply_to: Optional[str] = None,
+        attachments: Optional[List[Tuple[str, bytes, str]]] = None,
+        timeout_seconds: int = 30,
+    ) -> None:
+        """Send one email. `to` accepts a single address or a comma-separated list.
+        `attachments` is a list of (filename, content_bytes, mime_type) tuples, e.g.
+        ("report.csv", b"a,b\\n1,2", "text/csv"). `bcc` recipients get the message (they're
+        passed to send_message's own to_addrs) but are never added as a header, same as any
+        real BCC."""
         import smtplib
-        from email.mime.text import MIMEText
-        msg = MIMEText(body)
+        from email.message import EmailMessage
+
+        msg = EmailMessage()
         msg["Subject"] = subject
         msg["From"] = from_addr or self.username
         msg["To"] = to
-        with smtplib.SMTP(self.host, self.port) as server:
+        if cc:
+            msg["Cc"] = ", ".join(cc)
+        if reply_to:
+            msg["Reply-To"] = reply_to
+        msg.set_content(body)
+        if html_body:
+            msg.add_alternative(html_body, subtype="html")
+        for filename, content, mime_type in attachments or []:
+            maintype, _, subtype = (mime_type or "application/octet-stream").partition("/")
+            msg.add_attachment(
+                content, maintype=maintype or "application", subtype=subtype or "octet-stream", filename=filename,
+            )
+
+        recipients = [a.strip() for a in to.split(",") if a.strip()] + list(cc or []) + list(bcc or [])
+        with smtplib.SMTP(self.host, self.port, timeout=timeout_seconds) as server:
             if self.use_tls:
                 server.starttls()
             server.login(self.username, self.password)
-            server.send_message(msg)
+            server.send_message(msg, from_addr=from_addr or self.username, to_addrs=recipients)
 
 
 class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):

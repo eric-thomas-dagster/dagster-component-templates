@@ -206,6 +206,36 @@
       "required": false,
       "type": "string",
       "ui:widget": "select"
+    },
+    "xmi_ext_company": {
+      "type": "string",
+      "label": "Xmi Ext Company",
+      "description": "BAPI_XMI_LOGON EXTCOMPANY value -- required by the XBP interface; identifies the calling external company/organization.",
+      "required": false
+    },
+    "xmi_ext_product": {
+      "type": "string",
+      "label": "Xmi Ext Product",
+      "description": "BAPI_XMI_LOGON EXTPRODUCT value -- required by the XBP interface; identifies the calling external product.",
+      "required": false
+    },
+    "external_user_name": {
+      "type": "string",
+      "label": "External User Name",
+      "description": "EXTERNAL_USER_NAME sent on every XBP call -- required by BAPI_XBP_JOB_OPEN / _ADD_ABAP_STEP / _CLOSE / _START_IMMEDIATELY; optional on _STATUS_GET / _JOBLOG_READ (sent there too, for consistency).",
+      "required": false
+    },
+    "target_server": {
+      "type": "string",
+      "label": "Target Server",
+      "description": "Optional application server to run the job on (BAPI_XBP_JOB_START_IMMEDIATELY / _CLOSE's TARGET_SERVER).",
+      "required": false
+    },
+    "job_class": {
+      "type": "string",
+      "label": "Job Class",
+      "description": "Optional ABAP job class (BAPI_XBP_JOB_OPEN's JOBCLASS, e.g. 'A'/'B'/'C').",
+      "required": false
     }
   }
 }

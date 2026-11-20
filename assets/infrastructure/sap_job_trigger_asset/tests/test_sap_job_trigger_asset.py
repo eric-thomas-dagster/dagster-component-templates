@@ -5,6 +5,16 @@ Mocks ONLY the sap_rfc_resource's `.connection()` context manager + `.call()`
 sap_rfc_ingestion's own tests) -- every other behavior (XMI logon/close
 sequencing, BAPI RETURN-table error checking, the poll loop, run_window,
 dry_run, metadata) is exercised for real through dg.materialize().
+
+`FakeRFCConnection` is strict for the XBP (`BAPI_XMI_*`/`BAPI_XBP_*`) family: it
+only accepts the function names and parameters SAP's own XBP 6.10 interface
+documentation actually has (`DOCUMENTED`/`REQUIRED` below), the same way a real
+RFC connection would reject an undocumented function module or parameter. This
+is deliberate -- an earlier version of this component called function modules
+and parameters the XBP interface doesn't have at all (e.g. `BAPI_XBP_JOB_ADD_STEP`,
+a `START_IMMEDIATELY` flag on `_CLOSE`) and a lenient mock let that ship
+unnoticed. `RSPC_API_*` (process_chain mode) isn't a documented external
+interface the way XBP is, so it isn't checked this strictly here.
 """
 import contextlib
 
@@ -19,10 +29,39 @@ def mod():
     return load_component_module()
 
 
+# Function name -> allowed parameter names, per SAP's XBP 6.10 interface documentation.
+XBP_DOCUMENTED = {
+    "BAPI_XMI_LOGON": {"EXTCOMPANY", "EXTPRODUCT", "INTERFACE", "VERSION"},
+    "BAPI_XMI_CLOSE": {"INTERFACE"},
+    "BAPI_XBP_JOB_OPEN": {"JOBNAME", "EXTERNAL_USER_NAME", "JOBCLASS"},
+    "BAPI_XBP_JOB_ADD_ABAP_STEP": {
+        "JOBNAME", "JOBCOUNT", "EXTERNAL_USER_NAME", "ABAP_PROGRAM_NAME", "ABAP_VARIANT_NAME",
+        "SAP_USER_NAME", "LANGUAGE",
+    },
+    "BAPI_XBP_JOB_CLOSE": {"JOBNAME", "JOBCOUNT", "EXTERNAL_USER_NAME", "TARGET_SERVER"},
+    "BAPI_XBP_JOB_START_IMMEDIATELY": {"JOBNAME", "JOBCOUNT", "EXTERNAL_USER_NAME", "TARGET_SERVER"},
+    "BAPI_XBP_JOB_STATUS_GET": {"JOBNAME", "JOBCOUNT", "EXTERNAL_USER_NAME"},
+    "BAPI_XBP_JOB_JOBLOG_READ": {"JOBNAME", "JOBCOUNT", "EXTERNAL_USER_NAME"},
+}
+XBP_REQUIRED = {
+    "BAPI_XMI_LOGON": {"EXTCOMPANY", "EXTPRODUCT"},
+    "BAPI_XBP_JOB_OPEN": {"JOBNAME", "EXTERNAL_USER_NAME"},
+    "BAPI_XBP_JOB_ADD_ABAP_STEP": {"JOBNAME", "JOBCOUNT", "EXTERNAL_USER_NAME", "ABAP_PROGRAM_NAME"},
+    "BAPI_XBP_JOB_CLOSE": {"JOBNAME", "JOBCOUNT", "EXTERNAL_USER_NAME"},
+    "BAPI_XBP_JOB_START_IMMEDIATELY": {"JOBNAME", "JOBCOUNT", "EXTERNAL_USER_NAME"},
+    "BAPI_XBP_JOB_STATUS_GET": {"JOBNAME", "JOBCOUNT"},
+}
+
+
 class FakeRFCConnection:
     """Maps an RFC/BAPI name to a canned response. A list is consumed one value
     per call (the last value repeats once exhausted) -- used to simulate a
-    status poll going RUNNING -> FINISHED/ABORTED across repeated calls."""
+    status poll going RUNNING -> FINISHED/ABORTED across repeated calls.
+
+    For any `BAPI_XMI_*`/`BAPI_XBP_*` call, also enforces SAP's documented XBP
+    interface shape (function exists, no undocumented parameters, no missing
+    required ones) -- an RFC call to an undocumented function module or
+    parameter would fail the same way on a real system."""
 
     def __init__(self, responses: dict):
         self.responses = {k: (list(v) if isinstance(v, list) else v) for k, v in responses.items()}
@@ -30,6 +69,15 @@ class FakeRFCConnection:
 
     def call(self, name, **kwargs):
         self.calls.append((name, kwargs))
+        if name in XBP_DOCUMENTED:
+            bad = set(kwargs) - XBP_DOCUMENTED[name]
+            if bad:
+                raise AssertionError(f"{name}: parameter(s) not in SAP's documented XBP interface: {sorted(bad)}")
+            missing = XBP_REQUIRED.get(name, set()) - set(kwargs)
+            if missing:
+                raise AssertionError(f"{name}: missing required parameter(s): {sorted(missing)}")
+        elif name.startswith("BAPI_XMI_") or name.startswith("BAPI_XBP_"):
+            raise AssertionError(f"{name}: not a function module in SAP's documented XBP interface")
         resp = self.responses.get(name)
         if resp is None:
             raise AssertionError(f"FakeRFCConnection: no canned response for {name!r}; kwargs={kwargs}")
@@ -75,9 +123,10 @@ def test_background_job_create_and_start_success(mod, monkeypatch):
     conn = FakeRFCConnection({
         "BAPI_XMI_LOGON": {"RETURN": {"TYPE": "S"}},
         "BAPI_XBP_JOB_OPEN": {"JOBCOUNT": "12345678", "RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_ADD_STEP": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_ADD_ABAP_STEP": {"RETURN": {"TYPE": "S"}},
         "BAPI_XBP_JOB_CLOSE": {"RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_STATUS_GET": [{"STATUS": "RUNNING"}, {"STATUS": "FINISHED"}],
+        "BAPI_XBP_JOB_START_IMMEDIATELY": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_STATUS_GET": [{"STATUS": "R"}, {"STATUS": "F"}],
         "BAPI_XMI_CLOSE": {"RETURN": {"TYPE": "S"}},
     })
     component = _make_component(mod, variant_name="PROD_VARIANT")
@@ -86,26 +135,31 @@ def test_background_job_create_and_start_success(mod, monkeypatch):
     assert result.success
     md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
     assert md["sap/run_id"].value == "12345678"
-    assert md["sap/status"].value == "FINISHED"
+    assert md["sap/status"].value == "F"
     assert md["dry_run"].value is False
 
     names = [c[0] for c in conn.calls]
     assert names == [
-        "BAPI_XMI_LOGON", "BAPI_XBP_JOB_OPEN", "BAPI_XBP_JOB_ADD_STEP", "BAPI_XBP_JOB_CLOSE",
-        "BAPI_XBP_JOB_STATUS_GET", "BAPI_XBP_JOB_STATUS_GET", "BAPI_XMI_CLOSE",
+        "BAPI_XMI_LOGON", "BAPI_XBP_JOB_OPEN", "BAPI_XBP_JOB_ADD_ABAP_STEP", "BAPI_XBP_JOB_CLOSE",
+        "BAPI_XBP_JOB_START_IMMEDIATELY", "BAPI_XBP_JOB_STATUS_GET", "BAPI_XBP_JOB_STATUS_GET", "BAPI_XMI_CLOSE",
     ]
+    logon_kwargs = conn.calls[0][1]
+    assert logon_kwargs["EXTCOMPANY"] and logon_kwargs["EXTPRODUCT"]
     add_step_kwargs = conn.calls[2][1]
-    assert add_step_kwargs["PROGRAM"] == "ZNIGHTLY_CLOSE_PROG"
-    assert add_step_kwargs["VARIANT"] == "PROD_VARIANT"
+    assert add_step_kwargs["ABAP_PROGRAM_NAME"] == "ZNIGHTLY_CLOSE_PROG"
+    assert add_step_kwargs["ABAP_VARIANT_NAME"] == "PROD_VARIANT"
     assert add_step_kwargs["JOBCOUNT"] == "12345678"
+    assert add_step_kwargs["EXTERNAL_USER_NAME"] == "DAGSTER"
+    close_kwargs = conn.calls[3][1]
+    assert "START_IMMEDIATELY" not in close_kwargs  # BAPI_XBP_JOB_CLOSE has no such parameter
 
 
 def test_background_job_start_existing_job_count_skips_open_add_step_close(mod, monkeypatch):
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     conn = FakeRFCConnection({
         "BAPI_XMI_LOGON": {"RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_START_IMMEDIATE": {"RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "FINISHED"},
+        "BAPI_XBP_JOB_START_IMMEDIATELY": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "F"},
         "BAPI_XMI_CLOSE": {"RETURN": {"TYPE": "S"}},
     })
     component = _make_component(mod, program_name=None, job_count="99999999")
@@ -113,8 +167,10 @@ def test_background_job_start_existing_job_count_skips_open_add_step_close(mod, 
 
     assert result.success
     names = [c[0] for c in conn.calls]
-    assert names == ["BAPI_XMI_LOGON", "BAPI_XBP_JOB_START_IMMEDIATE", "BAPI_XBP_JOB_STATUS_GET", "BAPI_XMI_CLOSE"]
-    assert conn.calls[1][1] == {"JOBNAME": "ZNIGHTLY_CLOSE", "JOBCOUNT": "99999999"}
+    assert names == ["BAPI_XMI_LOGON", "BAPI_XBP_JOB_START_IMMEDIATELY", "BAPI_XBP_JOB_STATUS_GET", "BAPI_XMI_CLOSE"]
+    assert conn.calls[1][1] == {
+        "JOBNAME": "ZNIGHTLY_CLOSE", "JOBCOUNT": "99999999", "EXTERNAL_USER_NAME": "DAGSTER",
+    }
 
 
 def test_background_job_failure_raises_with_joblog(mod, monkeypatch):
@@ -122,10 +178,11 @@ def test_background_job_failure_raises_with_joblog(mod, monkeypatch):
     conn = FakeRFCConnection({
         "BAPI_XMI_LOGON": {"RETURN": {"TYPE": "S"}},
         "BAPI_XBP_JOB_OPEN": {"JOBCOUNT": "1", "RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_ADD_STEP": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_ADD_ABAP_STEP": {"RETURN": {"TYPE": "S"}},
         "BAPI_XBP_JOB_CLOSE": {"RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "ABORTED"},
-        "BAPI_XBP_JOB_READ_JOBLOG": {"JOBLOG": [{"MSGTXT": "RABAX dump in ZNIGHTLY_CLOSE_PROG"}]},
+        "BAPI_XBP_JOB_START_IMMEDIATELY": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "A"},
+        "BAPI_XBP_JOB_JOBLOG_READ": {"JOB_PROTOCOL": [{"MESSAGE": "RABAX dump in ZNIGHTLY_CLOSE_PROG"}]},
         "BAPI_XMI_CLOSE": {"RETURN": {"TYPE": "S"}},
     })
     component = _make_component(mod)
@@ -151,9 +208,9 @@ def test_background_job_timeout_raises(mod, monkeypatch):
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     conn = FakeRFCConnection({
         "BAPI_XMI_LOGON": {"RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_START_IMMEDIATE": {"RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "RUNNING"},  # never finishes
-        "BAPI_XBP_JOB_READ_JOBLOG": {"JOBLOG": []},
+        "BAPI_XBP_JOB_START_IMMEDIATELY": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "R"},  # never finishes
+        "BAPI_XBP_JOB_JOBLOG_READ": {"JOB_PROTOCOL": []},
         "BAPI_XMI_CLOSE": {"RETURN": {"TYPE": "S"}},
     })
     component = _make_component(
@@ -175,13 +232,37 @@ def test_poll_error_is_retried_not_treated_as_failure(mod, monkeypatch):
 
     conn = _FlakyThenFinished({
         "BAPI_XMI_LOGON": {"RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_START_IMMEDIATE": {"RETURN": {"TYPE": "S"}},
-        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "FINISHED"},
+        "BAPI_XBP_JOB_START_IMMEDIATELY": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "F"},
         "BAPI_XMI_CLOSE": {"RETURN": {"TYPE": "S"}},
     })
     component = _make_component(mod, program_name=None, job_count="1", timeout_seconds=1.0)
     result, _ = _materialize(component, FakeRFCResource(conn))
     assert result.success
+
+
+def test_external_user_name_and_target_server_are_configurable(mod, monkeypatch):
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    conn = FakeRFCConnection({
+        "BAPI_XMI_LOGON": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_START_IMMEDIATELY": {"RETURN": {"TYPE": "S"}},
+        "BAPI_XBP_JOB_STATUS_GET": {"STATUS": "F"},
+        "BAPI_XMI_CLOSE": {"RETURN": {"TYPE": "S"}},
+    })
+    component = _make_component(
+        mod, program_name=None, job_count="1",
+        external_user_name="SVC_DAGSTER", target_server="APPSRV01",
+    )
+    _materialize(component, FakeRFCResource(conn))
+    start_kwargs = conn.calls[1][1]
+    assert start_kwargs["EXTERNAL_USER_NAME"] == "SVC_DAGSTER"
+    assert start_kwargs["TARGET_SERVER"] == "APPSRV01"
+
+
+def test_success_and_failure_statuses_default_to_the_documented_one_character_codes(mod):
+    component = _make_component(mod, program_name=None, job_count="1")
+    assert component.success_statuses == ["F"]
+    assert component.failure_statuses == ["A"]
 
 
 # --- process_chain -----------------------------------------------------------------------------
@@ -217,6 +298,14 @@ def test_process_chain_failure_raises_with_log(mod, monkeypatch):
     )
     with pytest.raises(Exception, match="process DTP_LOAD failed"):
         _materialize(component, FakeRFCResource(conn))
+
+
+def test_process_chain_statuses_keep_the_unverified_guessed_defaults(mod):
+    component = _make_component(
+        mod, target_type="process_chain", job_name=None, program_name=None, process_chain_id="X",
+    )
+    assert component.success_statuses == ["FINISHED", "COMPLETED", "GREEN"]
+    assert component.failure_statuses == ["ABORTED", "CANCELLED", "RED", "ERROR", "FAILED"]
 
 
 # --- config validation ---------------------------------------------------------------------------

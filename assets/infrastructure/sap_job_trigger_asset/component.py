@@ -137,10 +137,11 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     **`target_type: background_job`** -- logs on via the XBP external interface
     (`BAPI_XMI_LOGON`), then either starts an already-scheduled job immediately
-    (`job_count` set -- `BAPI_XBP_JOB_START_IMMEDIATE`) or creates and starts a
+    (`job_count` set -- `BAPI_XBP_JOB_START_IMMEDIATELY`) or creates and starts a
     new one-step job (`program_name` set -- `BAPI_XBP_JOB_OPEN` /
-    `BAPI_XBP_JOB_ADD_STEP` / `BAPI_XBP_JOB_CLOSE`), polls
-    `BAPI_XBP_JOB_STATUS_GET`, and on failure reads `BAPI_XBP_JOB_READ_JOBLOG`.
+    `BAPI_XBP_JOB_ADD_ABAP_STEP` / `BAPI_XBP_JOB_CLOSE` / `BAPI_XBP_JOB_START_IMMEDIATELY`),
+    polls `BAPI_XBP_JOB_STATUS_GET` (one-character STATUS: P/S/Y/R/F/A), and on
+    failure reads `BAPI_XBP_JOB_JOBLOG_READ`.
 
     ```yaml
     type: dagster_community_components.SapJobTriggerAssetComponent
@@ -215,11 +216,35 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     # --- XBP external-interface logon (background_job mode only) ------------
+    xmi_ext_company: str = Field(
+        default="Dagster",
+        description="BAPI_XMI_LOGON EXTCOMPANY value -- required by the XBP interface; identifies the calling external company/organization.",
+    )
+    xmi_ext_product: str = Field(
+        default="dagster-community-components",
+        description="BAPI_XMI_LOGON EXTPRODUCT value -- required by the XBP interface; identifies the calling external product.",
+    )
     xmi_interface: str = Field(
         default="XBP",
         description="BAPI_XMI_LOGON INTERFACE value -- the external interface this component identifies itself as.",
     )
     xmi_version: str = Field(default="3.0", description="BAPI_XMI_LOGON VERSION value.")
+    external_user_name: str = Field(
+        default="DAGSTER",
+        description=(
+            "EXTERNAL_USER_NAME sent on every XBP call -- required by BAPI_XBP_JOB_OPEN / "
+            "_ADD_ABAP_STEP / _CLOSE / _START_IMMEDIATELY; optional on _STATUS_GET / "
+            "_JOBLOG_READ (sent there too, for consistency)."
+        ),
+    )
+    target_server: Optional[str] = Field(
+        default=None,
+        description="Optional application server to run the job on (BAPI_XBP_JOB_START_IMMEDIATELY / _CLOSE's TARGET_SERVER).",
+    )
+    job_class: Optional[str] = Field(
+        default=None,
+        description="Optional ABAP job class (BAPI_XBP_JOB_OPEN's JOBCLASS, e.g. 'A'/'B'/'C').",
+    )
 
     # --- Polling --------------------------------------------------------------
     poll_interval_seconds: float = Field(default=15.0, description="Seconds between status polls.")
@@ -231,13 +256,23 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default="STATUS",
         description="Field name read off the status-poll response (BAPI_XBP_JOB_STATUS_GET / RSPC_API_CHAIN_STATUS) to determine job/chain state.",
     )
-    success_statuses: List[str] = Field(
-        default_factory=lambda: ["FINISHED", "COMPLETED", "GREEN"],
-        description="status_field values (case-insensitive) treated as success.",
+    success_statuses: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "status_field values (case-insensitive) treated as success. Defaults by target_type "
+            "when unset: background_job -> ['F'] (BAPI_XBP_JOB_STATUS_GET's documented "
+            "one-character STATUS code for 'finished'); process_chain -> "
+            "['FINISHED','COMPLETED','GREEN'] (unverified -- RSPC_API_CHAIN_STATUS's vocabulary "
+            "isn't SAP-documented; confirm on your BW system)."
+        ),
     )
-    failure_statuses: List[str] = Field(
-        default_factory=lambda: ["ABORTED", "CANCELLED", "RED", "ERROR", "FAILED"],
-        description="status_field values (case-insensitive) treated as failure. Any other value keeps polling.",
+    failure_statuses: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "status_field values (case-insensitive) treated as failure. Any other value keeps "
+            "polling. Defaults by target_type when unset: background_job -> ['A'] ('cancelled'); "
+            "process_chain -> ['ABORTED','CANCELLED','RED','ERROR','FAILED'] (unverified)."
+        ),
     )
     trigger_params: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -316,6 +351,14 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError("SapJobTriggerAssetComponent: target_type='process_chain' requires process_chain_id.")
         return self
 
+    @model_validator(mode="after")
+    def _apply_status_defaults(self):
+        if self.success_statuses is None:
+            self.success_statuses = ["F"] if self.target_type == "background_job" else ["FINISHED", "COMPLETED", "GREEN"]
+        if self.failure_statuses is None:
+            self.failure_statuses = ["A"] if self.target_type == "background_job" else ["ABORTED", "CANCELLED", "RED", "ERROR", "FAILED"]
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -389,42 +432,88 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 run_id = None
                 try:
                     if component.target_type == "background_job":
-                        logon = conn.call("BAPI_XMI_LOGON", INTERFACE=component.xmi_interface, VERSION=component.xmi_version)
+                        logon = conn.call(
+                            "BAPI_XMI_LOGON",
+                            EXTCOMPANY=component.xmi_ext_company,
+                            EXTPRODUCT=component.xmi_ext_product,
+                            INTERFACE=component.xmi_interface,
+                            VERSION=component.xmi_version,
+                        )
                         _check_bapi_return(logon, "BAPI_XMI_LOGON")
 
                         if component.job_count:
                             jobcount = component.job_count
-                            params: Dict[str, Any] = {"JOBNAME": component.job_name, "JOBCOUNT": jobcount}
+                            params: Dict[str, Any] = {
+                                "JOBNAME": component.job_name,
+                                "JOBCOUNT": jobcount,
+                                "EXTERNAL_USER_NAME": component.external_user_name,
+                            }
+                            if component.target_server:
+                                params["TARGET_SERVER"] = component.target_server
                             params.update(component.trigger_params or {})
-                            start_result = conn.call("BAPI_XBP_JOB_START_IMMEDIATE", **params)
-                            _check_bapi_return(start_result, "BAPI_XBP_JOB_START_IMMEDIATE")
+                            start_result = conn.call("BAPI_XBP_JOB_START_IMMEDIATELY", **params)
+                            _check_bapi_return(start_result, "BAPI_XBP_JOB_START_IMMEDIATELY")
                         else:
-                            open_result = conn.call("BAPI_XBP_JOB_OPEN", JOBNAME=component.job_name)
+                            open_params: Dict[str, Any] = {
+                                "JOBNAME": component.job_name, "EXTERNAL_USER_NAME": component.external_user_name,
+                            }
+                            if component.job_class:
+                                open_params["JOBCLASS"] = component.job_class
+                            open_result = conn.call("BAPI_XBP_JOB_OPEN", **open_params)
                             _check_bapi_return(open_result, "BAPI_XBP_JOB_OPEN")
                             jobcount = open_result.get("JOBCOUNT")
                             step_params: Dict[str, Any] = {
-                                "JOBNAME": component.job_name, "JOBCOUNT": jobcount, "PROGRAM": component.program_name,
+                                "JOBNAME": component.job_name,
+                                "JOBCOUNT": jobcount,
+                                "EXTERNAL_USER_NAME": component.external_user_name,
+                                "ABAP_PROGRAM_NAME": component.program_name,
                             }
                             if component.variant_name:
-                                step_params["VARIANT"] = component.variant_name
+                                step_params["ABAP_VARIANT_NAME"] = component.variant_name
                             step_params.update(component.trigger_params or {})
-                            step_result = conn.call("BAPI_XBP_JOB_ADD_STEP", **step_params)
-                            _check_bapi_return(step_result, "BAPI_XBP_JOB_ADD_STEP")
-                            close_result = conn.call(
-                                "BAPI_XBP_JOB_CLOSE", JOBNAME=component.job_name, JOBCOUNT=jobcount, START_IMMEDIATELY="X",
-                            )
+                            step_result = conn.call("BAPI_XBP_JOB_ADD_ABAP_STEP", **step_params)
+                            _check_bapi_return(step_result, "BAPI_XBP_JOB_ADD_ABAP_STEP")
+
+                            close_params: Dict[str, Any] = {
+                                "JOBNAME": component.job_name,
+                                "JOBCOUNT": jobcount,
+                                "EXTERNAL_USER_NAME": component.external_user_name,
+                            }
+                            if component.target_server:
+                                close_params["TARGET_SERVER"] = component.target_server
+                            close_result = conn.call("BAPI_XBP_JOB_CLOSE", **close_params)
                             _check_bapi_return(close_result, "BAPI_XBP_JOB_CLOSE")
+
+                            start_params: Dict[str, Any] = {
+                                "JOBNAME": component.job_name,
+                                "JOBCOUNT": jobcount,
+                                "EXTERNAL_USER_NAME": component.external_user_name,
+                            }
+                            if component.target_server:
+                                start_params["TARGET_SERVER"] = component.target_server
+                            start_result = conn.call("BAPI_XBP_JOB_START_IMMEDIATELY", **start_params)
+                            _check_bapi_return(start_result, "BAPI_XBP_JOB_START_IMMEDIATELY")
                         run_id = str(jobcount)
                         context.log.info(f"SAP background job triggered. job_name={component.job_name} jobcount={run_id}")
 
                         def _poll():
-                            return conn.call("BAPI_XBP_JOB_STATUS_GET", JOBNAME=component.job_name, JOBCOUNT=jobcount)
+                            return conn.call(
+                                "BAPI_XBP_JOB_STATUS_GET",
+                                JOBNAME=component.job_name,
+                                JOBCOUNT=jobcount,
+                                EXTERNAL_USER_NAME=component.external_user_name,
+                            )
 
                         def _joblog():
                             try:
-                                log_result = conn.call("BAPI_XBP_JOB_READ_JOBLOG", JOBNAME=component.job_name, JOBCOUNT=jobcount)
-                                lines = log_result.get("JOBLOG") or log_result.get("MSG_LINES") or []
-                                return "\n".join(str(l.get("MSGTXT", l)) if isinstance(l, dict) else str(l) for l in lines)
+                                log_result = conn.call(
+                                    "BAPI_XBP_JOB_JOBLOG_READ",
+                                    JOBNAME=component.job_name,
+                                    JOBCOUNT=jobcount,
+                                    EXTERNAL_USER_NAME=component.external_user_name,
+                                )
+                                lines = log_result.get("JOB_PROTOCOL") or log_result.get("JOB_PROTOCOL_NEW") or []
+                                return "\n".join(str(l.get("MESSAGE", l)) if isinstance(l, dict) else str(l) for l in lines)
                             except Exception as e:
                                 return f"(could not read job log: {e})"
                     else:

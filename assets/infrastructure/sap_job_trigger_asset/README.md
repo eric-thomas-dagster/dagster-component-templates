@@ -8,6 +8,8 @@ Pairs with [`sap_rfc_resource`](../../../resources/sap_rfc_resource/) which hold
 
 No pyrfc/SAP sandbox is available in this repo's development environment — the same constraint `sap_rfc_ingestion` already documents. `BAPI_XMI_LOGON`/`BAPI_XMI_CLOSE` and the `BAPI_XBP_*` family are SAP's own publicly documented **XBP (External Background Processing) interface** — the same one third-party schedulers (RunMyJobs, Control-M, Automic, Redwood) use to trigger and monitor SAP background jobs — not a guess at an undocumented API. Each BAPI's `RETURN` table is checked generically against the standard BAPI convention (`{TYPE, ID, NUMBER, MESSAGE}` structs, `TYPE` in `S`/`W`/`E`/`A`/`I`). The `RSPC_API_*` process-chain function modules are widely used in practice (BW consulting references) but, unlike XBP, are **not** an SAP-supported external interface — confirm they exist on your BW release before relying on `process_chain` mode. `status_field`/`success_statuses`/`failure_statuses` are deliberately configurable rather than hardcoded, since the exact status vocabulary a given system returns can vary by release.
 
+The exact XBP call signatures (`BAPI_XMI_LOGON` requiring `EXTCOMPANY`/`EXTPRODUCT`, `EXTERNAL_USER_NAME` on every job call, `BAPI_XBP_JOB_ADD_ABAP_STEP`/`_START_IMMEDIATELY`/`_JOBLOG_READ`'s real names and parameters, and `BAPI_XBP_JOB_STATUS_GET`'s one-character `STATUS` vocabulary) were checked against SAP's XBP 6.10 interface documentation and corrected to match it. Still confirm against a current ABAP system before relying on this in production — XBP 2.0 has been stable for a long time, but the documentation used to check this is old.
+
 ## `target_type: background_job`
 
 Logs on via the XBP interface, then either starts an already-scheduled job immediately, or creates and starts a new one-step job:
@@ -29,10 +31,12 @@ To instead start a job that's already scheduled in SM36/SM37 (common when the jo
 
 ```yaml
   job_name: ZNIGHTLY_CLOSE
-  job_count: "12345678"   # BAPI_XBP_JOB_START_IMMEDIATE
+  job_count: "12345678"   # BAPI_XBP_JOB_START_IMMEDIATELY
 ```
 
-On failure, the asset raises with the job's own log (`BAPI_XBP_JOB_READ_JOBLOG`) appended.
+On failure, the asset raises with the job's own log (`BAPI_XBP_JOB_JOBLOG_READ`) appended.
+
+`xmi_ext_company`/`xmi_ext_product` identify the calling external system to `BAPI_XMI_LOGON` (both required by the XBP interface); `external_user_name` is sent on every XBP call (required by `_OPEN`/`_ADD_ABAP_STEP`/`_CLOSE`/`_START_IMMEDIATELY`). `target_server`/`job_class` are optional. `success_statuses`/`failure_statuses` default to `['F']`/`['A']` for `background_job` mode -- `BAPI_XBP_JOB_STATUS_GET`'s documented one-character `STATUS` code (`P` scheduled, `S` released, `Y` ready, `R` active, `F` finished, `A` cancelled).
 
 ## `target_type: process_chain`
 
@@ -107,6 +111,7 @@ Same conventions as `sql_asset`/`task_chain_asset`: `run_window` skips cleanly o
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `target_type` | `Literal['background_job', 'process_chain']` | `"background_job"` | 'background_job': start an ABAP background job via the XBP (External Background Processing) interface. 'process_chain': start a BW process chain. |
+| `target_server` | `str` | — | Optional application server to run the job on (BAPI_XBP_JOB_START_IMMEDIATELY / _CLOSE's TARGET_SERVER). |
 
 ### Other
 
@@ -116,11 +121,15 @@ Same conventions as `sql_asset`/`task_chain_asset`: `run_window` skips cleanly o
 | `program_name` | `str` | — | ABAP program to run as the job's one step, used when job_count is unset -- a new job is opened (BAPI_XBP_JOB_OPEN), this program added as its only step (BAPI_XBP_JOB_ADD_STEP), then closed and started immediately (BAPI_XBP_JOB_CLOSE). |
 | `variant_name` | `str` | — | ABAP program variant (optional; program_name's own default variant is used when unset). |
 | `process_chain_id` | `str` | — | BW process chain technical ID (process_chain mode; required then). |
+| `xmi_ext_company` | `str` | `"Dagster"` | BAPI_XMI_LOGON EXTCOMPANY value -- required by the XBP interface; identifies the calling external company/organization. |
+| `xmi_ext_product` | `str` | `"dagster-community-components"` | BAPI_XMI_LOGON EXTPRODUCT value -- required by the XBP interface; identifies the calling external product. |
 | `xmi_interface` | `str` | `"XBP"` | BAPI_XMI_LOGON INTERFACE value -- the external interface this component identifies itself as. |
 | `xmi_version` | `str` | `"3.0"` | BAPI_XMI_LOGON VERSION value. |
+| `external_user_name` | `str` | `"DAGSTER"` | EXTERNAL_USER_NAME sent on every XBP call -- required by BAPI_XBP_JOB_OPEN / _ADD_ABAP_STEP / _CLOSE / _START_IMMEDIATELY; optional on _STATUS_GET / _JOBLOG_READ (sent there too, for consistency). |
+| `job_class` | `str` | — | Optional ABAP job class (BAPI_XBP_JOB_OPEN's JOBCLASS, e.g. 'A'/'B'/'C'). |
 | `status_field` | `str` | `"STATUS"` | Field name read off the status-poll response (BAPI_XBP_JOB_STATUS_GET / RSPC_API_CHAIN_STATUS) to determine job/chain state. |
-| `success_statuses` | `List[str]` | `lambda: ['FINISHED', 'COMPLETED', 'GREEN']()` | status_field values (case-insensitive) treated as success. |
-| `failure_statuses` | `List[str]` | `lambda: ['ABORTED', 'CANCELLED', 'RED', 'ERROR', 'FAILED']()` | status_field values (case-insensitive) treated as failure. Any other value keeps polling. |
+| `success_statuses` | `List[str]` | — | status_field values (case-insensitive) treated as success. Defaults by target_type when unset: background_job -> ['F'] (BAPI_XBP_JOB_STATUS_GET's documented one-character STATUS code for 'finished'); process_chain -> ['F… _(full docs in schema.json + component README)_ |
+| `failure_statuses` | `List[str]` | — | status_field values (case-insensitive) treated as failure. Any other value keeps polling. Defaults by target_type when unset: background_job -> ['A'] ('cancelled'); process_chain -> ['ABORTED','CANCELLED','RED','ERROR','… _(full docs in schema.json + component README)_ |
 | `trigger_params` | `Dict[str, Any]` | — | Extra kwargs merged into the trigger call (e.g. job-step print parameters not covered by variant_name). |
 | `dry_run` | `bool` | `false` | Log what would be triggered and skip opening a connection entirely -- no resource is looked up, no RFC call is made. Output metadata always includes dry_run so a materialization history shows which runs were real. |
 | `run_window` | `str` | — | 'HH:MM-HH:MM tz [day,day,...]' (e.g. '22:00-05:00 Europe/Berlin mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of triggering or failing -- no SAP job/chain is started, and real downstream dep… _(full docs in schema.json + component README)_ |

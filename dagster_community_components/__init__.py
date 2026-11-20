@@ -1705,7 +1705,17 @@ class _LazyComponentMeta(type):
     """
 
     def _resolve_real(cls):  # noqa: N805 — metaclass method uses `cls` conventionally
-        return _load_real_class(cls.__name__)
+        # `cls.__dcc_stub_for__` (set on the stub itself, inherited by any subclass via
+        # ordinary attribute lookup -- not metaclass __getattr__, so no extra load is
+        # triggered to read it) names which _CLASS_PATHS entry this stub represents.
+        # `cls.__name__` is WRONG the moment anyone subclasses a stub (`class My(dcc.
+        # ShellCommandAssetComponent): ...`): `type(My)` is still this same composed
+        # metaclass (inherited), but `My.__name__` is `"My"`, not `"ShellCommandAssetComponent"`
+        # -- every metaclass-mediated operation on `My` used to raise `AttributeError:
+        # Unknown component: 'My'` before this existed. Falls back to `cls.__name__` only
+        # as a defensive no-op for the (impossible in practice) case a stub was built
+        # without this attribute.
+        return _load_real_class(getattr(cls, "__dcc_stub_for__", cls.__name__))
 
     def __call__(cls, *args, **kwargs):
         return cls._resolve_real()(*args, **kwargs)
@@ -1768,7 +1778,7 @@ def _make_stub(name: str) -> type:
     # call — but ONLY for the component(s) actually referenced in defs.yaml.
     def _delegate(method_name: str):
         def _fn(cls):
-            real = _load_real_class(cls.__name__)
+            real = _load_real_class(getattr(cls, "__dcc_stub_for__", cls.__name__))
             # Missing-deps placeholder — fall back to the real Component
             # base's default so snapshot builders don't crash on components
             # whose optional deps aren't installed. Real use raises via
@@ -1796,7 +1806,7 @@ def _make_stub(name: str) -> type:
         # surfacing as "Field required" on every required field. Delegate
         # explicitly so the REAL class's `load` (and its real Resolvable
         # check) runs instead.
-        real = _load_real_class(cls.__name__)
+        real = _load_real_class(getattr(cls, "__dcc_stub_for__", cls.__name__))
         if isinstance(real, _MissingDepsPlaceholder):
             return real(attributes, context)
         load_fn = getattr(real, "load", None)
@@ -1807,6 +1817,12 @@ def _make_stub(name: str) -> type:
     ns: dict = {
         "__module__": "dagster_community_components",
         "__qualname__": name,
+        # Which _CLASS_PATHS entry this stub represents -- read by _resolve_real/_delegate/_load
+        # instead of cls.__name__, so a SUBCLASS of this stub (whose __name__ is its own name,
+        # not this one) still resolves correctly. A plain class attribute set directly in this
+        # namespace, found by ordinary MRO attribute lookup on any subclass -- never touches
+        # metaclass __getattr__, so reading it never triggers a real-class load by itself.
+        "__dcc_stub_for__": name,
         "__abstractmethods__": frozenset(),
         "__repr__": lambda self: f"<lazy {name} — real class loads on use>",
         # Delegate the classmethods Dagster calls during schema-building.

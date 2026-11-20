@@ -241,3 +241,89 @@ def test_run_window_malformed_spec_fails_open_and_still_runs(mod):
     result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
     assert result.success
     assert conn.executed[0]["sql"] == "SELECT 1"
+
+
+# --- connection_env / dry_run: lazy connection, no eager required_resource_keys -----------------
+
+def test_resource_key_and_connection_env_are_mutually_exclusive(mod):
+    with pytest.raises(Exception, match="exactly one"):
+        mod.SqlAssetComponent(asset_key="t", sql="SELECT 1")  # neither
+    with pytest.raises(Exception, match="exactly one"):
+        mod.SqlAssetComponent(asset_key="t", sql="SELECT 1", resource_key="db", connection_env="DB_URL")  # both
+
+
+def test_dry_run_requires_neither_resource_key_nor_connection_env(mod):
+    # Does not raise -- dry_run never opens a connection, so neither is required.
+    mod.SqlAssetComponent(asset_key="t", sql="SELECT 1", dry_run=True)
+
+
+def test_defs_load_cleanly_with_dry_run_and_no_resource_registered_anywhere(mod):
+    """The actual bug: resource_key's required_resource_keys forces Dagster to validate the
+    resource is registered at REPOSITORY-DEF resolution time (dg check defs / dg dev), not at
+    run time -- confirmed live against plain Dagster, not assumed. dry_run sidesteps this
+    entirely by never declaring required_resource_keys."""
+    asset_def = _comp(mod, sql="SELECT 1", resource_key=None, dry_run=True).build_defs(None).assets[0]
+    repo = dg.Definitions(assets=[asset_def]).get_repository_def()  # must not raise
+    assert repo is not None
+
+
+def test_defs_load_cleanly_with_connection_env_and_no_resource_registered_anywhere(mod):
+    asset_def = _comp(mod, sql="SELECT 1", resource_key=None, connection_env="DB_URL").build_defs(None).assets[0]
+    repo = dg.Definitions(assets=[asset_def]).get_repository_def()  # must not raise
+    assert repo is not None
+
+
+def test_defs_fail_to_load_with_resource_key_and_no_resource_registered_anywhere(mod):
+    """Documents the real, unavoidable Dagster constraint (not a regression): using resource_key
+    (without dry_run) still requires the resource to load the repository, because
+    context.resources only ever binds a resource an op/asset actually declared via
+    required_resource_keys -- confirmed live, no supported way around it for a dynamically-named
+    resource. connection_env or dry_run are the ways to avoid this specific requirement."""
+    asset_def = _comp(mod, sql="SELECT 1").build_defs(None).assets[0]  # resource_key="db" (default), no dry_run
+    with pytest.raises(Exception, match="db"):
+        dg.Definitions(assets=[asset_def]).get_repository_def()
+
+
+def test_dry_run_logs_sql_and_never_touches_a_connection(mod):
+    asset_def = _comp(mod, sql="SELECT 1 FROM orders", resource_key=None, dry_run=True).build_defs(None).assets[0]
+    result = dg.materialize([asset_def])  # no resources at all -- would fail immediately if a connection were attempted
+    assert result.success
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert md["dry_run"].value is True
+    assert md["statements"].value == ["SELECT 1 FROM orders"]
+
+
+def test_dry_run_with_pre_sql_and_sql_statements_logs_all_of_them(mod):
+    asset_def = _comp(
+        mod, sql=None, sql_statements=["DELETE FROM a", "INSERT INTO a VALUES (1)"],
+        pre_sql=["SET search_path TO analytics"], resource_key=None, dry_run=True,
+    ).build_defs(None).assets[0]
+    result = dg.materialize([asset_def])
+    assert result.success
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert md["statements"].value == ["DELETE FROM a", "INSERT INTO a VALUES (1)"]
+
+
+def test_connection_env_runs_real_sql_via_sqlalchemy(mod, monkeypatch):
+    monkeypatch.setenv("SQL_ASSET_TEST_DB_URL", "sqlite:///:memory:")
+    asset_def = _comp(
+        mod, sql=None, sql_statements=["CREATE TABLE t (x INTEGER)", "INSERT INTO t VALUES (1)"],
+        resource_key=None, connection_env="SQL_ASSET_TEST_DB_URL",
+    ).build_defs(None).assets[0]
+    result = dg.materialize([asset_def])  # no `resources=` at all -- connection_env bypasses Dagster's resource system
+    assert result.success
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert md["connection_env"].value == "SQL_ASSET_TEST_DB_URL"
+    assert md["statement_count"].value == 2
+
+
+def test_connection_env_missing_env_var_fails_at_run_time_not_load_time(mod, monkeypatch):
+    monkeypatch.delenv("SQL_ASSET_TEST_DB_URL_UNSET", raising=False)
+    asset_def = _comp(mod, sql="SELECT 1", resource_key=None, connection_env="SQL_ASSET_TEST_DB_URL_UNSET").build_defs(None).assets[0]
+    dg.Definitions(assets=[asset_def]).get_repository_def()  # loads fine -- the failure is deferred
+
+    result = dg.materialize([asset_def], raise_on_error=False)
+    assert not result.success
+    failure_data = result.failure_data_for_node(asset_def.op.name)
+    assert "SQL_ASSET_TEST_DB_URL_UNSET" in failure_data.error.message
+    assert "is empty/unset" in failure_data.error.message

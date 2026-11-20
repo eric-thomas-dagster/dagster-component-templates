@@ -17,10 +17,10 @@
       "required": true
     },
     "resource_key": {
-      "description": "Key of a registered resource that exposes .get_connection() returning a DBAPI connection (directly, or via its own @contextmanager). Matches postgres_resource, mysql_resource, duckdb_resource, databricks_sql_resource, mssql_resource, oracle_resource, db2_resource, doris_resource, starburst_resource, starrocks_resource, timescaledb_resource, trino_resource. For Snowflake, use snowflake_sql_asset instead.",
+      "description": "Key of a registered resource that exposes .get_connection() returning a DBAPI connection (directly, or via its own @contextmanager). Matches postgres_resource, mysql_resource, duckdb_resource, databricks_sql_resource, mssql_resource, oracle_resource, db2_resource, doris_resource, starburst_resource, starrocks_resource, timescaledb_resource, trino_resource. For Snowflake, use snowflake_sql_asset instead. Set exactly one of resource_key / connection_env (unless dry_run is True). Using resource_key means this asset's definitions require that resource to be registered to load at all (dg check defs / dg dev fail otherwise) -- a real, unavoidable Dagster constraint. Use connection_env or dry_run instead if you need this asset to load before the resource is wired up.",
       "type": "string",
       "label": "Resource Key",
-      "required": true
+      "required": false
     },
     "sql": {
       "description": "SQL text, run in a single cursor.execute() call. Whether multiple ;-separated statements run in one call is driver-dependent (works for psycopg2/duckdb; most other drivers run only the first). Set exactly one of sql / sql_file / sql_statements.",
@@ -146,6 +146,18 @@
       "type": "string",
       "label": "Run Window",
       "description": "'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of running or failing -- no SQL runs, and real downstream dependents skip too (not fail). Checked once per materialization, before any statement runs. A malformed spec fails open (never blocks). Unset (default): always runs.",
+      "required": false
+    },
+    "connection_env": {
+      "type": "string",
+      "label": "Connection Env",
+      "description": "Env var holding a SQLAlchemy connection URL (e.g. 'postgresql://user:pass@host/db'), read at RUN time and connected via sqlalchemy.create_engine(url).raw_connection() -- a plain DBAPI connection, same shape resource_key's own .get_connection() returns. Unlike resource_key, this never touches Dagster's resource system at all, so this asset's definitions always load cleanly regardless of whether the env var is set yet; a missing/empty env var only fails at materialization time, with a clear message. Set exactly one of resource_key / connection_env (unless dry_run is True, which needs neither).",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Log the fully-resolved SQL (pre_sql + the main statement(s)) and skip actually running it -- no resource is looked up, no SQLAlchemy engine is created, no connection is opened at all. Output metadata always includes dry_run so a materialization history shows which runs were real.",
       "required": false
     }
   }

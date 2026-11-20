@@ -65,9 +65,21 @@ def test_command_step_requires_command(mod):
         mod.TaskChainAssetComponent(asset_key="infra/t", steps=[{"id": "a", "type": "command"}])
 
 
-def test_sql_step_requires_resource_key(mod):
-    with pytest.raises(ValueError, match="requires `resource_key`"):
+def test_sql_step_requires_resource_key_or_connection_env(mod):
+    with pytest.raises(ValueError, match="requires `resource_key` or `connection_env`"):
         mod.TaskChainAssetComponent(asset_key="infra/t", steps=[{"id": "a", "type": "sql", "sql": "SELECT 1"}])
+
+
+def test_sql_step_rejects_both_resource_key_and_connection_env(mod):
+    with pytest.raises(ValueError, match="at most one"):
+        mod.TaskChainAssetComponent(asset_key="infra/t", steps=[
+            {"id": "a", "type": "sql", "resource_key": "db", "connection_env": "DB_URL", "sql": "SELECT 1"},
+        ])
+
+
+def test_sql_step_neither_resource_key_nor_connection_env_ok_when_chain_dry_run(mod):
+    # Does not raise -- dry_run never opens a connection, so a sql step needs neither.
+    mod.TaskChainAssetComponent(asset_key="infra/t", dry_run=True, steps=[{"id": "a", "type": "sql", "sql": "SELECT 1"}])
 
 
 def test_sql_step_requires_exactly_one_sql_source(mod):
@@ -184,6 +196,60 @@ def test_sql_step_runs_against_a_resource(mod):
     assert result.success
     assert conn.executed[0]["sql"] == "DELETE FROM stale_rows"
     assert conn.commit_calls == 1
+
+
+def test_defs_load_cleanly_with_dry_run_and_sql_step_resource_not_registered(mod):
+    """The real bug: a sql step's resource_key forces Dagster to validate the resource is
+    registered at REPOSITORY-DEF resolution time (dg check defs / dg dev), not at run time --
+    confirmed live against plain Dagster. dry_run sidesteps this entirely: no
+    required_resource_keys is declared at all when the chain's own dry_run is True."""
+    component = mod.TaskChainAssetComponent(asset_key="infra/t", dry_run=True, steps=[
+        {"id": "a", "type": "sql", "resource_key": "db", "sql": "SELECT 1"},
+    ])
+    asset_def = component.build_defs(context=None).assets[0]
+    repo = dg.Definitions(assets=[asset_def]).get_repository_def()  # must not raise
+    assert repo is not None
+
+
+def test_defs_load_cleanly_with_connection_env_sql_step_and_no_resource_registered(mod):
+    component = mod.TaskChainAssetComponent(asset_key="infra/t", steps=[
+        {"id": "a", "type": "sql", "connection_env": "DB_URL", "sql": "SELECT 1"},
+    ])
+    asset_def = component.build_defs(context=None).assets[0]
+    repo = dg.Definitions(assets=[asset_def]).get_repository_def()  # must not raise
+    assert repo is not None
+
+
+def test_defs_fail_to_load_with_resource_key_sql_step_and_no_resource_registered(mod):
+    """Documents the real, unavoidable Dagster constraint (not a regression) -- see
+    SqlAssetComponent's own README for why resource_key can't avoid this."""
+    component = mod.TaskChainAssetComponent(asset_key="infra/t", steps=[
+        {"id": "a", "type": "sql", "resource_key": "db", "sql": "SELECT 1"},
+    ])
+    asset_def = component.build_defs(context=None).assets[0]
+    with pytest.raises(Exception, match="db"):
+        dg.Definitions(assets=[asset_def]).get_repository_def()
+
+
+def test_sql_step_connection_env_runs_real_sql_via_sqlalchemy(mod, monkeypatch):
+    monkeypatch.setenv("TASK_CHAIN_TEST_DB_URL", "sqlite:///:memory:")
+    component = mod.TaskChainAssetComponent(asset_key="infra/t", steps=[
+        {"id": "a", "type": "sql", "connection_env": "TASK_CHAIN_TEST_DB_URL", "sql_statements": ["CREATE TABLE t (x INTEGER)", "INSERT INTO t VALUES (1)"]},
+    ])
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([asset_def])  # no `resources=` at all -- connection_env bypasses Dagster's resource system
+    assert result.success
+
+
+def test_sql_step_connection_env_missing_env_var_fails_at_run_time_not_load_time(mod, monkeypatch):
+    monkeypatch.delenv("TASK_CHAIN_TEST_DB_URL_UNSET", raising=False)
+    component = mod.TaskChainAssetComponent(asset_key="infra/t", steps=[
+        {"id": "a", "type": "sql", "connection_env": "TASK_CHAIN_TEST_DB_URL_UNSET", "sql": "SELECT 1"},
+    ])
+    asset_def = component.build_defs(context=None).assets[0]
+    dg.Definitions(assets=[asset_def]).get_repository_def()  # loads fine -- the failure is deferred
+    result = dg.materialize([asset_def], raise_on_error=False)
+    assert not result.success
 
 
 def test_a_failing_sql_step_stops_the_chain(mod, tmp_path):

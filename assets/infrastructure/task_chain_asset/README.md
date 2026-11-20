@@ -28,9 +28,15 @@ steps:
 - **`command`**: runs via the shell (same subprocess idiom as `ShellCommandAssetComponent`).
   `success_exit_codes` extends the normal "0 is the only success" rule; `skip_on_exit_code`
   stops the chain cleanly (no failure) when the command exits with that code.
-- **`sql`**: runs against `resource_key` (a resource providing `get_connection()`/a DBAPI
-  connection, same contract as `SqlAssetComponent`). Exactly one of `sql`, `sql_file`, or
-  `sql_statements` is required.
+- **`sql`**: runs against exactly one of `resource_key` (a resource providing
+  `get_connection()`/a DBAPI connection, same contract as `SqlAssetComponent`) or
+  `connection_env` (an env var holding a SQLAlchemy URL, connected directly — no Dagster resource
+  needed), unless the chain's own `dry_run` is `true`, which needs neither. Exactly one of `sql`,
+  `sql_file`, or `sql_statements` is required. A step's `resource_key` is only declared as a
+  required resource when it's actually in play (not `dry_run`) — see `SqlAssetComponent`'s own
+  README for why that specific constraint can't be avoided for `resource_key` itself; use
+  `connection_env` or this chain's `dry_run` if you need the asset's definitions to load before
+  the resource is wired up.
 - **`python`**: resolves `callable_path` (`module.path:function_name`) and calls it with no
   arguments — use the step body to read `context`/partition state via closures in your own
   module if needed.
@@ -167,7 +173,9 @@ attributes:
 
 ```
 dagster
+sqlalchemy
 ```
 
-`sql`-type steps require whatever DBAPI driver the referenced `resource_key` resource depends on
-(not a requirement of this component itself).
+`sqlalchemy` is only imported when a `sql` step actually uses `connection_env`. A `resource_key`
+step instead needs whatever DBAPI driver the referenced resource depends on (not a requirement
+of this component itself).

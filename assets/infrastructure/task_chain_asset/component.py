@@ -281,9 +281,14 @@ class TaskChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "- `command`: `command` (required, run via `bash -c`, supports `{partition_key}`), "
             "`cwd`, `env_vars`, `success_exit_codes` (List[int], additional codes treated as "
             "success), `skip_on_exit_code` (int, treated as a no-op success).\n"
-            "- `sql`: `resource_key` (required, a registered resource exposing "
-            ".get_connection()), exactly one of `sql`/`sql_file`/`sql_statements`, `parameters`, "
-            "`pre_sql` (same shapes as `sql_asset`).\n"
+            "- `sql`: exactly one of `resource_key` (a registered resource exposing "
+            ".get_connection()) or `connection_env` (env var holding a SQLAlchemy URL, connected "
+            "directly -- no Dagster resource needed), unless the chain's own `dry_run` is True, "
+            "which needs neither. Plus exactly one of `sql`/`sql_file`/`sql_statements`, "
+            "`parameters`, `pre_sql` (same shapes as `sql_asset`). A sql step's `resource_key` is "
+            "only ever declared as a required_resource_key when it's actually in play (not "
+            "dry_run) -- see `sql_asset`'s own README for why that specific constraint can't be "
+            "deferred further; `connection_env` or the chain's `dry_run` avoid it entirely.\n"
             "- `python`: `callable_path` (required, 'module.path:function_name'), `args`, "
             "`kwargs` (same shape as `python_callable_asset`'s static-call mode -- no Airflow "
             "execution-context injection here; use `python_callable_asset` directly for that)."
@@ -368,8 +373,12 @@ class TaskChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 if not step.get("command"):
                     raise ValueError(f"TaskChainAssetComponent: step {step_id!r} (type=command) requires `command`.")
             elif step_type == "sql":
-                if not step.get("resource_key"):
-                    raise ValueError(f"TaskChainAssetComponent: step {step_id!r} (type=sql) requires `resource_key`.")
+                has_resource_key = bool(step.get("resource_key"))
+                has_connection_env = bool(step.get("connection_env"))
+                if has_resource_key and has_connection_env:
+                    raise ValueError(f"TaskChainAssetComponent: step {step_id!r} (type=sql) must set at most one of `resource_key` or `connection_env`.")
+                if not self.dry_run and not has_resource_key and not has_connection_env:
+                    raise ValueError(f"TaskChainAssetComponent: step {step_id!r} (type=sql) requires `resource_key` or `connection_env` (unless the chain's own dry_run is True).")
                 sources = [s for s in (step.get("sql"), step.get("sql_file"), step.get("sql_statements")) if s]
                 if len(sources) != 1:
                     raise ValueError(f"TaskChainAssetComponent: step {step_id!r} (type=sql) must set exactly one of `sql`, `sql_file`, `sql_statements`.")
@@ -393,7 +402,14 @@ class TaskChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         dry_run = component.dry_run
         timeout_seconds = component.timeout_seconds
 
-        sql_resource_keys = {s["resource_key"] for s in steps if s.get("type") == "sql"}
+        # Only declared when actually needed (a sql step using resource_key, and not dry_run --
+        # which never touches a connection). Declaring it unconditionally would force Dagster to
+        # validate every sql step's resource is registered at REPOSITORY-DEF resolution time (dg
+        # check defs / dg dev), even for a step using connection_env instead, or a chain that's
+        # only ever run with dry_run=True -- same constraint, and same fix, as SqlAssetComponent's
+        # own resource_key/connection_env/dry_run fields; see that component's README for why
+        # this can't be deferred further for resource_key specifically.
+        sql_resource_keys = set() if dry_run else {s["resource_key"] for s in steps if s.get("type") == "sql" and s.get("resource_key")}
 
         partitions_def = _build_partitions_def(
             component.partition_type, component.partition_start, component.partition_values,
@@ -536,12 +552,21 @@ def _run_command_step(step: dict, partition_key: Optional[str], context: dg.Asse
 
 
 def _run_sql_step(step: dict, context: dg.AssetExecutionContext) -> dict:
-    resource_key = step["resource_key"]
-    resource = getattr(context.resources, resource_key)
-    if not hasattr(resource, "get_connection"):
-        raise _StepFailure(f"resource {resource_key!r} must expose .get_connection()")
-    raw_or_cm = resource.get_connection()
-    acquire = raw_or_cm if hasattr(raw_or_cm, "__enter__") else nullcontext(raw_or_cm)
+    if step.get("connection_env"):
+        from sqlalchemy import create_engine
+
+        connection_env = step["connection_env"]
+        url = dg.EnvVar(connection_env).get_value()
+        if not url:
+            raise _StepFailure(f"connection_env={connection_env!r} is set but that environment variable is empty/unset")
+        acquire = nullcontext(create_engine(url).raw_connection())
+    else:
+        resource_key = step["resource_key"]
+        resource = getattr(context.resources, resource_key)
+        if not hasattr(resource, "get_connection"):
+            raise _StepFailure(f"resource {resource_key!r} must expose .get_connection()")
+        raw_or_cm = resource.get_connection()
+        acquire = raw_or_cm if hasattr(raw_or_cm, "__enter__") else nullcontext(raw_or_cm)
     statement_count = 0
     try:
         with acquire as conn:

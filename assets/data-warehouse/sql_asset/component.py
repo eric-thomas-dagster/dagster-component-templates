@@ -143,14 +143,48 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     instead of a dialect-specific asset per resource type."""
 
     asset_key: str = Field(description="Dagster asset key (e.g. 'warehouse/transforms/rollup').")
-    resource_key: str = Field(
+    resource_key: Optional[str] = Field(
+        default=None,
         description=(
             "Key of a registered resource that exposes .get_connection() returning a DBAPI "
             "connection (directly, or via its own @contextmanager). Matches postgres_resource, "
             "mysql_resource, duckdb_resource, databricks_sql_resource, mssql_resource, "
             "oracle_resource, db2_resource, doris_resource, starburst_resource, "
             "starrocks_resource, timescaledb_resource, trino_resource. For Snowflake, use "
-            "snowflake_sql_asset instead."
+            "snowflake_sql_asset instead. Set exactly one of resource_key / connection_env "
+            "(unless dry_run is True, which needs neither). NOTE: using resource_key means this "
+            "asset's required_resource_keys names it, which is Dagster's own hard requirement "
+            "for reading a resource dynamically by name -- a project that hasn't registered this "
+            "resource yet can't load (dg check defs / dg dev fail) until it is. There's no way "
+            "around that specific constraint while using resource_key (confirmed against "
+            "Dagster's own execution model: an unrequired resource is never bound into "
+            "context.resources at run time, and a fallback resource registered under the same "
+            "key here would instead conflict with the project's real one once configured). Use "
+            "connection_env (bypasses Dagster's resource system entirely) or dry_run (never "
+            "connects at all) if you need this asset's definitions to load before the resource "
+            "is wired up."
+        ),
+    )
+    connection_env: Optional[str] = Field(
+        default=None,
+        description=(
+            "Env var holding a SQLAlchemy connection URL (e.g. "
+            "'postgresql://user:pass@host/db'), read at RUN time and connected via "
+            "sqlalchemy.create_engine(url).raw_connection() -- a plain DBAPI connection, same "
+            "shape resource_key's own .get_connection() returns. Unlike resource_key, this "
+            "never touches Dagster's resource system at all, so this asset's definitions always "
+            "load cleanly regardless of whether the env var is set yet; a missing/empty env var "
+            "only fails at materialization time, with a clear message. Set exactly one of "
+            "resource_key / connection_env (unless dry_run is True, which needs neither)."
+        ),
+    )
+    dry_run: bool = Field(
+        default=False,
+        description=(
+            "Log the fully-resolved SQL (pre_sql + the main statement(s)) and skip actually "
+            "running it -- no resource is looked up, no SQLAlchemy engine is created, no "
+            "connection is opened at all. Output metadata always includes dry_run so a "
+            "materialization history shows which runs were real."
         ),
     )
 
@@ -206,6 +240,16 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("SqlAssetComponent: set exactly one of `sql`, `sql_file`, `sql_statements`.")
         return self
 
+    @model_validator(mode="after")
+    def _validate_connection_source(self):
+        if self.dry_run:
+            if self.resource_key and self.connection_env:
+                raise ValueError("SqlAssetComponent: set at most one of `resource_key` or `connection_env` -- not both.")
+            return self  # dry_run never opens a connection -- neither is required
+        if bool(self.resource_key) == bool(self.connection_env):
+            raise ValueError("SqlAssetComponent: set exactly one of `resource_key` or `connection_env` -- not both, not neither.")
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -215,6 +259,8 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         component = self
         kinds = set(component.kinds) if component.kinds else {"sql"}
         resource_key = component.resource_key
+        connection_env = component.connection_env
+        dry_run = component.dry_run
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (component.deps or [])]
         timeout_seconds = component.timeout_seconds
         run_window = component.run_window
@@ -239,12 +285,25 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         }
 
+        # required_resource_keys is Dagster's own hard constraint for context.resources access --
+        # declaring it forces the WHOLE repository/code location to fail loading (confirmed live:
+        # DagsterInvalidDefinitionError from get_repository_def(), the same check `dg check defs`
+        # and `dg dev` run) until something is registered under that key. There is no supported
+        # way to defer that specific check to run time while still using context.resources
+        # (Dagster never binds an unrequired resource into context.resources at all, and a
+        # fallback resource registered here under the same key would instead COLLIDE with the
+        # project's real one once configured -- both confirmed live, not assumed). So this is
+        # only ever declared when resource_key is actually the active path (not dry_run, which
+        # never touches a connection -- connection_env also never needs it, since it builds a
+        # SQLAlchemy connection directly, bypassing Dagster's resource system entirely). Prefer
+        # dry_run or connection_env over resource_key if you need this asset's definitions to
+        # load before a shared resource is wired up project-wide.
         @dg.multi_asset(
             name=dg.AssetKey(component.asset_key.split("/")).to_python_identifier(),
             outs=outs,
             group_name=component.group_name,
             deps=deps_keys,
-            required_resource_keys={resource_key},
+            required_resource_keys={resource_key} if (resource_key and not dry_run) else None,
             retry_policy=_retry_policy,
             pool=component.pool,
         )
@@ -252,23 +311,63 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             if run_window and not _is_in_run_window(time.time(), run_window):
                 context.log.info(f"run_window={run_window!r}: outside the configured window -- skipping (not failing).")
                 return
+            if dry_run:
+                yield _dry_run_preview(context)
+                return
             yield _run_with_timeout(_execute, timeout_seconds, context)
 
-        def _execute(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+        def _dry_run_preview(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+            for stmt in (component.pre_sql or []):
+                context.log.info(f"[dry_run] would run: {stmt}")
+            if component.sql_statements:
+                statements = list(component.sql_statements)
+            else:
+                statements = [component.sql if component.sql else open(component.sql_file).read()]
+            for stmt in statements:
+                context.log.info(f"[dry_run] would run: {stmt}")
+            return dg.MaterializeResult(metadata={
+                "dry_run": dg.MetadataValue.bool(True),
+                "statement_count": dg.MetadataValue.int(len(statements)),
+                "statements": dg.MetadataValue.json(statements),
+            })
+
+        def _resolve_connection(context: dg.AssetExecutionContext):
+            """Returns a context manager yielding a raw DBAPI connection (.cursor()/.commit()/
+            .close()) from whichever of resource_key / connection_env is configured.
+            connection_env is resolved here, at RUN time, with a clear dg.Failure if the env var
+            turns out to be unset -- it never touches Dagster's resource system at all.
+            resource_key, when active, is guaranteed bound by this point: the decorator above
+            only declares required_resource_keys for this path, so a missing resource is caught
+            at definition-load time instead (see build_defs's own comment on why that can't be
+            deferred further for resource_key specifically)."""
+            if connection_env:
+                from sqlalchemy import create_engine
+
+                url = dg.EnvVar(connection_env).get_value()
+                if not url:
+                    raise dg.Failure(
+                        description=(
+                            f"SqlAssetComponent: connection_env={connection_env!r} is set but that "
+                            "environment variable is empty/unset. Set it to a SQLAlchemy connection "
+                            "URL (e.g. 'postgresql://user:pass@host/db')."
+                        ),
+                    )
+                return nullcontext(create_engine(url).raw_connection())
+
             resource = getattr(context.resources, resource_key)
             if not hasattr(resource, "get_connection"):
                 raise ValueError(
                     f"resource {resource_key!r} must expose .get_connection() "
                     f"(returning a DBAPI connection, directly or via its own @contextmanager)."
                 )
-
             # Same acquisition idiom as database_query's sink path: some resources' own
             # get_connection() is already a context manager (e.g. trino/starburst), others
             # return a raw driver connection object directly -- normalize both to `with ... as conn`.
             raw_or_cm = resource.get_connection()
-            acquire = raw_or_cm if hasattr(raw_or_cm, "__enter__") else nullcontext(raw_or_cm)
+            return raw_or_cm if hasattr(raw_or_cm, "__enter__") else nullcontext(raw_or_cm)
 
-            with acquire as conn:
+        def _execute(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+            with _resolve_connection(context) as conn:
                 cursor = conn.cursor()
                 try:
                     for stmt in (component.pre_sql or []):
@@ -302,7 +401,9 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         pass
 
             return dg.MaterializeResult(metadata={
-                "resource_key": dg.MetadataValue.text(resource_key),
+                "resource_key": dg.MetadataValue.text(resource_key) if resource_key else dg.MetadataValue.null(),
+                "connection_env": dg.MetadataValue.text(connection_env) if connection_env else dg.MetadataValue.null(),
+                "dry_run": dg.MetadataValue.bool(False),
                 "statement_count": dg.MetadataValue.int(len(results)),
                 "results": dg.MetadataValue.json(results),
             })

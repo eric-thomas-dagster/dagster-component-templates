@@ -1258,6 +1258,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SegmentTrackComponent": "assets/reverse_etl/segment_track/component.py",
     "SelectColumnsComponent": "assets/transforms/select_columns/component.py",
     "SelectRecordsComponent": "assets/transforms/select_records/component.py",
+    "SemanticModelRefreshAssetComponent": "assets/infrastructure/semantic_model_refresh_asset/component.py",
     "SendGridContactUpsertComponent": "assets/reverse_etl/sendgrid_contact_upsert/component.py",
     "SendGridResource": "resources/sendgrid_resource/component.py",
     "SendGridResourceComponent": "resources/sendgrid_resource/component.py",

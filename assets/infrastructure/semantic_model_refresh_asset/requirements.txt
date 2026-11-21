@@ -1,0 +1,6 @@
+dagster
+pydantic
+requests
+
+# service-principal auth (lazy-imported, only needed when dry_run=false)
+azure-identity>=1.12.0

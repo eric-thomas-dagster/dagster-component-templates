@@ -59329,6 +59329,61 @@
       "icon": "Shuffle"
     },
     {
+      "id": "semantic_model_refresh_asset",
+      "name": "Semantic Model Refresh Asset",
+      "category": "infrastructure",
+      "description": "Trigger a Power BI / Fabric semantic model (dataset) refresh via the Power BI REST API and wait for it to finish. Supports basic (notify_option) and enhanced (selective table/partition, parallelism, incremental-refresh effectiveDate override) refresh.",
+      "path": "assets/infrastructure/semantic_model_refresh_asset",
+      "tags": [
+        "infrastructure",
+        "powerbi",
+        "fabric",
+        "semantic-model",
+        "dataset-refresh"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/semantic_model_refresh_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/semantic_model_refresh_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/semantic_model_refresh_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/semantic_model_refresh_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/semantic_model_refresh_asset/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "component_type": "dagster_community_components.SemanticModelRefreshAssetComponent",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "azure-identity>=1.12.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20",
+        "evidence": "tests/ in the component dir: enhanced-vs-basic refresh body construction, terminal-status detection (Completed/Failed/Disabled), timeout, run_window skip all run for real against a faked requests/azure.identity boundary (azure-identity isn't installed in this environment at all)."
+      },
+      "icon": "RefreshCw",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "inputs": "None (trigger asset) -- triggers a Power BI / Fabric semantic model refresh.",
+        "outputs": "MaterializeResult with powerbi/status, powerbi/request_id metadata.",
+        "side_effects": "Starts a real Power BI/Fabric dataset refresh and waits for completion via service-principal auth.",
+        "anti_uses": "For observing a SemanticModel item without triggering a refresh, use fabric_workspace instead.",
+        "requires_pip": [
+          "azure-identity",
+          "requests"
+        ]
+      },
+      "keywords": [
+        "power bi",
+        "fabric",
+        "semantic model",
+        "dataset refresh",
+        "enhanced refresh",
+        "PBISemanticModelRefresh"
+      ]
+    },
+    {
       "id": "sendgrid_contact_upsert",
       "name": "SendGrid Contact Upsert",
       "category": "reverse_etl",

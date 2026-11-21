@@ -1,0 +1,223 @@
+{
+  "component_type": "dagster_community_components.SemanticModelRefreshAssetComponent",
+  "description": "Trigger a Power BI / Fabric semantic model (dataset) refresh via the Power BI REST API and wait for it to finish. Supports basic (notify_option) and enhanced (selective table/partition, parallelism, incremental-refresh effectiveDate override) refresh.",
+  "category": "infrastructure",
+  "icon": "RefreshCw",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. 'fabric/sales_semantic_model').",
+      "required": true
+    },
+    "workspace_id": {
+      "type": "string",
+      "label": "Workspace Id",
+      "description": "Power BI / Fabric workspace ID (GUID) -- the 'groupId' path segment.",
+      "required": true
+    },
+    "dataset_id": {
+      "type": "string",
+      "label": "Dataset Id",
+      "description": "Power BI / Fabric semantic model (dataset) ID (GUID).",
+      "required": true
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "description": "Env var with the Azure AD tenant ID (service principal auth). Falls back to DefaultAzureCredential when unset.",
+      "required": false
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "description": "Env var with the Azure AD app (client) ID.",
+      "required": false
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var with the Azure AD app client secret.",
+      "required": false
+    },
+    "notify_option": {
+      "type": "string",
+      "enum": [
+        "NoNotification",
+        "MailOnFailure",
+        "MailOnCompletion"
+      ],
+      "label": "Notify Option",
+      "description": "Mail notification option for a BASIC (non-enhanced) refresh. Mutually exclusive with every enhanced-refresh field below -- Power BI's own documented rule requires notifyOption be excluded from an enhanced-refresh request entirely. Not applicable to service-principal auth anyway (Power BI ignores it then); set it only for delegated/user auth.",
+      "required": false
+    },
+    "refresh_type": {
+      "type": "string",
+      "enum": [
+        "Full",
+        "ClearValues",
+        "Calculate",
+        "DataOnly",
+        "Automatic",
+        "Defragment"
+      ],
+      "label": "Refresh Type",
+      "description": "Enhanced refresh only. The type of processing to perform (Power BI's DatasetRefreshType).",
+      "required": false
+    },
+    "commit_mode": {
+      "type": "string",
+      "enum": [
+        "transactional",
+        "partialBatch"
+      ],
+      "label": "Commit Mode",
+      "description": "Enhanced refresh only. 'transactional' commits the whole refresh as one transaction; 'partialBatch' commits in batches (no transaction -- a failure can leave a partial/empty table).",
+      "required": false
+    },
+    "max_parallelism": {
+      "type": "integer",
+      "label": "Max Parallelism",
+      "description": "Enhanced refresh only. Max threads for parallel processing commands.",
+      "required": false
+    },
+    "retry_count": {
+      "type": "integer",
+      "label": "Retry Count",
+      "description": "Enhanced refresh only. Retries before failing (Power BI may still retry transient internal errors even at 0).",
+      "required": false
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Objects",
+      "description": "Enhanced refresh only. Selective refresh targets: list of {table, partition?} dicts. Omit to refresh the whole model.",
+      "required": false
+    },
+    "apply_refresh_policy": {
+      "type": "boolean",
+      "label": "Apply Refresh Policy",
+      "description": "Enhanced refresh only. Whether an incremental refresh policy is applied.",
+      "required": false
+    },
+    "effective_date": {
+      "type": "string",
+      "label": "Effective Date",
+      "description": "Enhanced refresh only. ISO date-time overriding 'today' for an incremental refresh policy's effectiveDate.",
+      "required": false
+    },
+    "request_timeout": {
+      "type": "string",
+      "label": "Request Timeout",
+      "description": "Enhanced refresh only. Per-attempt timeout as 'HH:MM:SS' (Power BI's own `timeout` field -- caps each refresh ATTEMPT, distinct from this component's own max_wait_seconds, which caps the whole Dagster-side wait across retries).",
+      "required": false
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "default": true,
+      "label": "Wait For Completion",
+      "description": "If false, trigger the refresh and return without polling for completion.",
+      "required": false
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "default": 20.0,
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls.",
+      "required": false
+    },
+    "max_wait_seconds": {
+      "type": "integer",
+      "default": 3600,
+      "label": "Max Wait Seconds",
+      "description": "Max seconds to wait for the refresh to finish before raising a timeout error (Dagster-side; distinct from request_timeout).",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": false,
+      "label": "Dry Run",
+      "description": "Log what would be triggered and skip opening a connection entirely -- no token is acquired, no REST call is made.",
+      "required": false
+    },
+    "run_window": {
+      "type": "string",
+      "label": "Run Window",
+      "description": "'HH:MM-HH:MM tz [day,day,...]' (e.g. '22:00-05:00 Europe/Berlin mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of triggering -- no refresh is started, and real downstream dependents skip too. A malformed spec fails open (never blocks). Unset (default): always runs.",
+      "required": false
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool -- a cap on concurrent refreshes sharing the same pool name.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "default": "fabric",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys for lineage.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners -- team names ('team:analytics') or email addresses.",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "string",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog. Auto-includes 'powerbi' if empty.",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "default": "exponential",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false
+    }
+  }
+}

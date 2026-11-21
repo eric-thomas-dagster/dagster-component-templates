@@ -1,0 +1,25 @@
+type: dagster_community_components.SemanticModelRefreshAssetComponent
+attributes:
+  asset_key: fabric/sales_semantic_model
+  workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"
+  dataset_id: "{{ env.SALES_DATASET_ID }}"
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+  refresh_type: Full
+  commit_mode: transactional
+  wait_for_completion: true
+  poll_interval_seconds: 20
+  max_wait_seconds: 3600
+  group_name: fabric
+---
+type: dagster_community_components.SemanticModelRefreshAssetComponent
+attributes:
+  asset_key: fabric/sales_semantic_model_basic
+  workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"
+  dataset_id: "{{ env.SALES_DATASET_ID }}"
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+  notify_option: MailOnFailure
+  group_name: fabric

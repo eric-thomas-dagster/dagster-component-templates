@@ -130,9 +130,13 @@ attributes:
 | `import_dataflows` | `bool` | `false` | Dataflow Gen2 become materializable @assets. |
 | `import_semantic_models` | `bool` | `false` | — |
 | `import_reports` | `bool` | `false` | — |
+| `notebooks` | `List[FabricRunnableItemDeclaration]` | — | Explicit list of Notebook items ({item_id, display_name, description?}), in place of discovering them from the live Fabric workspace (ignored unless import_notebooks is also true). When every enabled category is declared… _(full docs in schema.json + component README)_ |
+| `pipelines` | `List[FabricRunnableItemDeclaration]` | — | Same shape as notebooks:, for DataPipeline items (ignored unless import_pipelines is also true). |
+| `dataflows` | `List[FabricRunnableItemDeclaration]` | — | Same shape as notebooks:, for Dataflow Gen2 items (ignored unless import_dataflows is also true). |
 | `exclude_name_pattern` | `str` | — | Regex applied to Fabric item display names for exclusion. |
 | `include_names` | `List[str]` | — | Explicit, exact-match allow-list of item display names (case-insensitive) -- bypasses filter_by_name_pattern entirely when set, the same include_names convention as snowflake_workspace. Use this when you know the real li… _(full docs in schema.json + component README)_ |
 | `upstream_asset_keys` | `Union[str, List[str]]` | — | Asset keys that all imported assets wait for (lineage-only). |
+| `item_deps` | `Dict[str, List[str]]` | — | Per-item upstream asset key overrides, keyed by a runnable item's display_name (same convention as item_parameters/item_pools/item_partitions/item_execution_data). MERGED with upstream_asset_keys (not a replacement) -- s… _(full docs in schema.json + component README)_ |
 | `key` | `str` | — | Disambiguator for the cached discovery-state key. Without this, two FabricWorkspaceComponent instances pointed at the SAME workspace_id but different import_*/filter settings (e.g. one importing only notebooks matching '… _(full docs in schema.json + component README)_ |
 | `default_parameters` | `Dict[str, Any]` | — | Parameters passed to every triggered Notebook/DataPipeline/Dataflow job (e.g. a load date), merged with `item_parameters` below. A plain {name: value} dict -- converted internally to Fabric's documented Parameter[] reque… _(full docs in schema.json + component README)_ |
 | `item_parameters` | `Dict[str, Dict[str, Any]]` | — | Per-item parameter overrides, keyed by the Fabric item's display name (e.g. {'my_notebook': {'load_date': '2024-01-01'}}). Merged OVER default_parameters for that specific item -- lets one notebook wait for a different i… _(full docs in schema.json + component README)_ |
@@ -140,6 +144,7 @@ attributes:
 | `item_execution_data` | `Dict[str, Dict[str, Any]]` | — | Per-item executionData overrides, keyed by Fabric display name (same convention as item_parameters). Merged OVER execution_data for that specific item. |
 | `load_date_parameter` | `str` | — | If set, injects today's date (in load_date_timezone, ISO format) as this parameter name into every triggered job, alongside default_parameters/item_parameters. Override for one run via the 'fabric/load_date_override' run… _(full docs in schema.json + component README)_ |
 | `load_date_timezone` | `str` | `"UTC"` | IANA timezone name used to compute 'today' for load_date_parameter. |
+| `dry_run` | `bool` | `false` | Log what would be triggered (item, resolved parameters/executionData) and skip the real Fabric job-trigger call entirely -- project-wide, unlike the 'fabric/skip' run tag (which only applies to one run at a time). Same c… _(full docs in schema.json + component README)_ |
 | `pool` | `str` | — | Dagster concurrency pool name applied to every runnable (Notebook/DataPipeline/Dataflow) asset -- prevents overlapping runs of the same Fabric item. Overridable per item via item_pools. |
 | `item_pools` | `Dict[str, str]` | — | Per-item concurrency pool overrides, keyed by the Fabric item's display name (same convention as item_parameters). Overrides `pool` for that specific item -- e.g. to give one notebook its own limit distinct from the rest… _(full docs in schema.json + component README)_ |
 | `lakehouse_id` | `str` | — | OneLake item (GUID) to read exit_value_file from. Required when exit_value_file is set. A Notebook has no OneLake storage of its own -- notebookutils.fs resolves relative paths against its attached DEFAULT Lakehouse, not… _(full docs in schema.json + component README)_ |
@@ -345,10 +350,68 @@ cover can override `_runnable_asset_kwargs(...)` instead of copying all of
 `_build_runnable_asset`.
 
 Set the `fabric/skip` run tag to `"true"` to audit-skip the actual Fabric
-trigger for a run — useful for a dry-run or a manually-excluded item without
-changing component config. The asset still materializes (with
+trigger for a single run — useful for a one-off dry-run or a manually-excluded
+item without changing component config. The asset still materializes (with
 `fabric_skipped: true` metadata) so downstream assets aren't blocked, but no
 Fabric API call is made.
+
+Set `dry_run: true` on the component for the SAME skip behavior project-wide
+(every run of every item, not just one) — logs what would be triggered
+(resolved parameters/executionData) and skips the real Fabric call entirely.
+Same convention as this registry's SQL/email/SAP job-trigger components' own
+`dry_run` flag.
+
+## Declared items — no live Fabric workspace needed
+
+Set `notebooks:`/`pipelines:`/`dataflows:` (each a list of `{item_id,
+display_name, description?}`) to use an explicit list instead of discovering
+items from the live Fabric workspace. When every enabled category is declared
+this way — and `import_lakehouses`/`import_warehouses`/`import_semantic_models`/
+`import_reports` are all `false` — `build_defs` skips Fabric REST discovery
+AND the `StateBackedComponent` state-file cache entirely: no state is written
+or read, and no Fabric API call happens just to list items.
+
+`display_name` becomes the label this item is keyed/named by everywhere else
+in this component (`item_parameters`/`item_pools`/`item_partitions`/
+`item_execution_data`/`item_deps`, and the emitted asset's own name) — it does
+**not** need to match Fabric's own discovered `displayName`. This matters for
+a converter-generated static definition: an ADF pipeline's Notebook activity
+only carries the target item's `id`, never its Fabric-side display name, so
+`display_name` should be the ACTIVITY's own name in that case.
+
+```yaml
+attributes:
+  import_lakehouses: false
+  import_warehouses: false
+  import_notebooks: true
+  notebooks:
+    - item_id: "a1b2c3d4-..."
+      display_name: scoring
+  import_pipelines: true
+  pipelines:
+    - item_id: "e5f6a7b8-..."
+      display_name: orders_load
+```
+
+`import_notebooks`/`import_pipelines`/`import_dataflows` still gate whether
+each category is imported at all — a declared list only changes HOW that
+category's items are found.
+
+## Per-item upstream dependencies
+
+`upstream_asset_keys` applies to every imported item. Use `item_deps` (keyed
+by display_name, same convention as `item_parameters`) to add an extra
+dependency for ONE item without forcing every other item in the same
+component instance to wait on it too — MERGED with `upstream_asset_keys`, not
+a replacement, same merge semantics as `ssis_workspace`'s
+`assets_by_package.deps` and `azure_synapse`'s `asset_overrides.depends_on`:
+
+```yaml
+attributes:
+  upstream_asset_keys: [shared_upstream_table]
+  item_deps:
+    scoring: [extra_dependency_for_this_notebook_only]
+```
 
 ## Partitions
 

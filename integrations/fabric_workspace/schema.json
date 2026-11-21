@@ -301,6 +301,18 @@
       "description": "Per-item partitioning overrides, keyed by the Fabric item's display name (same convention as item_parameters/item_pools). When an item has an entry here, it FULLY REPLACES the component-wide partition_type/partition_start/partition_values/dynamic_partition_name/partition_dimensions/partition_cron_schedule/partition_cron_fmt/partition_parameter_name fields for that item -- including explicitly un-partitioning it (an empty dict) even when the component-wide partition_type IS set.",
       "required": false,
       "default": null
+    },
+    "item_deps": {
+      "type": "object",
+      "label": "Item Deps",
+      "description": "Per-item upstream asset key overrides, keyed by a runnable item's display_name (same convention as item_parameters/item_pools/item_partitions/item_execution_data). MERGED with upstream_asset_keys (not a replacement) -- same merge semantics as ssis_workspace's assets_by_package.deps and azure_synapse's asset_overrides.depends_on. Lets one item wait on an extra upstream asset (e.g. another fabric_workspace item's own key) without forcing every other item in the same component instance to wait on it too.",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Log what would be triggered (item, resolved parameters/executionData) and skip the real Fabric job-trigger call entirely -- project-wide, unlike the 'fabric/skip' run tag (which only applies to one run at a time). Same convention as the SQL, email, and SAP job-trigger components' own dry_run flag.",
+      "required": false
     }
   }
 }

@@ -45,6 +45,7 @@ import hashlib
 import json
 import logging
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, Dict, List, Optional
 
@@ -423,6 +424,25 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# ── Explicit item declarations (skip discovery entirely; no live workspace needed) ──────────────────
+@dataclass
+class FabricRunnableItemDeclaration(Resolvable):
+    """One explicitly declared Fabric runnable item (Notebook/DataPipeline/Dataflow) -- set
+    `notebooks:`/`pipelines:`/`dataflows:` on the component to use a list of these instead of
+    discovering items from the live Fabric workspace.
+
+    `display_name` is the label this item is keyed/named by everywhere else in this component
+    (item_parameters/item_pools/item_partitions/item_execution_data/item_deps, and the emitted
+    asset's own name) -- NOT necessarily Fabric's own discovered displayName. When declaring from
+    an ADF activity (which only carries the target item's id, not its Fabric-side display name),
+    set display_name to the ACTIVITY's own name -- the pipeline never knows the real one.
+    """
+
+    item_id: str
+    display_name: str
+    description: Optional[str] = None
+
+
 @record
 class FabricObjectProps:
     """Data passed to translation callables for each imported Fabric object.
@@ -649,6 +669,29 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     import_semantic_models: bool = Field(default=False)
     import_reports: bool = Field(default=False)
 
+    notebooks: Optional[List[FabricRunnableItemDeclaration]] = Field(
+        default=None,
+        description=(
+            "Explicit list of Notebook items ({item_id, display_name, description?}), in place of "
+            "discovering them from the live Fabric workspace (ignored unless import_notebooks is "
+            "also true). When every enabled category is declared this way -- and "
+            "import_lakehouses/import_warehouses/import_semantic_models/import_reports are all "
+            "false -- build_defs skips Fabric REST discovery AND the StateBackedComponent "
+            "state-file cache entirely: no state is written or read, and no Fabric API call "
+            "happens just to list items. Useful for a converter-generated static definition (e.g. "
+            "from an ADF pipeline, which only carries a Notebook activity's target item id, not "
+            "its Fabric-side display name)."
+        ),
+    )
+    pipelines: Optional[List[FabricRunnableItemDeclaration]] = Field(
+        default=None,
+        description="Same shape as notebooks:, for DataPipeline items (ignored unless import_pipelines is also true).",
+    )
+    dataflows: Optional[List[FabricRunnableItemDeclaration]] = Field(
+        default=None,
+        description="Same shape as notebooks:, for Dataflow Gen2 items (ignored unless import_dataflows is also true).",
+    )
+
     filter_by_name_pattern: Optional[str] = Field(
         default=None,
         description="Regex applied to Fabric item display names for inclusion.",
@@ -685,6 +728,17 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     upstream_asset_keys: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Asset keys that all imported assets wait for (lineage-only).",
+    )
+    item_deps: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description=(
+            "Per-item upstream asset key overrides, keyed by a runnable item's display_name (same "
+            "convention as item_parameters/item_pools/item_partitions/item_execution_data). MERGED "
+            "with upstream_asset_keys (not a replacement) -- same merge semantics as "
+            "ssis_workspace's assets_by_package.deps and azure_synapse's asset_overrides.depends_on. "
+            "Lets one item wait on an extra upstream asset (e.g. another fabric_workspace item's own "
+            "key) without forcing every other item in the same component instance to wait on it too."
+        ),
     )
 
     key: Optional[str] = Field(
@@ -768,6 +822,15 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         description="IANA timezone name used to compute 'today' for load_date_parameter.",
     )
 
+    dry_run: bool = Field(
+        default=False,
+        description=(
+            "Log what would be triggered (item, resolved parameters/executionData) and skip the "
+            "real Fabric job-trigger call entirely -- project-wide, unlike the 'fabric/skip' run "
+            "tag (which only applies to one run at a time). Same convention as the SQL, email, and "
+            "SAP job-trigger components' own dry_run flag."
+        ),
+    )
     max_retries: int = Field(
         default=1,
         description="Max retries requested for a Fabric failure Fabric itself flags as retriable (failureReason.isRetriable, or a capacity/throttling keyword match as a fallback when that flag is absent).",
@@ -1261,6 +1324,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             ("item_pools", self.item_pools),
             ("item_partitions", self.item_partitions),
             ("item_execution_data", self.item_execution_data),
+            ("item_deps", self.item_deps),
         ):
             if not mapping:
                 continue
@@ -1330,6 +1394,50 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 "them -- the cached state will be empty."
             )
 
+    def _needs_live_discovery(self) -> bool:
+        """True if at least one enabled category still needs a real Fabric REST call to enumerate
+        its items -- Lakehouse/Warehouse/SemanticModel/Report have no declared-list bypass at all
+        (not asked for), so they always need it when enabled; Notebook/DataPipeline/Dataflow only
+        need it when enabled AND not fully declared via notebooks:/pipelines:/dataflows:."""
+        if self.import_lakehouses or self.import_warehouses or self.import_semantic_models or self.import_reports:
+            return True
+        if self.import_notebooks and self.notebooks is None:
+            return True
+        if self.import_pipelines and self.pipelines is None:
+            return True
+        if self.import_dataflows and self.dataflows is None:
+            return True
+        return False
+
+    def _declared_rows(self, declarations: Optional[List[FabricRunnableItemDeclaration]], item_type: str) -> List[Dict[str, Any]]:
+        return [
+            {
+                "id": d.item_id, "displayName": d.display_name, "type": item_type,
+                "description": d.description, "workspaceId": self.workspace.workspace_id,
+            }
+            for d in (declarations or [])
+        ]
+
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Bypass StateBackedComponent's whole state-file cache round-trip when every enabled
+        category is explicitly declared (notebooks:/pipelines:/dataflows:, with
+        import_lakehouses/import_warehouses/import_semantic_models/import_reports all false) --
+        there's no external-system state worth caching when the caller already told us exactly
+        which items exist, so write_state_to_path/build_defs_from_state (and the state file they'd
+        otherwise read/write, which needs a real Fabric REST call to populate) are skipped entirely.
+        """
+        has_any_declaration = self.notebooks is not None or self.pipelines is not None or self.dataflows is not None
+        if has_any_declaration and not self._needs_live_discovery():
+            state = {
+                "workspace_id": self.workspace.workspace_id,
+                "lakehouses": [], "warehouses": [], "semantic_models": [], "reports": [],
+                "notebooks": self._declared_rows(self.notebooks, "Notebook"),
+                "pipelines": self._declared_rows(self.pipelines, "DataPipeline"),
+                "dataflows": self._declared_rows(self.dataflows, "Dataflow"),
+            }
+            return self._build_defs_from_state_dict(state)
+        return super().build_defs(context)
+
     def build_defs_from_state(
         self,
         context: ComponentLoadContext,
@@ -1347,7 +1455,9 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         if state_path is None or not state_path.exists():
             return Definitions()
         state: Dict[str, Any] = json.loads(state_path.read_text())
+        return self._build_defs_from_state_dict(state)
 
+    def _build_defs_from_state_dict(self, state: Dict[str, Any]) -> Definitions:
         upstream_keys = [dg.AssetKey.from_user_string(k) for k in (self.upstream_asset_keys or [])]
         assets = []
         # Populated by _build_runnable_asset below with the FINAL,
@@ -1563,10 +1673,18 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         name = row.get("displayName") or "unnamed"
         default_name = f"fabric_{item_type.lower()}_{name}"
 
+        item_dep_keys = [dg.AssetKey.from_user_string(d) for d in (self.item_deps or {}).get(name) or []]
+        merged_deps = list(upstream_keys)
+        seen_dep_keys = set(merged_deps)
+        for dep_key in item_dep_keys:
+            if dep_key not in seen_dep_keys:
+                merged_deps.append(dep_key)
+                seen_dep_keys.add(dep_key)
+
         base_kwargs: Dict[str, Any] = dict(
             key=dg.AssetKey.from_user_string(default_name),
             group_name=self.group_name,
-            deps=upstream_keys,
+            deps=merged_deps,
             # Per-item kinds: `fabric` + the specific workload type
             # (`notebook` / `data_pipeline` / `dataflow`).
             # Renders as badges in the Dagster catalog and enables
@@ -1622,8 +1740,13 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         @dg.asset(**asset_kwargs)
         def _runnable(context: dg.AssetExecutionContext):
-            if context.run.tags.get("fabric/skip") == "true":
-                context.log.info("fabric/skip=true run tag set -- skipping the actual Fabric trigger.")
+            if _self.dry_run or context.run.tags.get("fabric/skip") == "true":
+                reason = "dry_run=true" if _self.dry_run else "fabric/skip=true run tag set"
+                context.log.info(
+                    f"[DRY RUN] {reason} -- would trigger {item_type} {name!r} with parameters="
+                    f"{resolved_parameters}, execution_data={resolved_execution_data}"
+                    if _self.dry_run else f"{reason} -- skipping the actual Fabric trigger."
+                )
                 return dg.MaterializeResult(
                     metadata={"fabric_item_id": item_id, "fabric_item_type": item_type, "fabric_skipped": True},
                 )

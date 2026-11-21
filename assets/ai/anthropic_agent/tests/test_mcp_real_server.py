@@ -25,9 +25,9 @@ LOG = logging.getLogger("mcp_real_server_test")
 SERVER_SRC = """
 import sys
 try:
-    from mcp.server.mcpserver import MCPServer as Server  # mcp 2.x
+    from mcp.server.mcpserver import MCPServer as Server, Context  # mcp 2.x
 except ImportError:
-    from mcp.server.fastmcp import FastMCP as Server  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as Server, Context  # mcp 1.x
 
 server = Server("mini")
 
@@ -42,6 +42,13 @@ def echo(text: str, times: int = 1) -> dict:
 def boom(reason: str) -> dict:
     "Always fails."
     raise ValueError(f"boom: {reason}")
+
+
+@server.tool()
+async def echo_meta(ctx: Context) -> dict:
+    "Echo back whatever the caller sent as out-of-band request _meta (e.g. a Dagster run id)."
+    meta = ctx.request_context.meta
+    return {"dagster_run_id": (meta or {}).get("dagster_run_id")}
 
 
 def _bearer_app(app):
@@ -148,7 +155,7 @@ def _tool_details(result):
     assert result["stopped_reason"] == "final_answer", result
     return d["result_preview"], d["is_error"]
 
-def drive(mod, cfg, tool, args, monkeypatch):
+def drive(mod, cfg, tool, args, monkeypatch, run_id=None):
     seen = {}
     state = {"n": 0}
 
@@ -170,7 +177,8 @@ def drive(mod, cfg, tool, args, monkeypatch):
     fake.AsyncAnthropic = AsyncAnthropic
     monkeypatch.setitem(sys.modules, "anthropic", fake)
     monkeypatch.setenv("FAKE_KEY", "sk-fake")
-    res = _run(mod._run_agent(**_call_kwargs(mod._run_agent, cfg, api_key_env_var="FAKE_KEY", base_url_env_var=None)))
+    extra = {"run_id": run_id} if run_id is not None else {}
+    res = _run(mod._run_agent(**_call_kwargs(mod._run_agent, cfg, api_key_env_var="FAKE_KEY", base_url_env_var=None, **extra)))
     out, is_error = _tool_details(res)
     return seen["tools"][0]["input_schema"], out, is_error
 
@@ -233,6 +241,22 @@ def test_tool_name_allowed_exact_and_wildcard_and_default(mod):
     assert mod._tool_name_allowed("mini__boom", ["mini__ec*"]) is False
 
 
+def test_run_id_reaches_the_tool_server_via_mcp_meta(mod, stdio_cfg, monkeypatch):
+    """A real round trip, not a mock: the real stdio server's echo_meta tool reads
+    ctx.request_context.meta (MCP's own out-of-band request metadata) and echoes back whatever
+    the client sent as dagster_run_id -- confirms _run_agent actually threads run_id through
+    session.call_tool's meta kwarg, not just that the parameter exists."""
+    _, out, is_error = drive(mod, stdio_cfg, "echo_meta", {}, monkeypatch, run_id="test-run-xyz")
+    assert is_error is False
+    assert "test-run-xyz" in out
+
+
+def test_no_run_id_means_no_meta_sent(mod, stdio_cfg, monkeypatch):
+    _, out, is_error = drive(mod, stdio_cfg, "echo_meta", {}, monkeypatch, run_id=None)
+    assert is_error is False
+    assert '"dagster_run_id": null' in out or "null" in out
+
+
 def test_allowed_tools_filters_connected_tools(mod, stdio_cfg):
     """The real stdio server exposes echo + boom; allowed_tools restricts discovery to
     only the matching one -- this is the lever for a server exposing tools an agent
@@ -241,7 +265,7 @@ def test_allowed_tools_filters_connected_tools(mod, stdio_cfg):
 
     async def go():
         async with AsyncExitStack() as stack:
-            tool_index, _tools, _servers, _instr = await mod._connect_mcp(stack, _Log(), [stdio_cfg], ["mini__ec*"])
+            tool_index, _tools, _servers, _instr = await mod._connect_mcp(stack, _Log(), [stdio_cfg], ["mini__echo"])
             return set(tool_index)
 
     names = _run(go())

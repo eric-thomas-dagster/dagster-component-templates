@@ -386,6 +386,7 @@ class GeminiAgentComponent(Component, Model, Resolvable):
                     reasoning_effort=reasoning_effort,
                     max_iterations=max_iterations,
                     mcp_servers=resolved_mcp_servers,
+                    run_id=context.run_id,
                     skill_resources=skill_resources,
                     allowed_tools=allowed_tools,
                 )
@@ -662,6 +663,7 @@ async def _run_agent(
     reasoning_effort: Optional[str] = None,
     skill_resources: Optional[Dict[str, Any]] = None,
     allowed_tools: Optional[List[str]] = None,
+    run_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     import os
     from contextlib import AsyncExitStack
@@ -923,7 +925,14 @@ async def _run_agent(
                 session, _tool_obj, original_name = tool_index[fn_name]
                 log.info(f"[iter {iterations}] calling {fn_name} args={fn_args!r}")
                 try:
-                    call_result = await session.call_tool(original_name, fn_args)
+                    # meta (MCP's own out-of-band request metadata, NOT a tool argument -- a tool
+                    # server reads it via Context.request_context.meta, confirmed against the
+                    # installed mcp package) carries this run's id, so a ledger-aware tool server
+                    # can record which Dagster run a write action belongs to -- matched exactly,
+                    # not inferred from a wall-clock window that mixes concurrent runs.
+                    call_result = await session.call_tool(
+                        original_name, fn_args, meta={"dagster_run_id": run_id} if run_id else None,
+                    )
                     parts, is_error = _mcp_result_parts(call_result)
                     tool_output = "\n".join(parts) if parts else "(empty)"
                 except Exception as e:  # noqa: BLE001

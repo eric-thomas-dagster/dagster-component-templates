@@ -125,6 +125,18 @@
       "required": false,
       "default": null,
       "ui:widget": "code"
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Log what would be triggered (pipeline run / Spark batch / notebook run, with its resolved parameters) and skip the real Azure call entirely -- same convention as the SQL, email, and SAP job-trigger components' own dry_run flag.",
+      "required": false
+    },
+    "default_spark_pool_name": {
+      "type": "string",
+      "label": "Default Spark Pool Name",
+      "description": "Fallback Spark pool name used to poll a submitted Spark batch's terminal state, only if begin_execute_spark_job_definition's own response doesn't carry spark_pool_name (it normally does). Required if that fallback is ever actually needed and import_spark_jobs is true.",
+      "required": false
     }
   },
   "tags": [

@@ -1,4 +1,9 @@
 azure-identity>=1.12.0
 azure-mgmt-synapse>=2.0.0
-azure-synapse-artifacts>=0.17.0
+azure-synapse-artifacts>=0.18.0
 dagster>=1.6.0
+
+# only needed if import_spark_jobs is true -- polling a submitted Spark batch to a terminal state
+# uses a SEPARATE package from azure-synapse-artifacts (confirmed: the artifacts SDK has no
+# poll-by-batch-id method at all)
+azure-synapse-spark>=0.7.0

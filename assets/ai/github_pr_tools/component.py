@@ -382,8 +382,56 @@ def _gh_is_practice_mode(env_var_name: Optional[str]) -> bool:
     return str(os.environ.get(env_var_name, "")).strip().lower() not in ("", "0", "false", "no", "off")
 
 
+# ── GitHub issue filing, with a duplicate-check (same pattern as the engineering-agents reference's
+# github_scope.find_issues/open_issue, ported here -- not part of the shared "github PR scope" block
+# above since neither slack_pr_approval_watcher nor github_pull_request_agent_sensor needs issue
+# filing, only PR review/merge) ─────────────────────────────────────────────────────────────────────
+_GH_ISSUE_LABEL = "engineering-agent"
+_GH_ISSUE_GENERIC_WORDS = frozenset({"dagster", "assets", "asset", "project", "improve", "improvements", "reliability", "update"})
+
+
+def _gh_find_issues(repo: str, query: str, *, label: str, token: str, api_base_url: str) -> List[Dict[str, Any]]:
+    """Open issues the agents already filed (carrying `label`) whose title has any of `query`'s
+    main words -- a duplicate-check before filing a new one. Generic words are dropped first so a
+    query full of common project vocabulary ('improve this Dagster asset's reliability') doesn't
+    "match" nearly every prior issue by coincidence."""
+    import re
+    import requests
+    words = [w for w in dict.fromkeys(re.findall(r"[A-Za-z0-9_]{5,}", query.lower())) if w not in _GH_ISSUE_GENERIC_WORDS][:5]
+    found: Dict[int, Dict[str, Any]] = {}
+    for word in words:
+        q = f"repo:{repo} is:issue is:open label:{label} {word} in:title"
+        resp = requests.get(
+            f"{api_base_url}/search/issues", params={"q": q, "per_page": 10},
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}, timeout=30,
+        )
+        if resp.status_code >= 400:
+            raise GithubPrScopeError(f"Issue search failed ({resp.status_code}): {resp.text[:200]}")
+        for i in resp.json()["items"]:
+            found[i["number"]] = {"number": i["number"], "title": i["title"], "url": i["html_url"]}
+    return list(found.values())
+
+
+def _gh_open_issue(
+    repo: str, title: str, body: str, labels: Optional[List[str]], *,
+    label: str, token: str, api_base_url: str, practice_mode: bool = False,
+) -> Dict[str, Any]:
+    if practice_mode:
+        return {"practice_mode": True, "would_open": "github_issue", "title": title, "url": None}
+    try:
+        _gh_call("POST", repo, "/labels", token=token, api_base_url=api_base_url, json={"name": label, "color": "1d76db"})
+    except GithubPrScopeError:
+        pass  # already exists
+    extra = [x for x in (labels or []) if x and x != label][:3]
+    issue = _gh_call(
+        "POST", repo, "/issues", token=token, api_base_url=api_base_url,
+        json={"title": title, "body": body + "\n\n---\nFiled by an engineering agent.", "labels": [label, *extra]},
+    )
+    return {"number": issue["number"], "url": issue["html_url"]}
+
+
 _AUDIT_LOGGER_NAME = "github_pr_tools.audit"
-ALL_TOOLS = ("get_pull_request", "list_open_pull_requests", "assess_pull_request", "propose_fix", "review_pull_request", "refresh_open_agent_prs")
+ALL_TOOLS = ("get_pull_request", "list_open_pull_requests", "assess_pull_request", "propose_fix", "review_pull_request", "refresh_open_agent_prs", "find_issues", "open_issue")
 
 
 class GithubPrTools:
@@ -479,6 +527,17 @@ class GithubPrTools:
         """Bring open agent-branch PRs up to date with base_branch after a merge, so CI runs
         against the just-merged code instead of a stale base."""
         return {"updated": _gh_refresh_open_agent_prs(self.repo, branch_prefix=self.branch_prefix, token=self.token, api_base_url=self.api_base_url)}
+
+    def t_find_issues(self, query: str) -> Dict[str, Any]:
+        """Open issues the agents already filed whose title matches query's main words -- call this
+        BEFORE open_issue to avoid filing the same problem twice."""
+        return {"issues": _gh_find_issues(self.repo, query, label=_GH_ISSUE_LABEL, token=self.token, api_base_url=self.api_base_url)}
+
+    def t_open_issue(self, title: str, body: str, labels: Optional[List[str]] = None) -> Dict[str, Any]:
+        return _gh_open_issue(
+            self.repo, title, body, labels, label=_GH_ISSUE_LABEL, token=self.token, api_base_url=self.api_base_url,
+            practice_mode=_gh_is_practice_mode(self.practice_mode_env_var),
+        )
 
     def t_review_pull_request(self, number: int, decision: str, body: str) -> Dict[str, Any]:
         return _gh_review_pull_request(
@@ -710,6 +769,16 @@ def build_mcp_server(tools: GithubPrTools):
     def refresh_open_agent_prs() -> dict:
         """Bring every open agent-branch PR up to date with the base branch (e.g. after a merge), so CI runs against the just-merged code instead of a stale base."""
         return tools.call("refresh_open_agent_prs", {})
+
+    @_tool
+    def find_issues(query: str) -> dict:
+        """Open issues the agents already filed whose title matches query's main words. Call this BEFORE open_issue to avoid filing the same problem twice."""
+        return tools.call("find_issues", {"query": query})
+
+    @_tool
+    def open_issue(title: str, body: str, labels: list = None) -> dict:
+        """File a GitHub issue (labeled 'engineering-agent'). Check find_issues first."""
+        return tools.call("open_issue", {"title": title, "body": body, "labels": labels})
 
     return mcp
 

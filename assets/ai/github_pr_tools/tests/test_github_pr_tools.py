@@ -417,3 +417,75 @@ def test_refresh_open_agent_prs_updates_agent_branches_only(mod, patched):
     tools = _tools(mod, api)
     result = tools.call("refresh_open_agent_prs", {})
     assert result["updated"] == [1]
+
+
+# ── find_issues / open_issue (duplicate-check + practice mode) ──────────────────────────────────────
+
+class _FakeSearchResp:
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self._body = body
+        self.text = json.dumps(body)
+
+    def json(self):
+        return self._body
+
+
+def test_find_issues_filters_generic_words_and_searches_by_remaining_words(mod, patched, monkeypatch):
+    api = patched
+    captured_queries = []
+
+    def _fake_get(url, params=None, headers=None, timeout=None):
+        captured_queries.append(params["q"])
+        if "flaky_retry_bug" in params["q"]:
+            return _FakeSearchResp(200, {"items": [{"number": 7, "title": "flaky_retry_bug in orders", "html_url": "https://github.com/acme/widgets/issues/7"}]})
+        return _FakeSearchResp(200, {"items": []})
+
+    monkeypatch.setattr("requests.get", _fake_get)
+    tools = _tools(mod, api)
+    result = tools.call("find_issues", {"query": "improve this dagster asset's flaky_retry_bug reliability"})
+    assert result["issues"] == [{"number": 7, "title": "flaky_retry_bug in orders", "url": "https://github.com/acme/widgets/issues/7"}]
+    assert all("label:engineering-agent" in q for q in captured_queries)
+    # generic words (dagster/asset/improve/reliability) are dropped -- only the specific word is searched
+    assert captured_queries == ["repo:acme/widgets is:issue is:open label:engineering-agent flaky_retry_bug in:title"]
+
+
+def test_find_issues_returns_empty_when_nothing_matches(mod, patched, monkeypatch):
+    monkeypatch.setattr("requests.get", lambda *a, **k: _FakeSearchResp(200, {"items": []}))
+    tools = _tools(mod, patched)
+    result = tools.call("find_issues", {"query": "something_specific_enough"})
+    assert result["issues"] == []
+
+
+def test_open_issue_creates_a_labeled_issue(mod, patched):
+    api = patched
+
+    def _issues_handler(method, url, headers=None, timeout=None, **kwargs):
+        path = url.split(f"/repos/{api.repo}", 1)[-1]
+        if method == "POST" and path == "/labels":
+            return _FakeResp(201, {"name": "engineering-agent"})
+        if method == "POST" and path == "/issues":
+            body = kwargs["json"]
+            assert body["labels"] == ["engineering-agent"]
+            assert "Filed by an engineering agent." in body["body"]
+            return _FakeResp(201, {"number": 99, "html_url": f"https://github.com/{api.repo}/issues/99"})
+        return api.request(method, url, headers=headers, timeout=timeout, **kwargs)
+
+    import unittest.mock
+    with unittest.mock.patch("requests.request", _issues_handler):
+        tools = _tools(mod, api)
+        result = tools.call("open_issue", {"title": "Flaky retry bug", "body": "Details here."})
+    assert result == {"number": 99, "url": f"https://github.com/{api.repo}/issues/99"}
+
+
+def test_open_issue_practice_mode_files_nothing(mod, patched):
+    api = patched
+    tools = _tools(mod, api, practice_mode_env_var="ENG_PRACTICE_ISSUE")
+    import os
+    os.environ["ENG_PRACTICE_ISSUE"] = "practice"
+    try:
+        result = tools.call("open_issue", {"title": "Flaky retry bug", "body": "Details here."})
+    finally:
+        del os.environ["ENG_PRACTICE_ISSUE"]
+    assert result["practice_mode"] is True
+    assert result["would_open"] == "github_issue"

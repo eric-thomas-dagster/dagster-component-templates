@@ -254,6 +254,25 @@ Not every item/job type accepts parameters at all; Fabric's own API returns
 `errorCode: FeatureNotAvailable` for ones that don't, surfaced as a clear
 Failure rather than a generic HTTP error.
 
+### Run-time parameter overrides
+
+`default_parameters`/`item_parameters` are static YAML, fixed at component-definition time. A
+Fabric notebook whose parameters come from an UPSTREAM asset's output or a sensor (not a value
+known ahead of time) needs them supplied at MATERIALIZATION time instead — set `parameters` in
+`run_config`, merged OVER every other parameter source (static config, partition key, load_date):
+
+```yaml
+# materialize via run_config
+ops:
+  fabric_notebook_scoring:
+    config:
+      parameters:
+        mode: full_reload
+```
+
+Same run_config-overrides-static-config convention this registry already uses elsewhere (e.g.
+`adls_to_database_asset`'s `container_name`/`blob_name`).
+
 ## Execution data (escape hatch for unsupported job types)
 
 ```yaml

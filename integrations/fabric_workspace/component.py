@@ -443,6 +443,19 @@ class FabricRunnableItemDeclaration(Resolvable):
     description: Optional[str] = None
 
 
+class FabricRunConfig(dg.Config):
+    """Run-time override for a runnable (Notebook/DataPipeline/Dataflow) asset's parameters --
+    `item_parameters`/`default_parameters` are static YAML, set once at component-definition
+    time. A Fabric notebook whose parameters come from an UPSTREAM asset's output or a sensor
+    (not a fixed, known-ahead-of-time value) needs them supplied at MATERIALIZATION time
+    instead -- the same run_config-overrides-static-config convention used throughout this
+    registry (e.g. adls_to_database_asset's container_name/blob_name). Merged OVER every other
+    parameter source (static config, partition key, load_date) -- the most specific, most
+    recent signal wins."""
+
+    parameters: Optional[Dict[str, Any]] = None
+
+
 @record
 class FabricObjectProps:
     """Data passed to translation callables for each imported Fabric object.
@@ -1739,7 +1752,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         resolved_execution_data.update((self.item_execution_data or {}).get(name) or {})
 
         @dg.asset(**asset_kwargs)
-        def _runnable(context: dg.AssetExecutionContext):
+        def _runnable(context: dg.AssetExecutionContext, config: FabricRunConfig):
             if _self.dry_run or context.run.tags.get("fabric/skip") == "true":
                 reason = "dry_run=true" if _self.dry_run else "fabric/skip=true run tag set"
                 context.log.info(
@@ -1786,6 +1799,10 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     from zoneinfo import ZoneInfo
                     load_date = datetime.datetime.now(ZoneInfo(_self.load_date_timezone)).date().isoformat()
                 run_parameters[_self.load_date_parameter] = load_date
+
+            if config.parameters:
+                run_parameters.update(config.parameters)
+                context.log.info(f"run_config parameters override: {config.parameters}")
 
             state = _self._trigger_item_run(
                 context, item_id, item_type, run_parameters or None,

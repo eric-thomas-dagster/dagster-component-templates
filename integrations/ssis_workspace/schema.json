@@ -209,6 +209,12 @@
       "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "required": false,
       "default": null
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Only used when `action: execute`. Log what would be executed (package, parameters, environment_reference) and skip the real create_execution/start_execution/poll calls entirely -- same convention as the SQL, email, and SAP job-trigger components.",
+      "required": false
     }
   },
   "tags": [

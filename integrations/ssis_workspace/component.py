@@ -271,6 +271,35 @@ class SsisPackageSelector(dg.Model):
     )
 
 
+# ── Explicit package declaration (skips discovery entirely) ─────────
+class SsisPackageDeclaration(dg.Model):
+    """One explicitly declared SSIS package -- set `packages:` on the
+    component to use this list instead of querying SSISDB.catalog.packages
+    for discovery. No state file is written or read at all in this mode
+    (build_defs bypasses StateBackedComponent's cache round-trip entirely);
+    useful for a converter-generated static definition where the deploy
+    pipeline already knows exactly which packages exist and doesn't want a
+    live SSISDB connection just to list them.
+    """
+
+    folder_name: str = Field(description="SSISDB folder name.")
+    project_name: str = Field(description="SSISDB project name.")
+    package_name: str = Field(
+        description="Package name, without the `.dtsx` suffix."
+    )
+    project_id: int = Field(
+        default=0,
+        description=(
+            "Numeric project_id from SSISDB.catalog.projects. Only matters if "
+            "a matching `package_overrides[].environment_reference` is also "
+            "set -- resolving an environment reference looks the project up "
+            "by project_id. Leave at 0 (the default) if you don't use "
+            "environment_reference."
+        ),
+    )
+    description: Optional[str] = Field(default=None, description="Package description.")
+
+
 # ── Per-package parameter override ──────────────────────────────────
 class SsisPackageOverride(dg.Model):
     """Override runtime parameters + environment reference for packages
@@ -451,6 +480,28 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         default=None,
         description="Filter which packages become assets. Default = every "
         "package in SSISDB.",
+    )
+    packages: Optional[List[SsisPackageDeclaration]] = Field(
+        default=None,
+        description=(
+            "Explicit list of packages, in place of discovering them from "
+            "SSISDB.catalog.packages. When set, build_defs skips SQL "
+            "discovery AND the StateBackedComponent state-file cache "
+            "entirely -- no state is written or read, and no SQL Server "
+            "connection is needed just to list packages (one is still "
+            "needed for `action: execute`, the polling sensor, or the "
+            "freshness/duration checks, unless `demo_mode: true`). "
+            "`package_selector` still applies on top of this list."
+        ),
+    )
+    dry_run: bool = Field(
+        default=False,
+        description=(
+            "Only used when `action: execute`. Log what would be executed "
+            "(package, parameters, environment_reference) and skip the real "
+            "create_execution/start_execution/poll calls entirely -- same "
+            "convention as the SQL, email, and SAP job-trigger components."
+        ),
     )
     package_overrides: Optional[List[SsisPackageOverride]] = Field(
         default=None,
@@ -853,7 +904,13 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             return {"parameters": {}, "param_scopes": {}, "environment_reference": None}
 
         qname_lower = props.qualified_name.lower()
-        partition_key = getattr(context, "partition_key", None)
+        # Dagster's AssetExecutionContext.partition_key is a property that RAISES
+        # DagsterInvariantViolationError (not AttributeError) on an unpartitioned
+        # run, so a bare getattr(..., default) doesn't catch it -- this used to
+        # crash any action='execute' + package_overrides run with no partitions_def,
+        # invisible in this component's own tests because every execute-mode test
+        # ran under demo_mode=True (which never reaches _resolve_overrides at all).
+        partition_key = context.partition_key if getattr(context, "has_partition_key", False) else None
 
         for ov in self.package_overrides:
             if not fnmatch.fnmatch(qname_lower, ov.match.lower()):
@@ -871,6 +928,27 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "parameters": merged_params,
             "param_scopes": param_scopes,
             "environment_reference": env_ref,
+        }
+
+    def _execute_dry_run_package(self, props: SsisPackageProps, context) -> Dict[str, Any]:
+        """dry_run: log what would be executed (package + resolved overrides) and
+        skip create_execution/start_execution/poll entirely -- no SQL Server
+        connection, unlike demo_mode which still exercises the whole simulated
+        lifecycle. Distinct knob: demo_mode replaces SSISDB with a fake catalog
+        for smoke-testing the component shape; dry_run wraps a REAL workspace
+        connection/discovery and just withholds the trigger, same convention as
+        the SQL/email/SAP job-trigger components' own dry_run flag."""
+        override = self._resolve_overrides(props, context)
+        context.log.info(
+            f"[DRY RUN] would execute SSIS package {props.qualified_name} -- "
+            f"parameters={override.get('parameters') or {}}, "
+            f"environment_reference={override.get('environment_reference')}"
+        )
+        return {
+            "execution_id": None,
+            "status": 7,
+            "status_text": "dry_run — not executed",
+            "error_message": None,
         }
 
     def _execute_demo_package(self, props: SsisPackageProps, context) -> Dict[str, Any]:
@@ -892,6 +970,8 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     def _execute_package(self, engine, props: SsisPackageProps, context) -> Dict[str, Any]:
         """EXEC create_execution + optional set_parameter_value + start_execution + poll."""
+        if self.dry_run:
+            return self._execute_dry_run_package(props, context)
         if self.demo_mode:
             return self._execute_demo_package(props, context)
 
@@ -1112,6 +1192,26 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         }
         state_path.write_text(json.dumps(snapshot, indent=2))
 
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Bypass StateBackedComponent's whole state-file cache round-trip
+        when `packages:` is set explicitly -- there's no external-system
+        state worth caching when the caller already told us exactly which
+        packages exist, so write_state_to_path/build_defs_from_state (and the
+        state file they'd otherwise read/write) are skipped entirely."""
+        if self.packages is not None:
+            declared = self._apply_selector([
+                {
+                    "folder_name": p.folder_name,
+                    "project_name": p.project_name,
+                    "project_id": p.project_id,
+                    "package_name": p.package_name,
+                    "description": p.description,
+                }
+                for p in self.packages
+            ])
+            return self._build_defs_from_packages(declared, self.workspace.server or "")
+        return super().build_defs(context)
+
     def build_defs_from_state(
         self,
         context: ComponentLoadContext,
@@ -1123,7 +1223,9 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         state = json.loads(state_path.read_text())
         packages = state.get("packages", [])
         server_host = state.get("server_host", self.workspace.server or "")
+        return self._build_defs_from_packages(packages, server_host)
 
+    def _build_defs_from_packages(self, packages: List[Dict[str, Any]], server_host: str) -> Definitions:
         specs: List[AssetSpec] = []
         for p in packages:
             props = SsisPackageProps(
@@ -1175,7 +1277,7 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             # asset in the UI still triggered every SSIS package.
             @dg.multi_asset(specs=specs, can_subset=True)
             def _ssis_execute(context: dg.AssetExecutionContext):
-                exec_engine = None if _self.demo_mode else _self._build_engine()
+                exec_engine = None if (_self.demo_mode or _self.dry_run) else _self._build_engine()
                 selected = context.selected_asset_keys
                 selected_specs = [s for s in specs if s.key in selected]
                 for spec in _topological_order(selected_specs, selected):
@@ -1264,8 +1366,11 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     sa_text(
                         """
                         SELECT e.execution_id, e.folder_name, e.project_name,
-                               e.package_name, e.status, e.end_time
+                               e.package_name, e.status, e.end_time, p.project_id
                         FROM SSISDB.catalog.executions e
+                        LEFT JOIN SSISDB.catalog.folders f ON f.name = e.folder_name
+                        LEFT JOIN SSISDB.catalog.projects p
+                            ON p.name = e.project_name AND p.folder_id = f.folder_id
                         WHERE e.execution_id > :cursor
                           AND e.end_time IS NOT NULL
                         ORDER BY e.execution_id
@@ -1290,15 +1395,16 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 # used to silently split sensor identity from asset identity: the
                 # observation landed on a key nothing in the graph has, and the UI
                 # showed no activity on the actual asset.
+                # SSISDB.catalog.executions doesn't carry project_id directly -- joined
+                # through folders+projects above by (folder_name, project_name) so a
+                # user's own `translation:` callable keying off project_id (or an
+                # environment_reference lookup, which resolves by project_id) sees the
+                # real value here too, not a placeholder.
+                project_id = int(r["project_id"]) if r.get("project_id") is not None else 0
                 props = SsisPackageProps(
                     folder_name=r["folder_name"],
                     project_name=r["project_name"],
-                    # SSISDB.catalog.executions doesn't carry project_id (would need an
-                    # extra join to catalog.projects) -- 0 is a placeholder. Only matters
-                    # if a user's own `translation:` callable keys off project_id, which
-                    # the default translator does not (key is folder/project/package name
-                    # only; project_id is metadata-only).
-                    project_id=0,
+                    project_id=project_id,
                     package_name=pkg_name,
                     description=None,
                     server_host=server_host,

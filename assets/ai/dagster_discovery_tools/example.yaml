@@ -1,0 +1,7 @@
+type: dagster_community_components.DagsterDiscoveryToolsComponent
+attributes:
+  deployment_url: auto
+  token_env_var: DAGSTER_CLOUD_API_TOKEN
+  # allow: [list_locations, list_assets, list_components, get_component, list_agents, list_mcp_servers, list_schedules_and_sensors, list_runs, list_alert_policies]  # default: all
+  max_result_chars: 12000
+  # mcp_server_resource_key: discovery_tools_mcp   # share this toolset via server_resource_key; set deployment_url explicitly (not auto) when using this

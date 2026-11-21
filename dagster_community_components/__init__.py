@@ -311,6 +311,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DagsterAuditToWarehouseJobComponent": "jobs/dagster_audit_to_warehouse_job/component.py",
     "DagsterCheckResultsPruneJobComponent": "jobs/dagster_check_results_prune_job/component.py",
     "DagsterComputeLogsArchiveJobComponent": "jobs/dagster_compute_logs_archive_job/component.py",
+    "DagsterDiscoveryToolsComponent": "assets/ai/dagster_discovery_tools/component.py",
     "DagsterFailuresToOtlpSensorComponent": "sensors/dagster_failures_to_otlp_sensor/component.py",
     "DagsterInstanceToolsComponent": "assets/ai/dagster_instance_tools/component.py",
     "DagsterMaterializationsToPrometheusSensorComponent": "sensors/dagster_materializations_to_prometheus_sensor/component.py",

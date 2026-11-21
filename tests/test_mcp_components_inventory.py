@@ -43,6 +43,7 @@ MCP_COMPONENTS = {
     "resources/mcp_oauth_login": "client (general sign-in CLI, who-am-I tool confirmation)",
     "assets/ai/github_pr_tools": "server",
     "assets/ai/dagster_api_check_tools": "server",
+    "assets/ai/dagster_discovery_tools": "server",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

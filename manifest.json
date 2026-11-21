@@ -15878,6 +15878,63 @@
       "icon": "favicon:dagster.io"
     },
     {
+      "id": "dagster_discovery_tools",
+      "name": "dagster_discovery_tools",
+      "category": "ai",
+      "description": "Read-only 'what exists in this deployment' tools for agents over the Dagster+ GraphQL API: code locations, assets, UI-created components, agents, MCP servers, schedules/sensors, runs, alert policies. Registers a resource and ships a stdio MCP server.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/dagster_discovery_tools",
+      "tags": [
+        "ai",
+        "mcp",
+        "dagster-plus",
+        "graphql",
+        "discovery"
+      ],
+      "dependencies": {
+        "pip": [
+          "mcp>=1.30,<3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_discovery_tools/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_discovery_tools/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_discovery_tools/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_discovery_tools/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_discovery_tools/requirements.txt",
+      "component_type": "dagster_community_components.DagsterDiscoveryToolsComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20",
+        "evidence": "tests/ in the component dir: parsing/filtering/dispatch logic runs for real against a fake GraphQL transport; the Dagster+-only fields (assetNodes, alertPolicies, appManagedComponentsForLocationOrError) use introspection-driven query building (auto_selection) rather than a hard-coded guessed schema shape, since this OSS-only environment has no live Dagster+ deployment to verify their exact nested type names against."
+      },
+      "agent_hints": {
+        "inputs": "location_name for most tools (list_locations has none, call it first); id for get_component; limit/statuses for list_runs.",
+        "outputs": "JSON dicts per tool; errors returned as {error: ...}.",
+        "side_effects": "Read-only GraphQL calls against the Dagster+ API. No writes, no code execution.",
+        "anti_uses": "list_agents/list_mcp_servers classify by component type-name substring, not a dedicated field -- there is none on appManagedComponentsForLocationOrError. 'last outcome' for an agent is not included; read it from the agent's own outcome asset via dagster_instance_tools.",
+        "requires_resources": [],
+        "output_type": "none",
+        "requires_pip": [
+          "mcp"
+        ]
+      },
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "discovery",
+        "dagster plus",
+        "graphql",
+        "what exists",
+        "list components",
+        "list agents",
+        "list mcp servers",
+        "introspection"
+      ],
+      "icon": "Search"
+    },
+    {
       "id": "dagster_failures_to_otlp_sensor",
       "name": "dagster_failures_to_otlp_sensor",
       "category": "sensor",

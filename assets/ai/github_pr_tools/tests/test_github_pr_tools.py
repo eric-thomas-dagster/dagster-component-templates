@@ -1,0 +1,305 @@
+"""Committed tests for GithubPrTools / GithubPrToolsComponent.
+
+Mocks ONLY `requests.request` (the one HTTP call every GitHub-PR-scope function makes) via a small
+in-memory fake GitHub API -- every other behavior (risk assessment, the second-identity APPROVE
+gate, propose_fix's protected-path/duplicate-PR guards, the call()/t_* dispatch, error shaping) is
+exercised for real.
+"""
+import base64
+import json
+import re
+
+import pytest
+
+from .conftest import load_component_module
+
+
+@pytest.fixture()
+def mod():
+    return load_component_module()
+
+
+class _FakeResp:
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self._body = body
+        self.text = json.dumps(body) if not isinstance(body, str) else body
+        self.content = b"1" if body is not None else b""
+
+    def json(self):
+        return self._body
+
+
+class FakeGithubApi:
+    """A tiny in-memory GitHub REST API: PRs, files, checks, reviews, contents, refs."""
+
+    def __init__(self, repo="acme/widgets"):
+        self.repo = repo
+        self.calls = []
+        self.pulls = {}
+        self.files = {}
+        self.checks = {}
+        self.reviews = {}
+        self.contents = {}
+        self.refs = {"heads/main": "basesha123"}
+
+    def add_pull(self, number, *, title="Fix bug", author="bot", head_sha="abc123", head_ref="agent/fix-1", state="open", merged=False, body=""):
+        self.pulls[number] = {
+            "number": number, "html_url": f"https://github.com/{self.repo}/pull/{number}", "title": title, "body": body,
+            "user": {"login": author}, "state": state, "merged": merged,
+            "head": {"sha": head_sha, "ref": head_ref},
+        }
+        self.files.setdefault(number, [])
+        self.checks.setdefault(head_sha, [])
+        self.reviews.setdefault(number, [])
+
+    def add_file(self, number, path, additions=1, deletions=1, status="modified"):
+        self.files[number].append({"filename": path, "status": status, "additions": additions, "deletions": deletions, "patch": "@@ -1 +1 @@"})
+
+    def set_checks(self, sha, conclusions):
+        self.checks[sha] = [{"name": n, "conclusion": c, "status": "completed"} for n, c in conclusions.items()]
+
+    def request(self, method, url, headers=None, timeout=None, **kwargs):
+        self.calls.append((method, url, headers.get("Authorization") if headers else None, kwargs))
+        path = url.split(f"/repos/{self.repo}", 1)[-1]
+
+        m = re.match(r"^/pulls/(\d+)/files$", path)
+        if method == "GET" and m:
+            return _FakeResp(200, self.files.get(int(m.group(1)), []))
+        m = re.match(r"^/pulls/(\d+)/reviews$", path)
+        if method == "GET" and m:
+            return _FakeResp(200, self.reviews.get(int(m.group(1)), []))
+        if method == "POST" and m:
+            number = int(m.group(1))
+            body = kwargs.get("json", {})
+            login = {"Bearer reviewer-token": "reviewer-bot", "Bearer primary-token": "author-bot"}.get(headers.get("Authorization"), "someone")
+            self.reviews.setdefault(number, []).append({"user": {"login": login}, "state": body["event"] if body["event"] != "COMMENT" else "COMMENTED"})
+            return _FakeResp(200, {"id": 1})
+        m = re.match(r"^/pulls/(\d+)/merge$", path)
+        if method == "PUT" and m:
+            number = int(m.group(1))
+            self.pulls[number]["merged"] = True
+            self.pulls[number]["state"] = "closed"
+            return _FakeResp(200, {"merged": True})
+        m = re.match(r"^/pulls/(\d+)$", path)
+        if method == "GET" and m:
+            number = int(m.group(1))
+            if number not in self.pulls:
+                return _FakeResp(404, {"message": "Not Found"})
+            return _FakeResp(200, self.pulls[number])
+        if method == "GET" and path == "/pulls":
+            return _FakeResp(200, list(self.pulls.values()))
+        if method == "POST" and path == "/pulls":
+            body = kwargs["json"]
+            number = max(self.pulls) + 1 if self.pulls else 1
+            self.add_pull(number, title=body["title"], body=body["body"], head_ref=body["head"])
+            return _FakeResp(201, self.pulls[number])
+        m = re.match(r"^/commits/([^/]+)/check-runs$", path)
+        if method == "GET" and m:
+            return _FakeResp(200, {"check_runs": self.checks.get(m.group(1), [])})
+        m = re.match(r"^/git/ref/heads/(.+)$", path)
+        if method == "GET" and m:
+            sha = self.refs.get(f"heads/{m.group(1)}")
+            if not sha:
+                return _FakeResp(404, {"message": "Not Found"})
+            return _FakeResp(200, {"object": {"sha": sha}})
+        if method == "POST" and path == "/git/refs":
+            body = kwargs["json"]
+            ref_name = body["ref"].replace("refs/", "")
+            self.refs[ref_name] = body["sha"]
+            return _FakeResp(201, {"ref": body["ref"]})
+        m = re.match(r"^/git/refs/heads/(.+)$", path)
+        if method == "DELETE" and m:
+            self.refs.pop(f"heads/{m.group(1)}", None)
+            return _FakeResp(204, None)
+        m = re.match(r"^/contents/(.+)$", path)
+        if method == "GET" and m:
+            p = m.group(1)
+            if p not in self.contents:
+                return _FakeResp(404, {"message": "Not Found"})
+            return _FakeResp(200, {"sha": "filesha", "content": base64.b64encode(self.contents[p].encode()).decode()})
+        if method == "PUT" and m:
+            p = m.group(1)
+            body = kwargs["json"]
+            self.contents[p] = base64.b64decode(body["content"]).decode()
+            return _FakeResp(201, {"content": {"sha": "newsha"}})
+        raise AssertionError(f"FakeGithubApi: no handler for {method} {path}")
+
+
+def _tools(mod, api, **overrides):
+    kwargs = dict(repo=api.repo, token="primary-token", reviewer_token=None, protected_paths=(".github/", "pyproject.toml"), low_risk_paths=("src/", "tests/"), low_risk_max_files=2, low_risk_max_lines=30, max_files_per_fix=5)
+    kwargs.update(overrides)
+    return mod.GithubPrTools(**kwargs)
+
+
+@pytest.fixture()
+def patched(monkeypatch):
+    api = FakeGithubApi()
+    monkeypatch.setattr("requests.request", api.request)
+    return api
+
+
+def test_get_pull_request_reports_checks_and_files(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "src/a.py", additions=5, deletions=1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    pr = tools.t_get_pull_request(1)
+    assert pr["checks"]["state"] == "passing"
+    assert pr["files"][0]["path"] == "src/a.py"
+
+
+def test_list_open_pull_requests(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_pull(2)
+    tools = _tools(mod, api)
+    result = tools.t_list_open_pull_requests()
+    assert {p["number"] for p in result["pull_requests"]} == {1, 2}
+
+
+def test_assess_pull_request_low_risk(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "src/a.py", additions=5, deletions=1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    risk = tools.t_assess_pull_request(1)
+    assert risk["level"] == "low"
+    assert risk["reasons"] == []
+
+
+def test_assess_pull_request_needs_human_for_protected_path(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, ".github/workflows/ci.yml", additions=2, deletions=0)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    risk = tools.t_assess_pull_request(1)
+    assert risk["level"] == "needs_human"
+    assert "protected path" in risk["reasons"][0]
+
+
+def test_assess_pull_request_needs_human_when_checks_failing(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "src/a.py", additions=1, deletions=1)
+    api.set_checks("abc123", {"build": "failure"})
+    tools = _tools(mod, api)
+    risk = tools.t_assess_pull_request(1)
+    assert risk["level"] == "needs_human"
+    assert any("checks are failing" in r for r in risk["reasons"])
+
+
+def test_review_pull_request_comment_always_allowed(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, ".github/x.yml")
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    result = tools.t_review_pull_request(1, "COMMENT", "looks fine")
+    assert result["decision"] == "COMMENT"
+
+
+def test_review_pull_request_approve_refused_above_low_risk(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, ".github/x.yml")
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api, reviewer_token="reviewer-token")
+    result = tools.call("review_pull_request", {"number": 1, "decision": "APPROVE", "body": "lgtm"})
+    assert "error" in result and "Not approved" in result["error"]
+
+
+def test_review_pull_request_approve_refused_without_reviewer_token(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "src/a.py", additions=1, deletions=1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api, reviewer_token=None)
+    result = tools.call("review_pull_request", {"number": 1, "decision": "APPROVE", "body": "lgtm"})
+    assert "error" in result and "second GitHub identity" in result["error"]
+
+
+def test_review_pull_request_approve_uses_the_reviewer_identity(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "src/a.py", additions=1, deletions=1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api, reviewer_token="reviewer-token")
+    result = tools.t_review_pull_request(1, "APPROVE", "lgtm")
+    assert result["decision"] == "APPROVE"
+    assert api.reviews[1][0]["user"]["login"] == "reviewer-bot"
+
+
+def test_propose_fix_applies_a_targeted_edit(mod, patched):
+    api = patched
+    api.contents["src/a.py"] = "line1\nline2\nline3\n"
+    tools = _tools(mod, api)
+    result = tools.t_propose_fix("fix-1", "Fix a.py", "body", [{"path": "src/a.py", "old": "line2", "new": "line2-fixed"}])
+    assert result["branch"] == "agent/fix-1"
+    assert api.contents["src/a.py"] == "line1\nline2-fixed\nline3\n"
+
+
+def test_propose_fix_refuses_a_protected_path(mod, patched):
+    api = patched
+    tools = _tools(mod, api)
+    result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": [{"path": "pyproject.toml", "content": "x"}]})
+    assert "error" in result and "protected" in result["error"]
+
+
+def test_propose_fix_refuses_too_many_files(mod, patched):
+    api = patched
+    tools = _tools(mod, api, max_files_per_fix=1)
+    files = [{"path": "src/a.py", "content": "x"}, {"path": "src/b.py", "content": "y"}]
+    result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": files})
+    assert "error" in result and "between 1 and 1 files" in result["error"]
+
+
+def test_propose_fix_refuses_when_old_text_is_not_unique(mod, patched):
+    api = patched
+    api.contents["src/a.py"] = "dup\ndup\n"
+    tools = _tools(mod, api)
+    result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": [{"path": "src/a.py", "old": "dup", "new": "fixed"}]})
+    assert "error" in result and "exactly once" in result["error"]
+
+
+def test_propose_fix_refuses_when_an_open_pr_already_touches_the_file(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="agent/other-fix")
+    api.add_file(1, "src/a.py")
+    api.contents["src/a.py"] = "x\n"
+    tools = _tools(mod, api)
+    result = tools.call("propose_fix", {"branch": "y", "title": "t", "body": "b", "files": [{"path": "src/a.py", "old": "x", "new": "y"}]})
+    assert "error" in result and "already changes" in result["error"]
+
+
+def test_call_unknown_tool(mod, patched):
+    tools = _tools(mod, patched)
+    result = tools.call("delete_everything", {})
+    assert "error" in result and "unknown tool" in result["error"]
+
+
+def test_call_tool_not_in_allowlist(mod, patched):
+    tools = _tools(mod, patched, allow=["get_pull_request"])
+    result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": []})
+    assert "error" in result and "not enabled" in result["error"]
+
+
+def test_merge_if_ready_requires_branch_prefix(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="someones-manual-branch")
+    tools = _tools(mod, api)
+    with pytest.raises(mod.GithubPrScopeError, match="agent branches"):
+        mod._gh_merge_if_ready(api.repo, 1, branch_prefix="agent/", reviewer_login="reviewer-bot", token="primary-token", api_base_url="https://api.github.com")
+
+
+def test_merge_if_ready_succeeds_when_approved_and_passing(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="agent/fix-1")
+    api.set_checks("abc123", {"build": "success"})
+    api.reviews[1] = [{"user": {"login": "reviewer-bot"}, "state": "APPROVED"}]
+    result = mod._gh_merge_if_ready(api.repo, 1, branch_prefix="agent/", reviewer_login="reviewer-bot", token="primary-token", api_base_url="https://api.github.com")
+    assert result["merged"] is True
+    assert "heads/agent/fix-1" not in api.refs

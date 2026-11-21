@@ -41,6 +41,8 @@ MCP_COMPONENTS = {
     "resources/notion_mcp_login": "client (sign-in CLI, notion-get-self confirmation)",
     "assets/ai/hosted_mcp_server": "server (generic stdio proxy to any hosted OAuth MCP server)",
     "resources/mcp_oauth_login": "client (general sign-in CLI, who-am-I tool confirmation)",
+    "assets/ai/github_pr_tools": "server",
+    "assets/ai/dagster_api_check_tools": "server",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

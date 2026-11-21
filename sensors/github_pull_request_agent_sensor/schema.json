@@ -1,0 +1,109 @@
+{
+  "component_type": "dagster_community_components.GithubPullRequestAgentSensorComponent",
+  "description": "On each new or updated pull request, launch an agent asset selection with the PR number on the run's tags and announce it in Slack with approve/reject reactions seeded.",
+  "category": "sensor",
+  "icon": "si:github",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "default": "github_pull_request_agent_sensor",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": false
+    },
+    "asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "description": "Agent asset(s) to launch for each new/updated pull request (e.g. a PR-reviewer asset + its Slack-reply asset).",
+      "required": true
+    },
+    "repo": {
+      "type": "string",
+      "label": "Repo",
+      "description": "GitHub repository to watch, 'owner/repo'.",
+      "required": true
+    },
+    "token_env_var": {
+      "type": "string",
+      "default": "GITHUB_TOKEN",
+      "label": "Token Env Var",
+      "description": "Env var holding a GitHub token with read access to pull requests.",
+      "required": false
+    },
+    "api_base_url": {
+      "type": "string",
+      "default": "https://api.github.com",
+      "label": "Api Base Url",
+      "description": "API base URL. Change for GitHub Enterprise Server.",
+      "required": false
+    },
+    "slack_channel": {
+      "type": "string",
+      "label": "Slack Channel",
+      "description": "Channel to announce new/updated pull requests in (either `C123ABC456` id or `#channel-name`).",
+      "required": true
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "default": "SLACK_BOT_TOKEN",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's `xoxb-...` token. Needs `chat:write` + `reactions:read` + `reactions:write` + `channels:history`/`groups:history`.",
+      "required": false
+    },
+    "approve_emoji": {
+      "type": "string",
+      "default": "white_check_mark",
+      "label": "Approve Emoji",
+      "description": "Emoji name (no colons) a reaction-based approval uses.",
+      "required": false
+    },
+    "reject_emoji": {
+      "type": "string",
+      "default": "x",
+      "label": "Reject Emoji",
+      "description": "Emoji name (no colons) a reaction-based rejection uses.",
+      "required": false
+    },
+    "approver_allowlist": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Approver Allowlist",
+      "description": "Slack user IDs (`U123...`) allowed to vote on the posted thread (enforced by sensors/slack_pr_approval_watcher, which reads this from the message's own metadata). Leave unset to allow anyone in the channel to vote.",
+      "required": false
+    },
+    "message_template": {
+      "type": "string",
+      "label": "Message Template",
+      "description": "Optional custom message template. Placeholders: {number}, {title}, {url}, {author}, {approve_emoji}, {reject_emoji}. Default: ':mag: Pull request <{url}|#{number} {title}> by {author}. Reviewing now. React :{approve_emoji}: to approve or :{reject_emoji}: to request changes.'",
+      "required": false
+    },
+    "ping_users_on_post": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Ping Users On Post",
+      "description": "Optional Slack user IDs to @-mention in the initial post.",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "default": 60,
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "default": "STOPPED",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED'.",
+      "required": false
+    }
+  }
+}

@@ -1,0 +1,13 @@
+type: dagster_community_components.TicketAnnouncerComponent
+attributes:
+  sensor_name: ticket_announcer
+  slack_channel: "#dagster-tickets"
+  slack_bot_token_env_var: SLACK_BOT_TOKEN
+  repo: your-org/your-repo
+  github_token_env_var: GITHUB_TOKEN
+  github_issue_label: engineering-agent
+  # linear_team_id: "..."                 # unset: skip Linear
+  # linear_api_key_env_var: LINEAR_API_KEY
+  excerpt_chars: 320
+  minimum_interval_seconds: 60
+  default_status: RUNNING

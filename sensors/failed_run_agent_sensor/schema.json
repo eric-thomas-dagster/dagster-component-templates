@@ -1,0 +1,107 @@
+{
+  "component_type": "dagster_community_components.FailedRunAgentSensorComponent",
+  "description": "On a failed run, launch an agent asset selection with the failed run id on the launched run's tags, and announce it in Slack -- the thread stays open for slack_reply. Rate-limited per (job, error signature).",
+  "category": "sensor",
+  "icon": "si:slack",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "default": "failed_run_agent_sensor",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": false
+    },
+    "asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "description": "Agent asset(s) to launch on a failure (e.g. a bug-fixer asset + its Slack-reply asset).",
+      "required": true
+    },
+    "code_location_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Code Location Names",
+      "description": "Only trigger for runs from one of these code locations. Leave unset to monitor every code location.",
+      "required": false
+    },
+    "job_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Job Names",
+      "description": "Only trigger for these job names. Leave unset to monitor every job.",
+      "required": false
+    },
+    "required_tags": {
+      "type": "object",
+      "label": "Required Tags",
+      "description": "Only trigger when the failed run carries ALL of these tags (key=value).",
+      "required": false
+    },
+    "slack_channel": {
+      "type": "string",
+      "label": "Slack Channel",
+      "description": "Channel to announce a failed run in (either `C123ABC456` id or `#channel-name`).",
+      "required": true
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "default": "SLACK_BOT_TOKEN",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's `xoxb-...` token. Needs `chat:write`.",
+      "required": false
+    },
+    "message_template": {
+      "type": "string",
+      "label": "Message Template",
+      "description": "Optional custom message template. Placeholders: {run_id} (short, 8 chars), {job_name}, {url}. Default: ':beetle: Run <{url}|{run_id}> of `{job_name}` failed. Looking into the cause.'",
+      "required": false
+    },
+    "dagster_url": {
+      "type": "string",
+      "label": "Dagster Url",
+      "description": "Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod') used to build the run link in the Slack message. Leave unset to link just the run id with no URL.",
+      "required": false
+    },
+    "evidence_dir": {
+      "type": "string",
+      "label": "Evidence Dir",
+      "description": "Directory the cooldown rate-limiter's small per-event files live under (local or NFS-shared path -- not a cloud URI; exclusive-create needs a real filesystem).",
+      "required": true
+    },
+    "max_triage_per_hour": {
+      "type": "integer",
+      "default": 10,
+      "label": "Max Triage Per Hour",
+      "description": "Max failures triaged (Slack post + run launch) per (job, error signature) per rolling hour.",
+      "required": false
+    },
+    "cooldown_minutes": {
+      "type": "number",
+      "default": 60.0,
+      "label": "Cooldown Minutes",
+      "description": "After triaging one occurrence of a (job, error signature), suppress further triage of the SAME signature for this many minutes.",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "default": 30,
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "default": "RUNNING",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED'.",
+      "required": false
+    }
+  }
+}

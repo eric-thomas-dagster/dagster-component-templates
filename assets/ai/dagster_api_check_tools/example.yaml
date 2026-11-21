@@ -1,0 +1,6 @@
+type: dagster_community_components.DagsterApiCheckToolsComponent
+attributes:
+  resource_key: dagster_api_check_tools
+  # allow: [check_dagster_api, scan_source, scan_sources]  # default: all
+  max_result_chars: 20000
+  # mcp_server_resource_key: dagster_api_check_tools_mcp   # share this toolset via server_resource_key instead of a hand-written inline command+env entry

@@ -39,6 +39,8 @@ on:
       - "resources/notion_mcp_login/**"
       - "assets/ai/hosted_mcp_server/**"
       - "resources/mcp_oauth_login/**"
+      - "assets/ai/github_pr_tools/**"
+      - "assets/ai/dagster_api_check_tools/**"
       - "tests/test_mcp_*.py"
       - ".github/workflows/mcp-canary.yml"
 
@@ -74,6 +76,8 @@ env:
     resources/notion_mcp_login/tests
     assets/ai/hosted_mcp_server/tests
     resources/mcp_oauth_login/tests
+    assets/ai/github_pr_tools/tests
+    assets/ai/dagster_api_check_tools/tests
 
 jobs:
   mcp:

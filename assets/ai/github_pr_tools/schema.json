@@ -1,0 +1,144 @@
+{
+  "component_type": "dagster_community_components.GithubPrToolsComponent",
+  "description": "Repo-scoped GitHub pull-request tools for engineering agents: read a PR, assess its deterministic risk level, propose a targeted-edit fix, and review (COMMENT or risk-gated APPROVE under a second identity). Registers a resource and ships a stdio MCP server.",
+  "category": "ai",
+  "icon": "si:github",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "GithubPrTools toolset, callable in-process or served over stdio MCP"
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "default": "github_pr_tools",
+      "label": "Resource Key",
+      "description": "Resource key the toolset is registered under.",
+      "required": false
+    },
+    "repo": {
+      "type": "string",
+      "label": "Repo",
+      "description": "GitHub repository the tools are scoped to, 'owner/repo'. Every call is pinned to this repo.",
+      "required": true
+    },
+    "token_env_var": {
+      "type": "string",
+      "default": "GITHUB_TOKEN",
+      "label": "Token Env Var",
+      "description": "Env var holding the primary GitHub token (reads, COMMENT reviews, propose_fix, merge).",
+      "required": false
+    },
+    "reviewer_token_env_var": {
+      "type": "string",
+      "label": "Reviewer Token Env Var",
+      "description": "Env var holding a SECOND GitHub token (a distinct bot/user identity with write access) -- required for an APPROVE review. GitHub blocks a PR's own author (or a single bot identity that opened it) from approving it, so APPROVE always needs a genuinely different identity's token.",
+      "required": false
+    },
+    "api_base_url": {
+      "type": "string",
+      "default": "https://api.github.com",
+      "label": "Api Base Url",
+      "description": "API base URL. Change for GitHub Enterprise Server.",
+      "required": false
+    },
+    "base_branch": {
+      "type": "string",
+      "default": "main",
+      "label": "Base Branch",
+      "description": "Base branch for propose_fix's pull requests.",
+      "required": false
+    },
+    "branch_prefix": {
+      "type": "string",
+      "default": "agent/",
+      "label": "Branch Prefix",
+      "description": "Prefix propose_fix uses for the branches it creates.",
+      "required": false
+    },
+    "protected_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        ".github/",
+        "pyproject.toml",
+        "requirements",
+        "Dockerfile",
+        "setup."
+      ],
+      "label": "Protected Paths",
+      "description": "Path prefixes propose_fix refuses to touch (CI, dependencies, packaging).",
+      "required": false
+    },
+    "low_risk_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "src/",
+        "tests/",
+        "docs/",
+        "README"
+      ],
+      "label": "Low Risk Paths",
+      "description": "Path prefixes assess_pull_request/review_pull_request treat as low-risk when nothing else disqualifies the PR.",
+      "required": false
+    },
+    "low_risk_max_files": {
+      "type": "integer",
+      "default": 2,
+      "label": "Low Risk Max Files",
+      "description": "assess_pull_request: max changed files for a 'low' risk level.",
+      "required": false
+    },
+    "low_risk_max_lines": {
+      "type": "integer",
+      "default": 30,
+      "label": "Low Risk Max Lines",
+      "description": "assess_pull_request: max changed lines (additions + deletions) for a 'low' risk level.",
+      "required": false
+    },
+    "max_files_per_fix": {
+      "type": "integer",
+      "default": 5,
+      "label": "Max Files Per Fix",
+      "description": "propose_fix: max files a single fix may change.",
+      "required": false
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "Hard allow-list of tools (default: all). Valid: get_pull_request, list_open_pull_requests, assess_pull_request, propose_fix, review_pull_request.",
+      "required": false
+    },
+    "max_result_chars": {
+      "type": "integer",
+      "default": 20000,
+      "label": "Max Result Chars",
+      "description": "Upper bound on the serialized size of any tool result.",
+      "required": false
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with GITHUB_PR_TOOLS_* env vars set from this component's own settings, and the real token(s) passed through via live env passthrough). Any mcp_servers-aware component can then reference it via server_resource_key.",
+      "required": false
+    },
+    "mcp_extra_env_vars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Mcp Extra Env Vars",
+      "description": "mcp_server_resource_key only. Extra env var NAMES (beyond the token env vars, which are always passed through) to copy into the spawned MCP server's env.",
+      "required": false
+    }
+  }
+}

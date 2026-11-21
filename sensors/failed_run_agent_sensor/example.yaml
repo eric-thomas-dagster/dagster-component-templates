@@ -1,0 +1,14 @@
+type: dagster_community_components.FailedRunAgentSensorComponent
+attributes:
+  sensor_name: failed_run_agent_sensor
+  asset_keys: [bug_fixer, bug_fixer_reply]
+  # code_location_names: [engineering_demo]   # unset: monitor every code location
+  # job_names: [nightly]                       # unset: monitor every job
+  # required_tags: {team: "data-eng"}          # unset: no tag filter
+  slack_channel: "#dagster-failures"
+  slack_bot_token_env_var: SLACK_BOT_TOKEN
+  dagster_url: https://your-org.dagster.cloud/prod
+  evidence_dir: /var/dagster/failed_run_agent_sensor
+  max_triage_per_hour: 10
+  cooldown_minutes: 60
+  default_status: RUNNING

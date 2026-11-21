@@ -1,0 +1,89 @@
+{
+  "component_type": "dagster_community_components.TicketAnnouncerComponent",
+  "description": "Post each new ticket an engineering agent filed (GitHub Issues with a given label, and/or Linear issues in a given team) to Slack with a short excerpt, once.",
+  "category": "sensor",
+  "icon": "si:slack",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "default": "ticket_announcer",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": false
+    },
+    "slack_channel": {
+      "type": "string",
+      "label": "Slack Channel",
+      "description": "Channel to announce new tickets in (either `C123ABC456` id or `#channel-name`).",
+      "required": true
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "default": "SLACK_BOT_TOKEN",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's `xoxb-...` token. Needs `chat:write`.",
+      "required": false
+    },
+    "excerpt_chars": {
+      "type": "integer",
+      "default": 320,
+      "label": "Excerpt Chars",
+      "description": "Max characters of the ticket body quoted in the Slack message.",
+      "required": false
+    },
+    "repo": {
+      "type": "string",
+      "label": "Repo",
+      "description": "GitHub repository to watch for agent-filed issues, 'owner/repo'. Leave unset to skip GitHub.",
+      "required": false
+    },
+    "github_token_env_var": {
+      "type": "string",
+      "default": "GITHUB_TOKEN",
+      "label": "Github Token Env Var",
+      "description": "Env var holding a GitHub token with read access to issues.",
+      "required": false
+    },
+    "github_issue_label": {
+      "type": "string",
+      "default": "engineering-agent",
+      "label": "Github Issue Label",
+      "description": "Only issues carrying this label are announced.",
+      "required": false
+    },
+    "linear_team_id": {
+      "type": "string",
+      "label": "Linear Team Id",
+      "description": "Linear team UUID to watch for agent-filed tickets. Leave unset to skip Linear.",
+      "required": false
+    },
+    "linear_api_key_env_var": {
+      "type": "string",
+      "default": "LINEAR_API_KEY",
+      "label": "Linear Api Key Env Var",
+      "description": "Env var holding a Linear API key.",
+      "required": false
+    },
+    "linear_marker": {
+      "type": "string",
+      "default": "Filed by an engineering agent.",
+      "label": "Linear Marker",
+      "description": "Only Linear issues whose description contains this exact marker text are announced.",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "default": 60,
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "default": "RUNNING",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED'.",
+      "required": false
+    }
+  }
+}

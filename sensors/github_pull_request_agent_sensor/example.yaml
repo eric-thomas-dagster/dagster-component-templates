@@ -1,0 +1,11 @@
+type: dagster_community_components.GithubPullRequestAgentSensorComponent
+attributes:
+  sensor_name: github_pull_request_agent_sensor
+  asset_keys: [pr_reviewer, pr_reviewer_reply]
+  repo: your-org/your-repo
+  token_env_var: GITHUB_TOKEN
+  slack_channel: "#dagster-prs"
+  slack_bot_token_env_var: SLACK_BOT_TOKEN
+  # approver_allowlist: [U1234ALICE, U5678BOB]   # unset: anyone in the channel may vote
+  minimum_interval_seconds: 60
+  default_status: RUNNING

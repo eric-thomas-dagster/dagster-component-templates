@@ -1,0 +1,13 @@
+type: dagster_community_components.SlackPrApprovalWatcherComponent
+attributes:
+  sensor_name: slack_pr_approval_watcher
+  repo: your-org/your-repo
+  token_env_var: GITHUB_TOKEN
+  reviewer_token_env_var: GITHUB_REVIEWER_TOKEN   # a SECOND identity's token -- required to record an approval
+  reviewer_login: your-reviewer-bot
+  branch_prefix: agent/
+  slack_channel: "#dagster-prs"
+  slack_bot_token_env_var: SLACK_BOT_TOKEN
+  auto_merge: false
+  minimum_interval_seconds: 30
+  default_status: RUNNING

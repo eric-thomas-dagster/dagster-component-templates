@@ -1,0 +1,4 @@
+dagster
+pydantic
+requests
+slack_sdk>=3.0

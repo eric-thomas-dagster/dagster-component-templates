@@ -1,0 +1,15 @@
+type: dagster_community_components.GithubPrToolsComponent
+attributes:
+  resource_key: github_pr_tools
+  repo: your-org/your-repo
+  token_env_var: GITHUB_TOKEN
+  reviewer_token_env_var: GITHUB_REVIEWER_TOKEN   # a SECOND identity's token -- required for review_pull_request(decision=APPROVE)
+  # base_branch: main
+  # branch_prefix: agent/
+  # protected_paths: [.github/, pyproject.toml, requirements, Dockerfile, "setup."]
+  # low_risk_paths: [src/, tests/, docs/, README]
+  # low_risk_max_files: 2
+  # low_risk_max_lines: 30
+  # max_files_per_fix: 5
+  # allow: [get_pull_request, list_open_pull_requests, assess_pull_request, propose_fix, review_pull_request]  # default: all
+  # mcp_server_resource_key: github_pr_tools_mcp   # share this toolset via server_resource_key instead of a hand-written inline command+env entry

@@ -1,0 +1,95 @@
+{
+  "component_type": "dagster_community_components.SlackPrApprovalWatcherComponent",
+  "description": "Watch a GitHub-pull-request Slack thread for a reaction; record a GitHub review through a second identity, refuse to approve while checks fail, and optionally merge once approved and checks pass.",
+  "category": "sensor",
+  "icon": "si:slack",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "default": "slack_pr_approval_watcher",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": false
+    },
+    "repo": {
+      "type": "string",
+      "label": "Repo",
+      "description": "GitHub repository to act on, 'owner/repo'. Must match the repo sensors/github_pull_request_agent_sensor watches.",
+      "required": true
+    },
+    "token_env_var": {
+      "type": "string",
+      "default": "GITHUB_TOKEN",
+      "label": "Token Env Var",
+      "description": "Env var holding the primary GitHub token (reads, checks CI).",
+      "required": false
+    },
+    "reviewer_token_env_var": {
+      "type": "string",
+      "label": "Reviewer Token Env Var",
+      "description": "Env var holding a SECOND GitHub token (a distinct bot/user identity with write access) -- required to actually record an approval. GitHub blocks a PR's own author approving it.",
+      "required": false
+    },
+    "reviewer_login": {
+      "type": "string",
+      "label": "Reviewer Login",
+      "description": "The reviewer (second) identity's GitHub username -- checked before merging, to confirm THAT identity (not just anyone) approved.",
+      "required": false
+    },
+    "api_base_url": {
+      "type": "string",
+      "default": "https://api.github.com",
+      "label": "Api Base Url",
+      "description": "API base URL. Change for GitHub Enterprise Server.",
+      "required": false
+    },
+    "branch_prefix": {
+      "type": "string",
+      "default": "agent/",
+      "label": "Branch Prefix",
+      "description": "Only branches with this prefix are ever merged automatically.",
+      "required": false
+    },
+    "slack_channel": {
+      "type": "string",
+      "label": "Slack Channel",
+      "description": "The SAME channel sensors/github_pull_request_agent_sensor posts to.",
+      "required": true
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "default": "SLACK_BOT_TOKEN",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's `xoxb-...` token. Needs `reactions:read` + `chat:write` + `channels:history`/`groups:history`.",
+      "required": false
+    },
+    "history_lookback_hours": {
+      "type": "number",
+      "default": 168.0,
+      "label": "History Lookback Hours",
+      "description": "How far back (hours) to scan the channel for still-open PR-review threads.",
+      "required": false
+    },
+    "auto_merge": {
+      "type": "boolean",
+      "default": false,
+      "label": "Auto Merge",
+      "description": "When True, squash-merge automatically once the reviewer identity has approved and checks pass (still gated by branch_prefix).",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "default": 30,
+      "label": "Minimum Interval Seconds",
+      "description": "Sensor cadence -- how often to poll Slack + GitHub.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "default": "RUNNING",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED'.",
+      "required": false
+    }
+  }
+}

@@ -1,0 +1,15 @@
+dagster
+pandas>=1.5.0
+pydantic
+fsspec
+
+# pick whichever your source/sink URIs actually use:
+#   pip install s3fs      # s3://
+#   pip install gcsfs     # gs://
+#   pip install adlfs     # abfs:// / abfss:// / az://
+
+# copy_mode='dataframe' + sink_table only
+# sqlalchemy
+
+# copy_mode='dataframe' + source_format=avro only
+# fastavro

@@ -1,0 +1,26 @@
+type: dagster_community_components.CloudStorageCopyAssetComponent
+attributes:
+  asset_key: copy/orders_s3_to_adls
+  source_path: s3://raw-bucket/orders/{partition_key}.parquet
+  copy_mode: binary
+  sink_path: abfss://landing@acct.dfs.core.windows.net/orders/{partition_key}.parquet
+  azure_account_name_env_var: AZURE_STORAGE_ACCOUNT_NAME
+  azure_connection_string_env_var: AZURE_STORAGE_CONNECTION_STRING
+  partition_type: daily
+  partition_start: "2024-01-01"
+
+---
+# file -> Azure SQL, via sink_table (requires copy_mode: dataframe)
+type: dagster_community_components.CloudStorageCopyAssetComponent
+attributes:
+  asset_key: copy/orders_csv_to_sql
+  source_path: s3://raw-bucket/orders/{partition_key}.csv
+  source_format: csv
+  copy_mode: dataframe
+  sink_table:
+    resource_key: azure_sql
+    table: orders
+    schema: dbo
+    if_exists: append
+  partition_type: daily
+  partition_start: "2024-01-01"

@@ -66,6 +66,21 @@ def mod():
     return load_component_module()
 
 
+class _FakeBlobProps:
+    def __init__(self, name):
+        self.name = name
+
+
+class _FakeContainerClient:
+    def __init__(self, names):
+        self._names = names
+
+    def list_blobs(self, name_starts_with=None):
+        for n in self._names:
+            if name_starts_with is None or n.startswith(name_starts_with):
+                yield _FakeBlobProps(n)
+
+
 class FakeBlobServiceClient:
     """Maps "container/blob" to canned CSV bytes; records every get_blob_client call."""
 
@@ -82,6 +97,10 @@ class FakeBlobServiceClient:
         blob_obj = MagicMock()
         blob_obj.download_blob.return_value.readall.return_value = content.encode()
         return blob_obj
+
+    def get_container_client(self, container):
+        names = [k.split("/", 1)[1] for k in self.files if k.startswith(f"{container}/")]
+        return _FakeContainerClient(names)
 
 
 def _make_component(mod, db_path, monkeypatch, **overrides):
@@ -143,6 +162,89 @@ def test_backfill_policy_unset_by_default(mod, tmp_path, monkeypatch):
     )
     asset_def = component.build_defs(context=None).assets[0]
     assert asset_def.backfill_policy is None
+
+
+def test_static_container_and_blob_name_need_no_run_config(mod, tmp_path, monkeypatch):
+    """The static-path ask: a converter-generated pipeline with no sensor can set container_name/
+    blob_name directly on the component instead of relying on run_config from adls_monitor."""
+    db_path = tmp_path / "test.db"
+    fake = FakeBlobServiceClient({"my-container/orders.csv": "id,total\n1,10.0\n"})
+    component = _make_component(mod, db_path, monkeypatch, container_name="my-container", blob_name="orders.csv")
+    _install_fake_azure_module(monkeypatch)
+    asset_def = component.build_defs(context=None).assets[0]
+    with patch("azure.storage.blob.BlobServiceClient.from_connection_string", return_value=fake):
+        result = dg.materialize([asset_def])
+    assert result.success
+    assert fake.calls == [("my-container", "orders.csv")]
+
+
+def test_run_config_still_takes_precedence_over_static_fields(mod, tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    fake = FakeBlobServiceClient({"my-container/from_run_config.csv": "id,total\n1,10.0\n"})
+    component = _make_component(mod, db_path, monkeypatch, container_name="my-container", blob_name="static_default.csv")
+    result = _materialize(component, fake, "my-container", "from_run_config.csv", monkeypatch)
+    assert result.success
+    assert fake.calls == [("my-container", "from_run_config.csv")]
+
+
+def test_wildcard_loads_every_matching_blob_into_one_table(mod, tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    fake = FakeBlobServiceClient({
+        "my-container/orders/a.csv": "id,total\n1,10.0\n",
+        "my-container/orders/b.csv": "id,total\n2,20.0\n",
+        "my-container/orders/notes.txt": "ignore me",
+        "my-container/orders/nested/c.csv": "id,total\n3,30.0\n",
+    })
+    component = _make_component(
+        mod, db_path, monkeypatch, container_name="my-container", blob_name="orders", wildcard="*.csv",
+    )
+    _install_fake_azure_module(monkeypatch)
+    asset_def = component.build_defs(context=None).assets[0]
+    with patch("azure.storage.blob.BlobServiceClient.from_connection_string", return_value=fake):
+        result = dg.materialize([asset_def])
+    assert result.success
+    assert len(fake.calls) == 2  # a.csv and b.csv, not notes.txt or the nested one
+
+    engine = create_engine(f"sqlite:///{db_path}")
+    with engine.connect() as conn:
+        assert conn.execute(text("select count(*) from sales")).scalar() == 2
+
+
+def test_wildcard_recursive_includes_nested_blobs(mod, tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    fake = FakeBlobServiceClient({
+        "my-container/orders/a.csv": "id,total\n1,10.0\n",
+        "my-container/orders/nested/c.csv": "id,total\n3,30.0\n",
+    })
+    component = _make_component(
+        mod, db_path, monkeypatch, container_name="my-container", blob_name="orders", wildcard="*.csv", recursive=True,
+    )
+    _install_fake_azure_module(monkeypatch)
+    asset_def = component.build_defs(context=None).assets[0]
+    with patch("azure.storage.blob.BlobServiceClient.from_connection_string", return_value=fake):
+        result = dg.materialize([asset_def])
+    assert result.success
+    assert len(fake.calls) == 2
+
+
+def test_wildcard_requires_static_container_and_blob_name(mod, tmp_path, monkeypatch):
+    with pytest.raises(ValueError, match="wildcard requires"):
+        _make_component(mod, tmp_path / "t.db", monkeypatch, wildcard="*.csv")
+    with pytest.raises(ValueError, match="wildcard requires"):
+        _make_component(mod, tmp_path / "t.db", monkeypatch, container_name="c", wildcard="*.csv")
+
+
+def test_wildcard_with_no_matches_raises_a_clear_failure(mod, tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    fake = FakeBlobServiceClient({"my-container/orders/notes.txt": "ignore"})
+    component = _make_component(
+        mod, db_path, monkeypatch, container_name="my-container", blob_name="orders", wildcard="*.csv",
+    )
+    _install_fake_azure_module(monkeypatch)
+    asset_def = component.build_defs(context=None).assets[0]
+    with patch("azure.storage.blob.BlobServiceClient.from_connection_string", return_value=fake):
+        result = dg.materialize([asset_def], raise_on_error=False)
+    assert not result.success
 
 
 def test_single_run_backfill_writes_each_partitions_own_table(mod, tmp_path, monkeypatch):

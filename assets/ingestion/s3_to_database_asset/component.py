@@ -214,6 +214,38 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset")
 
+    s3_bucket: Optional[str] = Field(
+        default=None,
+        description=(
+            "Static S3 bucket, used when a materialization's run_config doesn't supply 's3_bucket' "
+            "(e.g. when this asset isn't triggered by a sensor at all). A run_config value, when "
+            "given, still takes precedence -- this is a fallback, not a conflicting source."
+        ),
+    )
+    s3_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Static S3 key/prefix, used the same way as s3_bucket -- a fallback for when run_config "
+            "doesn't supply 's3_key'. Supports the same '{partition_key}'/'{partition_date}' "
+            "templating as the run_config-supplied key. When `wildcard` is set, this is treated as a "
+            "key PREFIX (a directory) that `wildcard` is matched under, and every matching object is "
+            "read and concatenated into one write -- the static-path + wildcard Copy-activity shape a "
+            "sensor-free pipeline needs."
+        ),
+    )
+    wildcard: Optional[str] = Field(
+        default=None,
+        description=(
+            "Glob pattern (e.g. '*.csv') matched against object keys under the s3_key prefix. Every "
+            "matching object is read and concatenated into the same write to table_name. Requires "
+            "s3_bucket and s3_key to be set statically on the component (not via run_config)."
+        ),
+    )
+    recursive: bool = Field(
+        default=False,
+        description="wildcard only. Match objects in 'subdirectories' (keys containing '/' beyond the prefix) too.",
+    )
+
     # Database Configuration
     database_url: Optional[str] = Field(
         default=None,
@@ -457,6 +489,12 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
 
+    @model_validator(mode="after")
+    def _validate_wildcard(self):
+        if self.wildcard and not (self.s3_bucket and self.s3_key):
+            raise ValueError("S3ToDatabaseAssetComponent: wildcard requires s3_bucket and s3_key to be set statically on the component.")
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -500,11 +538,17 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
             except json.JSONDecodeError:
                 pass
 
+        _static_bucket = self.s3_bucket
+        _static_key = self.s3_key
+        _wildcard = self.wildcard
+        _recursive = self.recursive
+
         # Define the run config schema
         class S3FileConfig(Config):
-            """Configuration passed from sensor via run_config."""
-            s3_bucket: str
-            s3_key: str
+            """Configuration passed from sensor via run_config. Optional: a static s3_bucket/s3_key
+            on the component itself is used as a fallback when run_config doesn't supply them."""
+            s3_bucket: Optional[str] = None
+            s3_key: Optional[str] = None
             s3_size: Optional[int] = None
             s3_last_modified: Optional[str] = None
 
@@ -626,8 +670,18 @@ group_name=group_name,
 
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
-            bucket = config.s3_bucket
-            key = config.s3_key
+            bucket = config.s3_bucket or _static_bucket
+            key = config.s3_key or _static_key
+            if not bucket:
+                raise ValueError(
+                    "S3ToDatabaseAssetComponent: no s3_bucket -- set it via run_config (e.g. from "
+                    "a sensor) or statically on the component."
+                )
+            if not key:
+                raise ValueError(
+                    "S3ToDatabaseAssetComponent: no s3_key -- set it via run_config (e.g. from a "
+                    "sensor) or statically on the component."
+                )
 
             # Partition key(s) this call must process: a normal tick gives
             # exactly one; a single_run backfill gives the whole range (via
@@ -678,24 +732,23 @@ group_name=group_name,
                 s3_client_kwargs['region_name'] = aws_region
             s3_client = boto3.client('s3', **s3_client_kwargs)
 
-            def _read_one(partition_key):
-                partitioned_key = _resolve_key(partition_key)
-                context.log.info(f"Processing s3://{bucket}/{partitioned_key}")
+            def _read_object(object_key):
+                context.log.info(f"Processing s3://{bucket}/{object_key}")
 
-                response = s3_client.get_object(Bucket=bucket, Key=partitioned_key)
+                response = s3_client.get_object(Bucket=bucket, Key=object_key)
                 file_content = response['Body'].read()
                 context.log.info(f"Downloaded {len(file_content)} bytes from S3")
 
                 format_to_use = file_format
                 if format_to_use == "auto":
-                    if partitioned_key.endswith('.csv'):
+                    if object_key.endswith('.csv'):
                         format_to_use = "csv"
-                    elif partitioned_key.endswith('.json'):
+                    elif object_key.endswith('.json'):
                         format_to_use = "json"
-                    elif partitioned_key.endswith('.parquet'):
+                    elif object_key.endswith('.parquet'):
                         format_to_use = "parquet"
                     else:
-                        raise ValueError(f"Cannot auto-detect format for {partitioned_key}")
+                        raise ValueError(f"Cannot auto-detect format for {object_key}")
 
                 if format_to_use == "csv":
                     df = pd.read_csv(
@@ -717,8 +770,31 @@ group_name=group_name,
                 context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
                 return df
 
+            def _read_one(partition_key):
+                return _read_object(_resolve_key(partition_key))
+
+            def _list_wildcard_matches():
+                import fnmatch
+                prefix = key.rstrip("/") + "/"
+                paginator = s3_client.get_paginator("list_objects_v2")
+                matched = []
+                for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                    for obj in page.get("Contents", []):
+                        rel = obj["Key"][len(prefix):]
+                        if not rel or (not _recursive and "/" in rel):
+                            continue
+                        if fnmatch.fnmatch(rel, _wildcard):
+                            matched.append(obj["Key"])
+                return sorted(matched)
+
             try:
-                dfs = [_read_one(pk) for pk in partition_keys]
+                if _wildcard:
+                    matches = _list_wildcard_matches()
+                    if not matches:
+                        raise ValueError(f"S3ToDatabaseAssetComponent: no objects under s3://{bucket}/{key}/ matched wildcard {_wildcard!r}.")
+                    dfs = [_read_object(m) for m in matches]
+                else:
+                    dfs = [_read_one(pk) for pk in partition_keys]
                 df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
 
                 # Apply column mapping if provided

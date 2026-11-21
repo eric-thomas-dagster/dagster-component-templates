@@ -350,6 +350,30 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "container_name": {
+      "type": "string",
+      "label": "Container Name",
+      "description": "Static container name, used when a materialization's run_config doesn't supply 'container_name' (e.g. when this asset isn't triggered by adls_monitor at all). A run_config value, when given, still takes precedence -- this is a fallback, not a conflicting source.",
+      "required": false
+    },
+    "blob_name": {
+      "type": "string",
+      "label": "Blob Name",
+      "description": "Static blob name/path, used the same way as container_name -- a fallback for when run_config doesn't supply 'blob_name'. '{partition_key}' is replaced with the running partition, same as table_name. When `wildcard` is set, this is treated as a DIRECTORY (a blob name prefix) that `wildcard` is matched under, and every matching blob is read and written -- the static-path + wildcard Copy-activity shape a sensor-free pipeline needs.",
+      "required": false
+    },
+    "wildcard": {
+      "type": "string",
+      "label": "Wildcard",
+      "description": "Glob pattern (e.g. '*.csv') matched against blob names under blob_name (treated as a directory prefix). Every matching blob is read and written to table_name (NOT templated per-match -- all matches are loaded into the same table). Requires blob_name and container_name to be set statically on the component (not via run_config).",
+      "required": false
+    },
+    "recursive": {
+      "type": "boolean",
+      "label": "Recursive",
+      "description": "wildcard only. Match blobs in 'subdirectories' (blob names containing '/') under blob_name too.",
+      "required": false
     }
   },
   "tags": [

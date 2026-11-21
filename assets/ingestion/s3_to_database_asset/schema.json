@@ -356,6 +356,30 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "s3_bucket": {
+      "type": "string",
+      "label": "S3 Bucket",
+      "description": "Static S3 bucket, used when a materialization's run_config doesn't supply 's3_bucket' (e.g. when this asset isn't triggered by a sensor at all). A run_config value, when given, still takes precedence -- this is a fallback, not a conflicting source.",
+      "required": false
+    },
+    "s3_key": {
+      "type": "string",
+      "label": "S3 Key",
+      "description": "Static S3 key/prefix, used the same way as s3_bucket -- a fallback for when run_config doesn't supply 's3_key'. Supports the same '{partition_key}'/'{partition_date}' templating as the run_config-supplied key. When `wildcard` is set, this is treated as a key PREFIX (a directory) that `wildcard` is matched under, and every matching object is read and concatenated into one write -- the static-path + wildcard Copy-activity shape a sensor-free pipeline needs.",
+      "required": false
+    },
+    "wildcard": {
+      "type": "string",
+      "label": "Wildcard",
+      "description": "Glob pattern (e.g. '*.csv') matched against object keys under the s3_key prefix. Every matching object is read and concatenated into the same write to table_name. Requires s3_bucket and s3_key to be set statically on the component (not via run_config).",
+      "required": false
+    },
+    "recursive": {
+      "type": "boolean",
+      "label": "Recursive",
+      "description": "wildcard only. Match objects in 'subdirectories' (keys containing '/' beyond the prefix) too.",
+      "required": false
     }
   },
   "tags": [

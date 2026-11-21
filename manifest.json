@@ -12753,6 +12753,63 @@
       "icon": "Server"
     },
     {
+      "id": "cloud_storage_copy_asset",
+      "name": "Cloud Storage Copy Asset",
+      "category": "ingestion",
+      "description": "A generic Copy-activity stand-in: binary or DataFrame copy between fsspec-resolvable cloud-storage/local paths (s3://, gs://, abfss://...), or a DataFrame load into a warehouse table. Supports a wildcard/recursive mode for copying every file under a directory matching a glob pattern.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/cloud_storage_copy_asset",
+      "tags": [
+        "ingestion",
+        "cloud-storage",
+        "s3",
+        "adls",
+        "gcs",
+        "copy",
+        "asset"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "pydantic",
+          "fsspec"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_storage_copy_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_storage_copy_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_storage_copy_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_storage_copy_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/cloud_storage_copy_asset/requirements.txt",
+      "component_type": "dagster_community_components.CloudStorageCopyAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) -- reads a file or wildcard-matched files from a source fsspec URI.",
+        "outputs": "None (sink-like) -- writes to a sink fsspec URI or a warehouse table.",
+        "side_effects": "Requires read access to source_path and write access to sink_path/sink_table.",
+        "anti_uses": "For reading a file as this asset's own DataFrame output (no sink), use file_ingestion instead.",
+        "requires_resources": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "copy activity",
+        "file copy",
+        "s3 to s3",
+        "adls to adls",
+        "wildcard",
+        "glob",
+        "binary copy"
+      ],
+      "vertical": "cloud-storage",
+      "icon": "Copy"
+    },
+    {
       "id": "cloud_tasks_enqueue_asset",
       "name": "Cloud Tasks Enqueue Asset",
       "category": "sink",

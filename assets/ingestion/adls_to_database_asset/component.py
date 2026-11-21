@@ -231,6 +231,38 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     asset_name: str = Field(description="Dagster asset name")
     connection_string_env_var: str = Field(description="Env var with ADLS connection string")
+    container_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Static container name, used when a materialization's run_config doesn't supply "
+            "'container_name' (e.g. when this asset isn't triggered by adls_monitor at all). A "
+            "run_config value, when given, still takes precedence -- this is a fallback, not a "
+            "conflicting source."
+        ),
+    )
+    blob_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Static blob name/path, used the same way as container_name -- a fallback for when "
+            "run_config doesn't supply 'blob_name'. '{partition_key}' is replaced with the running "
+            "partition, same as table_name. When `wildcard` is set, this is treated as a DIRECTORY "
+            "(a blob name prefix) that `wildcard` is matched under, and every matching blob is read "
+            "and written -- the static-path + wildcard Copy-activity shape a sensor-free pipeline needs."
+        ),
+    )
+    wildcard: Optional[str] = Field(
+        default=None,
+        description=(
+            "Glob pattern (e.g. '*.csv') matched against blob names under blob_name (treated as a "
+            "directory prefix). Every matching blob is read and written to table_name (NOT templated "
+            "per-match -- all matches are loaded into the same table). Requires blob_name and "
+            "container_name to be set statically on the component (not via run_config)."
+        ),
+    )
+    recursive: bool = Field(
+        default=False,
+        description="wildcard only. Match blobs in 'subdirectories' (blob names containing '/') under blob_name too.",
+    )
     database_url: Optional[str] = Field(default=None, description="SQLAlchemy database URL. Set this OR database_url_env_var OR resource_key.")
     database_url_env_var: Optional[str] = Field(default=None, description="Env var with SQLAlchemy database URL. Set this OR database_url OR resource_key.")
     resource_key: Optional[str] = Field(
@@ -402,6 +434,12 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
+    @model_validator(mode="after")
+    def _validate_wildcard(self):
+        if self.wildcard and not (self.container_name and self.blob_name):
+            raise ValueError("ADLSToDatabaseAssetComponent: wildcard requires container_name and blob_name to be set statically on the component.")
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -436,8 +474,8 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         class ADLSFileConfig(Config):
-            container_name: str
-            blob_name: str
+            container_name: Optional[str] = None
+            blob_name: Optional[str] = None
             blob_size: Optional[int] = None
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
@@ -481,27 +519,12 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             conn_str = _require_env(_self.connection_string_env_var)
             db_url = _resolve_db_url(context, _self.resource_key, _self.database_url, _self.database_url_env_var)
 
-            # Partition key(s) this call must process: a normal tick gives
-            # exactly one; a single_run backfill gives the whole range.
-            # blob_name AND table_name can BOTH vary per partition key here
-            # (e.g. a per-customer static partition writing to its own
-            # table), so -- unlike s3_to_database_asset, which always
-            # writes one combined frame to one fixed table -- each key is
-            # processed and written independently; nothing is concatenated.
-            partition_keys = [None]
-            if context.has_partition_key or context.has_partition_key_range:
-                partition_keys = list(context.partition_keys)
-
             client = BlobServiceClient.from_connection_string(conn_str)
             engine = create_engine(db_url)
 
-            def _process_one(partition_key):
-                blob_name = config.blob_name
-                if partition_key is not None:
-                    blob_name = blob_name.replace("{partition_key}", partition_key)
-
-                context.log.info(f"Downloading {config.container_name}/{blob_name}")
-                blob = client.get_blob_client(container=config.container_name, blob=blob_name)
+            def _read_and_write(container_name, blob_name, table_name):
+                context.log.info(f"Downloading {container_name}/{blob_name}")
+                blob = client.get_blob_client(container=container_name, blob=blob_name)
                 content = blob.download_blob().readall()
 
                 fmt = _self.file_format
@@ -521,17 +544,68 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 if _self.column_mapping:
                     df = df.rename(columns=_self.column_mapping)
 
-                table_name = _self.table_name
-                if partition_key is not None:
-                    table_name = table_name.replace("{partition_key}", partition_key)
-
                 df.to_sql(table_name, con=engine, schema=_self.schema_name,
                           if_exists=_self.if_exists, index=False, method="multi", chunksize=1000)
 
                 context.log.info(f"Wrote {len(df)} rows to {_self.schema_name + '.' if _self.schema_name else ''}{table_name}")
                 return {"df": df, "blob_name": blob_name, "table_name": table_name, "fmt": fmt}
 
-            results = [_process_one(pk) for pk in partition_keys]
+            effective_container = config.container_name or _self.container_name
+            if not effective_container:
+                raise ValueError(
+                    "ADLSToDatabaseAssetComponent: no container_name -- set it via run_config "
+                    "(e.g. from adls_monitor) or statically on the component."
+                )
+
+            if _self.wildcard:
+                # Static wildcard mode: every blob under blob_name (a directory prefix) matching
+                # wildcard, all loaded into the same table_name -- no run_config needed at all.
+                import fnmatch
+                prefix = _self.blob_name.rstrip("/")
+                container_client = client.get_container_client(effective_container)
+                matched = []
+                for b in container_client.list_blobs(name_starts_with=prefix + "/"):
+                    rel = b.name[len(prefix) + 1:]
+                    if not _self.recursive and "/" in rel:
+                        continue
+                    if fnmatch.fnmatch(rel, _self.wildcard):
+                        matched.append(b.name)
+                if not matched:
+                    raise dg.Failure(f"ADLSToDatabaseAssetComponent: no blobs under {effective_container}/{prefix}/ matched wildcard {_self.wildcard!r}.")
+                results = [_read_and_write(effective_container, blob_name, _self.table_name) for blob_name in sorted(matched)]
+            else:
+                # Partition key(s) this call must process: a normal tick gives
+                # exactly one; a single_run backfill gives the whole range.
+                # blob_name AND table_name can BOTH vary per partition key here
+                # (e.g. a per-customer static partition writing to its own
+                # table), so -- unlike s3_to_database_asset, which always
+                # writes one combined frame to one fixed table -- each key is
+                # processed and written independently; nothing is concatenated.
+                partition_keys = [None]
+                if context.has_partition_key or context.has_partition_key_range:
+                    partition_keys = list(context.partition_keys)
+
+                def _resolve_blob_name(partition_key):
+                    blob_name = config.blob_name or _self.blob_name
+                    if not blob_name:
+                        raise ValueError(
+                            "ADLSToDatabaseAssetComponent: no blob_name -- set it via run_config "
+                            "(e.g. from adls_monitor) or statically on the component."
+                        )
+                    if partition_key is not None:
+                        blob_name = blob_name.replace("{partition_key}", partition_key)
+                    return blob_name
+
+                def _resolve_table_name(partition_key):
+                    table_name = _self.table_name
+                    if partition_key is not None:
+                        table_name = table_name.replace("{partition_key}", partition_key)
+                    return table_name
+
+                results = [
+                    _read_and_write(effective_container, _resolve_blob_name(pk), _resolve_table_name(pk))
+                    for pk in partition_keys
+                ]
 
             _preview_metadata = {}
             if _self.include_preview_metadata:
@@ -550,7 +624,7 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "num_rows": total_rows,
                 "num_columns": results[-1]["df"].shape[1],
                 "columns": list(results[-1]["df"].columns),
-                "container": config.container_name,
+                "container": effective_container,
                 "blob": results[-1]["blob_name"] if len(results) == 1 else [r["blob_name"] for r in results],
                 "table": tables[0] if len(tables) == 1 else tables,
                 "file_format": results[-1]["fmt"],

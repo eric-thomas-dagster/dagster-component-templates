@@ -240,6 +240,7 @@ _CLASS_PATHS: dict[str, str] = {
     "CloudLoggingQueryAssetComponent": "assets/source/cloud_logging_query_asset/component.py",
     "CloudMonitoringMetricsAssetComponent": "assets/source/cloud_monitoring_metrics_asset/component.py",
     "CloudRunJobTriggerAssetComponent": "assets/infrastructure/cloud_run_job_trigger_asset/component.py",
+    "CloudStorageCopyAssetComponent": "assets/ingestion/cloud_storage_copy_asset/component.py",
     "CloudTasksEnqueueAssetComponent": "assets/sinks/cloud_tasks_enqueue_asset/component.py",
     "CloudTextToSpeechAssetComponent": "assets/ai/cloud_text_to_speech_asset/component.py",
     "CoalesceJobSensorComponent": "sensors/coalesce_job_sensor/component.py",

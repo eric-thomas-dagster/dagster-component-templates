@@ -1,0 +1,248 @@
+{
+  "component_type": "dagster_community_components.CloudStorageCopyAssetComponent",
+  "description": "A generic Copy-activity stand-in: moves data from one cloud-storage (or local) path to another (single file, or every file matching a wildcard pattern), or into a warehouse table. copy_mode=binary does a raw byte-stream copy; copy_mode=dataframe reads/writes with format conversion or loads a warehouse table.",
+  "category": "ingestion",
+  "icon": "Copy",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. 'copy/orders_to_adls').",
+      "required": true
+    },
+    "source_path": {
+      "type": "string",
+      "label": "Source Path",
+      "description": "Source fsspec URI (s3://, gs://, abfss://..., or a local/plain path). '{partition_key}' is replaced with the running partition. When `wildcard` is set, this is treated as a DIRECTORY (not a single file) that `wildcard` is matched under.",
+      "required": true
+    },
+    "wildcard": {
+      "type": "string",
+      "label": "Wildcard",
+      "description": "Glob pattern (e.g. '*.csv') matched under source_path, which is then treated as a directory. Every matching file is binary-copied to the same relative path under sink_path -- the common 'copy everything matching *.csv in this folder' same-format file copy. Requires copy_mode='binary' and sink_path (not sink_table); leave unset for the default single-file source_path -> sink_path/sink_table copy.",
+      "required": false
+    },
+    "recursive": {
+      "type": "boolean",
+      "default": false,
+      "label": "Recursive",
+      "description": "wildcard only. Match files in subdirectories under source_path too (equivalent to a '**/' prefix on wildcard).",
+      "required": false
+    },
+    "copy_mode": {
+      "type": "string",
+      "enum": [
+        "binary",
+        "dataframe"
+      ],
+      "default": "binary",
+      "label": "Copy Mode",
+      "description": "'binary' (default): a raw byte-stream copy, no parsing -- matches ADF's default Binary dataset type, the shape most real file-to-file Copy activities actually use. 'dataframe': read the source into a DataFrame and either write it out in a (possibly different) file format, or load it into a warehouse table via sink_table. Required (not binary) when sink_table is set, or when sink_format differs from the source's real format.",
+      "required": false
+    },
+    "source_format": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "csv",
+        "tsv",
+        "json",
+        "jsonl",
+        "parquet",
+        "excel",
+        "avro",
+        "orc",
+        "feather"
+      ],
+      "default": "auto",
+      "label": "Source Format",
+      "description": "copy_mode='dataframe' only. 'auto' detects from source_path's extension.",
+      "required": false
+    },
+    "sink_path": {
+      "type": "string",
+      "label": "Sink Path",
+      "description": "File sink: fsspec URI ('{partition_key}' templated). Exactly one of sink_path / sink_table must be set.",
+      "required": false
+    },
+    "sink_format": {
+      "type": "string",
+      "enum": [
+        "csv",
+        "jsonl",
+        "json",
+        "parquet"
+      ],
+      "label": "Sink Format",
+      "description": "copy_mode='dataframe' + sink_path only (required then). Ignored for copy_mode='binary' -- bytes are written verbatim, no re-serialization.",
+      "required": false
+    },
+    "sink_compression": {
+      "type": "string",
+      "label": "Sink Compression",
+      "description": "copy_mode='dataframe' + sink_path only. e.g. 'gzip', 'snappy' (parquet).",
+      "required": false
+    },
+    "sink_table": {
+      "type": "object",
+      "label": "Sink Table",
+      "description": "Warehouse-table sink (requires copy_mode='dataframe'). Keys: resource_key (required), table (required), schema, if_exists: append|replace (default append), mode: upsert_on_match (partition-rewrite idempotent DELETE-then-INSERT keyed by match), match: [col, ...] (required for upsert_on_match). Auto-detects DuckDB's .register() fast path; falls back to SQLAlchemy to_sql. Exactly one of sink_path / sink_table must be set.",
+      "required": false
+    },
+    "azure_account_name_env_var": {
+      "type": "string",
+      "label": "Azure Account Name Env Var",
+      "description": "Only used when source_path or sink_path is an abfs://.../abfss://... URI.",
+      "required": false
+    },
+    "azure_account_key_env_var": {
+      "type": "string",
+      "label": "Azure Account Key Env Var",
+      "description": "Only used when source_path or sink_path is an abfs://.../abfss://... URI (ignored if azure_connection_string_env_var is also set).",
+      "required": false
+    },
+    "azure_connection_string_env_var": {
+      "type": "string",
+      "label": "Azure Connection String Env Var",
+      "description": "Only used when source_path or sink_path is an abfs://.../abfss://... URI. Takes precedence over azure_account_key_env_var.",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": false,
+      "label": "Dry Run",
+      "description": "Log what would be copied and skip touching source/sink entirely.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "default": "ingestion",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys for lineage.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners -- team names ('team:analytics') or email addresses.",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "string",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog. Auto-includes 'cloud-storage' if empty.",
+      "required": false
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "",
+      "required": false
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "default": "%Y-%m-%d",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "default": 0,
+      "label": "Partition End Offset",
+      "description": "0 (default): a time-based partition set only ever holds COMPLETED windows. 1: include the current, in-progress window.",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying partitions definition (defaults to UTC).",
+      "required": false
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "",
+      "required": false
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "default": "exponential",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool -- a cap on concurrent copies sharing the same pool name.",
+      "required": false
+    }
+  }
+}

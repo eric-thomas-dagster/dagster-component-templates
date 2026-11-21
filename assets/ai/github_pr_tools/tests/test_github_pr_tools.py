@@ -42,6 +42,7 @@ class FakeGithubApi:
         self.reviews = {}
         self.contents = {}
         self.refs = {"heads/main": "basesha123"}
+        self.comments = {}
 
     def add_pull(self, number, *, title="Fix bug", author="bot", head_sha="abc123", head_ref="agent/fix-1", state="open", merged=False, body=""):
         self.pulls[number] = {
@@ -97,6 +98,15 @@ class FakeGithubApi:
         m = re.match(r"^/commits/([^/]+)/check-runs$", path)
         if method == "GET" and m:
             return _FakeResp(200, {"check_runs": self.checks.get(m.group(1), [])})
+        m = re.match(r"^/commits/([^/]+)/statuses$", path)
+        if method == "GET" and m:
+            return _FakeResp(200, [])
+        m = re.match(r"^/issues/(\d+)/comments$", path)
+        if method == "GET" and m:
+            return _FakeResp(200, self.comments.get(int(m.group(1)), []))
+        m = re.match(r"^/pulls/(\d+)/update-branch$", path)
+        if method == "PUT" and m:
+            return _FakeResp(202, {"message": "Updating pull request branch."})
         m = re.match(r"^/git/ref/heads/(.+)$", path)
         if method == "GET" and m:
             sha = self.refs.get(f"heads/{m.group(1)}")
@@ -303,3 +313,107 @@ def test_merge_if_ready_succeeds_when_approved_and_passing(mod, patched):
     result = mod._gh_merge_if_ready(api.repo, 1, branch_prefix="agent/", reviewer_login="reviewer-bot", token="primary-token", api_base_url="https://api.github.com")
     assert result["merged"] is True
     assert "heads/agent/fix-1" not in api.refs
+
+
+def test_get_pull_request_includes_branch_deployment_url_when_posted_in_a_comment(mod, patched):
+    """branch_deployment_url is read from PR comments/check-runs/commit-statuses, folded directly
+    into get_pull_request's own result -- no separate 'post the link' tool needed: an agent (or a
+    person) reading get_pull_request already sees it."""
+    api = patched
+    api.add_pull(1)
+    api.set_checks("abc123", {"build": "success"})
+    api.comments = {1: [{"body": "Deployed to https://acme.dagster.cloud/branch/my-feature--abc123 for review."}]}
+    tools = _tools(mod, api)
+    result = tools.call("get_pull_request", {"number": 1})
+    assert result["branch_deployment_url"] == "https://acme.dagster.cloud/branch/my-feature--abc123"
+
+
+def test_get_pull_request_branch_deployment_url_is_none_when_nothing_posted(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    result = tools.call("get_pull_request", {"number": 1})
+    assert result["branch_deployment_url"] is None
+
+
+def test_assess_pull_request_needs_human_for_kind_improvement(mod, patched):
+    """A PR marked Kind: improvement always needs a person, even if it's otherwise small/low-risk --
+    an improvement changes behavior, which a deterministic size/path check alone can't vet."""
+    api = patched
+    api.add_pull(1, body="What this does.\n\n---\nOpened by an engineering agent. Kind: improvement.")
+    api.add_file(1, "src/a.py", additions=2, deletions=1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    result = tools.call("assess_pull_request", {"number": 1})
+    assert result["level"] == "needs_human"
+    assert any("improvement" in r for r in result["reasons"])
+
+
+def test_assess_pull_request_low_risk_fix_is_unaffected_by_the_kind_rule(mod, patched):
+    api = patched
+    api.add_pull(1, body="What this does.\n\n---\nOpened by an engineering agent. Kind: fix.")
+    api.add_file(1, "src/a.py", additions=2, deletions=1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    result = tools.call("assess_pull_request", {"number": 1})
+    assert result["level"] == "low"
+
+
+def test_propose_fix_practice_mode_opens_nothing(mod, patched):
+    api = patched
+    tools = _tools(mod, api, practice_mode_env_var="ENG_PRACTICE")
+    import os
+    os.environ["ENG_PRACTICE"] = "practice"
+    try:
+        result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": [{"path": "src/a.py", "content": "y"}]})
+    finally:
+        del os.environ["ENG_PRACTICE"]
+    assert result["practice_mode"] is True
+    assert result["would_open"] == "pull_request"
+    assert not api.pulls  # nothing was actually opened
+
+
+def test_propose_fix_practice_mode_still_refuses_a_protected_path(mod, patched):
+    """Practice mode withholds the real PR creation, not the validation that would have refused it anyway."""
+    api = patched
+    tools = _tools(mod, api, practice_mode_env_var="ENG_PRACTICE")
+    import os
+    os.environ["ENG_PRACTICE"] = "practice"
+    try:
+        result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": [{"path": "pyproject.toml", "content": "x"}]})
+    finally:
+        del os.environ["ENG_PRACTICE"]
+    assert "error" in result and "protected" in result["error"]
+
+
+def test_propose_fix_is_not_practice_mode_when_env_var_unset(mod, patched):
+    api = patched
+    tools = _tools(mod, api, practice_mode_env_var="ENG_PRACTICE_UNSET")
+    result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": [{"path": "src/a.py", "content": "y"}]})
+    assert "practice_mode" not in result
+    assert api.pulls
+
+
+def test_propose_fix_practice_mode_treats_a_numeric_string_as_falsy_like_settings_shadow(mod, patched):
+    """Mirrors the engineering-agents reference's own practice-mode vocabulary (a word, not '1') --
+    any of '', '0', 'false', 'no', 'off' (case-insensitive) is treated as OFF."""
+    api = patched
+    tools = _tools(mod, api, practice_mode_env_var="ENG_PRACTICE_OFF")
+    import os
+    os.environ["ENG_PRACTICE_OFF"] = "0"
+    try:
+        result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": [{"path": "src/a.py", "content": "y"}]})
+    finally:
+        del os.environ["ENG_PRACTICE_OFF"]
+    assert "practice_mode" not in result
+    assert api.pulls
+
+
+def test_refresh_open_agent_prs_updates_agent_branches_only(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="agent/fix-1")
+    api.add_pull(2, head_ref="someones-manual-branch")
+    tools = _tools(mod, api)
+    result = tools.call("refresh_open_agent_prs", {})
+    assert result["updated"] == [1]

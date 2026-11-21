@@ -81,6 +81,15 @@ class FakeGithubApi:
         m = re.match(r"^/commits/([^/]+)/check-runs$", path)
         if method == "GET" and m:
             return _FakeResp(200, {"check_runs": self.checks.get(m.group(1), [])})
+        m = re.match(r"^/commits/([^/]+)/statuses$", path)
+        if method == "GET" and m:
+            return _FakeResp(200, [])
+        m = re.match(r"^/issues/(\d+)/comments$", path)
+        if method == "GET" and m:
+            return _FakeResp(200, [])
+        m = re.match(r"^/pulls/(\d+)/update-branch$", path)
+        if method == "PUT" and m:
+            return _FakeResp(202, {"message": "Updating pull request branch."})
         m = re.match(r"^/git/refs/heads/(.+)$", path)
         if method == "DELETE" and m:
             self.refs.discard(m.group(1))

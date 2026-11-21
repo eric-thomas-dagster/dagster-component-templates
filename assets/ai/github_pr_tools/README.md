@@ -9,6 +9,9 @@ Repo-scoped GitHub pull-request tools for engineering agents (a bug fixer, a PR 
 | `assess_pull_request(number)` | the FIXED risk assessment (`level`: `'low'`/`'needs_human'`, plus `reasons`), from changed paths, size and checks |
 | `propose_fix(branch, title, body, files, note="")` | opens a pull request. `files` items are `{path, old, new}` (replaces one exact piece of text -- it must appear once -- leaving the rest of the file untouched) or `{path, content}` (new files only). Refuses files under a protected path, or a fix touching more than `max_files_per_fix` files, or a file an already-open PR already touches |
 | `review_pull_request(number, decision, body)` | `decision` is `COMMENT` or `APPROVE`. `COMMENT` always works. `APPROVE` is refused unless `assess_pull_request` says `'low'`, and is posted under a SECOND GitHub identity -- GitHub blocks a PR's own author approving it |
+| `refresh_open_agent_prs()` | brings every open agent-branch PR up to date with `base_branch` -- call after a merge so CI on the other open agent PRs runs against the just-merged code |
+
+`get_pull_request`'s result also includes `branch_deployment_url` -- the Dagster+ branch deployment link, read from the PR's comments/checks/statuses (see below).
 
 Deliberately **not** a tool: merging. Only `sensors/slack_pr_approval_watcher` can merge (on a human's Slack reaction, gated by branch prefix + reviewer approval + passing checks) -- an agent is never handed a merge button.
 
@@ -70,7 +73,21 @@ Then, in any MCP-aware component: `server_resource_key: github_pr_tools_mcp`.
 
 ## Risk rules (`assess_pull_request` / enforced by `review_pull_request`)
 
-A PR is `'low'` risk only if ALL of: it changes at most `low_risk_max_files` files (default 2), at most `low_risk_max_lines` total additions+deletions (default 30), every changed path starts with one of `low_risk_paths` (default `src/`, `tests/`, `docs/`, `README`), none of it touches a `protected_paths` prefix (default `.github/`, `pyproject.toml`, `requirements`, `Dockerfile`, `setup.`), and CI checks are passing. Anything else is `'needs_human'` -- a person decides, `review_pull_request` refuses APPROVE, and only `COMMENT` is possible.
+A PR is `'low'` risk only if ALL of: it changes at most `low_risk_max_files` files (default 2), at most `low_risk_max_lines` total additions+deletions (default 30), every changed path starts with one of `low_risk_paths` (default `src/`, `tests/`, `docs/`, `README`), none of it touches a `protected_paths` prefix (default `.github/`, `pyproject.toml`, `requirements`, `Dockerfile`, `setup.`), CI checks are passing, and the PR's own body doesn't contain `Kind: improvement` (an improvement proposal changes behavior, not just fixes something, so it always needs a person regardless of size). Anything else is `'needs_human'` -- a person decides, `review_pull_request` refuses APPROVE, and only `COMMENT` is possible.
+
+## `branch_deployment_url`
+
+`get_pull_request` includes `branch_deployment_url`: the Dagster+ branch deployment link, read from the PR's own comments, check runs, and commit statuses (wherever the Dagster Cloud GitHub Action posts it) -- `null` when nothing was found. No separate "post the link" tool: an agent that sees it in `get_pull_request`'s result can already include it in its own `review_pull_request` COMMENT for a person to click.
+
+## `refresh_open_agent_prs`
+
+Brings every open agent-branch PR (one whose head ref starts with `branch_prefix`) up to date with `base_branch` via GitHub's update-branch API -- call this after a merge so CI on the OTHER open agent PRs runs against the just-merged code instead of a stale base. Never touches a human's own branch.
+
+## Practice mode (`practice_mode_env_var`)
+
+Set `practice_mode_env_var` to the NAME of an env var (not a value templated into this field) that your deployment can scope per-environment -- e.g. set it in a Dagster+ **branch deployment** and leave it unset in the full deployment, so the same component YAML practices in a PR's own branch deployment and acts for real once merged. When that named env var holds anything other than `''`/`'0'`/`'false'`/`'no'`/`'off'` (case-insensitive -- same vocabulary as the engineering-agents reference's `settings.shadow()`), `propose_fix` runs every validation (protected paths, duplicate-PR-file check, file count) but returns `{"practice_mode": true, "would_open": "pull_request", "title": ..., "files": [...]}` instead of actually creating a branch/commit/PR.
+
+The env var is read **fresh, by name, inside the tool call** -- not templated into a typed component field at YAML-resolve time. That matters: the engineering-agents reference hit a real bug where an env value that looked numeric (e.g. `"1"`) got stored as the Python `int` `1` by a typed field, which broke the whole code location's load. Reading it as a plain string at call time avoids that failure mode entirely.
 
 ## Safety
 
@@ -106,6 +123,7 @@ Every GitHub call is pinned to the configured `repo` -- a prompt cannot point th
 | `low_risk_max_files` | `int` | `2` | assess_pull_request: max changed files for a 'low' risk level. |
 | `low_risk_max_lines` | `int` | `30` | assess_pull_request: max changed lines (additions + deletions) for a 'low' risk level. |
 | `max_files_per_fix` | `int` | `5` | propose_fix: max files a single fix may change. |
+| `practice_mode_env_var` | `str` | — | Env var NAME (not a value templated into this field) whose value, read fresh at call time, switches propose_fix into practice mode: every validation (protected paths, duplicate-PR-file check, file count) still runs, but… _(full docs in schema.json + component README)_ |
 | `allow` | `List[str]` | — | `f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}."` |
 | `max_result_chars` | `int` | `20000` | Upper bound on the serialized size of any tool result. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with GITHUB_PR_TOOLS_* env vars set from this component's own settings, and the real token(s) passed through via live env p… _(full docs in schema.json + component README)_ |

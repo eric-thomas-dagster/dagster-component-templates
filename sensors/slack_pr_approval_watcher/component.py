@@ -71,6 +71,42 @@ def _gh_checks(repo: str, sha: str, *, token: str, api_base_url: str) -> Dict[st
     return {"state": state, "runs": statuses}
 
 
+_GH_CLOUD_URL_RE = r"https://[A-Za-z0-9.-]*dagster\.cloud/[^\s)>\]\"']+"
+
+
+def _gh_find_branch_deployment_url(texts: List[str]) -> Optional[str]:
+    """The Dagster+ branch deployment link in texts the Dagster Cloud GitHub Action posts, if any. A link that
+    names a deployment is preferred over a generic one (docs, the org home page)."""
+    import re
+    found = []
+    for text in texts:
+        for match in re.findall(_GH_CLOUD_URL_RE, text or ""):
+            url = match.rstrip(".,;")
+            if "/docs" in url or "/settings" in url:
+                continue
+            found.append(url)
+    for url in found:
+        if re.search(r"/[^/]+--[^/]+|branch|/prod/|/deployment", url):
+            return url
+    return found[0] if found else None
+
+
+def _gh_branch_deployment_url(repo: str, number: int, head_sha: str, *, token: str, api_base_url: str) -> Optional[str]:
+    """Look in the PR's comments, check runs and commit statuses for the branch deployment link the Dagster Cloud
+    GitHub Action posts -- so an agent (or a person reading its review comment) can jump straight to the branch
+    deployment a PR is running against, without a separate 'post the link' step: it's just part of what
+    get_pull_request returns."""
+    texts: List[str] = []
+    for c in _gh_call("GET", repo, f"/issues/{int(number)}/comments", token=token, api_base_url=api_base_url, params={"per_page": 100}):
+        texts.append(c.get("body") or "")
+    for run in _gh_call("GET", repo, f"/commits/{head_sha}/check-runs", token=token, api_base_url=api_base_url)["check_runs"]:
+        out = run.get("output") or {}
+        texts += [run.get("details_url") or "", out.get("summary") or "", out.get("text") or ""]
+    for st in _gh_call("GET", repo, f"/commits/{head_sha}/statuses", token=token, api_base_url=api_base_url):
+        texts += [st.get("target_url") or "", st.get("description") or ""]
+    return _gh_find_branch_deployment_url(texts)
+
+
 def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str) -> Dict[str, Any]:
     pr = _gh_call("GET", repo, f"/pulls/{int(number)}", token=token, api_base_url=api_base_url)
     files = _gh_call("GET", repo, f"/pulls/{int(number)}/files", token=token, api_base_url=api_base_url, params={"per_page": 100})
@@ -92,6 +128,7 @@ def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: st
             for f in files
         ],
         "checks": _gh_checks(repo, pr["head"]["sha"], token=token, api_base_url=api_base_url),
+        "branch_deployment_url": _gh_branch_deployment_url(repo, number, pr["head"]["sha"], token=token, api_base_url=api_base_url),
     }
 
 
@@ -113,6 +150,8 @@ def _gh_assess_risk(pr: Dict[str, Any], *, protected_paths, low_risk_paths, low_
             reasons.append(f"touches {f['path']}, outside the configured low-risk paths")
     if pr["checks"]["state"] != "passing":
         reasons.append(f"checks are {pr['checks']['state']}")
+    if "Kind: improvement" in (pr.get("body") or ""):
+        reasons.append("it is an improvement proposal, which changes behavior, so a person decides")
     return {"level": "low" if not reasons else "needs_human", "reasons": reasons, "changed_lines": changed}
 
 
@@ -137,7 +176,7 @@ def _gh_apply_edit(repo: str, path: str, edit: Dict[str, Any], *, ref: str, toke
 def _gh_propose_fix(
     repo: str, branch: str, title: str, body: str, files: List[Dict[str, Any]], *,
     base_branch: str, branch_prefix: str, protected_paths, max_files_per_fix: int,
-    token: str, api_base_url: str, note: str = "", kind: str = "fix",
+    token: str, api_base_url: str, note: str = "", kind: str = "fix", practice_mode: bool = False,
 ) -> Dict[str, Any]:
     import base64
     if not files or len(files) > max_files_per_fix:
@@ -158,6 +197,11 @@ def _gh_propose_fix(
                 f"PR #{open_pr['number']} ({open_pr['title']}) already changes {min(wanted & touched)}; "
                 "do not open another for the same file."
             )
+    if practice_mode:
+        # Every validation above (file count, protected paths, duplicate-PR-file check) still runs --
+        # practice mode only withholds the real branch/commit/PR creation, not the checks that would
+        # have refused it anyway.
+        return {"practice_mode": True, "would_open": "pull_request", "title": title, "files": sorted(wanted)}
     slug = "".join(c if c.isalnum() or c in "-_" else "-" for c in branch)[:60].strip("-") or "fix"
     name = branch_prefix + slug
     base_sha = _gh_call("GET", repo, f"/git/ref/heads/{base_branch}", token=token, api_base_url=api_base_url)["object"]["sha"]
@@ -258,6 +302,25 @@ def _gh_open_pull_requests(repo: str, *, token: str, api_base_url: str) -> List[
         {"number": p["number"], "head_sha": p["head"]["sha"], "head_ref": p["head"]["ref"], "title": p["title"], "url": p["html_url"], "author": p["user"]["login"]}
         for p in prs
     ]
+
+
+def _gh_refresh_open_agent_prs(repo: str, *, branch_prefix: str, token: str, api_base_url: str) -> List[int]:
+    """Bring every open agent-branch PR up to date with base_branch (GitHub's update-branch API, a merge-base-branch-
+    into-head-branch operation) after a merge, so CI runs against the just-merged code instead of a stale base --
+    never touches a human's own branch (branch_prefix-only)."""
+    updated: List[int] = []
+    for pr in _gh_call("GET", repo, "/pulls", token=token, api_base_url=api_base_url, params={"state": "open", "per_page": 50}):
+        if not pr["head"]["ref"].startswith(branch_prefix):
+            continue
+        try:
+            _gh_call(
+                "PUT", repo, f"/pulls/{pr['number']}/update-branch", token=token, api_base_url=api_base_url,
+                json={"expected_head_sha": pr["head"]["sha"]},
+            )
+            updated.append(pr["number"])
+        except GithubPrScopeError:
+            pass
+    return updated
 # END github PR scope
 
 

@@ -139,6 +139,12 @@
       "label": "Mcp Extra Env Vars",
       "description": "mcp_server_resource_key only. Extra env var NAMES (beyond the token env vars, which are always passed through) to copy into the spawned MCP server's env.",
       "required": false
+    },
+    "practice_mode_env_var": {
+      "type": "string",
+      "label": "Practice Mode Env Var",
+      "description": "Env var NAME (not a value templated into this field) whose value, read fresh at call time, switches propose_fix into practice mode: every validation (protected paths, duplicate-PR-file check, file count) still runs, but no branch/commit/PR is actually created -- {'practice_mode': True, 'would_open': 'pull_request', ...} is returned instead. Same vocabulary as the engineering-agents reference's settings.shadow(): any value except '', '0', 'false', 'no', 'off' (case-insensitive) is ON. Scope this to a Dagster+ branch deployment (set the env var there, leave it unset in the full deployment) to practice in a PR's own branch deployment and act for real after merge.",
+      "required": false
     }
   }
 }

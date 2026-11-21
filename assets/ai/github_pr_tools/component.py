@@ -114,6 +114,42 @@ def _gh_checks(repo: str, sha: str, *, token: str, api_base_url: str) -> Dict[st
     return {"state": state, "runs": statuses}
 
 
+_GH_CLOUD_URL_RE = r"https://[A-Za-z0-9.-]*dagster\.cloud/[^\s)>\]\"']+"
+
+
+def _gh_find_branch_deployment_url(texts: List[str]) -> Optional[str]:
+    """The Dagster+ branch deployment link in texts the Dagster Cloud GitHub Action posts, if any. A link that
+    names a deployment is preferred over a generic one (docs, the org home page)."""
+    import re
+    found = []
+    for text in texts:
+        for match in re.findall(_GH_CLOUD_URL_RE, text or ""):
+            url = match.rstrip(".,;")
+            if "/docs" in url or "/settings" in url:
+                continue
+            found.append(url)
+    for url in found:
+        if re.search(r"/[^/]+--[^/]+|branch|/prod/|/deployment", url):
+            return url
+    return found[0] if found else None
+
+
+def _gh_branch_deployment_url(repo: str, number: int, head_sha: str, *, token: str, api_base_url: str) -> Optional[str]:
+    """Look in the PR's comments, check runs and commit statuses for the branch deployment link the Dagster Cloud
+    GitHub Action posts -- so an agent (or a person reading its review comment) can jump straight to the branch
+    deployment a PR is running against, without a separate 'post the link' step: it's just part of what
+    get_pull_request returns."""
+    texts: List[str] = []
+    for c in _gh_call("GET", repo, f"/issues/{int(number)}/comments", token=token, api_base_url=api_base_url, params={"per_page": 100}):
+        texts.append(c.get("body") or "")
+    for run in _gh_call("GET", repo, f"/commits/{head_sha}/check-runs", token=token, api_base_url=api_base_url)["check_runs"]:
+        out = run.get("output") or {}
+        texts += [run.get("details_url") or "", out.get("summary") or "", out.get("text") or ""]
+    for st in _gh_call("GET", repo, f"/commits/{head_sha}/statuses", token=token, api_base_url=api_base_url):
+        texts += [st.get("target_url") or "", st.get("description") or ""]
+    return _gh_find_branch_deployment_url(texts)
+
+
 def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str) -> Dict[str, Any]:
     pr = _gh_call("GET", repo, f"/pulls/{int(number)}", token=token, api_base_url=api_base_url)
     files = _gh_call("GET", repo, f"/pulls/{int(number)}/files", token=token, api_base_url=api_base_url, params={"per_page": 100})
@@ -135,6 +171,7 @@ def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: st
             for f in files
         ],
         "checks": _gh_checks(repo, pr["head"]["sha"], token=token, api_base_url=api_base_url),
+        "branch_deployment_url": _gh_branch_deployment_url(repo, number, pr["head"]["sha"], token=token, api_base_url=api_base_url),
     }
 
 
@@ -156,6 +193,8 @@ def _gh_assess_risk(pr: Dict[str, Any], *, protected_paths, low_risk_paths, low_
             reasons.append(f"touches {f['path']}, outside the configured low-risk paths")
     if pr["checks"]["state"] != "passing":
         reasons.append(f"checks are {pr['checks']['state']}")
+    if "Kind: improvement" in (pr.get("body") or ""):
+        reasons.append("it is an improvement proposal, which changes behavior, so a person decides")
     return {"level": "low" if not reasons else "needs_human", "reasons": reasons, "changed_lines": changed}
 
 
@@ -180,7 +219,7 @@ def _gh_apply_edit(repo: str, path: str, edit: Dict[str, Any], *, ref: str, toke
 def _gh_propose_fix(
     repo: str, branch: str, title: str, body: str, files: List[Dict[str, Any]], *,
     base_branch: str, branch_prefix: str, protected_paths, max_files_per_fix: int,
-    token: str, api_base_url: str, note: str = "", kind: str = "fix",
+    token: str, api_base_url: str, note: str = "", kind: str = "fix", practice_mode: bool = False,
 ) -> Dict[str, Any]:
     import base64
     if not files or len(files) > max_files_per_fix:
@@ -201,6 +240,11 @@ def _gh_propose_fix(
                 f"PR #{open_pr['number']} ({open_pr['title']}) already changes {min(wanted & touched)}; "
                 "do not open another for the same file."
             )
+    if practice_mode:
+        # Every validation above (file count, protected paths, duplicate-PR-file check) still runs --
+        # practice mode only withholds the real branch/commit/PR creation, not the checks that would
+        # have refused it anyway.
+        return {"practice_mode": True, "would_open": "pull_request", "title": title, "files": sorted(wanted)}
     slug = "".join(c if c.isalnum() or c in "-_" else "-" for c in branch)[:60].strip("-") or "fix"
     name = branch_prefix + slug
     base_sha = _gh_call("GET", repo, f"/git/ref/heads/{base_branch}", token=token, api_base_url=api_base_url)["object"]["sha"]
@@ -301,11 +345,45 @@ def _gh_open_pull_requests(repo: str, *, token: str, api_base_url: str) -> List[
         {"number": p["number"], "head_sha": p["head"]["sha"], "head_ref": p["head"]["ref"], "title": p["title"], "url": p["html_url"], "author": p["user"]["login"]}
         for p in prs
     ]
+
+
+def _gh_refresh_open_agent_prs(repo: str, *, branch_prefix: str, token: str, api_base_url: str) -> List[int]:
+    """Bring every open agent-branch PR up to date with base_branch (GitHub's update-branch API, a merge-base-branch-
+    into-head-branch operation) after a merge, so CI runs against the just-merged code instead of a stale base --
+    never touches a human's own branch (branch_prefix-only)."""
+    updated: List[int] = []
+    for pr in _gh_call("GET", repo, "/pulls", token=token, api_base_url=api_base_url, params={"state": "open", "per_page": 50}):
+        if not pr["head"]["ref"].startswith(branch_prefix):
+            continue
+        try:
+            _gh_call(
+                "PUT", repo, f"/pulls/{pr['number']}/update-branch", token=token, api_base_url=api_base_url,
+                json={"expected_head_sha": pr["head"]["sha"]},
+            )
+            updated.append(pr["number"])
+        except GithubPrScopeError:
+            pass
+    return updated
 # END github PR scope
 
 
+def _gh_is_practice_mode(env_var_name: Optional[str]) -> bool:
+    """Same vocabulary as the engineering-agents reference's settings.shadow(): any value except
+    '' / '0' / 'false' / 'no' / 'off' (case-insensitive) turns practice mode on. Deliberately NOT a
+    typed (e.g. bool) component field templated from an env var at YAML-resolve time -- a numeric-
+    looking env value coerced into a typed field at config-validation time is exactly the failure
+    mode that broke a whole code location in the reference sandbox (an env value like '1' got
+    stored as the integer 1). Reading the env var fresh, by NAME, inside the tool call avoids that
+    class of bug entirely and matches how a Dagster+ branch deployment actually scopes env vars --
+    the same component YAML, a different env var value per deployment."""
+    if not env_var_name:
+        return False
+    import os
+    return str(os.environ.get(env_var_name, "")).strip().lower() not in ("", "0", "false", "no", "off")
+
+
 _AUDIT_LOGGER_NAME = "github_pr_tools.audit"
-ALL_TOOLS = ("get_pull_request", "list_open_pull_requests", "assess_pull_request", "propose_fix", "review_pull_request")
+ALL_TOOLS = ("get_pull_request", "list_open_pull_requests", "assess_pull_request", "propose_fix", "review_pull_request", "refresh_open_agent_prs")
 
 
 class GithubPrTools:
@@ -318,6 +396,7 @@ class GithubPrTools:
         protected_paths=(".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."),
         low_risk_paths=("src/", "tests/", "docs/", "README"), low_risk_max_files: int = 2, low_risk_max_lines: int = 30,
         max_files_per_fix: int = 5, allow: Optional[List[str]] = None, max_result_chars: int = 20000,
+        practice_mode_env_var: Optional[str] = None,
         audit: Optional[Callable[[str], None]] = None,
     ):
         import logging
@@ -332,6 +411,7 @@ class GithubPrTools:
         self.low_risk_max_files = low_risk_max_files
         self.low_risk_max_lines = low_risk_max_lines
         self.max_files_per_fix = max_files_per_fix
+        self.practice_mode_env_var = practice_mode_env_var
         if allow is None:
             allow = list(ALL_TOOLS)
         unknown = sorted(set(allow) - set(ALL_TOOLS))
@@ -392,7 +472,13 @@ class GithubPrTools:
             self.repo, branch, title, body, files, base_branch=self.base_branch, branch_prefix=self.branch_prefix,
             protected_paths=self.protected_paths, max_files_per_fix=self.max_files_per_fix,
             token=self.token, api_base_url=self.api_base_url, note=note,
+            practice_mode=_gh_is_practice_mode(self.practice_mode_env_var),
         )
+
+    def t_refresh_open_agent_prs(self) -> Dict[str, Any]:
+        """Bring open agent-branch PRs up to date with base_branch after a merge, so CI runs
+        against the just-merged code instead of a stale base."""
+        return {"updated": _gh_refresh_open_agent_prs(self.repo, branch_prefix=self.branch_prefix, token=self.token, api_base_url=self.api_base_url)}
 
     def t_review_pull_request(self, number: int, decision: str, body: str) -> Dict[str, Any]:
         return _gh_review_pull_request(
@@ -473,6 +559,19 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     low_risk_max_files: int = Field(default=2, description="assess_pull_request: max changed files for a 'low' risk level.")
     low_risk_max_lines: int = Field(default=30, description="assess_pull_request: max changed lines (additions + deletions) for a 'low' risk level.")
     max_files_per_fix: int = Field(default=5, description="propose_fix: max files a single fix may change.")
+    practice_mode_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Env var NAME (not a value templated into this field) whose value, read fresh at call "
+            "time, switches propose_fix into practice mode: every validation (protected paths, "
+            "duplicate-PR-file check, file count) still runs, but no branch/commit/PR is actually "
+            "created -- {'practice_mode': True, 'would_open': 'pull_request', ...} is returned "
+            "instead. Same vocabulary as the engineering-agents reference's settings.shadow(): any "
+            "value except '', '0', 'false', 'no', 'off' (case-insensitive) is ON. Scope this to a "
+            "Dagster+ branch deployment (set the env var there, leave it unset in the full "
+            "deployment) to practice in a PR's own branch deployment and act for real after merge."
+        ),
+    )
 
     allow: Optional[List[str]] = Field(default=None, description=f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}.")
     max_result_chars: int = Field(default=20000, description="Upper bound on the serialized size of any tool result.")
@@ -511,6 +610,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         low_risk_max_files = self.low_risk_max_files
         low_risk_max_lines = self.low_risk_max_lines
         max_files_per_fix = self.max_files_per_fix
+        practice_mode_env_var = self.practice_mode_env_var
         allow = list(self.allow) if self.allow else None
         if allow is not None:
             bad = sorted(set(allow) - set(ALL_TOOLS))
@@ -524,6 +624,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 api_base_url=api_base_url, base_branch=base_branch, branch_prefix=branch_prefix,
                 protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files,
                 low_risk_max_lines=low_risk_max_lines, max_files_per_fix=max_files_per_fix, allow=allow, max_result_chars=max_chars,
+                practice_mode_env_var=practice_mode_env_var,
             )
 
         res = dg.ResourceDefinition(resource_fn=_init, description=f"Repo-scoped GitHub PR tools for {repo}.")
@@ -545,7 +646,14 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["GITHUB_PR_TOOLS_REVIEWER_TOKEN_ENV_VAR"] = reviewer_token_env_var
             if allow:
                 mcp_env["GITHUB_PR_TOOLS_ALLOW"] = ",".join(allow)
-            passthrough = [token_env_var] + ([reviewer_token_env_var] if reviewer_token_env_var else []) + list(self.mcp_extra_env_vars or [])
+            if practice_mode_env_var:
+                mcp_env["GITHUB_PR_TOOLS_PRACTICE_MODE_ENV_VAR"] = practice_mode_env_var
+            passthrough = (
+                [token_env_var]
+                + ([reviewer_token_env_var] if reviewer_token_env_var else [])
+                + ([practice_mode_env_var] if practice_mode_env_var else [])
+                + list(self.mcp_extra_env_vars or [])
+            )
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key, type="stdio", command=[sys.executable, "-m", _this_module_name()],
                 env=mcp_env, live_env_passthrough=passthrough,
@@ -598,13 +706,19 @@ def build_mcp_server(tools: GithubPrTools):
         """Review a PR. decision is COMMENT or APPROVE. APPROVE is refused unless the PR is low risk, and is posted under a second GitHub identity."""
         return tools.call("review_pull_request", {"number": number, "decision": decision, "body": body})
 
+    @_tool
+    def refresh_open_agent_prs() -> dict:
+        """Bring every open agent-branch PR up to date with the base branch (e.g. after a merge), so CI runs against the just-merged code instead of a stale base."""
+        return tools.call("refresh_open_agent_prs", {})
+
     return mcp
 
 
 def main(argv: Optional[List[str]] = None) -> None:
     """Env: GITHUB_PR_TOOLS_REPO (required), _TOKEN_ENV_VAR (default GITHUB_TOKEN), _REVIEWER_TOKEN_ENV_VAR,
     _API_BASE_URL, _BASE_BRANCH, _BRANCH_PREFIX, _PROTECTED_PATHS (csv), _LOW_RISK_PATHS (csv),
-    _LOW_RISK_MAX_FILES, _LOW_RISK_MAX_LINES, _MAX_FILES_PER_FIX, _ALLOW (csv), _MAX_CHARS."""
+    _LOW_RISK_MAX_FILES, _LOW_RISK_MAX_LINES, _MAX_FILES_PER_FIX, _ALLOW (csv), _MAX_CHARS,
+    _PRACTICE_MODE_ENV_VAR (the NAME of another env var to read fresh at call time -- not a value)."""
     import logging
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     repo = os.environ.get("GITHUB_PR_TOOLS_REPO")
@@ -628,6 +742,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         low_risk_max_lines=int(os.environ.get("GITHUB_PR_TOOLS_LOW_RISK_MAX_LINES", "30")),
         max_files_per_fix=int(os.environ.get("GITHUB_PR_TOOLS_MAX_FILES_PER_FIX", "5")),
         allow=allow, max_result_chars=int(os.environ.get("GITHUB_PR_TOOLS_MAX_CHARS", "20000")),
+        practice_mode_env_var=os.environ.get("GITHUB_PR_TOOLS_PRACTICE_MODE_ENV_VAR"),
     )
     build_mcp_server(tools).run(transport="stdio")
 

@@ -203,6 +203,89 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN agent outcome ledger (inlined per component; keep copies identical -- see tests/test_agent_outcome_ledger_drift.py)
+# A tool server (github_pr_tools/linear_ticket_tools) WRITES one JSON-lines entry per consequential
+# action it takes, keyed by the Dagster run_id an agent component threads through MCP's out-of-band
+# request _meta (see each agent component's own `meta={"dagster_run_id": ...}` call in session.call_tool).
+# An agent's own companion outcome asset READS that run's entries and collapses them into four buckets:
+# filed (a real write happened), would_file (practice mode -- would have, but didn't), refused (a
+# guardrail declined it -- e.g. a duplicate, a protected path), decisions_for_you (flagged for a human,
+# e.g. an APPROVE a risk rule refuses). Matched by run_id, not a wall-clock time window -- a window
+# mixes concurrent runs together.
+import json as _oal_json
+import os as _oal_os
+import threading as _oal_threading
+from datetime import datetime as _oal_datetime, timezone as _oal_timezone
+
+_OUTCOME_LEDGER_LOCK = _oal_threading.Lock()
+
+
+def _outcome_ledger_file(ledger_path: str, run_id: str) -> str:
+    return _oal_os.path.join(_oal_os.path.expanduser(ledger_path), f"{run_id}.jsonl")
+
+
+def write_outcome_ledger_entry(ledger_path: Optional[str], run_id: Optional[str], entry: Dict[str, Any]) -> None:
+    """No-op unless both ledger_path and run_id are set -- zero behavior change for a tool server that
+    hasn't configured a ledger_path, and zero entries for a call made with no run_id behind it (e.g. a
+    human using `claude mcp add` directly, outside any Dagster run)."""
+    if not ledger_path or not run_id:
+        return
+    path = _outcome_ledger_file(ledger_path, run_id)
+    record = dict(entry)
+    record.setdefault("ts", _oal_datetime.now(_oal_timezone.utc).isoformat(timespec="seconds"))
+    record.setdefault("run_id", run_id)
+    with _OUTCOME_LEDGER_LOCK:
+        _oal_os.makedirs(_oal_os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(_oal_json.dumps(record, default=str) + "\n")
+
+
+def read_outcome_ledger_entries(ledger_path: Optional[str], run_id: Optional[str]) -> List[Dict[str, Any]]:
+    if not ledger_path or not run_id:
+        return []
+    path = _outcome_ledger_file(ledger_path, run_id)
+    if not _oal_os.path.isfile(path):
+        return []
+    entries: List[Dict[str, Any]] = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(_oal_json.loads(line))
+            except ValueError:
+                continue
+    return entries
+
+
+def summarize_outcome_ledger(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Collapse one run's ledger entries into {status, filed, would_file, refused, decisions_for_you}."""
+    filed, would_file, refused, decisions_for_you = [], [], [], []
+    for e in entries:
+        bucket = e.get("bucket")
+        detail = {k: v for k, v in e.items() if k not in ("bucket", "run_id")}
+        if bucket == "filed":
+            filed.append(detail)
+        elif bucket == "would_file":
+            would_file.append(detail)
+        elif bucket == "refused":
+            refused.append(detail)
+        elif bucket == "decision_needed":
+            decisions_for_you.append(detail)
+    if decisions_for_you:
+        status = "needs_human"
+    elif refused and not filed and not would_file:
+        status = "refused"
+    else:
+        status = "ok"
+    return {
+        "status": status, "filed": filed, "would_file": would_file,
+        "refused": refused, "decisions_for_you": decisions_for_you,
+    }
+# END agent outcome ledger
+
+
 class LiteLLMAgentComponent(Component, Model, Resolvable):
     """Single-shot LiteLLM agent with MCP tool support.
 
@@ -320,6 +403,26 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         default=None,
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
+    outcome_ledger_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own "
+            "ledger_path field pointed at this SAME directory) writes this run's consequential "
+            "actions into, keyed by run_id -- read by the companion outcome asset (see "
+            "emit_outcome_asset). Unset: the outcome asset still emits (when enabled), just with "
+            "empty filed/would_file/refused/decisions_for_you."
+        ),
+    )
+    emit_outcome_asset: bool = Field(
+        default=False,
+        description=(
+            "Build a companion '{asset_name}_outcome' asset (same partitions_def as this asset) that "
+            "collapses this run's outcome-ledger entries (see outcome_ledger_path) plus this asset's "
+            "own final_answer into {status, filed, would_file, refused, decisions_for_you, text} -- "
+            "matched by run_id, not a wall-clock time window (which mixes concurrent runs together). "
+            "Shaped to feed agent_fixture_check directly."
+        ),
+    )
 
     # Partitions (with {partition_key} / {partition_keys.<dim>} substitution into prompt + system_prompt).
     partition_type: Optional[str] = Field(default=None, description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'multi' | 'dynamic'.")
@@ -397,6 +500,8 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         group_name = self.group_name
         description = self.description
         owners = self.owners or []
+        outcome_ledger_path = self.outcome_ledger_path
+        emit_outcome_asset = self.emit_outcome_asset
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -559,7 +664,36 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
             context.add_output_metadata(md)
             return result
 
-        return Definitions(assets=[_agent_asset])
+        assets_list: List[Any] = [_agent_asset]
+        if emit_outcome_asset:
+            @asset(
+                key=AssetKey.from_user_string(f"{asset_name}_outcome"),
+                partitions_def=partitions_def,
+                group_name=group_name,
+                freshness_policy=_freshness_policy,
+                retry_policy=_retry_policy,
+                ins={"agent_result": dg.AssetIn(AssetKey.from_user_string(asset_name))},
+                description=(
+                    f"Structured outcome for {asset_name} -- status, filed, would_file, refused, "
+                    "decisions_for_you -- from its outcome ledger, matched by this run's own run_id."
+                ),
+            )
+            def _agent_outcome_asset(context: AssetExecutionContext, agent_result: Dict[str, Any]) -> Dict[str, Any]:
+                entries = read_outcome_ledger_entries(outcome_ledger_path, context.run_id)
+                outcome = summarize_outcome_ledger(entries)
+                outcome["text"] = agent_result.get("final_answer", "")
+                context.add_output_metadata({
+                    "status": MetadataValue.text(outcome["status"]),
+                    "filed_count": MetadataValue.int(len(outcome["filed"])),
+                    "would_file_count": MetadataValue.int(len(outcome["would_file"])),
+                    "refused_count": MetadataValue.int(len(outcome["refused"])),
+                    "decisions_for_you_count": MetadataValue.int(len(outcome["decisions_for_you"])),
+                })
+                return outcome
+
+            assets_list.append(_agent_outcome_asset)
+
+        return Definitions(assets=assets_list)
 
 
 def _substitute(s: str, substitutions: Dict[str, Any]) -> str:

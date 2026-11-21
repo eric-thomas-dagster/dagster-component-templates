@@ -285,6 +285,8 @@ hosted_skills_files_dir: /var/dagster/report_tools_files
 | `hosted_skills` | `List[HostedSkillSpec]` | — | Skills Claude runs with CODE EXECUTION in Anthropic's hosted sandbox -- a DIFFERENT, separate mechanism from skill_keys (which only ever returns text, never runs anything). Enables the code_execution tool and the request… _(full docs in schema.json + component README)_ |
 | `code_execution_tool_version` | `str` | `"code_execution_20250825"` | Tool `type` string for the code execution tool hosted_skills enables -- 'code_execution_20250825' (the broadly-supported default) or a later version (e.g. 'code_execution_20260120'/'code_execution_20260521') for programm… _(full docs in schema.json + component README)_ |
 | `hosted_skills_files_dir` | `str` | — | Local directory root -- hosted_skills only. When set, every file Claude's code execution generates is ALSO written here (one subfolder per dagster/run_id, a manifest.json per run) in the exact same shape report_tools_ser… _(full docs in schema.json + component README)_ |
+| `outcome_ledger_path` | `str` | — | Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own ledger_path field pointed at this SAME directory) writes this run's consequential actions into, keyed by run_id -- read by the companion… _(full docs in schema.json + component README)_ |
+| `emit_outcome_asset` | `bool` | `false` | Build a companion '{asset_name}_outcome' asset (same partitions_def as this asset) that collapses this run's outcome-ledger entries (see outcome_ledger_path) plus this asset's own final_answer into {status, filed, would_… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

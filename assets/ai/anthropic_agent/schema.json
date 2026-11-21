@@ -329,6 +329,18 @@
           }
         }
       }
+    },
+    "outcome_ledger_path": {
+      "type": "string",
+      "label": "Outcome Ledger Path",
+      "description": "Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own ledger_path field pointed at this SAME directory) writes this run's consequential actions into, keyed by run_id -- read by the companion outcome asset (see emit_outcome_asset). Unset: the outcome asset still emits (when enabled), just with empty filed/would_file/refused/decisions_for_you.",
+      "required": false
+    },
+    "emit_outcome_asset": {
+      "type": "boolean",
+      "label": "Emit Outcome Asset",
+      "description": "Build a companion '{asset_name}_outcome' asset (same partitions_def as this asset) that collapses this run's outcome-ledger entries (see outcome_ledger_path) plus this asset's own final_answer into {status, filed, would_file, refused, decisions_for_you, text} -- matched by run_id, not a wall-clock time window (which mixes concurrent runs together). Shaped to feed agent_fixture_check directly.",
+      "required": false
     }
   }
 }

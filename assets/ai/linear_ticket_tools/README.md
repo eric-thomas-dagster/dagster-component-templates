@@ -69,6 +69,7 @@ the real bug this design avoids).
 |---|---|---|---|
 | `api_base_url` | `str` | `"https://api.linear.app/graphql"` | Linear GraphQL endpoint. |
 | `practice_mode_env_var` | `str` | — | Env var NAME (not a value templated into this field) whose value, read fresh at call time, switches create_issue into practice mode: returns {'practice_mode': True, 'would_open': 'linear_ticket', ...} instead of actually… _(full docs in schema.json + component README)_ |
+| `ledger_path` | `str` | — | Directory this tool writes one JSON-lines file per Dagster run_id into, recording every create_issue call as it happens -- filed, would_file (practice mode), or refused. Same shape/rationale as github_pr_tools' own ledge… _(full docs in schema.json + component README)_ |
 | `allow` | `List[str]` | — | `f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}."` |
 | `max_result_chars` | `int` | `20000` | Upper bound on the serialized size of any tool result. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with LINEAR_TICKET_TOOLS_* env vars set from this component's own settings, and the real API key passed through via live en… _(full docs in schema.json + component README)_ |

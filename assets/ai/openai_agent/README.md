@@ -271,6 +271,8 @@ configurable here).
 | `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
 | `hosted_code_execution` | `bool` | `false` | Enable OpenAI's hosted code_interpreter tool. A skill_keys entry that needs code execution (skill_kind='code_execution', or the auto-detected heuristic) is no longer omitted with a warning when this is true -- its SKILL… _(full docs in schema.json + component README)_ |
 | `hosted_code_execution_files_dir` | `str` | — | Local directory root -- hosted_code_execution only. When set, every file the code_interpreter tool generates is ALSO written here (one subfolder per dagster/run_id, a manifest.json per run) in the exact same shape report… _(full docs in schema.json + component README)_ |
+| `outcome_ledger_path` | `str` | — | Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own ledger_path field pointed at this SAME directory) writes this run's consequential actions into, keyed by run_id -- read by the companion… _(full docs in schema.json + component README)_ |
+| `emit_outcome_asset` | `bool` | `false` | Build a companion '{asset_name}_outcome' asset (same partitions_def as this asset) that collapses this run's outcome-ledger entries (see outcome_ledger_path) plus this asset's own final_answer into {status, filed, would_… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

@@ -135,6 +135,7 @@ Every GitHub call is pinned to the configured `repo` -- a prompt cannot point th
 | `low_risk_max_lines` | `int` | `30` | assess_pull_request: max changed lines (additions + deletions) for a 'low' risk level. |
 | `max_files_per_fix` | `int` | `5` | propose_fix: max files a single fix may change. |
 | `practice_mode_env_var` | `str` | — | Env var NAME (not a value templated into this field) whose value, read fresh at call time, switches propose_fix into practice mode: every validation (protected paths, duplicate-PR-file check, file count) still runs, but… _(full docs in schema.json + component README)_ |
+| `ledger_path` | `str` | — | Directory this tool writes one JSON-lines file per Dagster run_id into, recording every consequential action (propose_fix, open_issue, an APPROVE review) as it happens -- filed, would_file (practice mode), refused (a gua… _(full docs in schema.json + component README)_ |
 | `allow` | `List[str]` | — | `f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}."` |
 | `max_result_chars` | `int` | `20000` | Upper bound on the serialized size of any tool result. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with GITHUB_PR_TOOLS_* env vars set from this component's own settings, and the real token(s) passed through via live env p… _(full docs in schema.json + component README)_ |

@@ -67,6 +67,12 @@
       "label": "Mcp Extra Env Vars",
       "description": "mcp_server_resource_key only. Extra env var NAMES (beyond the API key, which is always passed through) to copy into the spawned MCP server's env.",
       "required": false
+    },
+    "ledger_path": {
+      "type": "string",
+      "label": "Ledger Path",
+      "description": "Directory this tool writes one JSON-lines file per Dagster run_id into, recording every create_issue call as it happens -- filed, would_file (practice mode), or refused. Same shape/rationale as github_pr_tools' own ledger_path (the run_id comes from MCP's out-of-band request _meta, not a tool argument). Point an agent component's own outcome_ledger_path at this SAME directory to read it back. Unset: no ledger is written.",
+      "required": false
     }
   }
 }

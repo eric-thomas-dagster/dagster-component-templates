@@ -64,6 +64,89 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN agent outcome ledger (inlined per component; keep copies identical -- see tests/test_agent_outcome_ledger_drift.py)
+# A tool server (github_pr_tools/linear_ticket_tools) WRITES one JSON-lines entry per consequential
+# action it takes, keyed by the Dagster run_id an agent component threads through MCP's out-of-band
+# request _meta (see each agent component's own `meta={"dagster_run_id": ...}` call in session.call_tool).
+# An agent's own companion outcome asset READS that run's entries and collapses them into four buckets:
+# filed (a real write happened), would_file (practice mode -- would have, but didn't), refused (a
+# guardrail declined it -- e.g. a duplicate, a protected path), decisions_for_you (flagged for a human,
+# e.g. an APPROVE a risk rule refuses). Matched by run_id, not a wall-clock time window -- a window
+# mixes concurrent runs together.
+import json as _oal_json
+import os as _oal_os
+import threading as _oal_threading
+from datetime import datetime as _oal_datetime, timezone as _oal_timezone
+
+_OUTCOME_LEDGER_LOCK = _oal_threading.Lock()
+
+
+def _outcome_ledger_file(ledger_path: str, run_id: str) -> str:
+    return _oal_os.path.join(_oal_os.path.expanduser(ledger_path), f"{run_id}.jsonl")
+
+
+def write_outcome_ledger_entry(ledger_path: Optional[str], run_id: Optional[str], entry: Dict[str, Any]) -> None:
+    """No-op unless both ledger_path and run_id are set -- zero behavior change for a tool server that
+    hasn't configured a ledger_path, and zero entries for a call made with no run_id behind it (e.g. a
+    human using `claude mcp add` directly, outside any Dagster run)."""
+    if not ledger_path or not run_id:
+        return
+    path = _outcome_ledger_file(ledger_path, run_id)
+    record = dict(entry)
+    record.setdefault("ts", _oal_datetime.now(_oal_timezone.utc).isoformat(timespec="seconds"))
+    record.setdefault("run_id", run_id)
+    with _OUTCOME_LEDGER_LOCK:
+        _oal_os.makedirs(_oal_os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(_oal_json.dumps(record, default=str) + "\n")
+
+
+def read_outcome_ledger_entries(ledger_path: Optional[str], run_id: Optional[str]) -> List[Dict[str, Any]]:
+    if not ledger_path or not run_id:
+        return []
+    path = _outcome_ledger_file(ledger_path, run_id)
+    if not _oal_os.path.isfile(path):
+        return []
+    entries: List[Dict[str, Any]] = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(_oal_json.loads(line))
+            except ValueError:
+                continue
+    return entries
+
+
+def summarize_outcome_ledger(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Collapse one run's ledger entries into {status, filed, would_file, refused, decisions_for_you}."""
+    filed, would_file, refused, decisions_for_you = [], [], [], []
+    for e in entries:
+        bucket = e.get("bucket")
+        detail = {k: v for k, v in e.items() if k not in ("bucket", "run_id")}
+        if bucket == "filed":
+            filed.append(detail)
+        elif bucket == "would_file":
+            would_file.append(detail)
+        elif bucket == "refused":
+            refused.append(detail)
+        elif bucket == "decision_needed":
+            decisions_for_you.append(detail)
+    if decisions_for_you:
+        status = "needs_human"
+    elif refused and not filed and not would_file:
+        status = "refused"
+    else:
+        status = "ok"
+    return {
+        "status": status, "filed": filed, "would_file": would_file,
+        "refused": refused, "decisions_for_you": decisions_for_you,
+    }
+# END agent outcome ledger
+
+
 # BEGIN github PR scope (inlined per component; keep copies identical -- see tests/test_github_pr_scope_drift.py)
 # Repo-scoped GitHub pull-request operations: read, propose a targeted-edit fix, assess risk deterministically,
 # review (COMMENT always, APPROVE only when low risk and under a second identity), and merge when ready. Every
@@ -433,6 +516,27 @@ def _gh_open_issue(
 _AUDIT_LOGGER_NAME = "github_pr_tools.audit"
 ALL_TOOLS = ("get_pull_request", "list_open_pull_requests", "assess_pull_request", "propose_fix", "review_pull_request", "refresh_open_agent_prs", "find_issues", "open_issue")
 
+# Which tools write an outcome-ledger entry, and what kind of action each is -- see the "agent outcome
+# ledger" block above. Read-only tools (get_pull_request, list_open_pull_requests, assess_pull_request,
+# refresh_open_agent_prs, find_issues) never write one.
+_LEDGER_KIND_BY_TOOL = {"propose_fix": "pull_request", "open_issue": "github_issue", "review_pull_request": "review"}
+
+
+def _classify_ledger_bucket(tool: str, result: Dict[str, Any]) -> Optional[str]:
+    if tool not in _LEDGER_KIND_BY_TOOL:
+        return None
+    if result.get("practice_mode"):
+        return "would_file"
+    if "error" in result:
+        # review_pull_request's APPROVE path refuses with "Not approved; a person must approve this
+        # one: ..." when the deterministic risk rules say so (e.g. "Kind: improvement") -- that is a
+        # person needing to decide, not a failure. Every other error (bad args, a duplicate-file
+        # refusal, a protected path) is a guardrail actually declining the action.
+        if tool == "review_pull_request" and "Not approved" in str(result["error"]):
+            return "decision_needed"
+        return "refused"
+    return "filed"
+
 
 class GithubPrTools:
     """Repo-scoped GitHub PR tools. `call(tool, args)` is the one safe entry point (allow-list, audit, size cap,
@@ -444,7 +548,7 @@ class GithubPrTools:
         protected_paths=(".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."),
         low_risk_paths=("src/", "tests/", "docs/", "README"), low_risk_max_files: int = 2, low_risk_max_lines: int = 30,
         max_files_per_fix: int = 5, allow: Optional[List[str]] = None, max_result_chars: int = 20000,
-        practice_mode_env_var: Optional[str] = None,
+        practice_mode_env_var: Optional[str] = None, ledger_path: Optional[str] = None,
         audit: Optional[Callable[[str], None]] = None,
     ):
         import logging
@@ -460,6 +564,7 @@ class GithubPrTools:
         self.low_risk_max_lines = low_risk_max_lines
         self.max_files_per_fix = max_files_per_fix
         self.practice_mode_env_var = practice_mode_env_var
+        self.ledger_path = ledger_path
         if allow is None:
             allow = list(ALL_TOOLS)
         unknown = sorted(set(allow) - set(ALL_TOOLS))
@@ -472,7 +577,7 @@ class GithubPrTools:
     def tool_names(self) -> List[str]:
         return [t for t in ALL_TOOLS if t in self.allow]
 
-    def call(self, tool: str, args: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def call(self, tool: str, args: Optional[Dict[str, Any]] = None, *, run_id: Optional[str] = None) -> Dict[str, Any]:
         import json
         args = dict(args or {})
         try:
@@ -486,11 +591,18 @@ class GithubPrTools:
         try:
             result = getattr(self, f"t_{tool}")(**args)
         except GithubPrScopeError as e:
-            return {"error": str(e)}
+            result = {"error": str(e)}
         except TypeError as e:
             return {"error": f"bad arguments for {tool}: {e}"}
         except Exception as e:  # noqa: BLE001 -- surface as data, the agent loop must not crash
             return {"error": f"{tool} failed: {type(e).__name__}: {str(e).splitlines()[0][:300] if str(e) else ''}"}
+        bucket = _classify_ledger_bucket(tool, result)
+        if bucket:
+            write_outcome_ledger_entry(self.ledger_path, run_id, {
+                "component": "github_pr_tools", "tool": tool, "kind": _LEDGER_KIND_BY_TOOL[tool], "bucket": bucket,
+                **({"reason": result.get("error")} if bucket in ("refused", "decision_needed") else
+                   {k: v for k, v in result.items() if k != "practice_mode"}),
+            })
         return self._fit(result)
 
     def _fit(self, result):
@@ -632,6 +744,20 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    ledger_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Directory this tool writes one JSON-lines file per Dagster run_id into, recording every "
+            "consequential action (propose_fix, open_issue, an APPROVE review) as it happens -- filed, "
+            "would_file (practice mode), refused (a guardrail declined it), or decision_needed (e.g. an "
+            "'Kind: improvement' PR an APPROVE rule always refers to a person). The run_id comes from "
+            "MCP's out-of-band request _meta (see each agent component's own run_id threading), NOT a "
+            "tool argument -- a prompt cannot spoof which run an entry belongs to. Point an agent "
+            "component's own outcome_ledger_path at this SAME directory to read it back. Unset: no "
+            "ledger is written (zero behavior change)."
+        ),
+    )
+
     allow: Optional[List[str]] = Field(default=None, description=f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}.")
     max_result_chars: int = Field(default=20000, description="Upper bound on the serialized size of any tool result.")
     mcp_server_resource_key: Optional[str] = Field(
@@ -670,6 +796,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         low_risk_max_lines = self.low_risk_max_lines
         max_files_per_fix = self.max_files_per_fix
         practice_mode_env_var = self.practice_mode_env_var
+        ledger_path = self.ledger_path
         allow = list(self.allow) if self.allow else None
         if allow is not None:
             bad = sorted(set(allow) - set(ALL_TOOLS))
@@ -683,7 +810,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 api_base_url=api_base_url, base_branch=base_branch, branch_prefix=branch_prefix,
                 protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files,
                 low_risk_max_lines=low_risk_max_lines, max_files_per_fix=max_files_per_fix, allow=allow, max_result_chars=max_chars,
-                practice_mode_env_var=practice_mode_env_var,
+                practice_mode_env_var=practice_mode_env_var, ledger_path=ledger_path,
             )
 
         res = dg.ResourceDefinition(resource_fn=_init, description=f"Repo-scoped GitHub PR tools for {repo}.")
@@ -707,6 +834,8 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["GITHUB_PR_TOOLS_ALLOW"] = ",".join(allow)
             if practice_mode_env_var:
                 mcp_env["GITHUB_PR_TOOLS_PRACTICE_MODE_ENV_VAR"] = practice_mode_env_var
+            if ledger_path:
+                mcp_env["GITHUB_PR_TOOLS_LEDGER_PATH"] = ledger_path
             passthrough = (
                 [token_env_var]
                 + ([reviewer_token_env_var] if reviewer_token_env_var else [])
@@ -725,9 +854,9 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
 def build_mcp_server(tools: GithubPrTools):
     """MCP server (official `mcp` package) exposing exactly the allowed tools. Works on mcp 1.x and 2.x."""
     try:  # mcp 2.x renamed FastMCP -> MCPServer (mcp.server.fastmcp now raises ModuleNotFoundError)
-        from mcp.server.mcpserver import MCPServer as _Server
+        from mcp.server.mcpserver import MCPServer as _Server, Context as _Context
     except ImportError:  # mcp 1.x
-        from mcp.server.fastmcp import FastMCP as _Server
+        from mcp.server.fastmcp import FastMCP as _Server, Context as _Context
 
     mcp = _Server("github-pr-tools")
     allowed = set(tools.tool_names())
@@ -736,6 +865,13 @@ def build_mcp_server(tools: GithubPrTools):
         if fn.__name__ in allowed:
             mcp.tool()(fn)
         return fn
+
+    def _run_id_from(ctx) -> Optional[str]:
+        """ctx (MCP's Context, type-annotated so the framework injects it -- not a tool argument a
+        prompt supplies) carries this call's out-of-band request _meta; `dagster_run_id` is what each
+        agent component's own run_id threading puts there."""
+        meta = getattr(getattr(ctx, "request_context", None), "meta", None)
+        return (meta or {}).get("dagster_run_id") if ctx is not None else None
 
     @_tool
     def get_pull_request(number: int) -> dict:
@@ -753,17 +889,17 @@ def build_mcp_server(tools: GithubPrTools):
         return tools.call("assess_pull_request", {"number": number})
 
     @_tool
-    def propose_fix(branch: str, title: str, body: str, files: list, note: str = "") -> dict:
+    def propose_fix(branch: str, title: str, body: str, files: list, note: str = "", ctx: _Context = None) -> dict:
         """Open a pull request that changes files. `files` is a list where each item is either {path, old, new},
         which replaces that exact text (it must appear once) and leaves the rest of the file untouched, or
         {path, content} with the FULL new content (only for new files). The branch is created for you. CI,
         dependencies and packaging files are protected. Never merges."""
-        return tools.call("propose_fix", {"branch": branch, "title": title, "body": body, "files": files, "note": note})
+        return tools.call("propose_fix", {"branch": branch, "title": title, "body": body, "files": files, "note": note}, run_id=_run_id_from(ctx))
 
     @_tool
-    def review_pull_request(number: int, decision: str, body: str) -> dict:
+    def review_pull_request(number: int, decision: str, body: str, ctx: _Context = None) -> dict:
         """Review a PR. decision is COMMENT or APPROVE. APPROVE is refused unless the PR is low risk, and is posted under a second GitHub identity."""
-        return tools.call("review_pull_request", {"number": number, "decision": decision, "body": body})
+        return tools.call("review_pull_request", {"number": number, "decision": decision, "body": body}, run_id=_run_id_from(ctx))
 
     @_tool
     def refresh_open_agent_prs() -> dict:
@@ -776,9 +912,9 @@ def build_mcp_server(tools: GithubPrTools):
         return tools.call("find_issues", {"query": query})
 
     @_tool
-    def open_issue(title: str, body: str, labels: list = None) -> dict:
+    def open_issue(title: str, body: str, labels: list = None, ctx: _Context = None) -> dict:
         """File a GitHub issue (labeled 'engineering-agent'). Check find_issues first."""
-        return tools.call("open_issue", {"title": title, "body": body, "labels": labels})
+        return tools.call("open_issue", {"title": title, "body": body, "labels": labels}, run_id=_run_id_from(ctx))
 
     return mcp
 
@@ -787,7 +923,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     """Env: GITHUB_PR_TOOLS_REPO (required), _TOKEN_ENV_VAR (default GITHUB_TOKEN), _REVIEWER_TOKEN_ENV_VAR,
     _API_BASE_URL, _BASE_BRANCH, _BRANCH_PREFIX, _PROTECTED_PATHS (csv), _LOW_RISK_PATHS (csv),
     _LOW_RISK_MAX_FILES, _LOW_RISK_MAX_LINES, _MAX_FILES_PER_FIX, _ALLOW (csv), _MAX_CHARS,
-    _PRACTICE_MODE_ENV_VAR (the NAME of another env var to read fresh at call time -- not a value)."""
+    _PRACTICE_MODE_ENV_VAR (the NAME of another env var to read fresh at call time -- not a value),
+    _LEDGER_PATH (directory for the per-run_id outcome-ledger JSON-lines files)."""
     import logging
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     repo = os.environ.get("GITHUB_PR_TOOLS_REPO")
@@ -812,6 +949,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         max_files_per_fix=int(os.environ.get("GITHUB_PR_TOOLS_MAX_FILES_PER_FIX", "5")),
         allow=allow, max_result_chars=int(os.environ.get("GITHUB_PR_TOOLS_MAX_CHARS", "20000")),
         practice_mode_env_var=os.environ.get("GITHUB_PR_TOOLS_PRACTICE_MODE_ENV_VAR"),
+        ledger_path=os.environ.get("GITHUB_PR_TOOLS_LEDGER_PATH"),
     )
     build_mcp_server(tools).run(transport="stdio")
 

@@ -1,0 +1,72 @@
+{
+  "component_type": "dagster_community_components.LinearTicketToolsComponent",
+  "description": "Team-scoped Linear ticket tools for engineering agents (find_issues/create_issue/list_agent_issues), with a duplicate-check before filing and an optional practice mode. Registers a resource and ships a stdio MCP server.",
+  "category": "ai",
+  "icon": "Ticket",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "default": "linear_ticket_tools",
+      "label": "Resource Key",
+      "description": "Resource key the toolset is registered under.",
+      "required": false
+    },
+    "team_id": {
+      "type": "string",
+      "label": "Team Id",
+      "description": "Linear team ID every query/mutation is scoped to -- a prompt cannot point the tools at another team.",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "default": "LINEAR_API_KEY",
+      "label": "Api Key Env Var",
+      "description": "Env var holding a Linear personal API key or OAuth2 access token (sent RAW, no 'Bearer ' prefix -- Linear's own convention).",
+      "required": false
+    },
+    "api_base_url": {
+      "type": "string",
+      "default": "https://api.linear.app/graphql",
+      "label": "Api Base Url",
+      "description": "Linear GraphQL endpoint.",
+      "required": false
+    },
+    "practice_mode_env_var": {
+      "type": "string",
+      "label": "Practice Mode Env Var",
+      "description": "Env var NAME (not a value templated into this field) whose value, read fresh at call time, switches create_issue into practice mode: returns {'practice_mode': True, 'would_open': 'linear_ticket', ...} instead of actually filing a ticket. Same vocabulary/rationale as github_pr_tools' own practice_mode_env_var -- scope it to a Dagster+ branch deployment to practice there and act for real after merge.",
+      "required": false
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "Hard allow-list of tools (default: all). Valid: find_issues, create_issue, list_agent_issues.",
+      "required": false
+    },
+    "max_result_chars": {
+      "type": "integer",
+      "default": 20000,
+      "label": "Max Result Chars",
+      "description": "Upper bound on the serialized size of any tool result.",
+      "required": false
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with LINEAR_TICKET_TOOLS_* env vars set from this component's own settings, and the real API key passed through via live env passthrough). Any mcp_servers-aware component can then reference it via server_resource_key.",
+      "required": false
+    },
+    "mcp_extra_env_vars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Mcp Extra Env Vars",
+      "description": "mcp_server_resource_key only. Extra env var NAMES (beyond the API key, which is always passed through) to copy into the spawned MCP server's env.",
+      "required": false
+    }
+  }
+}

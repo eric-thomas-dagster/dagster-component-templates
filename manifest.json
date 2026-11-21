@@ -40115,6 +40115,63 @@
       ]
     },
     {
+      "id": "linear_ticket_tools",
+      "name": "linear_ticket_tools",
+      "category": "ai",
+      "description": "Team-scoped Linear ticket tools for engineering agents (find_issues/create_issue/list_agent_issues), with a duplicate-check before filing and an optional practice mode. Registers a resource and ships a stdio MCP server.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/linear_ticket_tools",
+      "tags": [
+        "ai",
+        "mcp",
+        "linear",
+        "tickets",
+        "engineering-agents"
+      ],
+      "dependencies": {
+        "pip": [
+          "mcp>=1.30,<3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/linear_ticket_tools/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/linear_ticket_tools/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/linear_ticket_tools/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/linear_ticket_tools/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/linear_ticket_tools/requirements.txt",
+      "component_type": "dagster_community_components.LinearTicketToolsComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20",
+        "evidence": "tests/ in the component dir: generic-word filtering, label lookup/creation fallback (including when label creation is forbidden), practice mode, and the call()/t_* dispatch all run for real against a fake GraphQL transport (requests.post mocked -- Linear has no REST surface at all)."
+      },
+      "icon": "Ticket",
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "inputs": "query for find_issues; title+body for create_issue.",
+        "outputs": "JSON dicts per tool; errors returned as {error: ...}.",
+        "side_effects": "create_issue files a real Linear ticket (unless practice mode is on). Read-only otherwise.",
+        "anti_uses": "Not a bulk-ingestion tool -- for warehousing Linear data at scale, use linear_ingestion instead.",
+        "requires_pip": [
+          "mcp",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "LINEAR_API_KEY"
+        ]
+      },
+      "keywords": [
+        "linear",
+        "ticket",
+        "issue",
+        "duplicate check",
+        "practice mode",
+        "engineering agent"
+      ]
+    },
+    {
       "id": "linkedin_ads_ingestion",
       "name": "LinkedIn Ads Ingestion",
       "category": "ingestion",

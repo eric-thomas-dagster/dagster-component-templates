@@ -44,6 +44,7 @@ MCP_COMPONENTS = {
     "assets/ai/github_pr_tools": "server",
     "assets/ai/dagster_api_check_tools": "server",
     "assets/ai/dagster_discovery_tools": "server",
+    "assets/ai/linear_ticket_tools": "server",
 }
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

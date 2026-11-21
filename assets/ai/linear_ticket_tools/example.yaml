@@ -1,0 +1,7 @@
+type: dagster_community_components.LinearTicketToolsComponent
+attributes:
+  team_id: "{{ env.LINEAR_TEAM_ID }}"
+  api_key_env_var: LINEAR_API_KEY
+  # practice_mode_env_var: ENG_PRACTICE_MODE   # set this NAME; scope the named var to a branch deployment
+  # allow: [find_issues, create_issue, list_agent_issues]  # default: all
+  # mcp_server_resource_key: linear_ticket_tools_mcp   # share this toolset via server_resource_key instead of a hand-written inline command+env entry

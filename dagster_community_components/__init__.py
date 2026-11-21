@@ -831,6 +831,7 @@ _CLASS_PATHS: dict[str, str] = {
     "LinearIssueUpsertComponent": "assets/reverse_etl/linear_issue_upsert/component.py",
     "LinearRegressionModelComponent": "assets/analytics/linear_regression_model/component.py",
     "LinearResourceComponent": "resources/linear_resource/component.py",
+    "LinearTicketToolsComponent": "assets/ai/linear_ticket_tools/component.py",
     "LinkedInAdsIngestionComponent": "assets/ingestion/linkedin_ads_ingestion/component.py",
     "LinkedInAdsResource": "resources/linkedin_ads_resource/component.py",
     "LinkedInAdsResourceComponent": "resources/linkedin_ads_resource/component.py",

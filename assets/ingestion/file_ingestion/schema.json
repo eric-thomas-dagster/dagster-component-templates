@@ -347,6 +347,24 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "azure_account_name_env_var": {
+      "type": "string",
+      "label": "Azure Account Name Env Var",
+      "description": "Only used when file_path (or the resolved from_upstream/from_run_config URI) is an abfs://.../abfss://... URI.",
+      "required": false
+    },
+    "azure_account_key_env_var": {
+      "type": "string",
+      "label": "Azure Account Key Env Var",
+      "description": "Only used when the resolved URI is an abfs://.../abfss://... URI (ignored if azure_connection_string_env_var is also set).",
+      "required": false
+    },
+    "azure_connection_string_env_var": {
+      "type": "string",
+      "label": "Azure Connection String Env Var",
+      "description": "Only used when the resolved URI is an abfs://.../abfss://... URI. Takes precedence over azure_account_key_env_var.",
+      "required": false
     }
   },
   "name": "File Ingestion"

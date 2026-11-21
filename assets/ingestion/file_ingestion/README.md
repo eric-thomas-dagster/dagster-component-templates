@@ -72,6 +72,8 @@ from_run_config:
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -100,6 +102,9 @@ from_run_config:
 |---|---|---|---|
 | `from_upstream` | `Dict[str, Any]` | — | Read the file path(s) from an upstream asset's runtime value, rather than hardcoding `file_path`. The upstream asset must return a `dict[filename, absolute_path]` — e.g., what `archive_fetcher` emits. Shape: {asset: <ups… _(full docs in schema.json + component README)_ |
 | `from_run_config` | `Dict[str, Any]` | — | Read the file path from RunConfig injected by a sensor or schedule, rather than hardcoding `file_path`. The sensor passes a `config` dict whose fields get interpolated into a URI template. Shape: {uri_template: "s3://{bu… _(full docs in schema.json + component README)_ |
+| `azure_account_name_env_var` | `str` | — | Only used when file_path (or the resolved from_upstream/from_run_config URI) is an abfs://.../abfss://... URI. |
+| `azure_account_key_env_var` | `str` | — | Only used when the resolved URI is an abfs://.../abfss://... URI (ignored if azure_connection_string_env_var is also set). |
+| `azure_connection_string_env_var` | `str` | — | Only used when the resolved URI is an abfs://.../abfss://... URI. Takes precedence over azure_account_key_env_var. |
 | `delimiter` | `str` | `","` | CSV delimiter character |
 | `encoding` | `str` | `"utf-8"` | File encoding |
 | `skip_rows` | `int` | `0` | Number of rows to skip at the start |
@@ -152,7 +157,7 @@ A sensor registers each new S3 key as a dynamic partition (via `instance.add_dyn
 Same fsspec rules as `archive_fetcher`:
 - **S3**: env vars / `~/.aws/credentials` / EC2 instance profile / IRSA
 - **GCS**: `GOOGLE_APPLICATION_CREDENTIALS` / Workload Identity
-- **Azure**: `AZURE_STORAGE_CONNECTION_STRING` / `DefaultAzureCredential`. The recommended scheme is `abfss://container@account.dfs.core.windows.net/path` (canonical ADLS Gen2 over HTTPS). `abfs://` is the HTTP variant; `az://` is the adlfs alias and requires `AZURE_STORAGE_ACCOUNT_NAME` env var.
+- **Azure**: `AZURE_STORAGE_CONNECTION_STRING` / `DefaultAzureCredential` (ambient), or set `azure_account_name_env_var`/`azure_account_key_env_var`/`azure_connection_string_env_var` on the component for an explicit credential instead -- only consulted for an `abfs://`/`abfss://`/`az://` URI; every other scheme still uses its own ambient discovery. The recommended scheme is `abfss://container@account.dfs.core.windows.net/path` (canonical ADLS Gen2 over HTTPS). `abfs://` is the HTTP variant; `az://` is the adlfs alias and requires `AZURE_STORAGE_ACCOUNT_NAME` env var.
 
 Install the per-scheme driver: `pip install s3fs` / `gcsfs` / `adlfs`.
 

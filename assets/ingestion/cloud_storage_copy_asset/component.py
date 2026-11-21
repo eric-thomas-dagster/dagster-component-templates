@@ -54,11 +54,10 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
-# BEGIN generic file sink write (inlined per component; keep copies identical -- see
-# tests/test_generic_file_sink_write_drift.py. A DataFrame -> csv/jsonl/json/parquet at any fsspec URI, with
-# Azure storage_options built only when explicit Azure credential env vars are configured for an abfs://.../
-# abfss://.../az://... URI (ambient fsspec credential discovery applies otherwise, same as every read side in
-# this repo already relies on).
+# BEGIN azure storage options (inlined per component; keep copies identical -- see
+# tests/test_azure_storage_options_drift.py. fsspec storage_options built only when explicit Azure
+# credential env vars are configured for an abfs://.../abfss://.../az://... URI -- ambient fsspec
+# credential discovery applies otherwise, same as every other scheme already relies on.
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     value = dg.EnvVar(name).get_value()
@@ -84,6 +83,7 @@ def _azure_storage_options(uri: str, *, account_name_env_var=None, account_key_e
     elif account_key_env_var:
         opts["account_key"] = _require_env(account_key_env_var)
     return opts or None
+# END azure storage options
 
 
 def _write_dataframe(df, uri: str, fmt: str, *, compression: Optional[str] = None, storage_options: Optional[Dict[str, str]] = None):
@@ -98,7 +98,6 @@ def _write_dataframe(df, uri: str, fmt: str, *, compression: Optional[str] = Non
         df.to_parquet(uri, compression=compression, **kwargs)
     else:
         raise ValueError(f"Unsupported sink_format: {fmt!r} (supported: csv, jsonl, json, parquet)")
-# END generic file sink write
 
 
 # ── dataframe read dispatch (mirrors file_ingestion's own read-side format dispatch) ──────────────────────────

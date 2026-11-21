@@ -1,6 +1,7 @@
 """CSV File Ingestion Asset Component."""
 
 from typing import Any, Dict, List, Literal, Optional, Union
+import dagster as dg
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -249,7 +250,7 @@ def _detect_format_from_uri(uri: str) -> str:
     )
 
 
-def _read_avro(uri: str, columns_to_read) -> pd.DataFrame:
+def _read_avro(uri: str, columns_to_read, storage_options: Optional[Dict[str, str]] = None) -> pd.DataFrame:
     """Read an Avro file (local path or fsspec URI) into a pandas DataFrame.
 
     Requires `fastavro` (and the matching fsspec driver for remote URIs:
@@ -259,7 +260,7 @@ def _read_avro(uri: str, columns_to_read) -> pd.DataFrame:
     import fastavro
     import fsspec
 
-    with fsspec.open(uri, "rb") as f:
+    with fsspec.open(uri, "rb", **(storage_options or {})) as f:
         reader = fastavro.reader(f)
         rows = list(reader)
     df = pd.DataFrame(rows)
@@ -275,42 +276,50 @@ def _read_avro(uri: str, columns_to_read) -> pd.DataFrame:
 def _read_file(uri: str, fmt: str, *, delimiter: str, encoding: str,
                skip_rows: int, header_row: Optional[int],
                columns_to_read, dtype_mapping, parse_dates,
-               fixed_width_colspecs=None, fixed_width_names=None) -> pd.DataFrame:
-    """Dispatch to the right pandas reader based on `fmt`."""
+               fixed_width_colspecs=None, fixed_width_names=None,
+               storage_options: Optional[Dict[str, str]] = None) -> pd.DataFrame:
+    """Dispatch to the right pandas reader based on `fmt`.
+
+    `storage_options`, when set (an abfs://.../abfss://... URI with explicit Azure credential env
+    vars configured -- see azure_account_name_env_var/azure_account_key_env_var/
+    azure_connection_string_env_var), is passed straight through to every pandas reader that
+    accepts it (all of them do, for a remote/fsspec-resolvable URI) and to fsspec.open for Avro.
+    None for every other scheme -- ambient fsspec credential discovery applies then, unchanged."""
+    opts = {"storage_options": storage_options} if storage_options else {}
     if fmt == "auto":
         fmt = _detect_format_from_uri(uri)
     if fmt == "csv":
         return pd.read_csv(uri, delimiter=delimiter, encoding=encoding,
                            skiprows=skip_rows, header=header_row,
                            usecols=columns_to_read, dtype=dtype_mapping,
-                           parse_dates=parse_dates)
+                           parse_dates=parse_dates, **opts)
     if fmt == "tsv":
         return pd.read_csv(uri, delimiter="\t", encoding=encoding,
                            skiprows=skip_rows, header=header_row,
                            usecols=columns_to_read, dtype=dtype_mapping,
-                           parse_dates=parse_dates)
+                           parse_dates=parse_dates, **opts)
     if fmt == "json":
-        return pd.read_json(uri, encoding=encoding)
+        return pd.read_json(uri, encoding=encoding, **opts)
     if fmt == "jsonl":
-        return pd.read_json(uri, lines=True, encoding=encoding)
+        return pd.read_json(uri, lines=True, encoding=encoding, **opts)
     if fmt == "parquet":
         # Parquet doesn't take encoding/delimiter; columns_to_read maps to `columns`.
-        return pd.read_parquet(uri, columns=columns_to_read)
+        return pd.read_parquet(uri, columns=columns_to_read, **opts)
     if fmt == "excel":
         return pd.read_excel(uri, skiprows=skip_rows, header=header_row,
                              usecols=columns_to_read, dtype=dtype_mapping,
-                             parse_dates=parse_dates)
+                             parse_dates=parse_dates, **opts)
     if fmt == "avro":
-        return _read_avro(uri, columns_to_read)
+        return _read_avro(uri, columns_to_read, storage_options=storage_options)
     if fmt == "orc":
         # ORC = the Hadoop/Hive columnar format. pyarrow.orc is the reader;
         # pandas has had read_orc since 1.5. Use pandas directly so we
         # consistently return a DataFrame.
-        return pd.read_orc(uri, columns=columns_to_read)
+        return pd.read_orc(uri, columns=columns_to_read, **opts)
     if fmt == "feather":
         # Apache Arrow IPC / Feather v2. Fastest format for pandas↔pyarrow
         # round-trips. pandas.read_feather supports remote URIs via pyarrow.
-        return pd.read_feather(uri, columns=columns_to_read)
+        return pd.read_feather(uri, columns=columns_to_read, **opts)
     if fmt == "fixed_width":
         # Mainframe-style fixed-width text. Pass colspecs/names via the
         # component's `fixed_width_colspecs` and `fixed_width_names` fields.
@@ -318,12 +327,14 @@ def _read_file(uri: str, fmt: str, *, delimiter: str, encoding: str,
                                  columns_to_read=columns_to_read,
                                  colspecs=fixed_width_colspecs,
                                  names=fixed_width_names,
-                                 header_row=header_row)
+                                 header_row=header_row,
+                                 storage_options=storage_options)
     raise ValueError(f"Unsupported format: {fmt!r} (supported: {_SUPPORTED_FORMATS})")
 
 
 def _read_fixed_width(uri: str, *, encoding: str, skip_rows: int, columns_to_read,
-                      colspecs, names, header_row: Optional[int]) -> pd.DataFrame:
+                      colspecs, names, header_row: Optional[int],
+                      storage_options: Optional[Dict[str, str]] = None) -> pd.DataFrame:
     """Read a fixed-width text file (mainframe-style).
 
     `colspecs` is a list of `(start, end)` tuples (0-indexed, exclusive `end`)
@@ -332,6 +343,7 @@ def _read_fixed_width(uri: str, *, encoding: str, skip_rows: int, columns_to_rea
     `fixed_width_colspecs` and `fixed_width_names` fields — passed through
     here from the build_defs closure.
     """
+    opts = {"storage_options": storage_options} if storage_options else {}
     return pd.read_fwf(
         uri,
         colspecs=colspecs if colspecs is not None else "infer",
@@ -340,8 +352,41 @@ def _read_fixed_width(uri: str, *, encoding: str, skip_rows: int, columns_to_rea
         skiprows=skip_rows,
         encoding=encoding,
         usecols=columns_to_read,
+        **opts,
     )
 
+
+
+# BEGIN azure storage options (inlined per component; keep copies identical -- see
+# tests/test_azure_storage_options_drift.py. fsspec storage_options built only when explicit Azure
+# credential env vars are configured for an abfs://.../abfss://.../az://... URI -- ambient fsspec
+# credential discovery applies otherwise, same as every other scheme already relies on.
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    value = dg.EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+def _azure_storage_options(uri: str, *, account_name_env_var=None, account_key_env_var=None, connection_string_env_var=None) -> Optional[Dict[str, str]]:
+    """fsspec storage_options for an abfs://.../abfss://.../az://... URI, built only when Azure credential env
+    vars are configured for it. Returns None for a non-Azure URI, or an Azure one with no explicit credentials
+    configured (fsspec's ambient credential discovery applies then, same as the read side already relies on)."""
+    if not uri.lower().startswith(("abfs://", "abfss://", "az://")):
+        return None
+    opts: Dict[str, str] = {}
+    if account_name_env_var:
+        opts["account_name"] = _require_env(account_name_env_var)
+    if connection_string_env_var:
+        opts["connection_string"] = _require_env(connection_string_env_var)
+    elif account_key_env_var:
+        opts["account_key"] = _require_env(account_key_env_var)
+    return opts or None
+# END azure storage options
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
@@ -459,8 +504,21 @@ class FileIngestionComponent(Component, Model, Resolvable):
             "      — single-field shape; sensor passes one `path` string.\n\n"
             "Works with any URI fsspec supports (s3://, gs://, az://, "
             "file://, plus bare local paths). Auth uses fsspec's ambient "
-            "credential discovery."
+            "credential discovery (or the azure_*_env_var fields below for "
+            "an explicit Azure credential)."
         ),
+    )
+    azure_account_name_env_var: Optional[str] = Field(
+        default=None,
+        description="Only used when file_path (or the resolved from_upstream/from_run_config URI) is an abfs://.../abfss://... URI.",
+    )
+    azure_account_key_env_var: Optional[str] = Field(
+        default=None,
+        description="Only used when the resolved URI is an abfs://.../abfss://... URI (ignored if azure_connection_string_env_var is also set).",
+    )
+    azure_connection_string_env_var: Optional[str] = Field(
+        default=None,
+        description="Only used when the resolved URI is an abfs://.../abfss://... URI. Takes precedence over azure_account_key_env_var.",
     )
     description: Optional[str] = Field(
         default="",
@@ -734,6 +792,16 @@ class FileIngestionComponent(Component, Model, Resolvable):
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
         file_path = self.file_path
+        azure_account_name_env_var = self.azure_account_name_env_var
+        azure_account_key_env_var = self.azure_account_key_env_var
+        azure_connection_string_env_var = self.azure_connection_string_env_var
+
+        def _storage_options_for(uri: str) -> Optional[Dict[str, str]]:
+            return _azure_storage_options(
+                uri, account_name_env_var=azure_account_name_env_var,
+                account_key_env_var=azure_account_key_env_var,
+                connection_string_env_var=azure_connection_string_env_var,
+            )
         file_format = (self.format or "auto").lower()
         if file_format not in _SUPPORTED_FORMATS:
             raise ValueError(
@@ -966,6 +1034,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
                     columns_to_read=columns_to_read, dtype_mapping=dtype_mapping,
                     parse_dates=parse_dates,
                     fixed_width_colspecs=fw_colspecs, fixed_width_names=fw_names,
+                    storage_options=_storage_options_for(uri),
                 )
                 meta = {
                     "row_count": int(len(df)),
@@ -1026,6 +1095,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
                         skip_rows=skip_rows, header_row=header_row,
                         columns_to_read=columns_to_read, dtype_mapping=dtype_mapping,
                         parse_dates=parse_dates,
+                        storage_options=_storage_options_for(str(p)),
                     )
                     if combine_mode == "concat_with_source":
                         df_part = df_part.assign(_source_file=source_key)
@@ -1137,6 +1207,7 @@ group_name=group_name,
                         columns_to_read=columns_to_read, dtype_mapping=dtype_mapping,
                         parse_dates=parse_dates,
                         fixed_width_colspecs=fw_colspecs, fixed_width_names=fw_names,
+                        storage_options=_storage_options_for(partitioned_file_path),
                     )
                     context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
                     if cache_to_parquet:

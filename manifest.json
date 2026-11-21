@@ -1032,6 +1032,58 @@
       ]
     },
     {
+      "id": "agent_fixture_check",
+      "name": "Agent Fixture Check",
+      "category": "ai",
+      "description": "Grade an agent's structured outcome against owner-written fixtures (word/phrase groups) -- an asset check attached to the agent's own outcome asset, reporting recall/precision as metadata.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/agent_fixture_check",
+      "tags": [
+        "ai",
+        "asset-check",
+        "engineering-agents",
+        "grading",
+        "evaluation"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_fixture_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_fixture_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_fixture_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_fixture_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_fixture_check/requirements.txt",
+      "component_type": "dagster_community_components.AgentFixtureCheckComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-20",
+        "evidence": "tests/ in the component dir: a real dummy outcome-shaped asset is materialized alongside the generated asset_check end to end (not just the pure grading function in isolation), covering pass/fail thresholds, would_file pooling, fallback-text grading, custom findings_keys, ERROR severity, and component-relative fixtures_file path resolution."
+      },
+      "icon": "CheckCircle",
+      "produces": [
+        "asset_check"
+      ],
+      "agent_hints": {
+        "inputs": "The checked asset's own materialized outcome dict (bound automatically via @asset_check -- no manual wiring).",
+        "outputs": "AssetCheckResult with recall/precision/matched_fixture/missed_fixture metadata.",
+        "side_effects": "None -- read-only grading against a local fixtures JSON file.",
+        "anti_uses": "Not a human-grade substitute -- a Slack thumbs-up/thumbs-down reaction or manual review is a separate signal this check doesn't replace.",
+        "requires_resources": []
+      },
+      "keywords": [
+        "agent grading",
+        "fixtures",
+        "recall",
+        "precision",
+        "engineering agent",
+        "evaluation",
+        "asset check"
+      ]
+    },
+    {
       "id": "agent_memory_store",
       "name": "Agent Memory Store",
       "category": "ai",

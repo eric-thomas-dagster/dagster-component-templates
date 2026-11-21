@@ -1,0 +1,71 @@
+{
+  "component_type": "dagster_community_components.AgentFixtureCheckComponent",
+  "description": "Grade an agent's structured outcome against owner-written fixtures (word/phrase groups) -- an asset check attached to the agent's own outcome asset, reporting recall/precision as metadata.",
+  "category": "ai",
+  "icon": "CheckCircle",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "The agent's outcome asset to attach this check to (e.g. 'improvement_advisor_outcome').",
+      "required": true
+    },
+    "fixtures_file": {
+      "type": "string",
+      "label": "Fixtures File",
+      "description": "Path to a JSON fixtures file: {\"fixtures\": [{\"id\": \"...\", \"any\": [[\"word\", \"word\"], [...]]}]}. A finding matches a fixture when it contains every word of AT LEAST ONE of its `any` groups (case-insensitive substring match). Relative paths resolve against this component's own defs.yaml directory.",
+      "required": true
+    },
+    "min_recall": {
+      "type": "number",
+      "default": 0.5,
+      "label": "Min Recall",
+      "description": "Minimum recall (matched fixtures / total fixtures) to pass.",
+      "required": false
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "WARN",
+        "ERROR"
+      ],
+      "default": "WARN",
+      "label": "Severity",
+      "description": "Check severity when recall is below min_recall.",
+      "required": false
+    },
+    "check_name": {
+      "type": "string",
+      "default": "matches_fixtures",
+      "label": "Check Name",
+      "description": "Name of the emitted asset check.",
+      "required": false
+    },
+    "findings_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "filed",
+        "would_file"
+      ],
+      "label": "Findings Keys",
+      "description": "Top-level keys of the outcome dict holding lists of {title, body} (or similarly-shaped) findings dicts -- default covers both a real filing and a practice-mode 'would file' record. Every listed key's entries are pooled together.",
+      "required": false
+    },
+    "fallback_text_key": {
+      "type": "string",
+      "default": "text",
+      "label": "Fallback Text Key",
+      "description": "Top-level key of the outcome dict used as the only evidence when no findings_keys entries exist at all (e.g. practice mode matched nothing, or a tool-less agent's final note).",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Check description. Defaults to a generated one naming the fixtures file and threshold.",
+      "required": false
+    }
+  }
+}

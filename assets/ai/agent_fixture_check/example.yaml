@@ -1,0 +1,6 @@
+type: dagster_community_components.AgentFixtureCheckComponent
+attributes:
+  asset_key: improvement_advisor_outcome
+  fixtures_file: eval/improvement_fixtures.json
+  min_recall: 0.5
+  severity: WARN

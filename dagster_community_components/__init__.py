@@ -66,6 +66,7 @@ _CLASS_PATHS: dict[str, str] = {
     "AdyenIngestionComponent": "assets/ingestion/adyen_ingestion/component.py",
     "AgentCardComponent": "assets/ai/agent_card/component.py",
     "AgentCardWorkspaceComponent": "assets/ai/agent_card_workspace/component.py",
+    "AgentFixtureCheckComponent": "assets/ai/agent_fixture_check/component.py",
     "AgentMemoryStoreComponent": "assets/ai/agent_memory_store/component.py",
     "AgentResultToDataFrameComponent": "assets/transforms/agent_result_to_dataframe/component.py",
     "AgentReviewQueueComponent": "assets/ai/agent_review_queue/component.py",

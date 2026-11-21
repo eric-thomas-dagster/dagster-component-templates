@@ -103,6 +103,12 @@
       "label": "Tags",
       "required": false,
       "default": null
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Log what would be triggered (workspace/item/parameters) and skip the real Fabric authentication + REST call entirely -- same convention as the SSIS/Synapse/SAP job-trigger components' own dry_run flag.",
+      "required": false
     }
   }
 }

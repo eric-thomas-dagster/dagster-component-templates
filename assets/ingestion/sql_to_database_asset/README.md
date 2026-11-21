@@ -4,6 +4,10 @@ Reads rows from a source database table or custom SQL query and writes them to a
 
 Works with any SQLAlchemy-compatible database: Postgres, MySQL, MSSQL, SQLite, Snowflake, BigQuery, Redshift, DuckDB, and more.
 
+Set `dry_run: true` to log what would be read/written (source query, destination table, watermark/
+partition window) and skip the real database connections entirely -- same convention as the
+SSIS/Synapse/SAP job-trigger components' own `dry_run` flag.
+
 ## Required packages
 
 ```
@@ -50,6 +54,8 @@ sqlalchemy>=2.0.0
 | `partition_type` | `str` | `"none"` | none, daily, weekly, monthly, hourly, static, multi, or dynamic |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start_date` | `str` | — | Partition start date YYYY-MM-DD (required if partition_type != none) |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
@@ -92,6 +98,7 @@ sqlalchemy>=2.0.0
 | `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the written rows in the materialization metadata. |
 | `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
+| `dry_run` | `bool` | `false` | Log what would be read/written (source query, destination table, watermark/partition window) and skip the real database connections entirely -- same convention as the SSIS/Synapse/SAP job-trigger components' own dry_run flag. |
 
 [//]: # (FIELDS:END)
 

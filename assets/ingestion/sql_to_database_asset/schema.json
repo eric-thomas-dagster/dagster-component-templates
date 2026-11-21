@@ -374,6 +374,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Log what would be read/written (source query, destination table, watermark/partition window) and skip the real database connections entirely -- same convention as the SSIS/Synapse/SAP job-trigger components' own dry_run flag.",
+      "required": false
     }
   },
   "tags": [

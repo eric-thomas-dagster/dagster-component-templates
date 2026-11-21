@@ -19,7 +19,11 @@ Fabric item run as a Dagster job, with optional schedule.
     schedule: "0 2 * * *"
 ```
 
-`parameters` is a plain `{name: value}` dict, converted internally to Fabric's documented `Parameter[]` request shape (`{name, value, type}`, type inferred from the Python value) — this is the SAME shape across item types, sent as a top-level `parameters` field, not nested under `executionData`. Not every item/job type accepts parameters; Fabric's own API returns `errorCode: FeatureNotAvailable` for ones that don't, surfaced as a clear `dg.Failure`.
+`parameters` is a plain `{name: value}` dict. For `DataPipeline`/`Dataflow`, converted to Fabric's documented top-level `Parameter[]` request shape (`{name, value, type}`, type inferred from the Python value). For `Notebook`, sent instead as `executionData.parameters` (a dict keyed by name, lowercase `string`/`int`/`float`/`bool` types) — a Notebook reads its own `executionData`, not the generic `Parameter[]` list, confirmed via Microsoft's own `apache-airflow-providers-microsoft-fabric` and the `fab` CLI's job-run docs. Not every item/job type accepts parameters; Fabric's own API returns `errorCode: FeatureNotAvailable` for ones that don't, surfaced as a clear `dg.Failure`.
+
+Set `dry_run: true` to log what would be triggered (workspace/item/parameters) and skip the real
+Fabric authentication + REST call entirely — same convention as the SSIS/Synapse/SAP job-trigger
+components' own `dry_run` flag.
 
 ## Failure handling
 
@@ -48,7 +52,7 @@ A Failed, Cancelled, Deduped, or timed-out run raises `dg.Failure` (or `dg.Retry
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `parameters` | `dict` | — | Optional {name: value} parameters to pass to the pipeline/notebook/dataflow. Converted internally to Fabric's documented Parameter[] request shape ({name, value, type}, type inferred from the Python value). Not all item/… _(full docs in schema.json + component README)_ |
+| `parameters` | `dict` | — | Optional {name: value} parameters to pass to the pipeline/notebook/dataflow. For DataPipeline/Dataflow, converted to Fabric's documented Parameter[] request shape ({name, value, type}, type inferred from the Python value… _(full docs in schema.json + component README)_ |
 | `wait_for_completion` | `bool` | `true` | — |
 | `poll_interval_seconds` | `int` | `15` | — |
 
@@ -65,6 +69,7 @@ A Failed, Cancelled, Deduped, or timed-out run raises `dg.Failure` (or `dg.Retry
 | `item_type` | `str` | `"DataPipeline"` | 'DataPipeline' \| 'Notebook' \| 'Dataflow' |
 | `max_wait_seconds` | `int` | `1800` | — |
 | `tenant_id_env_var` | `str` | — | — |
+| `dry_run` | `bool` | `false` | Log what would be triggered (workspace/item/parameters) and skip the real Fabric authentication + REST call entirely -- same convention as the SSIS/Synapse/SAP job-trigger components' own dry_run flag. |
 | `schedule` | `str` | — | Cron (e.g. '0 */6 * * *') |
 | `schedule_default_status` | `str` | `"STOPPED"` | STOPPED \| RUNNING |
 

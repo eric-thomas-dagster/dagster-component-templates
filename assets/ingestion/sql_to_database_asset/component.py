@@ -380,6 +380,14 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
     )
+    dry_run: bool = Field(
+        default=False,
+        description=(
+            "Log what would be read/written (source query, destination table, watermark/partition "
+            "window) and skip the real database connections entirely -- same convention as the "
+            "SSIS/Synapse/SAP job-trigger components' own dry_run flag."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -460,6 +468,13 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         def sql_to_database_asset(context: AssetExecutionContext, config: SQLRunConfig):
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
+            if _self.dry_run:
+                context.log.info(
+                    f"[DRY RUN] would read {source_desc!r} and write to "
+                    f"{_self.destination_table!r} (if_exists={_self.if_exists}, "
+                    f"watermark_column={_self.watermark_column})"
+                )
+                return dg.MaterializeResult(metadata={"source": source_desc, "table": _self.destination_table, "status": "dry_run — not executed"})
             import os
             import pandas as pd
             from sqlalchemy import create_engine, text

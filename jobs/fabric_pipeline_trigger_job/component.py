@@ -189,6 +189,15 @@ class FabricPipelineTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
     client_id_env_var: Optional[str] = Field(default=None)
     client_secret_env_var: Optional[str] = Field(default=None)
 
+    dry_run: bool = Field(
+        default=False,
+        description=(
+            "Log what would be triggered (workspace/item/parameters) and skip the real Fabric "
+            "authentication + REST call entirely -- same convention as the SSIS/Synapse/SAP "
+            "job-trigger components' own dry_run flag."
+        ),
+    )
+
     schedule: Optional[str] = Field(default=None, description="Cron (e.g. '0 */6 * * *')")
     schedule_default_status: str = Field(default="STOPPED", description="STOPPED | RUNNING")
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None)
@@ -209,6 +218,12 @@ class FabricPipelineTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
         @dg.op(name=f"{self.job_name}_op")
         def _the_op(context: dg.OpExecutionContext):
             self = _self
+            if self.dry_run:
+                context.log.info(
+                    f"[DRY RUN] would trigger Fabric {self.item_type} {self.item_id!r} in workspace "
+                    f"{self.workspace_id!r} with parameters={self.parameters}"
+                )
+                return
             try:
                 from azure.identity import DefaultAzureCredential, ClientSecretCredential
             except ImportError as e:

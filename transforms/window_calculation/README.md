@@ -1,6 +1,25 @@
 # WindowCalculationComponent
 
-Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.
+Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, ntile, cume_dist, cumulative sum, moving avg). The full SQL window-function shape, in pandas.
+
+## `ntile` and `cume_dist`
+
+Neither has a pandas `Series` method, unlike the other functions above:
+
+- `ntile` (SQL `NTILE(n)`): divides each partition's rows, in `order_by` order, into `n`
+  buckets as evenly as possible -- the first `size % n` buckets get one extra row (not
+  pandas' `qcut`, which buckets by value distribution rather than row count):
+  ```yaml
+  operations:
+    - {output: quartile, func: ntile, n: 4}
+  ```
+- `cume_dist` (SQL `CUME_DIST()`): the fraction of each partition's rows whose `order_by`
+  position is at or before the current row's -- rows tied on every `order_by` column share
+  the same (maximum) fraction:
+  ```yaml
+  operations:
+    - {output: cume_dist, func: cume_dist}
+  ```
 
 ## SQL source
 
@@ -31,7 +50,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `operations` | `list` | List of {output: name, func: ..., column: ..., periods: ..., window: ...} dicts |
+| `operations` | `list` | List of {output: name, func: ..., column: ..., periods: ..., window: ..., n: ...} dicts. func: row_number \| rank \| dense_rank \| lag \| lead \| cumsum \| cummax \| cummin \| moving_avg \| moving_sum \| ntile (needs n/b… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

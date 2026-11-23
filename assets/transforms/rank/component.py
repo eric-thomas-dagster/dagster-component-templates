@@ -197,6 +197,43 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
     raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
 
 
+def _rank_by_multiple_columns(
+    df: "pd.DataFrame", columns: List, ascending: List[bool], *, method: str, pct: bool,
+    group_by: Optional[List] = None,
+) -> "pd.Series":
+    """Multi-key rank (ADF's Rank transform: several sort columns, each with its own
+    direction, like a SQL ORDER BY with several keys). pandas' own Series.rank() only ranks
+    by one column; this replicates its tie-breaking methods (average/min/max/first/dense)
+    over a lexicographic multi-column ordering instead."""
+    def _rank_block(block: "pd.DataFrame") -> "pd.Series":
+        order = block.sort_values(by=columns, ascending=ascending, kind="mergesort")
+        n = len(order)
+        pos = pd.Series(range(1, n + 1), index=order.index)
+        is_new_group = order[columns].ne(order[columns].shift()).any(axis=1)
+        is_new_group.iloc[0] = True  # shift() leaves row 0 NaN-compared; force it a group start
+        dense_id = is_new_group.cumsum()
+        if method == "first":
+            rank = pos.astype(float)
+        elif method == "dense":
+            rank = dense_id.astype(float)
+        else:
+            first_pos = pos.groupby(dense_id).transform("min")
+            last_pos = pos.groupby(dense_id).transform("max")
+            if method == "min":
+                rank = first_pos.astype(float)
+            elif method == "max":
+                rank = last_pos.astype(float)
+            else:  # "average" -- also pandas' own fallback for an unrecognized method
+                rank = (first_pos + last_pos) / 2.0
+        if pct:
+            denom = float(dense_id.max()) if method == "dense" else float(n)
+            rank = rank / denom
+        return rank.reindex(block.index)
+
+    if group_by:
+        return df.groupby(group_by, group_keys=False).apply(_rank_block)
+    return _rank_block(df)
+
 
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
 from typing import List, Optional, Union  # noqa: E402,F401
@@ -303,14 +340,24 @@ class RankComponent(Component, Model, Resolvable):
             "Mutually exclusive with `upstream_asset_key` -- set exactly one."
         ),
     )
-    column: Union[str, int] = Field(description="Column to rank by")
+    column: Union[str, int, List[Union[str, int]]] = Field(
+        description=(
+            "Column to rank by. Also accepts a list of columns for a multi-key rank (ADF's "
+            "Rank transform supports several sort columns, like a SQL ORDER BY with several keys)."
+        )
+    )
     method: str = Field(
         default="average",
         description="Tie-breaking method: 'average', 'min', 'max', 'first', or 'dense'",
     )
-    ascending: bool = Field(
+    ascending: Union[bool, List[bool]] = Field(
         default=True,
-        description="Rank in ascending order (True) or descending order (False)",
+        description=(
+            "Rank in ascending order (True) or descending order (False). When `column` is a "
+            "list, this may also be a list of the same length giving each column its own "
+            "direction (ADF: an independent sort direction per key) -- a single bool still "
+            "applies to every column."
+        ),
     )
     group_by: Optional[List[Union[str, int]]] = Field(
         default=None,
@@ -647,10 +694,28 @@ group_name=group_name,
                         _pk_keep.update(upstream.index)
                 upstream = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
             df = upstream.copy()
-            out_col = output_column or f"{column}_rank"
+            _is_multi_key = isinstance(column, (list, tuple))
+            if _is_multi_key:
+                out_col = output_column or f"{'_'.join(str(c) for c in column)}_rank"
+            else:
+                out_col = output_column or f"{column}_rank"
             pct = normalize
 
-            if group_by:
+            if _is_multi_key:
+                cols = list(column)
+                if isinstance(ascending, (list, tuple)):
+                    if len(ascending) != len(cols):
+                        raise ValueError(
+                            f"RankComponent: `ascending` list length ({len(ascending)}) must "
+                            f"match `column` list length ({len(cols)})."
+                        )
+                    asc_list = list(ascending)
+                else:
+                    asc_list = [ascending] * len(cols)
+                df[out_col] = _rank_by_multiple_columns(
+                    df, cols, asc_list, method=method, pct=pct, group_by=group_by
+                )
+            elif group_by:
                 df[out_col] = df.groupby(group_by)[column].rank(
                     method=method, ascending=ascending, pct=pct
                 )

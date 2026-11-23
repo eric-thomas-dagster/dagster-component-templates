@@ -167,7 +167,9 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
 
     index_columns: list = Field(description="Columns that stay as rows (group keys)")
     pivot_column: Union[str, int] = Field(description="Column whose values become new column headers")
-    value_column: Union[str, int] = Field(description="Column whose values fill the pivoted cells")
+    value_column: Optional[Union[str, int]] = Field(
+        default=None, description="Column whose values fill the pivoted cells. Required unless `value_columns` is set."
+    )
     agg_func: str = Field(default="sum", description="Aggregation when (index, pivot) collides: sum | mean | count | min | max | first | last")
     fill_value: Optional[float] = Field(default=None, description="Fill NaN cells with this value")
     column_prefix: Optional[Union[str, int]] = Field(
@@ -176,7 +178,31 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
             "Optional prefix prepended to each pivoted column name. Useful when "
             "the pivot's aggregation context should be visible in the column "
             "(e.g. prefix='Avg_' → pivoted 'Speed'/'Acceleration' become "
-            "'Avg_Speed'/'Avg_Acceleration')."
+            "'Avg_Speed'/'Avg_Acceleration'). Superseded by `column_naming_pattern` when set."
+        ),
+    )
+    value_columns: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Pivot several value columns at once (ADF Mapping Data Flow's multi-column pivot): "
+            "[{column: <col>, agg_func: <sum|mean|...>, alias: <name used for $V>}, ...]. "
+            "Overrides `value_column`/`agg_func` when set."
+        ),
+    )
+    pivot_values: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Explicit list of pivot_column values to pivot on (ADF's 'listed values'), instead "
+            "of auto-discovering every distinct value present. Rows with other values are "
+            "dropped; a declared value with no matching rows this run still gets an output "
+            "column (filled with fill_value), making the output's column set stable across runs."
+        ),
+    )
+    column_naming_pattern: Optional[str] = Field(
+        default=None,
+        description=(
+            "ADF-style column naming pattern using $V (value column name/alias) and $N (pivot "
+            "key value), e.g. '$V$N' or '$N_$V'. Takes precedence over `column_prefix`."
         ),
     )
 
@@ -231,7 +257,7 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
+        return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds', 'pivot_values'), csv=('partition_values',), tags=('asset_tags',))
 
     @model_validator(mode="before")
     @classmethod
@@ -246,6 +272,8 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("PivotComponent: set exactly one of `upstream_asset_key` or `source`.")
+        if not self.value_column and not self.value_columns:
+            raise ValueError("PivotComponent: set `value_column` or `value_columns`.")
         partitions_def = None
         if self.partition_type:
             from dagster import (
@@ -318,7 +346,9 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
                 _frames = [v for v in df.values() if isinstance(v, pd.DataFrame)]
                 df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             self = _self
-            _required = list(self.index_columns) + [self.pivot_column, self.value_column]
+            _value_specs = list(self.value_columns) if self.value_columns else None
+            _value_cols = [s["column"] for s in _value_specs] if _value_specs else [self.value_column]
+            _required = list(self.index_columns) + [self.pivot_column] + _value_cols
             _missing = [c for c in _required if c not in df.columns]
             if _missing:
                 context.log.warning(
@@ -367,22 +397,68 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
                 "countdistinct": "nunique", "distinct_count": "nunique",
                 "concat": "first",  # pandas pivot_table can't concat; best-effort.
             }
-            _agg = _AGG_ALIASES.get(str(self.agg_func).lower(), self.agg_func)
-            out = df.pivot_table(
-                index=self.index_columns, columns=self.pivot_column,
-                values=self.value_column, aggfunc=_agg,
-                fill_value=self.fill_value,
-            ).reset_index()
-            out.columns = [str(c) for c in out.columns]
-            # Apply column_prefix to every pivoted (non-index) column so
-            # downstream tools that reference `<prefix><pivot_value>` (e.g.
-            # `Avg_Speed`) find the right column.
-            if self.column_prefix:
-                _idx_set = set(self.index_columns)
-                out.columns = [
-                    (c if c in _idx_set else f"{self.column_prefix}{c}")
-                    for c in out.columns
+            def _resolve_agg(name):
+                return _AGG_ALIASES.get(str(name).lower(), name)
+
+            # ADF's "listed values" -- an explicit allow-list of pivot_column values, instead
+            # of auto-discovering whatever happens to be present this run. Declared values
+            # with no matching rows still get an output column (reindexed in below), which is
+            # what actually fixes the output-column instability the warnings above describe.
+            _declared_values = [str(v) for v in self.pivot_values] if self.pivot_values else None
+            if _declared_values:
+                _before = len(df)
+                df = df[df[self.pivot_column].astype(str).isin(_declared_values)]
+                if len(df) < _before:
+                    context.log.info(
+                        f"pivot: dropped {_before - len(df)} row(s) whose `{self.pivot_column}` "
+                        f"value wasn't in the declared pivot_values list."
+                    )
+
+            _fill = self.fill_value if self.fill_value is not None else float("nan")
+
+            if _value_specs:
+                _alias_by_col = {s["column"]: s.get("alias", s["column"]) for s in _value_specs}
+                _aggfunc_by_col = {s["column"]: _resolve_agg(s.get("agg_func", "sum")) for s in _value_specs}
+                pivoted = df.pivot_table(
+                    index=self.index_columns, columns=self.pivot_column,
+                    values=_value_cols, aggfunc=_aggfunc_by_col, fill_value=self.fill_value,
+                )
+                pivoted.columns = pd.MultiIndex.from_tuples(
+                    [(vc, str(pv)) for vc, pv in pivoted.columns]
+                )
+                if _declared_values:
+                    pivoted = pivoted.reindex(
+                        columns=pd.MultiIndex.from_product([_value_cols, _declared_values]),
+                        fill_value=_fill,
+                    )
+                pattern = self.column_naming_pattern or "$V$N"
+                pivoted.columns = [
+                    pattern.replace("$V", str(_alias_by_col.get(vc, vc))).replace("$N", pv)
+                    for vc, pv in pivoted.columns
                 ]
+                out = pivoted.reset_index()
+            else:
+                _agg = _resolve_agg(self.agg_func)
+                pivoted = df.pivot_table(
+                    index=self.index_columns, columns=self.pivot_column,
+                    values=self.value_column, aggfunc=_agg,
+                    fill_value=self.fill_value,
+                )
+                pivoted.columns = [str(c) for c in pivoted.columns]
+                if _declared_values:
+                    pivoted = pivoted.reindex(columns=_declared_values, fill_value=_fill)
+                if self.column_naming_pattern:
+                    pattern = self.column_naming_pattern
+                    _alias = str(self.column_prefix) if self.column_prefix else str(self.value_column)
+                    pivoted.columns = [
+                        pattern.replace("$V", _alias).replace("$N", c) for c in pivoted.columns
+                    ]
+                elif self.column_prefix:
+                    # Apply column_prefix to every pivoted (non-index) column so downstream
+                    # tools that reference `<prefix><pivot_value>` (e.g. `Avg_Speed`) find it.
+                    pivoted.columns = [f"{self.column_prefix}{c}" for c in pivoted.columns]
+                out = pivoted.reset_index()
+
             df = out
             context.add_output_metadata({
                 "dagster/row_count": dg.MetadataValue.int(len(df)),

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.WindowCalculationComponent",
-  "description": "Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
+  "description": "Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, ntile, cume_dist, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
   "category": "transformation",
   "x-dagster-io": {
     "inputs": {
@@ -48,7 +48,7 @@
     "operations": {
       "type": "array",
       "label": "Operations",
-      "description": "List of {output: name, func: ..., column: ..., periods: ..., window: ...} dicts",
+      "description": "List of {output: name, func: ..., column: ..., periods: ..., window: ..., n: ...} dicts. func: row_number | rank | dense_rank | lag | lead | cumsum | cummax | cummin | moving_avg | moving_sum | ntile (needs n/buckets) | cume_dist.",
       "required": true
     },
     "description": {

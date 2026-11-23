@@ -19,6 +19,28 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 (DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
 (BigQuery, Redshift).
 
+## Multi-column pivot, listed values, and ADF-style column naming
+
+Mirrors ADF Mapping Data Flow's pivot transformation beyond the single-column case:
+
+- `value_columns` pivots several value columns at once, each with its own `agg_func` and an
+  `alias` used for `$V` below -- overrides `value_column`/`agg_func` when set.
+- `pivot_values` is an explicit allow-list of `pivot_column` values (ADF's "listed values"),
+  instead of auto-discovering whatever happens to be present. Rows with other values are
+  dropped, and a declared value with zero matching rows this run still gets an output
+  column (filled with `fill_value`) -- the output's column set stays stable across runs.
+- `column_naming_pattern` builds each pivoted column name from `$V` (the value column's name
+  or `alias`) and `$N` (the pivot key value), e.g. `"$V_$N"` → `Speed_a`, `Speed_b`. Takes
+  precedence over `column_prefix`.
+
+```yaml
+value_columns:
+  - {column: speed, agg_func: avg, alias: Speed}
+  - {column: accel, agg_func: max, alias: Accel}
+pivot_values: ["sensor_a", "sensor_b", "sensor_c"]
+column_naming_pattern: "$V_$N"
+```
+
 ## Dependencies
 - `pandas`
 
@@ -33,7 +55,6 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `asset_name` | `str` | Dagster asset name |
 | `index_columns` | `list` | Columns that stay as rows (group keys) |
 | `pivot_column` | `Union[str, int]` | Column whose values become new column headers |
-| `value_column` | `Union[str, int]` | Column whose values fill the pivoted cells |
 
 ### Catalog metadata
 
@@ -75,9 +96,13 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 |---|---|---|---|
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
+| `value_column` | `Union[str, int]` | — | Column whose values fill the pivoted cells. Required unless `value_columns` is set. |
 | `agg_func` | `str` | `"sum"` | Aggregation when (index, pivot) collides: sum \| mean \| count \| min \| max \| first \| last |
 | `fill_value` | `float` | — | Fill NaN cells with this value |
-| `column_prefix` | `Union[str, int]` | — | Optional prefix prepended to each pivoted column name. Useful when the pivot's aggregation context should be visible in the column (e.g. prefix='Avg_' → pivoted 'Speed'/'Acceleration' become 'Avg_Speed'/'Avg_Acceleration'). |
+| `column_prefix` | `Union[str, int]` | — | Optional prefix prepended to each pivoted column name. Useful when the pivot's aggregation context should be visible in the column (e.g. prefix='Avg_' → pivoted 'Speed'/'Acceleration' become 'Avg_Speed'/'Avg_Acceleration… _(full docs in schema.json + component README)_ |
+| `value_columns` | `List[Dict[str, Any]]` | — | Pivot several value columns at once (ADF Mapping Data Flow's multi-column pivot): [{column: <col>, agg_func: <sum\|mean\|...>, alias: <name used for $V>}, ...]. Overrides `value_column`/`agg_func` when set. |
+| `pivot_values` | `List[str]` | — | Explicit list of pivot_column values to pivot on (ADF's 'listed values'), instead of auto-discovering every distinct value present. Rows with other values are dropped; a declared value with no matching rows this run stil… _(full docs in schema.json + component README)_ |
+| `column_naming_pattern` | `str` | — | ADF-style column naming pattern using $V (value column name/alias) and $N (pivot key value), e.g. '$V$N' or '$N_$V'. Takes precedence over `column_prefix`. |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

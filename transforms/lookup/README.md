@@ -19,6 +19,23 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 (DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
 (BigQuery, Redshift).
 
+## Ordered matches and a match flag
+
+Mirrors two ADF Lookup transform capabilities beyond plain row order:
+
+- `sort_conditions` orders candidate matches before `multiple_match: first`/`last` picks
+  one, instead of relying on the lookup DataFrame's row order:
+  ```yaml
+  multiple_match: first
+  sort_conditions:
+    - {column: priority, order: asc}
+  ```
+- `match_flag_column` adds a boolean column (ADF's `isMatch()`) marking whether each row
+  found a match in the lookup at all, independent of which columns were added:
+  ```yaml
+  match_flag_column: was_matched
+  ```
+
 ## Dependencies
 - `pandas`
 
@@ -77,6 +94,8 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `columns_to_add` | `list` | — | Columns from the lookup to attach (None = all non-join columns) |
 | `multiple_match` | `str` | `"first"` | When the lookup has multiple matches: 'first' \| 'last' \| 'all' (cartesian) |
+| `sort_conditions` | `List[Dict[str, str]]` | — | Order candidate matches before taking 'first'/'last' (ADF's Lookup transform: explicit sort conditions, not just row order). List of {column, order: asc\|desc (default asc)}. Ignored when multiple_match='all'. |
+| `match_flag_column` | `str` | — | If set, adds a boolean column (ADF's isMatch()) marking whether each row found a match in the lookup. |
 | `rename` | `dict` | — | Rename added columns: {original: new} |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |

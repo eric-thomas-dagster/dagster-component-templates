@@ -170,6 +170,18 @@ class LookupComponent(dg.Component, dg.Model, dg.Resolvable):
     on: list = Field(description="Columns used for the join (must exist in both)")
     columns_to_add: Optional[list] = Field(default=None, description="Columns from the lookup to attach (None = all non-join columns)")
     multiple_match: str = Field(default="first", description="When the lookup has multiple matches: 'first' | 'last' | 'all' (cartesian)")
+    sort_conditions: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description=(
+            "Order candidate matches before taking 'first'/'last' (ADF's Lookup transform: "
+            "explicit sort conditions, not just row order). List of {column, order: asc|desc "
+            "(default asc)}. Ignored when multiple_match='all'."
+        ),
+    )
+    match_flag_column: Optional[str] = Field(
+        default=None,
+        description="If set, adds a boolean column (ADF's isMatch()) marking whether each row found a match in the lookup.",
+    )
     rename: Optional[dict] = Field(default=None, description="Rename added columns: {original: new}")
 
     description: Optional[str] = Field(default=None)
@@ -317,13 +329,22 @@ class LookupComponent(dg.Component, dg.Model, dg.Resolvable):
             join_keys = self.on
             cols_to_add = self.columns_to_add or [c for c in lookup_df.columns if c not in join_keys]
             lookup_subset = lookup_df[join_keys + cols_to_add].copy()
+            if self.sort_conditions and self.multiple_match in ("first", "last"):
+                _sort_cols = [c["column"] for c in self.sort_conditions]
+                _sort_asc = [c.get("order", "asc").lower() != "desc" for c in self.sort_conditions]
+                lookup_subset = lookup_subset.sort_values(by=_sort_cols, ascending=_sort_asc, kind="mergesort")
             if self.multiple_match == "first":
                 lookup_subset = lookup_subset.drop_duplicates(subset=join_keys, keep="first")
             elif self.multiple_match == "last":
                 lookup_subset = lookup_subset.drop_duplicates(subset=join_keys, keep="last")
             if self.rename:
                 lookup_subset = lookup_subset.rename(columns=self.rename)
-            df = df.merge(lookup_subset, on=join_keys, how="left")
+            if self.match_flag_column:
+                df = df.merge(lookup_subset, on=join_keys, how="left", indicator="_lookup_match")
+                df[self.match_flag_column] = df["_lookup_match"] == "both"
+                df = df.drop(columns=["_lookup_match"])
+            else:
+                df = df.merge(lookup_subset, on=join_keys, how="left")
             context.add_output_metadata({
                 "dagster/row_count": dg.MetadataValue.int(len(df)),
             })

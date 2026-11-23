@@ -196,6 +196,25 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
     raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
 
 
+def _sort_with_per_column_na_position(
+    df: "pd.DataFrame", by: List, ascending: List[bool], na_position: List[str],
+) -> "pd.DataFrame":
+    """Multi-key sort with an independent na_position per key (ADF's Sort transform: a
+    null-handling flag per sort condition, not one for the whole sort). pandas'
+    `sort_values(na_position=...)` only accepts one scalar for every key.
+
+    Standard technique: sort one column at a time, from the LAST key to the FIRST, using a
+    stable sort each time -- a stable sort on an already-sorted-by-later-keys frame
+    preserves the later keys' relative order within ties on the current key, which is what
+    makes repeated single-column stable sorts equivalent to one multi-key sort."""
+    result = df
+    for col, asc, na_pos in reversed(list(zip(by, ascending, na_position))):
+        is_na = result[col].isna()
+        non_na = result[~is_na].sort_values(by=col, ascending=asc, kind="mergesort")
+        na_rows = result[is_na]
+        result = pd.concat([na_rows, non_na]) if na_pos == "first" else pd.concat([non_na, na_rows])
+    return result
+
 
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
 from typing import List, Optional, Union  # noqa: E402,F401
@@ -311,6 +330,14 @@ class SortComponent(Component, Model, Resolvable):
     na_position: str = Field(
         default="last",
         description="Where to place NaN values: 'first' or 'last'",
+    )
+    na_position_per_column: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Per-column na_position ('first'/'last') as a list matching the length of 'by' "
+            "(ADF's Sort transform: an independent null-handling flag per sort condition, "
+            "not one for the whole sort). When set, overrides the 'na_position' field."
+        ),
     )
     reset_index: bool = Field(default=True, description="Reset the index after sorting")
     limit: Optional[int] = Field(
@@ -523,6 +550,7 @@ class SortComponent(Component, Model, Resolvable):
         ascending = self.ascending
         ascending_per_column = self.ascending_per_column
         na_position = self.na_position
+        na_position_per_column = self.na_position_per_column
         do_reset_index = self.reset_index
         row_limit = self.limit
         group_name = self.group_name
@@ -676,7 +704,16 @@ group_name=group_name,
             # configured a sort key that doesn't exist, raise. Pandas's
             # KeyError carries the right diagnostic and the upstream chain
             # likely has a real issue worth surfacing.
-            result = upstream.sort_values(by=by, ascending=asc, na_position=na_position)
+            if na_position_per_column is not None:
+                if len(na_position_per_column) != len(by):
+                    raise ValueError(
+                        f"SortComponent: `na_position_per_column` length "
+                        f"({len(na_position_per_column)}) must match `by` length ({len(by)})."
+                    )
+                asc_list = asc if isinstance(asc, list) else [asc] * len(by)
+                result = _sort_with_per_column_na_position(upstream, by, asc_list, na_position_per_column)
+            else:
+                result = upstream.sort_values(by=by, ascending=asc, na_position=na_position)
             if do_reset_index:
                 result = result.reset_index(drop=True)
             if row_limit is not None and len(result) > row_limit:

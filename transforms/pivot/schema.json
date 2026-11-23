@@ -77,6 +77,30 @@
       "description": "Fill NaN cells with this value",
       "required": false
     },
+    "value_columns": {
+      "type": "array",
+      "label": "Value Columns",
+      "description": "Pivot several value columns at once (ADF Mapping Data Flow's multi-column pivot): [{column: <col>, agg_func: <sum|mean|...>, alias: <name used for $V>}, ...]. Overrides `value_column`/`agg_func` when set.",
+      "required": false,
+      "items": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string",
+            "description": "Column whose values fill this pivoted value column."
+          },
+          "agg_func": {
+            "type": "string",
+            "description": "Aggregation for this column: sum | mean | count | min | max | first | last.",
+            "default": "sum"
+          },
+          "alias": {
+            "type": "string",
+            "description": "Name used for $V in column_naming_pattern. Defaults to `column`."
+          }
+        }
+      }
+    },
     "description": {
       "type": "string",
       "label": "Description",
@@ -204,6 +228,21 @@
       "label": "Dynamic Partition Name",
       "required": false,
       "type": "string"
+    },
+    "pivot_values": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Pivot Values",
+      "description": "Explicit list of pivot_column values to pivot on (ADF's 'listed values'), instead of auto-discovering every distinct value present. Rows with other values are dropped; a declared value with no matching rows this run still gets an output column (filled with fill_value), making the output's column set stable across runs.",
+      "required": false
+    },
+    "column_naming_pattern": {
+      "type": "string",
+      "label": "Column Naming Pattern",
+      "description": "ADF-style column naming pattern using $V (value column name/alias) and $N (pivot key value), e.g. '$V$N' or '$N_$V'. Takes precedence over `column_prefix`.",
+      "required": false
     }
   }
 }

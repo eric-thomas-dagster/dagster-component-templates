@@ -64,6 +64,26 @@
       ],
       "ui:widget": "select"
     },
+    "sort_conditions": {
+      "type": "array",
+      "label": "Sort Conditions",
+      "description": "Order candidate matches before taking 'first'/'last' (ADF's Lookup transform: explicit sort conditions, not just row order). List of {column, order: asc|desc (default asc)}. Ignored when multiple_match='all'.",
+      "required": false,
+      "items": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string",
+            "description": "Lookup column to sort candidate matches by."
+          },
+          "order": {
+            "type": "string",
+            "description": "'asc' or 'desc'.",
+            "default": "asc"
+          }
+        }
+      }
+    },
     "rename": {
       "type": "object",
       "label": "Rename",
@@ -197,6 +217,12 @@
       "label": "Dynamic Partition Name",
       "required": false,
       "type": "string"
+    },
+    "match_flag_column": {
+      "type": "string",
+      "label": "Match Flag Column",
+      "description": "If set, adds a boolean column (ADF's isMatch()) marking whether each row found a match in the lookup.",
+      "required": false
     }
   }
 }

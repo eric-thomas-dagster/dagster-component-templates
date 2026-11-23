@@ -318,6 +318,15 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "na_position_per_column": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Na Position Per Column",
+      "description": "Per-column na_position ('first'/'last') as a list matching the length of 'by' (ADF's Sort transform: an independent null-handling flag per sort condition, not one for the whole sort). When set, overrides the 'na_position' field.",
+      "required": false
     }
   },
   "tags": [

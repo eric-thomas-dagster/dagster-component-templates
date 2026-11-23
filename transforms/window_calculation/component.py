@@ -1,6 +1,6 @@
 """WindowCalculationComponent.
 
-Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.
+Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, ntile, cume_dist, cumulative sum, moving avg). The full SQL window-function shape, in pandas.
 """
 
 import os
@@ -62,6 +62,34 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
             raise ValueError(f"database_url_env_var {env_var!r} is unset")
         return pd.read_sql(sql, create_engine(url))
     raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
+def _ntile_bucket(pos: int, size: int, n: int) -> int:
+    """SQL NTILE(n) bucket number (1-indexed) for a 0-indexed row position within a
+    partition of `size` rows, already in the desired order. Distributes as evenly as
+    possible -- the first `size % n` buckets get one extra row (matches every major SQL
+    engine's NTILE; pandas' own qcut buckets by VALUE distribution instead of row count)."""
+    base, extra = divmod(size, n)
+    threshold = extra * (base + 1)
+    if pos < threshold:
+        return pos // (base + 1) + 1
+    return extra + (pos - threshold) // base + 1
+
+
+def _cume_dist(block: "pd.DataFrame", order_cols: Optional[list]) -> "pd.Series":
+    """SQL CUME_DIST(): (last row-position of this row's ORDER BY tie group) / partition
+    size. `block` must already be in the window's ORDER BY order; ties are rows where every
+    `order_cols` entry matches (no order_cols -- no ties, every row its own group)."""
+    n = len(block)
+    pos = pd.Series(range(1, n + 1), index=block.index)
+    if order_cols:
+        is_new_group = block[order_cols].ne(block[order_cols].shift()).any(axis=1)
+        is_new_group.iloc[0] = True
+        grp_id = is_new_group.cumsum()
+        last_pos = pos.groupby(grp_id).transform("max")
+    else:
+        last_pos = pos
+    return (last_pos / n).astype(float)
 
 
 
@@ -149,7 +177,7 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 
 class WindowCalculationComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas."""
+    """Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, ntile, cume_dist, cumulative sum, moving avg). The full SQL window-function shape, in pandas."""
 
     asset_name: str = Field(description="Dagster asset name")
     upstream_asset_key: Optional[Union[str, List[str]]] = Field(
@@ -167,7 +195,13 @@ class WindowCalculationComponent(dg.Component, dg.Model, dg.Resolvable):
 
     partition_by: Optional[list] = Field(default=None, description="Columns to partition by (None = single global partition)")
     order_by: Optional[list] = Field(default=None, description="Columns to sort within each partition (with optional 'desc' suffix per col)")
-    operations: list = Field(description="List of {output: name, func: ..., column: ..., periods: ..., window: ...} dicts")
+    operations: list = Field(
+        description=(
+            "List of {output: name, func: ..., column: ..., periods: ..., window: ..., n: ...} "
+            "dicts. func: row_number | rank | dense_rank | lag | lead | cumsum | cummax | "
+            "cummin | moving_avg | moving_sum | ntile (needs n/buckets) | cume_dist."
+        )
+    )
 
     description: Optional[str] = Field(default=None)
     group_name: str = Field(default="transforms")
@@ -283,7 +317,7 @@ class WindowCalculationComponent(dg.Component, dg.Model, dg.Resolvable):
 
         @dg.asset(
             key=dg.AssetKey.from_user_string(self.asset_name),
-            description=self.description or "Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
+            description=self.description or "Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, ntile, cume_dist, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['window', 'analytic']),
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
@@ -354,6 +388,24 @@ class WindowCalculationComponent(dg.Component, dg.Model, dg.Resolvable):
                         df[out_col] = groups[src_col].transform(lambda s: s.rolling(window, min_periods=1).sum())
                     else:
                         df[out_col] = df[src_col].rolling(window, min_periods=1).sum()
+                elif func == "ntile":
+                    n = op.get("n") or op.get("buckets")
+                    if not n:
+                        raise ValueError("window_calculation: 'ntile' requires 'n' (or 'buckets').")
+                    if self.partition_by:
+                        _pos = df.groupby(self.partition_by, sort=False).cumcount()
+                        _size = df.groupby(self.partition_by, sort=False)[self.partition_by[0]].transform("size")
+                        df[out_col] = [_ntile_bucket(p, s, n) for p, s in zip(_pos, _size)]
+                    else:
+                        df[out_col] = [_ntile_bucket(p, len(df), n) for p in range(len(df))]
+                elif func == "cume_dist":
+                    _order_cols = sort_cols if self.order_by else None
+                    if self.partition_by:
+                        df[out_col] = df.groupby(self.partition_by, sort=False, group_keys=False).apply(
+                            lambda g: _cume_dist(g, _order_cols)
+                        )
+                    else:
+                        df[out_col] = _cume_dist(df, _order_cols)
                 else:
                     raise ValueError(f"unknown window function: {func}")
             context.add_output_metadata({

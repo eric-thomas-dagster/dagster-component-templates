@@ -38,7 +38,7 @@
     "column": {
       "type": "string",
       "label": "Column",
-      "description": "Column to rank by",
+      "description": "Column to rank by. Also accepts a list of columns for a multi-key rank (ADF's Rank transform supports several sort columns, like a SQL ORDER BY with several keys).",
       "required": true
     },
     "method": {
@@ -59,7 +59,7 @@
     "ascending": {
       "type": "boolean",
       "label": "Ascending",
-      "description": "Rank in ascending order (True) or descending order (False)",
+      "description": "Rank in ascending order (True) or descending order (False). When `column` is a list, this may also be a list of the same length giving each column its own direction -- a single bool still applies to every column.",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"

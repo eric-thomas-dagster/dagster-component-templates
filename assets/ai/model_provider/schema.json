@@ -1,0 +1,107 @@
+{
+  "component_type": "dagster_community_components.ModelProviderComponent",
+  "description": "Declare an LLM provider credential and surface its health as a Dagster asset -- an api-key-presence check (always on) and an opt-in live models-list API call, plus the models the provider offers.",
+  "category": "ai",
+  "icon": "Key",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name.",
+      "required": true
+    },
+    "provider": {
+      "type": "string",
+      "label": "Provider",
+      "description": "LiteLLM provider id, e.g. openai, anthropic, gemini, azure, bedrock, groq, mistral, cohere, vertex_ai -- same vocabulary litellm_agent's `model` field implies (e.g. 'gemini/gemini-2.5-flash' -> provider 'gemini').",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var holding this provider's API key. Only its presence is checked and only its name is ever stored in this component's config -- the value is read fresh from the environment at check time, never templated into a typed field or logged.",
+      "required": true,
+      "json_schema_extra": {
+        "ui:widget": "env_var"
+      }
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "label": "Api Base Env Var",
+      "description": "Env var holding a custom API base URL (proxies, self-hosted gateways, Azure endpoints).",
+      "required": false,
+      "json_schema_extra": {
+        "ui:widget": "env_var"
+      }
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Models",
+      "description": "Curated list of model ids this provider is offered for. When unset, falls back to LiteLLM's own static model catalog for `provider`.",
+      "required": false
+    },
+    "test_call": {
+      "type": "boolean",
+      "default": false,
+      "label": "Test Call",
+      "description": "When true, adds a second asset check that makes one real models-list API call to the provider using the live key, to verify it actually authenticates -- not just that the env var is set. Costs one real network call per check run; silently reported as 'not supported' rather than failed for providers with no live models-list endpoint in this litellm version.",
+      "required": false
+    },
+    "severity": {
+      "type": "string",
+      "default": "ERROR",
+      "label": "Severity",
+      "description": "Check severity when a check fails: 'WARN' or 'ERROR'.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "default": "model_providers",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value catalog tags.",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds (auto-includes 'llm').",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on.",
+      "required": false
+    }
+  }
+}

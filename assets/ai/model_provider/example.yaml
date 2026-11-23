@@ -1,0 +1,6 @@
+type: dagster_community_components.ModelProviderComponent
+attributes:
+  asset_name: openai_provider
+  provider: openai
+  api_key_env_var: OPENAI_API_KEY
+  test_call: true

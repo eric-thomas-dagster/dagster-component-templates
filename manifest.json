@@ -44169,6 +44169,60 @@
       ]
     },
     {
+      "id": "model_provider",
+      "name": "Model Provider",
+      "category": "ai",
+      "description": "Declare an LLM provider credential and surface its health as a Dagster asset -- an api-key-presence check (always on) and an opt-in live models-list API call, plus the models the provider offers.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/model_provider",
+      "tags": [
+        "ai",
+        "asset-check",
+        "credentials",
+        "engineering-agents",
+        "litellm",
+        "observability"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "litellm"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/model_provider/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/model_provider/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/model_provider/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/model_provider/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/model_provider/requirements.txt",
+      "component_type": "dagster_community_components.ModelProviderComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-23",
+        "evidence": "tests/ in the component dir: build_defs safety with no credential set, both asset checks executed via a real implicit asset job (dg.materialize() does not run asset checks), and the live-connectivity helper live-verified against the real litellm/OpenAI models-list call with a deliberately invalid key (confirmed the real auth error surfaces) plus a provider with no live endpoint (confirmed reported as unsupported, not failed)."
+      },
+      "icon": "Key",
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "inputs": "None -- reads the env var named by api_key_env_var at check time.",
+        "outputs": "Observation metadata: provider, api_key_present, models_offered. Asset checks: {asset_name}_api_key_present (always), {asset_name}_live_connectivity (only when test_call is true).",
+        "side_effects": "One real network call to the provider's models-list endpoint per materialization, only when test_call is true.",
+        "requires_resources": []
+      },
+      "keywords": [
+        "model provider",
+        "api key",
+        "credential check",
+        "litellm",
+        "llm health",
+        "models offered",
+        "engineering agent"
+      ]
+    },
+    {
       "id": "model_score",
       "name": "ModelScore",
       "category": "analytics",

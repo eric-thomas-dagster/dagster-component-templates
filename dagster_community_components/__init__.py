@@ -923,6 +923,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ModalPipesAssetComponent": "assets/infrastructure/modal_pipes_asset/component.py",
     "ModelCoefficientsComponent": "assets/analytics/model_coefficients/component.py",
     "ModelComparisonComponent": "assets/analytics/model_comparison/component.py",
+    "ModelProviderComponent": "assets/ai/model_provider/component.py",
     "ModelScoreComponent": "assets/analytics/model_score/component.py",
     "ModerationScorerComponent": "assets/ai/moderation_scorer/component.py",
     "MondayBoardItemsIngestionComponent": "assets/ingestion/monday_board_items_ingestion/component.py",

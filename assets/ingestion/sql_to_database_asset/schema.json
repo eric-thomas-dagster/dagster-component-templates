@@ -70,7 +70,7 @@
     "if_exists": {
       "type": "string",
       "label": "If Exists",
-      "description": "One of: fail / replace / append.",
+      "description": "One of: fail / replace / append / upsert (requires upsert_key_columns).",
       "required": false,
       "default": "append",
       "enum": [
@@ -379,6 +379,15 @@
       "type": "boolean",
       "label": "Dry Run",
       "description": "Log what would be read/written (source query, destination table, watermark/partition window) and skip the real database connections entirely -- same convention as the SSIS/Synapse/SAP job-trigger components' own dry_run flag.",
+      "required": false
+    },
+    "upsert_key_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Upsert Key Columns",
+      "description": "Key columns identifying a row for if_exists='upsert' (ADF's SQL sink writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table, then upserts by these keys using syntax chosen by the destination's SQLAlchemy dialect: INSERT...ON CONFLICT (postgresql/sqlite/duckdb), INSERT...ON DUPLICATE KEY UPDATE (mysql/mariadb), or MERGE INTO (mssql/oracle/snowflake). A Redshift destination connected via a plain postgresql:// URL is treated as Postgres (ON CONFLICT), which Redshift does NOT support -- use dataframe_to_redshift's own upsert for a Redshift destination instead. The target table is auto-created on first write.",
       "required": false
     }
   },

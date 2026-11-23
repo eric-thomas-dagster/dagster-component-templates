@@ -8,6 +8,32 @@ Set `dry_run: true` to log what would be read/written (source query, destination
 partition window) and skip the real database connections entirely -- same convention as the
 SSIS/Synapse/SAP job-trigger components' own `dry_run` flag.
 
+## Upsert (`if_exists: upsert`)
+
+Writes to a staging table, then upserts into the destination by `upsert_key_columns` --
+the exact SQL depends on the destination's SQLAlchemy dialect:
+
+| Dialect | Mechanism |
+|---|---|
+| `postgresql`, `sqlite`, `duckdb` | `INSERT ... SELECT ... ON CONFLICT (keys) DO UPDATE SET ...` |
+| `mysql`, `mariadb` | `INSERT ... SELECT ... ON DUPLICATE KEY UPDATE ...` |
+| `mssql`, `oracle`, `snowflake` | `MERGE INTO ... USING ... ON ... WHEN MATCHED ... WHEN NOT MATCHED ...` |
+
+`ON CONFLICT`/`ON DUPLICATE KEY UPDATE` both require a `UNIQUE` index on the key columns to
+even parse -- on first write (when the destination doesn't exist yet), this component
+creates one automatically right after creating the table, so later upsert runs work
+without extra setup. `MERGE` dialects need no such index.
+
+```yaml
+if_exists: upsert
+upsert_key_columns: [id]
+```
+
+A Redshift destination connected via a plain `postgresql://` URL is treated as Postgres
+(`ON CONFLICT`), which Redshift does **not** support -- use
+[`dataframe_to_redshift`](../../sinks/dataframe_to_redshift)'s own `if_exists: upsert`
+(a real `MERGE INTO`) for a Redshift destination instead.
+
 ## Required packages
 
 ```
@@ -81,7 +107,7 @@ sqlalchemy>=2.0.0
 | `source_table` | `str` | — | Source table name (use source_table OR source_query) |
 | `source_schema` | `str` | — | Source schema name |
 | `source_query` | `str` | — | Custom SQL query (overrides source_table) |
-| `if_exists` | `str` | `"append"` | fail, replace, or append |
+| `if_exists` | `str` | `"append"` | fail, replace, append, or upsert (requires upsert_key_columns) |
 
 ### Other
 
@@ -90,6 +116,7 @@ sqlalchemy>=2.0.0
 | `destination_url_env_var` | `str` | — | Env var with destination SQLAlchemy database URL. Set this OR destination_resource_key. |
 | `destination_resource_key` | `str` | — | Key of a registered SQL resource to use for the destination connection instead of destination_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do. |
 | `destination_schema` | `str` | — | Destination schema name |
+| `upsert_key_columns` | `List[str]` | — | Key columns identifying a row for if_exists='upsert' (ADF's SQL sink writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table, then upserts by these keys using syntax chosen by the destination's SQLAlchem… _(full docs in schema.json + component README)_ |
 | `watermark_column` | `Union[str, int]` | — | Incremental watermark column (e.g. updated_at, id) |
 | `watermark_env_var` | `str` | — | Env var storing the last watermark value |
 | `chunksize` | `int` | `10000` | Rows to read/write per chunk |

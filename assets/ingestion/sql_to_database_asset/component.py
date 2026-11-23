@@ -26,6 +26,132 @@ def _require_env(name: str) -> str:
     return value
 
 
+# BEGIN upsert-merge-sql (inlined per component; keep copies identical — see tests/test_upsert_merge_sql_drift.py)
+def build_merge_sql(schema, table, staging_table, columns, key_columns, quote='"'):
+    """Standard-SQL MERGE INTO statement moving staged rows into `table`, updating matched
+    rows by `key_columns` and inserting the rest -- the upsert mechanism behind
+    `if_exists='upsert'`. Supported natively (confirmed per-platform, not assumed) by
+    Snowflake, Databricks SQL/Delta, and Amazon Redshift (AWS added real MERGE support --
+    see docs.aws.amazon.com/redshift/latest/dg/r_MERGE.html)."""
+    def q(name):
+        return f"{quote}{name}{quote}"
+
+    full_table = f"{q(schema)}.{q(table)}" if schema else q(table)
+    full_staging = f"{q(schema)}.{q(staging_table)}" if schema else q(staging_table)
+    on_clause = " AND ".join(f"t.{q(c)} = s.{q(c)}" for c in key_columns)
+    non_key_cols = [c for c in columns if c not in key_columns]
+    insert_cols = ", ".join(q(c) for c in columns)
+    insert_vals = ", ".join(f"s.{q(c)}" for c in columns)
+    update_clause = ""
+    if non_key_cols:
+        set_clause = ", ".join(f"{q(c)} = s.{q(c)}" for c in non_key_cols)
+        update_clause = f"WHEN MATCHED THEN UPDATE SET {set_clause} "
+    return (
+        f"MERGE INTO {full_table} AS t USING {full_staging} AS s ON {on_clause} "
+        f"{update_clause}"
+        f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})"
+    )
+# END upsert-merge-sql
+
+
+_UPSERT_DIALECT_QUOTE = {"mysql": "`", "mariadb": "`"}
+
+
+def build_dialect_upsert_sql(dialect, schema, table, staging_table, columns, key_columns):
+    """Dialect-appropriate upsert SQL moving staged rows into `table`, keyed by
+    `key_columns`. Postgres/SQLite/DuckDB use INSERT...ON CONFLICT; MySQL/MariaDB use
+    INSERT...ON DUPLICATE KEY UPDATE (both require a UNIQUE/PRIMARY KEY constraint on
+    key_columns at the database level -- this function only builds the SQL, it doesn't
+    create one); mssql/oracle/snowflake use a standard MERGE INTO (build_merge_sql).
+    Raises for a dialect with no known portable upsert syntax here -- including 'redshift'
+    via a plain postgresql:// URL, which this dispatch can't see is actually Redshift (which
+    does NOT support ON CONFLICT) -- use dataframe_to_redshift's own upsert for that."""
+    quote = _UPSERT_DIALECT_QUOTE.get(dialect, '"')
+
+    def q(name):
+        return f"{quote}{name}{quote}"
+
+    full_table = f"{q(schema)}.{q(table)}" if schema else q(table)
+    full_staging = f"{q(schema)}.{q(staging_table)}" if schema else q(staging_table)
+    non_key_cols = [c for c in columns if c not in key_columns]
+    insert_cols = ", ".join(q(c) for c in columns)
+    select_cols = ", ".join(q(c) for c in columns)
+
+    if dialect in ("postgresql", "sqlite", "duckdb"):
+        conflict_cols = ", ".join(q(c) for c in key_columns)
+        if non_key_cols:
+            set_clause = ", ".join(f"{q(c)} = EXCLUDED.{q(c)}" for c in non_key_cols)
+            action = f"DO UPDATE SET {set_clause}"
+        else:
+            action = "DO NOTHING"
+        return (
+            f"INSERT INTO {full_table} ({insert_cols}) SELECT {select_cols} FROM {full_staging} "
+            # WHERE 1=1 is load-bearing, not decorative: SQLite's parser reads a bare
+            # "... FROM x ON CONFLICT" as a continuation of a FROM-join clause and fails
+            # with "near 'DO': syntax error" -- confirmed empirically against sqlite3
+            # 3.50.4. A trailing WHERE before ON CONFLICT disambiguates it on every
+            # dialect in this bucket (Postgres/DuckDB accept it as a no-op filter).
+            f"WHERE 1=1 ON CONFLICT ({conflict_cols}) {action}"
+        )
+    if dialect in ("mysql", "mariadb"):
+        if non_key_cols:
+            set_clause = ", ".join(f"{q(c)} = VALUES({q(c)})" for c in non_key_cols)
+            return (
+                f"INSERT INTO {full_table} ({insert_cols}) SELECT {select_cols} FROM {full_staging} "
+                f"ON DUPLICATE KEY UPDATE {set_clause}"
+            )
+        return f"INSERT IGNORE INTO {full_table} ({insert_cols}) SELECT {select_cols} FROM {full_staging}"
+    if dialect in ("mssql", "oracle", "snowflake"):
+        return build_merge_sql(schema, table, staging_table, columns, key_columns, quote=quote)
+    raise ValueError(
+        f"sql_to_database_asset: if_exists='upsert' has no known syntax for SQLAlchemy "
+        f"dialect {dialect!r}. Supported: postgresql, sqlite, duckdb, mysql, mariadb, "
+        f"mssql, oracle, snowflake."
+    )
+
+
+def write_or_upsert(df, dest_table, dst_engine, schema, if_exists, upsert_key_columns, chunksize, run_id):
+    """Write `df` to `dest_table`, or -- when if_exists='upsert' -- write it to a staging
+    table and upsert from there by `upsert_key_columns`. Shared by every write call site in
+    this component (a normal tick and a combined-range backfill both write once)."""
+    if if_exists != "upsert":
+        df.to_sql(dest_table, con=dst_engine, schema=schema, if_exists=if_exists, index=False, method="multi", chunksize=chunksize)
+        return
+    if not upsert_key_columns:
+        raise ValueError("sql_to_database_asset: if_exists='upsert' requires upsert_key_columns.")
+    import sqlalchemy
+
+    stage_table = f"{dest_table}_stage_{run_id.replace('-', '')[:12]}"
+    df.to_sql(stage_table, con=dst_engine, schema=schema, if_exists="replace", index=False, method="multi", chunksize=chunksize)
+    dialect = dst_engine.dialect.name
+    target_exists = sqlalchemy.inspect(dst_engine).has_table(dest_table, schema=schema)
+    quote = _UPSERT_DIALECT_QUOTE.get(dialect, '"')
+    full_target = f"{quote}{schema}{quote}.{quote}{dest_table}{quote}" if schema else f"{quote}{dest_table}{quote}"
+    with dst_engine.begin() as conn:
+        if not target_exists:
+            full_stage = f"{quote}{schema}{quote}.{quote}{stage_table}{quote}" if schema else f"{quote}{stage_table}{quote}"
+            conn.execute(sqlalchemy.text(f"ALTER TABLE {full_stage} RENAME TO {quote}{dest_table}{quote}"))
+            if dialect in ("postgresql", "sqlite", "duckdb", "mysql", "mariadb"):
+                # ON CONFLICT / ON DUPLICATE KEY UPDATE both require a UNIQUE index on the
+                # key columns to even parse -- pandas' own auto-created table never has
+                # one, so a freshly-created target needs one added before any later
+                # upsert run can match rows by key. A unique INDEX (not ALTER TABLE ADD
+                # CONSTRAINT) is the one mechanism all 5 of these dialects share --
+                # SQLite in particular has no ALTER TABLE ADD CONSTRAINT at all.
+                # No "IF NOT EXISTS": this only ever runs once, right after the table
+                # itself was first created, so the index can't already exist -- and
+                # skipping it sidesteps MySQL<8.0's lack of CREATE INDEX IF NOT EXISTS.
+                key_cols_sql = ", ".join(f"{quote}{c}{quote}" for c in upsert_key_columns)
+                conn.execute(sqlalchemy.text(
+                    f"CREATE UNIQUE INDEX {quote}{dest_table}_upsert_key{quote} "
+                    f"ON {full_target} ({key_cols_sql})"
+                ))
+        else:
+            merge_sql = build_dialect_upsert_sql(dialect, schema, dest_table, stage_table, list(df.columns), upsert_key_columns)
+            conn.execute(sqlalchemy.text(merge_sql))
+            full_stage = f"{quote}{schema}{quote}.{quote}{stage_table}{quote}" if schema else f"{quote}{stage_table}{quote}"
+            conn.execute(sqlalchemy.text(f"DROP TABLE IF EXISTS {full_stage}"))
+
 
 def _build_partitions_def(
     partition_type,
@@ -215,7 +341,21 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     source_query: Optional[str] = Field(default=None, description="Custom SQL query (overrides source_table)")
     destination_table: str = Field(description="Destination table name")
     destination_schema: Optional[str] = Field(default=None, description="Destination schema name")
-    if_exists: str = Field(default="append", description="fail, replace, or append")
+    if_exists: str = Field(default="append", description="fail, replace, append, or upsert (requires upsert_key_columns)")
+    upsert_key_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Key columns identifying a row for if_exists='upsert' (ADF's SQL sink "
+            "writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table, "
+            "then upserts by these keys using syntax chosen by the destination's "
+            "SQLAlchemy dialect: INSERT...ON CONFLICT (postgresql/sqlite/duckdb), "
+            "INSERT...ON DUPLICATE KEY UPDATE (mysql/mariadb), or MERGE INTO "
+            "(mssql/oracle/snowflake). A Redshift destination connected via a plain "
+            "postgresql:// URL is treated as Postgres (ON CONFLICT), which Redshift does "
+            "NOT support -- use dataframe_to_redshift's own upsert for a Redshift "
+            "destination instead. The target table is auto-created on first write."
+        ),
+    )
     watermark_column: Optional[Union[str, int]] = Field(default=None, description="Incremental watermark column (e.g. updated_at, id)")
     watermark_env_var: Optional[str] = Field(default=None, description="Env var storing the last watermark value")
     chunksize: int = Field(default=10000, description="Rows to read/write per chunk")
@@ -571,8 +711,10 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 if pk is not None and "{partition_key}" in dest_table:
                     dest_table = dest_table.replace("{partition_key}", pk)
 
-                df.to_sql(dest_table, con=dst_engine, schema=_self.destination_schema,
-                          if_exists=_self.if_exists, index=False, method="multi", chunksize=_self.chunksize)
+                write_or_upsert(
+                    df, dest_table, dst_engine, _self.destination_schema, _self.if_exists,
+                    _self.upsert_key_columns, _self.chunksize, context.run.run_id,
+                )
 
                 qualified = f"{_self.destination_schema + '.' if _self.destination_schema else ''}{dest_table}"
                 context.log.info(f"Wrote {len(df)} rows to {qualified}")
@@ -637,8 +779,10 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     if _self.column_mapping:
                         df = df.rename(columns=_self.column_mapping)
                     dest_table = _self.destination_table
-                    df.to_sql(dest_table, con=dst_engine, schema=_self.destination_schema,
-                              if_exists=_self.if_exists, index=False, method="multi", chunksize=_self.chunksize)
+                    write_or_upsert(
+                        df, dest_table, dst_engine, _self.destination_schema, _self.if_exists,
+                        _self.upsert_key_columns, _self.chunksize, context.run.run_id,
+                    )
                     qualified = f"{_self.destination_schema + '.' if _self.destination_schema else ''}{dest_table}"
                     context.log.info(f"Wrote {len(df)} rows to {qualified}")
                     extra_metadata = {

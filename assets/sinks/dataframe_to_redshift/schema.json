@@ -72,7 +72,7 @@
     "if_exists": {
       "type": "string",
       "label": "If Exists",
-      "description": "Behavior if table exists: 'replace', 'append', 'fail'",
+      "description": "Behavior if table exists: 'replace', 'append', 'fail', or 'upsert' (requires upsert_key_columns)",
       "required": false,
       "default": "replace",
       "enum": [
@@ -306,6 +306,15 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "upsert_key_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Upsert Key Columns",
+      "description": "Key columns identifying a row for if_exists='upsert' (ADF's SQL sink writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table then MERGEs into the target by these keys (Amazon Redshift supports a real MERGE INTO statement); non-key columns are updated on a match and new rows are inserted. The target table is auto-created on first write.",
+      "required": false
     }
   },
   "tags": [

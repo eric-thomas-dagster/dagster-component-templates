@@ -57,14 +57,15 @@
     "mode": {
       "type": "string",
       "label": "Mode",
-      "description": "Write mode: 'overwrite', 'append', 'ignore', 'error'",
+      "description": "Write mode: 'overwrite', 'append', 'ignore', 'error', or 'upsert' (requires upsert_key_columns)",
       "required": false,
       "default": "overwrite",
       "enum": [
         "overwrite",
         "append",
         "ignore",
-        "error"
+        "error",
+        "upsert"
       ],
       "ui:widget": "select"
     },
@@ -322,6 +323,15 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "upsert_key_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Upsert Key Columns",
+      "description": "Key columns identifying a row for mode='upsert' (ADF's SQL sink writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table then MERGEs into the target by these keys (Databricks SQL/Delta's native upsert mechanism); non-key columns are updated on a match and new rows are inserted. The target table is auto-created on first write.",
+      "required": false
     }
   },
   "tags": [

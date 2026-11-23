@@ -36,6 +36,30 @@ def _require_env(name: str) -> str:
     return value
 
 
+def _databricks_merge_sql(full_table, full_staging, columns, key_columns):
+    """Delta MERGE INTO statement moving staged rows into `full_table`, updating matched
+    rows by `key_columns` and inserting the rest -- Databricks SQL/Delta's native upsert
+    mechanism behind mode='upsert'. Backtick-quoted per Databricks identifier convention;
+    `full_table`/`full_staging` are already-qualified catalog.schema.table references, not
+    re-quoted here (unlike Snowflake/Redshift's build_merge_sql, which quotes a single
+    schema+table pair -- Databricks' 3-part name can't be quoted as one unit)."""
+    def q(name):
+        return f"`{name}`"
+
+    on_clause = " AND ".join(f"t.{q(c)} = s.{q(c)}" for c in key_columns)
+    non_key_cols = [c for c in columns if c not in key_columns]
+    insert_cols = ", ".join(q(c) for c in columns)
+    insert_vals = ", ".join(f"s.{q(c)}" for c in columns)
+    update_clause = ""
+    if non_key_cols:
+        set_clause = ", ".join(f"{q(c)} = s.{q(c)}" for c in non_key_cols)
+        update_clause = f"WHEN MATCHED THEN UPDATE SET {set_clause} "
+    return (
+        f"MERGE INTO {full_table} AS t USING {full_staging} AS s ON {on_clause} "
+        f"{update_clause}"
+        f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})"
+    )
+
 
 def _build_partitions_def(
     partition_type,
@@ -256,7 +280,17 @@ class DataframeToDatabricksComponent(Component, Model, Resolvable):
     table: str = Field(description="Target table name")
     host_env_var: str = Field(default="DATABRICKS_HOST", description="Env var containing Databricks workspace URL")
     token_env_var: str = Field(default="DATABRICKS_TOKEN", description="Env var containing Databricks personal access token")
-    mode: str = Field(default="overwrite", description="Write mode: 'overwrite', 'append', 'ignore', 'error'")
+    mode: str = Field(default="overwrite", description="Write mode: 'overwrite', 'append', 'ignore', 'error', or 'upsert' (requires upsert_key_columns)")
+    upsert_key_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Key columns identifying a row for mode='upsert' (ADF's SQL sink "
+            "writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table "
+            "then MERGEs into the target by these keys (Databricks SQL/Delta's native "
+            "upsert mechanism); non-key columns are updated on a match and new rows are "
+            "inserted. The target table is auto-created on first write."
+        ),
+    )
     merge_schema: bool = Field(default=True, description="Allow schema evolution when appending")
     cluster_id: Optional[str] = Field(default=None, description="SQL warehouse or cluster ID (None = auto)")
     drop_timezone: bool = Field(
@@ -474,6 +508,7 @@ class DataframeToDatabricksComponent(Component, Model, Resolvable):
         token_env_var = self.token_env_var
         mode = self.mode
         merge_schema = self.merge_schema
+        upsert_key_columns = self.upsert_key_columns
         cluster_id = self.cluster_id
         drop_timezone = self.drop_timezone
         group_name = self.group_name
@@ -677,6 +712,45 @@ group_name=group_name,
                 )
             with _conn_cm as conn:
                 with conn.cursor() as cursor:
+                    if mode == "upsert":
+                        if not upsert_key_columns:
+                            raise ValueError("dataframe_to_databricks: mode='upsert' requires upsert_key_columns.")
+                        stage_table = f"{table}_stage_{context.run.run_id.replace('-', '')[:12]}"
+                        full_stage = f"{catalog}.{schema}.{stage_table}"
+                        cols = ", ".join(
+                            f"`{c}` {_databricks_type(upstream[c].dtype)}"
+                            for c in upstream.columns
+                        )
+                        cursor.execute(f"CREATE OR REPLACE TABLE {full_stage} ({cols})")
+                        batch_size = 1000
+                        for i in range(0, len(upstream), batch_size):
+                            batch = upstream.iloc[i : i + batch_size]
+                            placeholders = ", ".join(["?" for _ in range(len(batch.columns))])
+                            values = [tuple(row) for row in batch.itertuples(index=False)]
+                            cursor.executemany(f"INSERT INTO {full_stage} VALUES ({placeholders})", values)
+                        cursor.execute(
+                            f"SELECT COUNT(*) FROM information_schema.tables "
+                            f"WHERE table_catalog='{catalog}' AND table_schema='{schema}' AND table_name='{table}'"
+                        )
+                        target_exists = cursor.fetchone()[0] > 0
+                        if not target_exists:
+                            cursor.execute(f"ALTER TABLE {full_stage} RENAME TO {full_table}")
+                        else:
+                            merge_sql = _databricks_merge_sql(full_table, full_stage, list(upstream.columns), upsert_key_columns)
+                            cursor.execute(merge_sql)
+                            cursor.execute(f"DROP TABLE IF EXISTS {full_stage}")
+                        total_rows = len(upstream)
+                        context.log.info(f"Wrote {total_rows} rows to Databricks table {full_table}")
+                        return MaterializeResult(
+                            metadata={
+                                "row_count": MetadataValue.int(total_rows),
+                                "column_count": MetadataValue.int(len(upstream.columns)),
+                                "table": MetadataValue.text(full_table),
+                                "mode": MetadataValue.text(mode),
+                                "dagster/row_count": MetadataValue.int(len(upstream)),
+                                **({"preview": MetadataValue.md((upstream.sample(preview_rows) if len(upstream) > preview_rows * 10 else upstream.head(preview_rows)).to_markdown(index=False))} if include_preview and len(upstream) > 0 else {}),
+                            }
+                        )
                     if mode == "overwrite":
                         cols = ", ".join(
                             f"`{c}` {_databricks_type(upstream[c].dtype)}"

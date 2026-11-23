@@ -36,6 +36,33 @@ def _require_env(name: str) -> str:
     return value
 
 
+# BEGIN upsert-merge-sql (inlined per component; keep copies identical — see tests/test_upsert_merge_sql_drift.py)
+def build_merge_sql(schema, table, staging_table, columns, key_columns, quote='"'):
+    """Standard-SQL MERGE INTO statement moving staged rows into `table`, updating matched
+    rows by `key_columns` and inserting the rest -- the upsert mechanism behind
+    `if_exists='upsert'`. Supported natively (confirmed per-platform, not assumed) by
+    Snowflake, Databricks SQL/Delta, and Amazon Redshift (AWS added real MERGE support --
+    see docs.aws.amazon.com/redshift/latest/dg/r_MERGE.html)."""
+    def q(name):
+        return f"{quote}{name}{quote}"
+
+    full_table = f"{q(schema)}.{q(table)}" if schema else q(table)
+    full_staging = f"{q(schema)}.{q(staging_table)}" if schema else q(staging_table)
+    on_clause = " AND ".join(f"t.{q(c)} = s.{q(c)}" for c in key_columns)
+    non_key_cols = [c for c in columns if c not in key_columns]
+    insert_cols = ", ".join(q(c) for c in columns)
+    insert_vals = ", ".join(f"s.{q(c)}" for c in columns)
+    update_clause = ""
+    if non_key_cols:
+        set_clause = ", ".join(f"{q(c)} = s.{q(c)}" for c in non_key_cols)
+        update_clause = f"WHEN MATCHED THEN UPDATE SET {set_clause} "
+    return (
+        f"MERGE INTO {full_table} AS t USING {full_staging} AS s ON {on_clause} "
+        f"{update_clause}"
+        f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})"
+    )
+# END upsert-merge-sql
+
 
 def _build_partitions_def(
     partition_type,
@@ -278,7 +305,17 @@ class DataframeToSnowflakeComponent(Component, Model, Resolvable):
         default=None,
         description="Env var holding an OAuth / PAT token (with authenticator='oauth' or PAT).",
     )
-    if_exists: str = Field(default="replace", description="Behavior if table exists: 'replace', 'append', 'fail'")
+    if_exists: str = Field(default="replace", description="Behavior if table exists: 'replace', 'append', 'fail', or 'upsert' (requires upsert_key_columns)")
+    upsert_key_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Key columns identifying a row for if_exists='upsert' (ADF's SQL sink "
+            "writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table "
+            "then MERGEs into the target by these keys; non-key columns are updated on a "
+            "match and new rows are inserted. The target table is auto-created on first "
+            "write, same as a normal write_pandas() call."
+        ),
+    )
     chunksize: Optional[int] = Field(default=None, description="Number of rows per write chunk")
     include_preview_metadata: bool = Field(
         default=False,
@@ -493,6 +530,7 @@ class DataframeToSnowflakeComponent(Component, Model, Resolvable):
         private_key_file_pwd_env_var = self.private_key_file_pwd_env_var
         token_env_var = self.token_env_var
         if_exists = self.if_exists
+        upsert_key_columns = self.upsert_key_columns
         chunksize = self.chunksize
         group_name = self.group_name
 
@@ -701,19 +739,48 @@ group_name=group_name,
                     cursor.execute(f"DROP TABLE IF EXISTS {full_table}")
                     cursor.close()
 
-                # use_logical_type=True is required so write_pandas emits
-                # Parquet TIMESTAMP logical types instead of raw INT64. Without
-                # it, COPY into an existing TIMESTAMP_NTZ column fails with
-                # 002023 "expecting TIMESTAMP_NTZ(9) but got NUMBER(38,0)".
-                # Available since snowflake-connector-python 3.4.0.
-                success, nchunks, nrows, _ = write_pandas(
-                    conn,
-                    df_write,
-                    table.upper(),
-                    auto_create_table=True,
-                    chunk_size=chunksize,
-                    use_logical_type=True,
-                )
+                if if_exists == "upsert":
+                    if not upsert_key_columns:
+                        raise ValueError("dataframe_to_snowflake: if_exists='upsert' requires upsert_key_columns.")
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = %s", (table.upper(),)
+                    )
+                    target_exists = cursor.fetchone()[0] > 0
+                    cursor.close()
+
+                    stage_table_name = f"{table.upper()}_STAGE_{context.run.run_id.replace('-', '')[:12].upper()}"
+                    success, nchunks, nrows, _ = write_pandas(
+                        conn, df_write, stage_table_name, auto_create_table=True,
+                        chunk_size=chunksize, use_logical_type=True,
+                    )
+                    cursor = conn.cursor()
+                    try:
+                        if not target_exists:
+                            cursor.execute(f"ALTER TABLE {stage_table_name} RENAME TO {table.upper()}")
+                        else:
+                            merge_sql = build_merge_sql(
+                                None, table.upper(), stage_table_name,
+                                list(df_write.columns), [k.upper() for k in upsert_key_columns],
+                            )
+                            cursor.execute(merge_sql)
+                            cursor.execute(f"DROP TABLE IF EXISTS {stage_table_name}")
+                    finally:
+                        cursor.close()
+                else:
+                    # use_logical_type=True is required so write_pandas emits
+                    # Parquet TIMESTAMP logical types instead of raw INT64. Without
+                    # it, COPY into an existing TIMESTAMP_NTZ column fails with
+                    # 002023 "expecting TIMESTAMP_NTZ(9) but got NUMBER(38,0)".
+                    # Available since snowflake-connector-python 3.4.0.
+                    success, nchunks, nrows, _ = write_pandas(
+                        conn,
+                        df_write,
+                        table.upper(),
+                        auto_create_table=True,
+                        chunk_size=chunksize,
+                        use_logical_type=True,
+                    )
             finally:  # always release the connection, even if the write fails
                 conn.close()
                 _snow_stack.close()

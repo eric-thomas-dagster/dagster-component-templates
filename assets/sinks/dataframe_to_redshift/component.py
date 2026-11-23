@@ -36,6 +36,33 @@ def _require_env(name: str) -> str:
     return value
 
 
+# BEGIN upsert-merge-sql (inlined per component; keep copies identical — see tests/test_upsert_merge_sql_drift.py)
+def build_merge_sql(schema, table, staging_table, columns, key_columns, quote='"'):
+    """Standard-SQL MERGE INTO statement moving staged rows into `table`, updating matched
+    rows by `key_columns` and inserting the rest -- the upsert mechanism behind
+    `if_exists='upsert'`. Supported natively (confirmed per-platform, not assumed) by
+    Snowflake, Databricks SQL/Delta, and Amazon Redshift (AWS added real MERGE support --
+    see docs.aws.amazon.com/redshift/latest/dg/r_MERGE.html)."""
+    def q(name):
+        return f"{quote}{name}{quote}"
+
+    full_table = f"{q(schema)}.{q(table)}" if schema else q(table)
+    full_staging = f"{q(schema)}.{q(staging_table)}" if schema else q(staging_table)
+    on_clause = " AND ".join(f"t.{q(c)} = s.{q(c)}" for c in key_columns)
+    non_key_cols = [c for c in columns if c not in key_columns]
+    insert_cols = ", ".join(q(c) for c in columns)
+    insert_vals = ", ".join(f"s.{q(c)}" for c in columns)
+    update_clause = ""
+    if non_key_cols:
+        set_clause = ", ".join(f"{q(c)} = s.{q(c)}" for c in non_key_cols)
+        update_clause = f"WHEN MATCHED THEN UPDATE SET {set_clause} "
+    return (
+        f"MERGE INTO {full_table} AS t USING {full_staging} AS s ON {on_clause} "
+        f"{update_clause}"
+        f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})"
+    )
+# END upsert-merge-sql
+
 
 def _build_partitions_def(
     partition_type,
@@ -258,7 +285,17 @@ class DataframeToRedshiftComponent(Component, Model, Resolvable):
     database_env_var: str = Field(default="REDSHIFT_DATABASE", description="Env var containing Redshift database name")
     user_env_var: str = Field(default="REDSHIFT_USER", description="Env var containing Redshift user")
     password_env_var: str = Field(default="REDSHIFT_PASSWORD", description="Env var containing Redshift password")
-    if_exists: str = Field(default="replace", description="Behavior if table exists: 'replace', 'append', 'fail'")
+    if_exists: str = Field(default="replace", description="Behavior if table exists: 'replace', 'append', 'fail', or 'upsert' (requires upsert_key_columns)")
+    upsert_key_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Key columns identifying a row for if_exists='upsert' (ADF's SQL sink "
+            "writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table "
+            "then MERGEs into the target by these keys (Amazon Redshift supports a real "
+            "MERGE INTO statement); non-key columns are updated on a match and new rows "
+            "are inserted. The target table is auto-created on first write."
+        ),
+    )
     chunksize: int = Field(default=10000, description="Number of rows per write batch")
     resource_key: Optional[str] = Field(
         default=None,
@@ -447,6 +484,7 @@ class DataframeToRedshiftComponent(Component, Model, Resolvable):
         user_env_var = self.user_env_var
         password_env_var = self.password_env_var
         if_exists = self.if_exists
+        upsert_key_columns = self.upsert_key_columns
         chunksize = self.chunksize
         group_name = self.group_name
 
@@ -610,15 +648,32 @@ group_name=group_name,
             conn_str = f"postgresql+psycopg2://{_q(str(user))}:{_q(str(password))}@{host}:{_port}/{_q(str(database))}"
             engine = sqlalchemy.create_engine(conn_str)
 
-            upstream.to_sql(
-                table,
-                engine,
-                schema=schema,
-                if_exists=if_exists,
-                index=False,
-                chunksize=chunksize,
-                method="multi",
-            )
+            if if_exists == "upsert":
+                if not upsert_key_columns:
+                    raise ValueError("dataframe_to_redshift: if_exists='upsert' requires upsert_key_columns.")
+                stage_table = f"{table}_stage_{context.run.run_id.replace('-', '')[:12]}"
+                upstream.to_sql(
+                    stage_table, engine, schema=schema, if_exists="replace",
+                    index=False, chunksize=chunksize, method="multi",
+                )
+                target_exists = sqlalchemy.inspect(engine).has_table(table, schema=schema)
+                with engine.begin() as conn:
+                    if not target_exists:
+                        conn.execute(sqlalchemy.text(f'ALTER TABLE "{schema}"."{stage_table}" RENAME TO "{table}"'))
+                    else:
+                        merge_sql = build_merge_sql(schema, table, stage_table, list(upstream.columns), upsert_key_columns)
+                        conn.execute(sqlalchemy.text(merge_sql))
+                        conn.execute(sqlalchemy.text(f'DROP TABLE IF EXISTS "{schema}"."{stage_table}"'))
+            else:
+                upstream.to_sql(
+                    table,
+                    engine,
+                    schema=schema,
+                    if_exists=if_exists,
+                    index=False,
+                    chunksize=chunksize,
+                    method="multi",
+                )
 
             context.log.info(f"Wrote {len(upstream)} rows to Redshift {schema}.{table}")
             return MaterializeResult(

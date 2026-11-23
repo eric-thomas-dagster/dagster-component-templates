@@ -489,3 +489,50 @@ def test_open_issue_practice_mode_files_nothing(mod, patched):
         del os.environ["ENG_PRACTICE_ISSUE"]
     assert result["practice_mode"] is True
     assert result["would_open"] == "github_issue"
+
+
+# -- restrict_to_branch_prefix (off by default: this toolset also works as a general-purpose PR reviewer) -------
+def test_restrict_to_branch_prefix_off_by_default_reads_any_pr(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="feature/a-humans-branch")
+    tools = _tools(mod, api)
+    pr = tools.t_get_pull_request(1)
+    assert pr["number"] == 1
+
+
+def test_restrict_to_branch_prefix_refuses_a_non_agent_pr(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="feature/a-humans-branch")
+    tools = _tools(mod, api, restrict_to_branch_prefix=True)
+    result = tools.call("get_pull_request", {"number": 1})
+    assert "error" in result
+    assert "not a 'agent/' branch" in result["error"]
+
+
+def test_restrict_to_branch_prefix_allows_an_agent_pr(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="agent/fix-1")
+    tools = _tools(mod, api, restrict_to_branch_prefix=True)
+    pr = tools.t_get_pull_request(1)
+    assert pr["number"] == 1
+
+
+def test_restrict_to_branch_prefix_filters_list_open_pull_requests(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="agent/fix-1")
+    api.add_pull(2, head_ref="feature/a-humans-branch")
+    tools = _tools(mod, api, restrict_to_branch_prefix=True)
+    result = tools.call("list_open_pull_requests")
+    assert [p["number"] for p in result["pull_requests"]] == [1]
+
+
+def test_restrict_to_branch_prefix_blocks_assess_and_review(mod, patched):
+    api = patched
+    api.add_pull(1, head_ref="feature/a-humans-branch")
+    api.add_file(1, "src/a.py", additions=1, deletions=1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api, restrict_to_branch_prefix=True)
+    assert "error" in tools.call("assess_pull_request", {"number": 1})
+    result = tools.call("review_pull_request", {"number": 1, "decision": "COMMENT", "body": "hi"})
+    assert "error" in result
+    assert not api.reviews[1]

@@ -139,8 +139,10 @@ def _gh_branch_deployment_url(repo: str, number: int, head_sha: str, *, token: s
     return _gh_find_branch_deployment_url(texts)
 
 
-def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str) -> Dict[str, Any]:
+def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str, required_branch_prefix: Optional[str] = None) -> Dict[str, Any]:
     pr = _gh_call("GET", repo, f"/pulls/{int(number)}", token=token, api_base_url=api_base_url)
+    if required_branch_prefix and not pr["head"]["ref"].startswith(required_branch_prefix):
+        raise GithubPrScopeError(f"PR #{number} is on {pr['head']['ref']!r}, not a {required_branch_prefix!r} branch; refusing.")
     files = _gh_call("GET", repo, f"/pulls/{int(number)}/files", token=token, api_base_url=api_base_url, params={"per_page": 100})
     return {
         "number": pr["number"],
@@ -261,10 +263,11 @@ def _gh_review_pull_request(
     repo: str, number: int, decision: str, body: str, *,
     token: str, reviewer_token: Optional[str], api_base_url: str,
     protected_paths, low_risk_paths, low_risk_max_files: int, low_risk_max_lines: int,
+    required_branch_prefix: Optional[str] = None,
 ) -> Dict[str, Any]:
     """COMMENT is always allowed. APPROVE only passes the deterministic risk rules, and is posted under the
     reviewer (second) identity -- GitHub blocks an author approving their own PR."""
-    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url)
+    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url, required_branch_prefix=required_branch_prefix)
     risk = _gh_assess_risk(pr, protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files, low_risk_max_lines=low_risk_max_lines)
     decision = decision.upper()
     if decision not in ("COMMENT", "APPROVE"):
@@ -328,11 +331,12 @@ def _gh_merge_if_ready(repo: str, number: int, *, branch_prefix: str, reviewer_l
     return {"number": number, "merged": True}
 
 
-def _gh_open_pull_requests(repo: str, *, token: str, api_base_url: str) -> List[Dict[str, Any]]:
+def _gh_open_pull_requests(repo: str, *, token: str, api_base_url: str, branch_prefix: Optional[str] = None) -> List[Dict[str, Any]]:
     prs = _gh_call("GET", repo, "/pulls", token=token, api_base_url=api_base_url, params={"state": "open", "per_page": 50})
     return [
         {"number": p["number"], "head_sha": p["head"]["sha"], "head_ref": p["head"]["ref"], "title": p["title"], "url": p["html_url"], "author": p["user"]["login"]}
         for p in prs
+        if not branch_prefix or p["head"]["ref"].startswith(branch_prefix)
     ]
 
 
@@ -442,6 +446,34 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
     repo: str = Field(description="GitHub repository to watch, 'owner/repo'.")
     token_env_var: str = Field(default="GITHUB_TOKEN", description="Env var holding a GitHub token with read access to pull requests.")
     api_base_url: str = Field(default="https://api.github.com", description="API base URL. Change for GitHub Enterprise Server.")
+    branch_prefix: str = Field(
+        default="agent/",
+        description=(
+            "Only pull requests whose head branch starts with this prefix are ever announced in Slack or "
+            "launched as a review run -- never a human's PR or a bot's (e.g. dependabot's). Matches the "
+            "branch_prefix assets/ai/github_pr_tools' propose_fix uses by default, so a paired reviewer agent "
+            "only ever reviews its own fixer's PRs. Set to '' to watch every open PR (not recommended -- a "
+            "review run can comment on or approve a PR)."
+        ),
+    )
+    announcements_per_tick: int = Field(
+        default=5,
+        description=(
+            "Max new/updated PRs announced (Slack post + RunRequest) in one sensor tick. A Dagster+ sensor tick "
+            "times out at 60 seconds; a backlog of many PRs (e.g. the first tick after turning this sensor on) "
+            "posts one Slack message each and can blow through that. Unannounced PRs stay in the backlog (the "
+            "cursor isn't advanced for them) and are picked up on a later tick."
+        ),
+    )
+    skip_in_branch_deployments: bool = Field(
+        default=True,
+        description=(
+            "Skip every tick while running inside a Dagster+ branch deployment "
+            "(DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor "
+            "alongside the full deployment's -- without this, a branch deployment double-announces PRs in "
+            "Slack and double-launches review runs."
+        ),
+    )
 
     slack_channel: str = Field(description="Channel to announce new/updated pull requests in (either `C123ABC456` id or `#channel-name`).")
     slack_bot_token_env_var: str = Field(default="SLACK_BOT_TOKEN", description="Env var holding the bot's `xoxb-...` token. Needs `chat:write` + `reactions:read` + `reactions:write` + `channels:history`/`groups:history`.")
@@ -475,6 +507,9 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
         repo = self.repo
         token_env_var = self.token_env_var
         api_base_url = self.api_base_url
+        branch_prefix = self.branch_prefix or None
+        announcements_per_tick = max(1, int(self.announcements_per_tick))
+        skip_in_branch_deployments = self.skip_in_branch_deployments
         slack_channel = self.slack_channel
         slack_bot_token_env_var = self.slack_bot_token_env_var
         approve_emoji = self.approve_emoji
@@ -487,11 +522,13 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
         )
 
         def sensor_fn(context: dg.SensorEvaluationContext, **_resources):
+            if skip_in_branch_deployments and os.environ.get("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT") == "1":
+                return dg.SkipReason("branch deployment -- skipping (skip_in_branch_deployments=True)")
             token = os.environ.get(token_env_var, "")
             if not token:
                 return dg.SkipReason(f"{token_env_var} not set")
             try:
-                prs = _gh_open_pull_requests(repo, token=token, api_base_url=api_base_url)
+                prs = _gh_open_pull_requests(repo, token=token, api_base_url=api_base_url, branch_prefix=branch_prefix)
             except GithubPrScopeError as e:
                 return dg.SkipReason(f"GitHub error: {e}")
 
@@ -506,6 +543,14 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
                 open_numbers = {str(pr["number"]) for pr in prs}
                 pruned = {k: v for k, v in seen.items() if k in open_numbers}
                 return dg.SensorResult(skip_reason="no new or updated pull requests", cursor=json.dumps(pruned))
+
+            # A Dagster+ sensor tick times out at 60s -- a large backlog (e.g. the first tick after turning this
+            # sensor on) posts one Slack message per PR and can blow through that. Cap this tick's work; whatever's
+            # left over isn't in `seen` yet, so it's picked up again next tick.
+            deferred_count = max(0, len(new_or_updated) - announcements_per_tick)
+            new_or_updated = new_or_updated[:announcements_per_tick]
+            if deferred_count:
+                context.log.info(f"{deferred_count} more pull request(s) deferred to a later tick (announcements_per_tick={announcements_per_tick})")
 
             client = _get_slack_client(slack_bot_token_env_var)
             run_requests: List[dg.RunRequest] = []

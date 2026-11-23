@@ -333,3 +333,23 @@ def test_ack_message_template_list_is_used_for_the_reply(monkeypatch):
     ctx = dg.build_sensor_context(cursor="100.000")
     sensor_def(ctx)
     assert calls["post"][0]["text"] in ("Done: nightly_etl_job", "Launched: nightly_etl_job")
+
+
+def test_skips_in_branch_deployment_by_default(monkeypatch):
+    comp = _component()
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    monkeypatch.setattr(mod, "_get_slack_client", lambda token_env_var: (_ for _ in ()).throw(AssertionError("should not reach Slack auth")))
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    result = sensor_def(dg.build_sensor_context(cursor="100.000"))
+    assert isinstance(result, dg.SkipReason)
+    assert "branch deployment" in result.skip_message
+
+
+def test_skip_in_branch_deployments_false_still_runs(monkeypatch):
+    comp = _component(skip_in_branch_deployments=False)
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    messages = [_msg("100.001", "good morning team", "U-OWNER")]
+    _install_fake_client(monkeypatch, messages=messages)
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    result = sensor_def(dg.build_sensor_context(cursor="100.000"))
+    assert result.cursor == "100.001"

@@ -102,6 +102,12 @@
       "label": "Default Status",
       "description": "'RUNNING' or 'STOPPED'.",
       "required": false
+    },
+    "skip_in_branch_deployments": {
+      "type": "boolean",
+      "label": "Skip In Branch Deployments",
+      "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-announces the same failed run in Slack and double-launches a fixer run.",
+      "required": false
     }
   }
 }

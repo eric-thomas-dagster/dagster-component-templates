@@ -159,3 +159,70 @@ def test_missing_github_token_skips(mod, monkeypatch):
     result = sensor_def(dg.build_sensor_context())
     assert isinstance(result, dg.SkipReason)
     assert "GITHUB_TOKEN" in result.skip_message
+
+
+def test_non_agent_branch_pr_is_never_announced_or_launched(mod, monkeypatch):
+    comp = _component(mod)  # default branch_prefix="agent/"
+    github = FakeGithubPulls()
+    github.add(1, "shaagent01", head_ref="agent/fix-1")
+    github.add(2, "shahuman02", head_ref="feature/some-human-branch")
+    github.add(3, "shabot00003", head_ref="dependabot/pip/foo-1.2.3")
+    slack = FakeSlackClient()
+    result = _run(mod, monkeypatch, comp, github, slack)
+
+    assert len(slack.posted) == 1
+    assert "#1" in slack.posted[0]["text"]
+    [rr] = result.run_requests
+    assert rr.tags["eng/pr_number"] == "1"
+    assert json.loads(result.cursor) == {"1": "shaagent01"}
+
+
+def test_empty_branch_prefix_watches_every_pr(mod, monkeypatch):
+    comp = _component(mod, branch_prefix="")
+    github = FakeGithubPulls()
+    github.add(1, "shaagent01", head_ref="agent/fix-1")
+    github.add(2, "shahuman02", head_ref="feature/some-human-branch")
+    slack = FakeSlackClient()
+    result = _run(mod, monkeypatch, comp, github, slack)
+
+    assert len(slack.posted) == 2
+    assert len(result.run_requests) == 2
+
+
+def test_backlog_is_capped_per_tick_and_picked_up_later(mod, monkeypatch):
+    comp = _component(mod, announcements_per_tick=2)
+    github = FakeGithubPulls()
+    for n in range(1, 5):
+        github.add(n, f"sha{n:08d}", head_ref="agent/fix")
+    slack = FakeSlackClient()
+    first = _run(mod, monkeypatch, comp, github, slack)
+
+    assert len(slack.posted) == 2
+    assert len(first.run_requests) == 2
+    assert len(json.loads(first.cursor)) == 2
+
+    second = _run(mod, monkeypatch, comp, github, slack, cursor=first.cursor)
+    assert len(slack.posted) == 4
+    assert len(second.run_requests) == 2
+    assert len(json.loads(second.cursor)) == 4
+
+
+def test_skips_in_branch_deployment_by_default(mod, monkeypatch):
+    comp = _component(mod)
+    monkeypatch.setenv("GITHUB_TOKEN", "tok")
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    defs = comp.build_defs(None)
+    [sensor_def] = defs.sensors
+    result = sensor_def(dg.build_sensor_context())
+    assert isinstance(result, dg.SkipReason)
+    assert "branch deployment" in result.skip_message
+
+
+def test_skip_in_branch_deployments_false_still_runs(mod, monkeypatch):
+    comp = _component(mod, skip_in_branch_deployments=False)
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    github = FakeGithubPulls()
+    github.add(1, "shaagent01", head_ref="agent/fix-1")
+    slack = FakeSlackClient()
+    result = _run(mod, monkeypatch, comp, github, slack)
+    assert len(result.run_requests) == 1

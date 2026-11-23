@@ -64,6 +64,8 @@ Off by default. When on, a merge still requires ALL of: the reviewer identity's 
 | `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's `xoxb-...` token. Needs `reactions:read` + `chat:write` + `channels:history`/`groups:history`. |
 | `history_lookback_hours` | `float` | `168.0` | How far back (hours) to scan the channel for still-open PR-review threads. |
 | `auto_merge` | `bool` | `false` | When True, squash-merge automatically once the reviewer identity has approved and checks pass (still gated by branch_prefix). |
+| `refresh_other_agent_prs_after_merge` | `bool` | `true` | After auto_merge successfully merges a PR, bring every OTHER open branch_prefix PR up to date with the new base_branch (GitHub's update-branch API) so their CI runs against the just-merged code instead of a stale base, t… _(full docs in schema.json + component README)_ |
+| `skip_in_branch_deployments` | `bool` | `true` | Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch de… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

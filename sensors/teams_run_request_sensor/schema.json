@@ -169,6 +169,12 @@
       "label": "Match Dagster Links",
       "description": "Also match a message that contains a link straight to the target asset or job in the Dagster UI (e.g. pasted via 'Copy link'), not just a typed phrase -- same owners-authorization gate either way. Recognizes the real dagster-webserver URL shapes: an asset's '/assets/<key-path>' (no location prefix needed) and a job's '/locations/<repoPath>/jobs/<name>' (or legacy '/pipelines/<name>'). Matching is by URL PATH SHAPE only -- it does not verify the link points at this Dagster instance, so a same-named target on a different deployment would also match; the owners gate still applies regardless.",
       "required": false
+    },
+    "skip_in_branch_deployments": {
+      "type": "boolean",
+      "label": "Skip In Branch Deployments",
+      "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-acknowledges the same message and double-launches the matched job/asset selection.",
+      "required": false
     }
   }
 }

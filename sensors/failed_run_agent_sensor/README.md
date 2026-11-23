@@ -50,8 +50,13 @@ This is the one place in the whole engineering-agents component family that genu
 | `dagster_url` | `str` | — | Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod') used to build the run link in the Slack message. Leave unset to link just the run id with no URL. |
 | `max_triage_per_hour` | `int` | `10` | Max failures triaged (Slack post + run launch) per (job, error signature) per rolling hour. |
 | `cooldown_minutes` | `float` | `60.0` | After triaging one occurrence of a (job, error signature), suppress further triage of the SAME signature for this many minutes. |
+| `skip_in_branch_deployments` | `bool` | `true` | Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch de… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
+
+## Pod memory
+
+The run this sensor launches is an LLM agent asset -- a code location's default container memory limit (often 1G) is sized for ordinary pipeline steps, not an LLM call plus tool-use loop. An under-provisioned run gets OOMKilled (exit 137), which Dagster+ reports as "Run has not completed but K8s job has no active pods" rather than anything that looks like a memory error. Give the launched job a few GB via `container_context.k8s.run_k8s_config.container_config.resources.limits.memory` -- see [`github_pull_request_agent_sensor`'s README](../github_pull_request_agent_sensor#deployment-notes-from-a-real-dagster-hybrid-kubernetes-deployment) for the full example.
 
 ## See also
 

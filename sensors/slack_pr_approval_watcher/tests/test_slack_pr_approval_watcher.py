@@ -39,6 +39,7 @@ class FakeGithubApi:
         self.checks = {}
         self.reviews = {}
         self.refs = set()
+        self.updated_branches = []
 
     def add_pull(self, number, *, head_sha="sha1", head_ref="agent/fix-1", state="open", merged=False):
         self.pulls[number] = {"number": number, "html_url": "u", "title": "t", "body": "", "user": {"login": "bot"}, "state": state, "merged": merged, "head": {"sha": head_sha, "ref": head_ref}}
@@ -89,7 +90,10 @@ class FakeGithubApi:
             return _FakeResp(200, [])
         m = re.match(r"^/pulls/(\d+)/update-branch$", path)
         if method == "PUT" and m:
+            self.updated_branches.append(int(m.group(1)))
             return _FakeResp(202, {"message": "Updating pull request branch."})
+        if method == "GET" and path == "/pulls":
+            return _FakeResp(200, [p for p in self.pulls.values() if p["state"] == "open"])
         m = re.match(r"^/git/refs/heads/(.+)$", path)
         if method == "DELETE" and m:
             self.refs.discard(m.group(1))
@@ -219,6 +223,33 @@ def test_auto_merge_merges_once_approved_and_checks_pass(mod, monkeypatch):
     assert "1.0" in json.loads(result.cursor)["resolved_ts"]
 
 
+def test_auto_merge_refreshes_other_open_agent_prs_by_default(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    github.add_pull(42, head_ref="agent/fix-1")
+    github.add_pull(43, head_ref="agent/fix-2")  # another open agent PR -- should get update-branch'd
+    github.add_pull(44, head_ref="someones-manual-branch")  # a human's -- must NOT be touched
+    github.set_checks("sha1", {"build": "success"})
+    github.reviews[42] = [{"user": {"login": "reviewer-bot"}, "state": "APPROVED"}]
+    slack.add_message("1.0", {"pr_number": 42})
+    comp = _component(mod, auto_merge=True)
+    _run(mod, monkeypatch, comp, github, slack)
+    assert github.pulls[42]["merged"] is True
+    assert github.updated_branches == [43]
+
+
+def test_auto_merge_refresh_can_be_disabled(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    github.add_pull(42, head_ref="agent/fix-1")
+    github.add_pull(43, head_ref="agent/fix-2")
+    github.set_checks("sha1", {"build": "success"})
+    github.reviews[42] = [{"user": {"login": "reviewer-bot"}, "state": "APPROVED"}]
+    slack.add_message("1.0", {"pr_number": 42})
+    comp = _component(mod, auto_merge=True, refresh_other_agent_prs_after_merge=False)
+    _run(mod, monkeypatch, comp, github, slack)
+    assert github.pulls[42]["merged"] is True
+    assert github.updated_branches == []
+
+
 def test_auto_merge_refuses_a_non_agent_branch(mod, monkeypatch):
     github, slack = FakeGithubApi(), FakeSlackClient()
     github.add_pull(42, head_ref="someones-manual-branch")
@@ -253,3 +284,24 @@ def test_resolved_thread_is_not_rescanned(mod, monkeypatch):
     monkeypatch.setattr(mod, "_gh_get_pull_request", _boom)
     second = _run(mod, monkeypatch, comp, github, slack, cursor=first.cursor)
     assert "no open PR-review" in second.skip_message
+
+
+def test_skips_in_branch_deployment_by_default(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    github.add_pull(42, state="closed", merged=True)
+    slack.add_message("1.0", {"pr_number": 42})
+    comp = _component(mod)
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    result = _run(mod, monkeypatch, comp, github, slack)
+    assert isinstance(result, dg.SkipReason)
+    assert "branch deployment" in result.skip_message
+
+
+def test_skip_in_branch_deployments_false_still_runs(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    github.add_pull(42, state="closed", merged=True)
+    slack.add_message("1.0", {"pr_number": 42})
+    comp = _component(mod, skip_in_branch_deployments=False)
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    result = _run(mod, monkeypatch, comp, github, slack)
+    assert "1.0" in json.loads(result.cursor)["resolved_ts"]

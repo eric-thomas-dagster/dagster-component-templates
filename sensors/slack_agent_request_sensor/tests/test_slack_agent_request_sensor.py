@@ -148,6 +148,27 @@ def test_default_executor_job_passes_the_conflict_check(monkeypatch, chat_agent_
     assert isinstance(result, dg.SensorResult) and not result.run_requests
 
 
+# --- skip_in_branch_deployments ---------------------------------------------------------------
+
+def test_skips_in_branch_deployment_by_default(monkeypatch, chat_agent_asset):
+    component = _component()
+    sensor_def = component.build_defs(context=None).sensors[0]
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: (_ for _ in ()).throw(AssertionError("should not reach Slack auth")))
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    result = sensor_def(_ctx())
+    assert isinstance(result, dg.SkipReason)
+    assert "branch deployment" in result.skip_message
+
+
+def test_skip_in_branch_deployments_false_still_runs(monkeypatch, chat_agent_asset):
+    component = _component(skip_in_branch_deployments=False)
+    sensor_def = component.build_defs(context=None).sensors[0]
+    monkeypatch.setattr(mod, "_get_slack_client", lambda env: _FakeClient())
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    result = sensor_def(_ctx({"last_ts": "100.000", "threads": {}}))
+    assert isinstance(result, dg.SensorResult) and not result.run_requests
+
+
 def test_no_repository_def_skips_the_conflict_check_rather_than_blocking(monkeypatch, chat_agent_asset):
     """context.repository_def is unavailable in some decoupled test contexts (dg.build_sensor_context()
     with no definitions/repository_def passed) -- fail-open on inability to introspect, not on a

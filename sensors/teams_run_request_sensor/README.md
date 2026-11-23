@@ -211,6 +211,7 @@ See `example.yaml` (also shows a `job_name` trigger with an explicit `owners:` l
 | `on_unauthorized` | `Literal['skip', 'reply']` | `"reply"` | 'reply' (default) posts unauthorized_message_template as a thread reply; 'skip' just logs it. Ignored when post_acknowledgement is false. |
 | `ack_message_template` | `Union[str, List[str]]` | `"✅ Got it — launching <b>{target}</b> for you."` | HTML reply posted on an authorized match. Placeholders: {target}, {requester}, {phrase}. Give a list instead of a single string to have one chosen at random each time, so replies don't feel copy-pasted. |
 | `unauthorized_message_template` | `Union[str, List[str]]` | `"⚠️ Sorry, you're not listed as an owner of <b>{target}</b>, so I can't launch it from chat. Ask an owner to run it, or ask to be added as one."` | HTML reply posted on an unauthorized match (on_unauthorized: reply). Placeholders: {target}, {requester}, {phrase}. Also accepts a list for a randomly-chosen reply, same as ack_message_template. |
+| `skip_in_branch_deployments` | `bool` | `true` | Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch de… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

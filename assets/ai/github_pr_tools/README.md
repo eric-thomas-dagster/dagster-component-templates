@@ -100,6 +100,12 @@ Set `practice_mode_env_var` to the NAME of an env var (not a value templated int
 
 The env var is read **fresh, by name, inside the tool call** -- not templated into a typed component field at YAML-resolve time. That matters: the engineering-agents reference hit a real bug where an env value that looked numeric (e.g. `"1"`) got stored as the Python `int` `1` by a typed field, which broke the whole code location's load. Reading it as a plain string at call time avoids that failure mode entirely.
 
+## Restricting review scope to agent branches (`restrict_to_branch_prefix`)
+
+This toolset works as a general-purpose PR reviewer by default -- `get_pull_request`/`list_open_pull_requests`/`assess_pull_request`/`review_pull_request` operate on any open PR in `repo`, human-authored or not. That's intentional for a standalone "review every PR" agent, but it's the wrong default when this toolset is paired with `sensors/github_pull_request_agent_sensor` (which already only ever launches a review run for `branch_prefix` PRs): a manually-invoked chat agent, or a hallucinated PR number, could still have this toolset read, comment on, or approve someone else's PR.
+
+Set `restrict_to_branch_prefix: true` to close that gap -- every one of those four tools then refuses (`GithubPrScopeError`) a PR whose head branch doesn't start with `branch_prefix`, matching the branch-scoping `propose_fix`/`refresh_open_agent_prs`/`sensors/slack_pr_approval_watcher`'s merge already enforce unconditionally.
+
 ## Safety
 
 Every GitHub call is pinned to the configured `repo` -- a prompt cannot point the tools at another repository. `propose_fix` never touches a protected path and never changes more files than `max_files_per_fix`. `review_pull_request` never approves above the configured risk limits, no matter what the model argues. Issue filing and PR creation are deliberately separate GitHub label-and-search mechanisms -- `find_issues`/`open_issue` only ever read or create issues, never pull requests. Failures come back as `{"error": "..."}`, never an exception.
@@ -129,6 +135,7 @@ Every GitHub call is pinned to the configured `repo` -- a prompt cannot point th
 | `api_base_url` | `str` | `"https://api.github.com"` | API base URL. Change for GitHub Enterprise Server. |
 | `base_branch` | `str` | `"main"` | Base branch for propose_fix's pull requests. |
 | `branch_prefix` | `str` | `"agent/"` | Prefix propose_fix uses for the branches it creates. |
+| `restrict_to_branch_prefix` | `bool` | `false` | When true, get_pull_request/list_open_pull_requests/assess_pull_request/review_pull_request all refuse (GithubPrScopeError) to operate on a PR whose head branch doesn't start with branch_prefix -- never a human's or a bo… _(full docs in schema.json + component README)_ |
 | `protected_paths` | `List[str]` | `lambda: ['.github/', 'pyproject.toml', 'requirements', 'Dockerfile', 'setup.']()` | Path prefixes propose_fix refuses to touch (CI, dependencies, packaging). |
 | `low_risk_paths` | `List[str]` | `lambda: ['src/', 'tests/', 'docs/', 'README']()` | Path prefixes assess_pull_request/review_pull_request treat as low-risk when nothing else disqualifies the PR. |
 | `low_risk_max_files` | `int` | `2` | assess_pull_request: max changed files for a 'low' risk level. |

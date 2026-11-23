@@ -430,6 +430,15 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     minimum_interval_seconds: int = Field(default=10, description="Minimum seconds between sensor evaluations. Chat latency is roughly this plus the run-queue dequeue time plus the LLM call -- keep this low.")
     default_status: str = Field(default="STOPPED", description="'RUNNING' or 'STOPPED' -- initial status of the sensor.")
+    skip_in_branch_deployments: bool = Field(
+        default=True,
+        description=(
+            "Skip every tick while running inside a Dagster+ branch deployment "
+            "(DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor "
+            "alongside the full deployment's -- without this, a branch deployment double-acknowledges the "
+            "same message and double-launches a run for it."
+        ),
+    )
 
     @classmethod
     def get_form_config(cls):
@@ -470,11 +479,14 @@ class TeamsAgentRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         placeholder_text = self.placeholder_text
         set_isolation_disabled_tag = self.set_isolation_disabled_tag
         use_in_process_executor = self.use_in_process_executor
+        skip_in_branch_deployments = self.skip_in_branch_deployments
         default_status = dg.DefaultSensorStatus.RUNNING if self.default_status.upper() == "RUNNING" else dg.DefaultSensorStatus.STOPPED
         sensor_asset_selection = [dg.AssetKey(k.split("/")) for k in sorted(set(keys))]
         epoch = "1970-01-01T00:00:00.0000000Z"
 
         def sensor_fn(context: dg.SensorEvaluationContext):
+            if skip_in_branch_deployments and os.environ.get("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT") == "1":
+                return dg.SkipReason("branch deployment -- skipping (skip_in_branch_deployments=True)")
             if use_in_process_executor:
                 repo = getattr(context, "repository_def", None)
                 if repo is not None:

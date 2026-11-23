@@ -377,3 +377,22 @@ def test_ack_message_template_list_is_used_for_the_reply(monkeypatch):
     reply_posts = [c for c in calls["post"] if "/replies" in c[0]]
     posted_body = reply_posts[0][1]["json"]["body"]["content"]
     assert posted_body in ("Done: nightly_etl_job", "Launched: nightly_etl_job")
+
+
+def test_skips_in_branch_deployment_by_default(monkeypatch):
+    comp = _component()
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    result = sensor_def(dg.build_sensor_context(cursor="2026-01-01T00:00:00.0000000Z"))
+    assert isinstance(result, dg.SkipReason)
+    assert "branch deployment" in result.skip_message
+
+
+def test_skip_in_branch_deployments_false_still_runs(monkeypatch):
+    comp = _component(skip_in_branch_deployments=False)
+    sensor_def = comp.build_defs(context=None).sensors[0]
+    messages = [_msg("m1", "2026-01-01T00:00:01.0000000Z", "good morning team", "aad-owner")]
+    _install_fakes(monkeypatch, messages=messages)
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    result = sensor_def(dg.build_sensor_context(cursor="2026-01-01T00:00:00.0000000Z"))
+    assert result.cursor == "2026-01-01T00:00:01.0000000Z"

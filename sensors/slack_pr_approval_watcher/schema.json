@@ -90,6 +90,18 @@
       "label": "Default Status",
       "description": "'RUNNING' or 'STOPPED'.",
       "required": false
+    },
+    "skip_in_branch_deployments": {
+      "type": "boolean",
+      "label": "Skip In Branch Deployments",
+      "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-posts Slack replies and double-records GitHub reviews/merges for the same vote.",
+      "required": false
+    },
+    "refresh_other_agent_prs_after_merge": {
+      "type": "boolean",
+      "label": "Refresh Other Agent Prs After Merge",
+      "description": "After auto_merge successfully merges a PR, bring every OTHER open branch_prefix PR up to date with the new base_branch (GitHub's update-branch API) so their CI runs against the just-merged code instead of a stale base, the same reconciliation github_pr_tools' refresh_open_agent_prs tool does manually. Best-effort -- a PR that can't be updated (e.g. a real merge conflict) is skipped, never raised. Ignored when auto_merge is false.",
+      "required": false
     }
   }
 }

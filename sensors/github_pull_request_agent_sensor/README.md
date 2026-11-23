@@ -56,6 +56,9 @@ The two sensors need to agree on "which Slack message reviews which PR", but the
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_base_url` | `str` | `"https://api.github.com"` | API base URL. Change for GitHub Enterprise Server. |
+| `branch_prefix` | `str` | `"agent/"` | Only pull requests whose head branch starts with this prefix are ever announced in Slack or launched as a review run -- never a human's PR or a bot's (e.g. dependabot's). Matches the branch_prefix assets/ai/github_pr_too… _(full docs in schema.json + component README)_ |
+| `announcements_per_tick` | `int` | `5` | Max new/updated PRs announced (Slack post + RunRequest) in one sensor tick. A Dagster+ sensor tick times out at 60 seconds; a backlog of many PRs (e.g. the first tick after turning this sensor on) posts one Slack message… _(full docs in schema.json + component README)_ |
+| `skip_in_branch_deployments` | `bool` | `true` | Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch de… _(full docs in schema.json + component README)_ |
 | `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's `xoxb-...` token. Needs `chat:write` + `reactions:read` + `reactions:write` + `channels:history`/`groups:history`. |
 | `approve_emoji` | `str` | `"white_check_mark"` | Emoji name (no colons) a reaction-based approval uses. |
 | `reject_emoji` | `str` | `"x"` | Emoji name (no colons) a reaction-based rejection uses. |
@@ -64,6 +67,22 @@ The two sensors need to agree on "which Slack message reviews which PR", but the
 | `ping_users_on_post` | `List[str]` | — | Optional Slack user IDs to @-mention in the initial post. |
 
 [//]: # (FIELDS:END)
+
+## Deployment notes (from a real Dagster+ hybrid-Kubernetes deployment)
+
+- **Pod memory.** The run this sensor launches is an LLM agent asset, not this sensor itself -- a code location's default container memory limit (commonly 1G) is sized for ordinary pipeline steps, not an LLM call plus tool-use loop. An under-provisioned agent run gets OOMKilled (exit 137), which Dagster+ reports as "Run has not completed but K8s job has no active pods" -- a message that reads like an agent-framework problem but is actually a pod sizing one. Give the launched job a few GB, e.g. in `dagster_cloud.yaml` or the code location's `container_context`:
+  ```yaml
+  container_context:
+    k8s:
+      run_k8s_config:
+        container_config:
+          resources:
+            limits:
+              memory: "4Gi"
+  ```
+  4Gi is a reasonable starting point; raise it if an agent run still OOMs.
+- **Branch deployments.** `skip_in_branch_deployments` (default `true`) keeps a branch deployment's copy of this sensor from running at all -- without it, a branch deployment announces every PR a second time in the same Slack channel and launches a second review run alongside the full deployment's. `sensors/slack_pr_approval_watcher` has the same option for the same reason.
+- **Tick timeouts.** A Dagster+ sensor tick times out at 60 seconds. `announcements_per_tick` (default `5`) bounds how many PRs get announced (one Slack post + one `RunRequest` each) in a single tick -- a large backlog (e.g. the first tick after turning this sensor on, or after a long outage) is spread across several ticks instead of timing the tick out partway through.
 
 ## See also
 

@@ -276,6 +276,15 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     minimum_interval_seconds: int = Field(default=30, description="Minimum seconds between sensor evaluations.")
     default_status: str = Field(default="RUNNING", description="'RUNNING' or 'STOPPED'.")
+    skip_in_branch_deployments: bool = Field(
+        default=True,
+        description=(
+            "Skip every tick while running inside a Dagster+ branch deployment "
+            "(DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor "
+            "alongside the full deployment's -- without this, a branch deployment double-announces the same "
+            "failed run in Slack and double-launches a fixer run."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -301,8 +310,11 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         evidence_dir = self.evidence_dir
         max_triage_per_hour = self.max_triage_per_hour
         cooldown_minutes = self.cooldown_minutes
+        skip_in_branch_deployments = self.skip_in_branch_deployments
 
         def failure_fn(context: dg.RunFailureSensorContext):
+            if skip_in_branch_deployments and os.environ.get("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT") == "1":
+                return dg.SkipReason("branch deployment -- skipping (skip_in_branch_deployments=True)")
             run = context.dagster_run
             origin = run.remote_job_origin
             location = origin.location_name if origin else None

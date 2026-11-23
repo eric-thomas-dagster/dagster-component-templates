@@ -104,6 +104,24 @@
       "label": "Default Status",
       "description": "'RUNNING' or 'STOPPED'.",
       "required": false
+    },
+    "branch_prefix": {
+      "type": "string",
+      "label": "Branch Prefix",
+      "description": "Only pull requests whose head branch starts with this prefix are ever announced in Slack or launched as a review run -- never a human's PR or a bot's (e.g. dependabot's). Matches the branch_prefix assets/ai/github_pr_tools' propose_fix uses by default, so a paired reviewer agent only ever reviews its own fixer's PRs. Set to '' to watch every open PR (not recommended -- a review run can comment on or approve a PR).",
+      "required": false
+    },
+    "announcements_per_tick": {
+      "type": "integer",
+      "label": "Announcements Per Tick",
+      "description": "Max new/updated PRs announced (Slack post + RunRequest) in one sensor tick. A Dagster+ sensor tick times out at 60 seconds; a backlog of many PRs (e.g. the first tick after turning this sensor on) posts one Slack message each and can blow through that. Unannounced PRs stay in the backlog (the cursor isn't advanced for them) and are picked up on a later tick.",
+      "required": false
+    },
+    "skip_in_branch_deployments": {
+      "type": "boolean",
+      "label": "Skip In Branch Deployments",
+      "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-announces PRs in Slack and double-launches review runs.",
+      "required": false
     }
   }
 }

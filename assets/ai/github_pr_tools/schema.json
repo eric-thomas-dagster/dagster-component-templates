@@ -151,6 +151,12 @@
       "label": "Ledger Path",
       "description": "Directory this tool writes one JSON-lines file per Dagster run_id into, recording every consequential action (propose_fix, open_issue, an APPROVE review) as it happens -- filed, would_file (practice mode), refused (a guardrail declined it), or decision_needed (e.g. an 'Kind: improvement' PR an APPROVE rule always refers to a person). The run_id comes from MCP's out-of-band request _meta (see each agent component's own run_id threading), NOT a tool argument -- a prompt cannot spoof which run an entry belongs to. Point an agent component's own outcome_ledger_path at this SAME directory to read it back. Unset: no ledger is written (zero behavior change).",
       "required": false
+    },
+    "restrict_to_branch_prefix": {
+      "type": "boolean",
+      "label": "Restrict To Branch Prefix",
+      "description": "When true, get_pull_request/list_open_pull_requests/assess_pull_request/review_pull_request all refuse (GithubPrScopeError) to operate on a PR whose head branch doesn't start with branch_prefix -- never a human's or a bot's (e.g. dependabot's) PR. Off by default, since this toolset also works as a general-purpose PR reviewer for any PR. Turn this on when pairing with sensors/github_pull_request_agent_sensor (which already only ever launches runs for branch_prefix PRs) -- a second layer of defense covering a manually-invoked chat agent or a hallucinated PR number.",
+      "required": false
     }
   }
 }

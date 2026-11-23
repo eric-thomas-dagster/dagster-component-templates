@@ -107,8 +107,10 @@ def _gh_branch_deployment_url(repo: str, number: int, head_sha: str, *, token: s
     return _gh_find_branch_deployment_url(texts)
 
 
-def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str) -> Dict[str, Any]:
+def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str, required_branch_prefix: Optional[str] = None) -> Dict[str, Any]:
     pr = _gh_call("GET", repo, f"/pulls/{int(number)}", token=token, api_base_url=api_base_url)
+    if required_branch_prefix and not pr["head"]["ref"].startswith(required_branch_prefix):
+        raise GithubPrScopeError(f"PR #{number} is on {pr['head']['ref']!r}, not a {required_branch_prefix!r} branch; refusing.")
     files = _gh_call("GET", repo, f"/pulls/{int(number)}/files", token=token, api_base_url=api_base_url, params={"per_page": 100})
     return {
         "number": pr["number"],
@@ -229,10 +231,11 @@ def _gh_review_pull_request(
     repo: str, number: int, decision: str, body: str, *,
     token: str, reviewer_token: Optional[str], api_base_url: str,
     protected_paths, low_risk_paths, low_risk_max_files: int, low_risk_max_lines: int,
+    required_branch_prefix: Optional[str] = None,
 ) -> Dict[str, Any]:
     """COMMENT is always allowed. APPROVE only passes the deterministic risk rules, and is posted under the
     reviewer (second) identity -- GitHub blocks an author approving their own PR."""
-    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url)
+    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url, required_branch_prefix=required_branch_prefix)
     risk = _gh_assess_risk(pr, protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files, low_risk_max_lines=low_risk_max_lines)
     decision = decision.upper()
     if decision not in ("COMMENT", "APPROVE"):
@@ -296,11 +299,12 @@ def _gh_merge_if_ready(repo: str, number: int, *, branch_prefix: str, reviewer_l
     return {"number": number, "merged": True}
 
 
-def _gh_open_pull_requests(repo: str, *, token: str, api_base_url: str) -> List[Dict[str, Any]]:
+def _gh_open_pull_requests(repo: str, *, token: str, api_base_url: str, branch_prefix: Optional[str] = None) -> List[Dict[str, Any]]:
     prs = _gh_call("GET", repo, "/pulls", token=token, api_base_url=api_base_url, params={"state": "open", "per_page": 50})
     return [
         {"number": p["number"], "head_sha": p["head"]["sha"], "head_ref": p["head"]["ref"], "title": p["title"], "url": p["html_url"], "author": p["user"]["login"]}
         for p in prs
+        if not branch_prefix or p["head"]["ref"].startswith(branch_prefix)
     ]
 
 
@@ -442,6 +446,25 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
     slack_bot_token_env_var: str = Field(default="SLACK_BOT_TOKEN", description="Env var holding the bot's `xoxb-...` token. Needs `reactions:read` + `chat:write` + `channels:history`/`groups:history`.")
     history_lookback_hours: float = Field(default=168.0, description="How far back (hours) to scan the channel for still-open PR-review threads.")
     auto_merge: bool = Field(default=False, description="When True, squash-merge automatically once the reviewer identity has approved and checks pass (still gated by branch_prefix).")
+    refresh_other_agent_prs_after_merge: bool = Field(
+        default=True,
+        description=(
+            "After auto_merge successfully merges a PR, bring every OTHER open branch_prefix PR up to date "
+            "with the new base_branch (GitHub's update-branch API) so their CI runs against the just-merged "
+            "code instead of a stale base, the same reconciliation github_pr_tools' refresh_open_agent_prs "
+            "tool does manually. Best-effort -- a PR that can't be updated (e.g. a real merge conflict) is "
+            "skipped, never raised. Ignored when auto_merge is false."
+        ),
+    )
+    skip_in_branch_deployments: bool = Field(
+        default=True,
+        description=(
+            "Skip every tick while running inside a Dagster+ branch deployment "
+            "(DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor "
+            "alongside the full deployment's -- without this, a branch deployment double-posts Slack replies "
+            "and double-records GitHub reviews/merges for the same vote."
+        ),
+    )
 
     minimum_interval_seconds: int = Field(default=30, description="Sensor cadence -- how often to poll Slack + GitHub.")
     default_status: str = Field(default="RUNNING", description="'RUNNING' or 'STOPPED'.")
@@ -462,8 +485,12 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
         slack_bot_token_env_var = self.slack_bot_token_env_var
         history_lookback_hours = self.history_lookback_hours
         auto_merge = self.auto_merge
+        refresh_other_agent_prs_after_merge = self.refresh_other_agent_prs_after_merge
+        skip_in_branch_deployments = self.skip_in_branch_deployments
 
         def sensor_fn(context: dg.SensorEvaluationContext, **_resources):
+            if skip_in_branch_deployments and os.environ.get("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT") == "1":
+                return dg.SkipReason("branch deployment -- skipping (skip_in_branch_deployments=True)")
             token = os.environ.get(token_env_var, "")
             reviewer_token = os.environ.get(reviewer_token_env_var) if reviewer_token_env_var else None
             if not token:
@@ -553,6 +580,11 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
                         newly_resolved.append(ts)
                         actions.append(f"PR #{number}: merged")
                         say(ts, f":rocket: Merged #{number} into main.")
+                        if refresh_other_agent_prs_after_merge:
+                            try:
+                                _gh_refresh_open_agent_prs(repo, branch_prefix=branch_prefix, token=token, api_base_url=api_base_url)
+                            except GithubPrScopeError:
+                                pass
 
             new_cursor = json.dumps({
                 "resolved_ts": sorted(resolved_ts | set(newly_resolved))[-500:],

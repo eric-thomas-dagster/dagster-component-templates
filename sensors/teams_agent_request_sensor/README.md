@@ -178,8 +178,13 @@ See `example.yaml`.
 | `placeholder_text` | `str` | — | If set, post this text as a new reply right after acknowledging a matched message, and tag the run teams/placeholder_id with that reply's own id. teams_reply then edits THIS reply with the final answer (PATCH .../replies… _(full docs in schema.json + component README)_ |
 | `set_isolation_disabled_tag` | `bool` | `true` | Tag every RunRequest dagster/isolation: disabled, so the run starts in-process on the code location server instead of spinning up an isolated container (which can take up to 3 minutes on Dagster+ -- far too slow for chat… _(full docs in schema.json + component README)_ |
 | `use_in_process_executor` | `bool` | `true` | Tag every RunRequest with run_config={'execution': {'config': {'in_process': {}}}}, so the agent asset and its downstream teams_reply asset run as plain function calls in one step-process instead of each spawning its own… _(full docs in schema.json + component README)_ |
+| `skip_in_branch_deployments` | `bool` | `true` | Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch de… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
+
+## Pod memory
+
+The run this sensor launches is an LLM agent asset -- a code location's default container memory limit (often 1G) is sized for ordinary pipeline steps, not an LLM call plus tool-use loop. An under-provisioned run gets OOMKilled (exit 137), which Dagster+ reports as "Run has not completed but K8s job has no active pods" rather than anything that looks like a memory error. Give the launched job a few GB via `container_context.k8s.run_k8s_config.container_config.resources.limits.memory` -- see [`github_pull_request_agent_sensor`'s README](../github_pull_request_agent_sensor#deployment-notes-from-a-real-dagster-hybrid-kubernetes-deployment) for the full example.
 
 ## Requirements
 

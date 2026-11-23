@@ -374,6 +374,15 @@ class SlackRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     minimum_interval_seconds: int = Field(default=30, description="Minimum seconds between sensor evaluations.")
     default_status: str = Field(default="STOPPED", description="'RUNNING' or 'STOPPED' -- initial status of the sensor.")
+    skip_in_branch_deployments: bool = Field(
+        default=True,
+        description=(
+            "Skip every tick while running inside a Dagster+ branch deployment "
+            "(DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor "
+            "alongside the full deployment's -- without this, a branch deployment double-acknowledges the "
+            "same message and double-launches the matched job/asset selection."
+        ),
+    )
 
     @classmethod
     def get_form_config(cls):
@@ -433,6 +442,7 @@ class SlackRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         on_unauthorized = self.on_unauthorized
         ack_template = self.ack_message_template
         unauthorized_template = self.unauthorized_message_template
+        skip_in_branch_deployments = self.skip_in_branch_deployments
         default_status = dg.DefaultSensorStatus.RUNNING if self.default_status.upper() == "RUNNING" else dg.DefaultSensorStatus.STOPPED
         sensor_asset_selection = [dg.AssetKey(k.split("/")) for k in sorted(set(all_asset_keys))] or None
 
@@ -464,6 +474,8 @@ class SlackRunRequestSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             return all(checks) if require_all_owners else any(checks)
 
         def sensor_fn(context: dg.SensorEvaluationContext):
+            if skip_in_branch_deployments and os.environ.get("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT") == "1":
+                return dg.SkipReason("branch deployment -- skipping (skip_in_branch_deployments=True)")
             try:
                 client = _get_slack_client(bot_token_env_var)
             except Exception as e:  # noqa: BLE001 -- surfaced as a skip, not a sensor crash

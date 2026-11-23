@@ -233,8 +233,10 @@ def _gh_branch_deployment_url(repo: str, number: int, head_sha: str, *, token: s
     return _gh_find_branch_deployment_url(texts)
 
 
-def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str) -> Dict[str, Any]:
+def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str, required_branch_prefix: Optional[str] = None) -> Dict[str, Any]:
     pr = _gh_call("GET", repo, f"/pulls/{int(number)}", token=token, api_base_url=api_base_url)
+    if required_branch_prefix and not pr["head"]["ref"].startswith(required_branch_prefix):
+        raise GithubPrScopeError(f"PR #{number} is on {pr['head']['ref']!r}, not a {required_branch_prefix!r} branch; refusing.")
     files = _gh_call("GET", repo, f"/pulls/{int(number)}/files", token=token, api_base_url=api_base_url, params={"per_page": 100})
     return {
         "number": pr["number"],
@@ -355,10 +357,11 @@ def _gh_review_pull_request(
     repo: str, number: int, decision: str, body: str, *,
     token: str, reviewer_token: Optional[str], api_base_url: str,
     protected_paths, low_risk_paths, low_risk_max_files: int, low_risk_max_lines: int,
+    required_branch_prefix: Optional[str] = None,
 ) -> Dict[str, Any]:
     """COMMENT is always allowed. APPROVE only passes the deterministic risk rules, and is posted under the
     reviewer (second) identity -- GitHub blocks an author approving their own PR."""
-    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url)
+    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url, required_branch_prefix=required_branch_prefix)
     risk = _gh_assess_risk(pr, protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files, low_risk_max_lines=low_risk_max_lines)
     decision = decision.upper()
     if decision not in ("COMMENT", "APPROVE"):
@@ -422,11 +425,12 @@ def _gh_merge_if_ready(repo: str, number: int, *, branch_prefix: str, reviewer_l
     return {"number": number, "merged": True}
 
 
-def _gh_open_pull_requests(repo: str, *, token: str, api_base_url: str) -> List[Dict[str, Any]]:
+def _gh_open_pull_requests(repo: str, *, token: str, api_base_url: str, branch_prefix: Optional[str] = None) -> List[Dict[str, Any]]:
     prs = _gh_call("GET", repo, "/pulls", token=token, api_base_url=api_base_url, params={"state": "open", "per_page": 50})
     return [
         {"number": p["number"], "head_sha": p["head"]["sha"], "head_ref": p["head"]["ref"], "title": p["title"], "url": p["html_url"], "author": p["user"]["login"]}
         for p in prs
+        if not branch_prefix or p["head"]["ref"].startswith(branch_prefix)
     ]
 
 
@@ -545,6 +549,7 @@ class GithubPrTools:
     def __init__(
         self, *, repo: str, token: str, api_base_url: str = "https://api.github.com",
         reviewer_token: Optional[str] = None, base_branch: str = "main", branch_prefix: str = "agent/",
+        restrict_to_branch_prefix: bool = False,
         protected_paths=(".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."),
         low_risk_paths=("src/", "tests/", "docs/", "README"), low_risk_max_files: int = 2, low_risk_max_lines: int = 30,
         max_files_per_fix: int = 5, allow: Optional[List[str]] = None, max_result_chars: int = 20000,
@@ -558,6 +563,7 @@ class GithubPrTools:
         self.api_base_url = api_base_url
         self.base_branch = base_branch
         self.branch_prefix = branch_prefix
+        self.restrict_to_branch_prefix = restrict_to_branch_prefix
         self.protected_paths = tuple(protected_paths)
         self.low_risk_paths = tuple(low_risk_paths)
         self.low_risk_max_files = low_risk_max_files
@@ -614,14 +620,17 @@ class GithubPrTools:
         return {"truncated": True, "preview": text[: max(0, cap - 40)]}
 
     # -- tools ---------------------------------------------------------------------------------------------------
+    def _required_branch_prefix(self) -> Optional[str]:
+        return self.branch_prefix if self.restrict_to_branch_prefix else None
+
     def t_get_pull_request(self, number: int) -> Dict[str, Any]:
-        return _gh_get_pull_request(self.repo, number, token=self.token, api_base_url=self.api_base_url)
+        return _gh_get_pull_request(self.repo, number, token=self.token, api_base_url=self.api_base_url, required_branch_prefix=self._required_branch_prefix())
 
     def t_list_open_pull_requests(self) -> Dict[str, Any]:
-        return {"pull_requests": _gh_open_pull_requests(self.repo, token=self.token, api_base_url=self.api_base_url)}
+        return {"pull_requests": _gh_open_pull_requests(self.repo, token=self.token, api_base_url=self.api_base_url, branch_prefix=self._required_branch_prefix())}
 
     def t_assess_pull_request(self, number: int) -> Dict[str, Any]:
-        pr = _gh_get_pull_request(self.repo, number, token=self.token, api_base_url=self.api_base_url)
+        pr = _gh_get_pull_request(self.repo, number, token=self.token, api_base_url=self.api_base_url, required_branch_prefix=self._required_branch_prefix())
         return _gh_assess_risk(
             pr, protected_paths=self.protected_paths, low_risk_paths=self.low_risk_paths,
             low_risk_max_files=self.low_risk_max_files, low_risk_max_lines=self.low_risk_max_lines,
@@ -656,6 +665,7 @@ class GithubPrTools:
             self.repo, number, decision, body, token=self.token, reviewer_token=self.reviewer_token,
             api_base_url=self.api_base_url, protected_paths=self.protected_paths, low_risk_paths=self.low_risk_paths,
             low_risk_max_files=self.low_risk_max_files, low_risk_max_lines=self.low_risk_max_lines,
+            required_branch_prefix=self._required_branch_prefix(),
         )
 
 
@@ -719,6 +729,17 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     api_base_url: str = Field(default="https://api.github.com", description="API base URL. Change for GitHub Enterprise Server.")
     base_branch: str = Field(default="main", description="Base branch for propose_fix's pull requests.")
     branch_prefix: str = Field(default="agent/", description="Prefix propose_fix uses for the branches it creates.")
+    restrict_to_branch_prefix: bool = Field(
+        default=False,
+        description=(
+            "When true, get_pull_request/list_open_pull_requests/assess_pull_request/review_pull_request all "
+            "refuse (GithubPrScopeError) to operate on a PR whose head branch doesn't start with branch_prefix -- "
+            "never a human's or a bot's (e.g. dependabot's) PR. Off by default, since this toolset also works as "
+            "a general-purpose PR reviewer for any PR. Turn this on when pairing with "
+            "sensors/github_pull_request_agent_sensor (which already only ever launches runs for branch_prefix "
+            "PRs) -- a second layer of defense covering a manually-invoked chat agent or a hallucinated PR number."
+        ),
+    )
     protected_paths: List[str] = Field(
         default_factory=lambda: [".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."],
         description="Path prefixes propose_fix refuses to touch (CI, dependencies, packaging).",
@@ -790,6 +811,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         api_base_url = self.api_base_url
         base_branch = self.base_branch
         branch_prefix = self.branch_prefix
+        restrict_to_branch_prefix = self.restrict_to_branch_prefix
         protected_paths = list(self.protected_paths)
         low_risk_paths = list(self.low_risk_paths)
         low_risk_max_files = self.low_risk_max_files
@@ -808,6 +830,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             return GithubPrTools(
                 repo=repo, token=os.environ.get(token_env_var, ""), reviewer_token=(os.environ.get(reviewer_token_env_var) if reviewer_token_env_var else None),
                 api_base_url=api_base_url, base_branch=base_branch, branch_prefix=branch_prefix,
+                restrict_to_branch_prefix=restrict_to_branch_prefix,
                 protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files,
                 low_risk_max_lines=low_risk_max_lines, max_files_per_fix=max_files_per_fix, allow=allow, max_result_chars=max_chars,
                 practice_mode_env_var=practice_mode_env_var, ledger_path=ledger_path,
@@ -821,6 +844,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 "GITHUB_PR_TOOLS_REPO": repo, "GITHUB_PR_TOOLS_TOKEN_ENV_VAR": token_env_var,
                 "GITHUB_PR_TOOLS_API_BASE_URL": api_base_url, "GITHUB_PR_TOOLS_BASE_BRANCH": base_branch,
                 "GITHUB_PR_TOOLS_BRANCH_PREFIX": branch_prefix,
+                "GITHUB_PR_TOOLS_RESTRICT_TO_BRANCH_PREFIX": "1" if restrict_to_branch_prefix else "",
                 "GITHUB_PR_TOOLS_PROTECTED_PATHS": ",".join(protected_paths),
                 "GITHUB_PR_TOOLS_LOW_RISK_PATHS": ",".join(low_risk_paths),
                 "GITHUB_PR_TOOLS_LOW_RISK_MAX_FILES": str(low_risk_max_files),
@@ -921,7 +945,8 @@ def build_mcp_server(tools: GithubPrTools):
 
 def main(argv: Optional[List[str]] = None) -> None:
     """Env: GITHUB_PR_TOOLS_REPO (required), _TOKEN_ENV_VAR (default GITHUB_TOKEN), _REVIEWER_TOKEN_ENV_VAR,
-    _API_BASE_URL, _BASE_BRANCH, _BRANCH_PREFIX, _PROTECTED_PATHS (csv), _LOW_RISK_PATHS (csv),
+    _API_BASE_URL, _BASE_BRANCH, _BRANCH_PREFIX, _RESTRICT_TO_BRANCH_PREFIX (any non-empty value is ON),
+    _PROTECTED_PATHS (csv), _LOW_RISK_PATHS (csv),
     _LOW_RISK_MAX_FILES, _LOW_RISK_MAX_LINES, _MAX_FILES_PER_FIX, _ALLOW (csv), _MAX_CHARS,
     _PRACTICE_MODE_ENV_VAR (the NAME of another env var to read fresh at call time -- not a value),
     _LEDGER_PATH (directory for the per-run_id outcome-ledger JSON-lines files)."""
@@ -942,6 +967,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         api_base_url=os.environ.get("GITHUB_PR_TOOLS_API_BASE_URL", "https://api.github.com"),
         base_branch=os.environ.get("GITHUB_PR_TOOLS_BASE_BRANCH", "main"),
         branch_prefix=os.environ.get("GITHUB_PR_TOOLS_BRANCH_PREFIX", "agent/"),
+        restrict_to_branch_prefix=bool(os.environ.get("GITHUB_PR_TOOLS_RESTRICT_TO_BRANCH_PREFIX")),
         protected_paths=[p.strip() for p in protected_env.split(",") if p.strip()] if protected_env else (".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."),
         low_risk_paths=[p.strip() for p in low_risk_env.split(",") if p.strip()] if low_risk_env else ("src/", "tests/", "docs/", "README"),
         low_risk_max_files=int(os.environ.get("GITHUB_PR_TOOLS_LOW_RISK_MAX_FILES", "2")),

@@ -128,6 +128,12 @@
       "label": "Follow Up Window Minutes",
       "description": "Only poll a tracked thread for follow-ups if its last-seen reply was within this many minutes -- a second bound alongside known_threads_limit's count cap, so a long-dormant thread doesn't keep costing a conversations.replies call every tick forever. Unset: no time bound, only known_threads_limit's count cap applies.",
       "required": false
+    },
+    "skip_in_branch_deployments": {
+      "type": "boolean",
+      "label": "Skip In Branch Deployments",
+      "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-acknowledges the same message and double-launches a run for it.",
+      "required": false
     }
   }
 }

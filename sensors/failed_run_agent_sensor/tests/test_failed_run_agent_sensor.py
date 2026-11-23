@@ -157,6 +157,16 @@ def test_message_template_and_dagster_url_build_the_run_link(mod, tmp_path, monk
     assert f"https://acme.dagster.cloud/prod/runs/{run.run_id}" in slack.posted[0]["text"]
 
 
+def test_skips_in_branch_deployment_by_default(mod, tmp_path, monkeypatch, inst):
+    slack = FakeSlackClient()
+    monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
+    sensor_def, defs, cursor = _primed(mod, tmp_path, monkeypatch, inst, slack)
+    run = _fail(inst, defs)
+    res = _tick(sensor_def, inst, defs, cursor=cursor)
+    assert not res.run_requests
+    assert not slack.posted
+
+
 def test_cooldown_rate_limiter_writes_files_under_evidence_dir(mod, tmp_path, monkeypatch, inst):
     slack = FakeSlackClient()
     sensor_def, defs, cursor = _primed(mod, tmp_path, monkeypatch, inst, slack, cooldown_minutes=60)

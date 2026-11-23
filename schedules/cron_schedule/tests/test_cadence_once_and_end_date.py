@@ -191,6 +191,63 @@ def test_partitioned_add_logical_date_tag_resolves_window_start(asset_def):
         assert result.success
 
 
+def test_skip_first_tick_skips_until_a_run_has_actually_fired(asset_def):
+    comp = _comp(cron_expression="0 9 * * 1", skip_first_tick=True)
+    defs = comp.build_defs(None)
+    sched = list(defs.schedules)[0]
+
+    with dg.instance_for_test() as instance:
+        ctx1 = dg.build_schedule_context(
+            instance=instance, scheduled_execution_time=datetime.datetime(2025, 12, 1, 9, tzinfo=datetime.timezone.utc)
+        )
+        data1 = sched.evaluate_tick(ctx1)
+        assert data1.run_requests == []
+        assert "skip_first_tick" in data1.skip_message
+
+        # Once a run exists tagged with this schedule's name, later ticks fire normally.
+        dg.materialize([asset_def], instance=instance, tags={"dagster/schedule_name": "s"})
+        ctx2 = dg.build_schedule_context(
+            instance=instance, scheduled_execution_time=datetime.datetime(2025, 12, 8, 9, tzinfo=datetime.timezone.utc)
+        )
+        data2 = sched.evaluate_tick(ctx2)
+        assert len(data2.run_requests) == 1
+
+
+def test_skip_first_tick_false_fires_on_the_first_tick(asset_def):
+    comp = _comp(cron_expression="0 9 * * 1", skip_first_tick=False)
+    defs = comp.build_defs(None)
+    sched = list(defs.schedules)[0]
+
+    with dg.instance_for_test() as instance:
+        ctx = dg.build_schedule_context(
+            instance=instance, scheduled_execution_time=datetime.datetime(2025, 12, 1, 9, tzinfo=datetime.timezone.utc)
+        )
+        data = sched.evaluate_tick(ctx)
+        assert len(data.run_requests) == 1
+
+
+def test_skip_first_tick_partitioned(asset_def):
+    @dg.asset(name="orders3", partitions_def=dg.DailyPartitionsDefinition(start_date="2020-01-01"))
+    def orders3(context):
+        return context.partition_key
+
+    comp = _comp(
+        asset_keys=["orders3"], partition_type="daily", partition_start="2020-01-01",
+        skip_first_tick=True, cron_expression="0 0 * * *",
+    )
+    defs = comp.build_defs(None)
+    sched = list(defs.schedules)[0]
+    job = list(defs.jobs)[0]
+    full_defs = dg.Definitions(assets=[orders3], jobs=[job], schedules=[sched])
+
+    with dg.instance_for_test() as instance:
+        repo_def = full_defs.get_repository_def()
+        ctx = dg.build_schedule_context(instance=instance, repository_def=repo_def)
+        data = sched.evaluate_tick(ctx)
+        assert data.run_requests == []
+        assert "skip_first_tick" in data.skip_message
+
+
 def test_add_interval_tags_requires_partitioning():
     with pytest.raises(ValueError, match="add_interval_tags requires partition_type"):
         _comp(cron_expression="0 9 * * *", add_interval_tags=True)

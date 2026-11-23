@@ -133,6 +133,7 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 | `end_date` | `str` | — | ISO date or datetime (e.g. '2026-06-01'; a value with no timezone is assumed UTC) after which this schedule stops firing -- mirrors Airflow's DAG end_date. Un-partitioned: each tick is skipped once scheduled_execution_ti… _(full docs in schema.json + component README)_ |
 | `add_logical_date_tag` | `bool` | `false` | If true, tags each run with 'logical_date' -- Airflow's run-identifying timestamp. Partitioned: the partition window's start. Un-partitioned: the scheduled trigger time. Only valid with cadence='scheduled'. |
 | `add_interval_tags` | `bool` | `false` | If true, also tags each run with 'data_interval_start' / 'data_interval_end' (ISO8601) -- the window of data this run covers. Only meaningful for a partitioned schedule; requires partition_type/partition_dimensions to be set. |
+| `skip_first_tick` | `bool` | `false` | If true, the first tick this schedule ever fires for is skipped instead of launching a run -- avoids a long/expensive run firing immediately right after a fresh deploy. Detected by querying run history for any PRIOR run… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (rejected by this schedule — declared for parity with cron_schedule). |
 
 [//]: # (FIELDS:END)

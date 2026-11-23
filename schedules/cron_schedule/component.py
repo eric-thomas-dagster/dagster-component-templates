@@ -273,6 +273,19 @@ def _parse_iso_datetime(value: str):
     return dt
 
 
+def _schedule_already_fired_before(sched_context, schedule_name: str) -> bool:
+    """skip_first_tick: has this schedule EVER requested a run before -- Dagster's own
+    'dagster/schedule_name' tag, queried via run history, not a fixed delay or a new state file.
+    Fails open (treated as "yes, it has") on any instance-query error, so an introspection
+    problem skips nothing rather than silently skipping every tick forever."""
+    try:
+        return bool(sched_context.instance.get_run_records(
+            filters=dg.RunsFilter(tags={"dagster/schedule_name": schedule_name}), limit=1,
+        ))
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def _build_once_sensor(schedule_name: str, job, default_status, tags):
     """cadence='once': a sensor with a persistent cursor flag -- fires a single
     RunRequest the first time it evaluates while RUNNING, then SkipReason forever
@@ -431,6 +444,18 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
             "explicitly in that path."
         ),
     )
+    skip_first_tick: bool = Field(
+        default=False,
+        description=(
+            "If true, the first tick this schedule ever fires for is skipped instead of launching a "
+            "run -- avoids a long/expensive run firing immediately right after a fresh deploy, for a "
+            "schedule whose cadence (e.g. weekly) means that first tick often lands soon after "
+            "activation. Detected by querying run history for any PRIOR run tagged with this "
+            "schedule's name (Dagster's own 'dagster/schedule_name' tag) -- not a fixed delay, so it "
+            "correctly skips exactly once per activation (including after a daemon restart) and never "
+            "skips again once a run has actually been requested."
+        ),
+    )
 
     partition_type: Optional[str] = Field(
         default=None,
@@ -506,6 +531,8 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError("cadence='once' has no scheduled trigger time or partition window to tag -- unset add_logical_date_tag.")
             if self.add_interval_tags:
                 raise ValueError("cadence='once' has no interval to tag -- unset add_interval_tags.")
+            if self.skip_first_tick:
+                raise ValueError("cadence='once' has only one tick, ever -- skip_first_tick would skip it entirely. Unset skip_first_tick.")
         if self.add_interval_tags and not (self.partition_type or self.partition_dimensions):
             raise ValueError("add_interval_tags requires partition_type/partition_dimensions -- the un-partitioned path has no interval, only a single trigger instant.")
         return self
@@ -562,7 +589,7 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
             return Definitions(sensors=[sensor], jobs=[job])
 
         _end_dt = _parse_iso_datetime(self.end_date) if self.end_date else None
-        _advanced = bool(_end_dt or self.add_logical_date_tag or self.add_interval_tags)
+        _advanced = bool(_end_dt or self.add_logical_date_tag or self.add_interval_tags or self.skip_first_tick)
 
         _is_partitioned = bool(self.partition_type or self.partition_dimensions)
 
@@ -624,15 +651,18 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 if not self.cron_expression:
                     raise ValueError(
                         "cron_expression is required when using end_date/"
-                        "add_logical_date_tag with a partitioned schedule -- "
-                        "the auto-inferred-cadence cron used when neither is "
-                        "set doesn't apply to this manually-built path."
+                        "add_logical_date_tag/skip_first_tick with a partitioned "
+                        "schedule -- the auto-inferred-cadence cron used when none "
+                        "of those is set doesn't apply to this manually-built path."
                     )
                 _pd, _end, _tag, _interval_tag, _tags = partitions_def, _end_dt, self.add_logical_date_tag, self.add_interval_tags, self.tags
+                _skip_first, _sched_name = self.skip_first_tick, self.schedule_name
 
-                def _execution_fn(sched_context, _pd=_pd, _end=_end, _tag=_tag, _interval_tag=_interval_tag, _tags=_tags):
+                def _execution_fn(sched_context, _pd=_pd, _end=_end, _tag=_tag, _interval_tag=_interval_tag, _tags=_tags, _skip_first=_skip_first, _sched_name=_sched_name):
                     if _end and sched_context.scheduled_execution_time >= _end:
                         return dg.SkipReason(f"past end_date {_end.isoformat()}")
+                    if _skip_first and not _schedule_already_fired_before(sched_context, _sched_name):
+                        return dg.SkipReason("skip_first_tick=true -- skipping this schedule's first-ever tick")
                     window = _pd.get_last_partition_window()
                     if window is None:
                         return dg.SkipReason("no completed partition yet")
@@ -684,10 +714,13 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
             )
             if _advanced:
                 _end, _tag, _tags = _end_dt, self.add_logical_date_tag, self.tags
+                _skip_first, _sched_name = self.skip_first_tick, self.schedule_name
 
-                def _execution_fn(sched_context, _end=_end, _tag=_tag, _tags=_tags):
+                def _execution_fn(sched_context, _end=_end, _tag=_tag, _tags=_tags, _skip_first=_skip_first, _sched_name=_sched_name):
                     if _end and sched_context.scheduled_execution_time >= _end:
                         return dg.SkipReason(f"past end_date {_end.isoformat()}")
+                    if _skip_first and not _schedule_already_fired_before(sched_context, _sched_name):
+                        return dg.SkipReason("skip_first_tick=true -- skipping this schedule's first-ever tick")
                     merged_tags = dict(_tags or {})
                     if _tag:
                         merged_tags["logical_date"] = sched_context.scheduled_execution_time.isoformat()

@@ -86,6 +86,7 @@ Same mechanism [`insights_custom_metrics_sync`](../insights_custom_metrics_sync)
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `deployment_url` | `str` | `_AUTO` | Full Dagster+ deployment URL, e.g. https://acme.dagster.cloud/prod. 'auto' derives it at run time from DAGSTER_CLOUD_DEPLOYMENT_NAME + the instance's Dagster+ organization -- resolvable for the plain resource (it sees th… _(full docs in schema.json + component README)_ |
+| `exclude_locations` | `List[str]` | — | Code location names to drop from list_locations' and list_schedules_and_sensors' results -- typically the agents' OWN code location, so a review/improvement agent never lists, and so never reviews or reacts to, itself. T… _(full docs in schema.json + component README)_ |
 | `allow` | `List[str]` | — | `f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}."` |
 | `max_result_chars` | `int` | `12000` | Upper bound on the serialized size of any tool result. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with DAGSTER_DISCOVERY_TOOLS_* env vars set from this component's own config). Any mcp_servers-aware component can then ref… _(full docs in schema.json + component README)_ |

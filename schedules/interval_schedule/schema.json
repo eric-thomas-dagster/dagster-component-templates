@@ -145,6 +145,12 @@
       "label": "Add Interval Tags",
       "description": "If true, also tags each run with 'data_interval_start' / 'data_interval_end' (ISO8601) -- the window of data this run covers. Only meaningful for a partitioned schedule; requires partition_type/partition_dimensions to be set.",
       "required": false
+    },
+    "skip_first_tick": {
+      "type": "boolean",
+      "label": "Skip First Tick",
+      "description": "If true, the first tick this schedule ever fires for is skipped instead of launching a run -- avoids a long/expensive run firing immediately right after a fresh deploy. Detected by querying run history for any PRIOR run tagged with this schedule's name (Dagster's own 'dagster/schedule_name' tag) -- not a fixed delay, so it correctly skips exactly once per activation (including after a daemon restart) and never skips again once a run has actually been requested.",
+      "required": false
     }
   },
   "tags": [

@@ -131,6 +131,55 @@ def test_list_schedules_and_sensors_filters_by_location():
     assert result["repositories"][0]["sensors"][0]["name"] == "watcher"
 
 
+# ── exclude_locations (so an agent never lists, reviews, or reacts to its own code location) ────────────────────
+
+def test_exclude_locations_drops_the_named_location_from_list_locations():
+    client = _FakeClient(call_responses={
+        "workspaceOrError": {
+            "workspaceOrError": {
+                "__typename": "Workspace",
+                "locationEntries": [
+                    {"name": "agents", "loadStatus": "LOADED", "locationOrLoadError": {"__typename": "RepositoryLocation", "dagsterLibraryVersions": [], "repositories": []}},
+                    {"name": "ingestion", "loadStatus": "LOADED", "locationOrLoadError": {"__typename": "RepositoryLocation", "dagsterLibraryVersions": [], "repositories": []}},
+                ],
+            }
+        }
+    })
+    tools = DagsterDiscoveryTools(client, allow=["list_locations"], exclude_locations=["agents"])
+    result = tools.call("list_locations")
+    assert result["count"] == 1
+    assert [l["name"] for l in result["locations"]] == ["ingestion"]
+
+
+def test_exclude_locations_drops_the_named_location_from_list_schedules_and_sensors():
+    client = _FakeClient(call_responses={
+        "workspaceOrError": {
+            "workspaceOrError": {
+                "__typename": "Workspace",
+                "locationEntries": [
+                    {"name": "agents", "locationOrLoadError": {"__typename": "RepositoryLocation", "repositories": [
+                        {"name": "r1", "schedules": [{"name": "weekly_review", "cronSchedule": "0 9 * * 1", "description": None}], "sensors": []},
+                    ]}},
+                    {"name": "ingestion", "locationOrLoadError": {"__typename": "RepositoryLocation", "repositories": [
+                        {"name": "r2", "schedules": [], "sensors": [{"name": "watcher", "description": None, "sensorType": "SENSOR"}]},
+                    ]}},
+                ],
+            }
+        }
+    })
+    tools = DagsterDiscoveryTools(client, allow=["list_schedules_and_sensors"], exclude_locations=["agents"])
+    result = tools.call("list_schedules_and_sensors")
+    assert result["count"] == 1
+    assert result["repositories"][0]["location_name"] == "ingestion"
+
+
+def test_exclude_locations_refuses_list_runs_for_the_excluded_location():
+    tools = DagsterDiscoveryTools(_FakeClient(), allow=["list_runs"], exclude_locations=["agents"])
+    result = tools.call("list_runs", {"location_name": "agents"})
+    assert "error" in result
+    assert "excluded" in result["error"]
+
+
 # ── list_runs ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_list_runs_requires_location_name():

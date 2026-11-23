@@ -34,6 +34,19 @@ def test_name_and_description_resolved_from_front_matter(mod, tmp_path):
     }
 
 
+def test_deprecated_description_logs_a_warning(mod, tmp_path, caplog):
+    local_path = _write_local_skill(
+        tmp_path, content=SAMPLE_SKILL_MD.replace(
+            "Generate a formatted PDF report from a DataFrame.",
+            "Deprecated -- carries no guidance, use the real skill instead.",
+        ),
+    )
+    component = mod.SkillResourceComponent(resource_key="pdf_skill", local_path=local_path)
+    with caplog.at_level("WARNING", logger="skill_resource"):
+        component.build_defs(None)
+    assert any("deprecated" in r.message.lower() for r in caplog.records)
+
+
 def test_explicit_name_and_description_override_front_matter(mod, tmp_path):
     local_path = _write_local_skill(tmp_path)
     component = mod.SkillResourceComponent(

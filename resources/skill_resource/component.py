@@ -593,6 +593,14 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"`description` in its front matter and none was given explicitly (source: "
                 f"{checked_path_desc})."
             )
+        if "deprecated" in resolved_description.lower():
+            import logging
+            logging.getLogger("skill_resource").warning(
+                f"SkillResourceComponent {self.resource_key!r}: {resolved_name!r}'s own "
+                f"description says it is deprecated (source: {checked_path_desc}) -- "
+                f"'{resolved_description}'. This skill will still be registered; check whether "
+                "the source it points at has moved."
+            )
 
         anthropic_skill_id = None
         if self.publish_as_custom_skill:
@@ -666,6 +674,14 @@ class SkillResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"SkillResourceComponent collection ({checked_path_desc}): skill folder "
                     f"{folder_name!r} (SKILL.md at {entry / 'SKILL.md'}) has no `description` "
                     "in its front matter."
+                )
+            if "deprecated" in resolved_description.lower():
+                import logging
+                logging.getLogger("skill_resource").warning(
+                    f"SkillResourceComponent collection ({checked_path_desc}): {resolved_name!r} "
+                    f"({folder_name!r})'s own description says it is deprecated -- "
+                    f"'{resolved_description}'. This skill will still be registered; check "
+                    "whether the source it points at has moved."
                 )
 
             member_anthropic_skill_id = None

@@ -354,6 +354,13 @@ from pathlib import Path
 defs = dg.load_from_defs_folder(project_root=Path(__file__).parent)
 ```
 
+**Deploying to an existing Dagster+ agent?** The explicit `module_name: <pkg>.definitions` +
+`definitions.py` shape above (not a location spec's own `autoload_defs_module_name`) is the one
+to use -- a Dagster+ agent on an older Dagster version (observed: 1.5.1) doesn't understand
+`autoload_defs_module_name` and fails the whole code location with "Must supply exactly one of a
+file name, a package name, or a module name" instead of loading it, while a `module_name` +
+`load_from_defs_folder()` location loads on both old and new agents.
+
 ---
 
 ## Contributing

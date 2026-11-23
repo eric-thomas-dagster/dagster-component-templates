@@ -49,6 +49,8 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', 'multi', or None for unpartitioned. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,apac'. |
 
@@ -65,7 +67,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `output_table` | `str` | — | Flat shape: destination table for the single-source shape |
-| `mode` | `str` | — | Sink mode (flat shape): 'replace' or 'create_if_not_exists' |
+| `mode` | `str` | — | Sink mode (flat shape): 'replace', 'create_if_not_exists', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field. |
 
 ### Other
 
@@ -75,7 +77,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | `source` | `Dict[str, Any]` | — | Single-source sugar: {upstream_table: 'schema.table'} or {kind: table\|sql, ...} |
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to 'source'. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: table\|ref\|sql, ...}, operations: [...]}. Required when using the multi-step form. |
-| `sinks` | `List[Dict[str, Any]]` | — | Output sinks. Each: {from: <step_id>, table: 'schema.table', mode: replace\|create_if_not_exists}. Required when using the multi-step form. Multiple sinks emit multiple CTAS statements. |
+| `sinks` | `List[Dict[str, Any]]` | — | Output sinks. Each: {from: <step_id>, table: 'schema.table', mode: replace\|create_if_not_exists\|view\|incremental\|truncate_insert\|merge}. 'incremental' needs incremental_key (+ optional incremental_merge_key for inse… _(full docs in schema.json + component README)_ |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 | `include_preview_metadata` | `bool` | `false` | — |
@@ -148,6 +150,38 @@ WITH "_step_1" AS (
     SELECT * FROM "_step_2" ORDER BY "revenue" DESC LIMIT 5
   )
 SELECT * FROM "_step_3"
+```
+
+## Sink modes beyond CTAS: `truncate_insert` and `merge`
+
+- `truncate_insert` keeps the existing table (schema, grants, indexes) and replaces its
+  rows: `TRUNCATE TABLE` (`DELETE FROM` on SQLite, which has no `TRUNCATE` statement) then
+  `INSERT`. Unlike `replace` (`CREATE OR REPLACE TABLE`, a real drop + recreate), nothing
+  about the table's definition changes.
+- `merge` is a true UPDATE-by-key upsert, not the insert-only anti-join dedup
+  `incremental`'s own `incremental_merge_key` does. Set `merge_keys: [<column>, ...]`; the
+  SQL depends on the destination dialect:
+  - `duckdb`, `snowflake`, `bigquery`, `databricks`, `redshift`, `mssql`, `oracle` — a real
+    `MERGE INTO ... USING ... ON ... WHEN MATCHED ... WHEN NOT MATCHED ...` (confirmed
+    supported per-platform, not assumed -- DuckDB added it in 1.4, Redshift in a 2024
+    update).
+  - `postgresql`, `sqlite` — `INSERT ... SELECT ... ON CONFLICT (keys) DO UPDATE SET ...`.
+  - `mysql` — `INSERT ... SELECT ... ON DUPLICATE KEY UPDATE ...`.
+
+  `ON CONFLICT`/`ON DUPLICATE KEY UPDATE` both require a `UNIQUE` index on the merge keys
+  to even parse, which a plain `CREATE TABLE ... AS SELECT` never declares -- this
+  component creates one automatically right after the table's first bootstrap, so a second
+  run's merge works without extra setup. The `MERGE INTO` dialects need no such index, and
+  there's no portable `UPDATE SET *` wildcard to fall back on (confirmed: only Databricks
+  supports it; Snowflake explicitly rejects it) -- the merge's column list comes from
+  probing the compiled `SELECT`'s real output columns before building the final SQL.
+
+```yaml
+sinks:
+  - from: s1
+    table: mart.customers
+    mode: merge
+    merge_keys: [customer_id]
 ```
 
 ## Limitations

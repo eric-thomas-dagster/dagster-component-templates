@@ -57,12 +57,14 @@
       "type": "string",
       "description": "Single-sink table name"
     },
-    "mode": {"label": "Mode", 
-      "description": "Sink mode (flat shape): 'replace' or 'create_if_not_exists'",
+    "mode": {"label": "Mode",
+      "description": "Sink mode (flat shape): 'replace', 'create_if_not_exists', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field.",
       "type": "string",
       "enum": [
         "replace",
-        "create_if_not_exists"
+        "create_if_not_exists",
+        "view",
+        "truncate_insert"
       ],
       "default": null
     },
@@ -78,7 +80,7 @@
       "items": {
         "type": "object"
       },
-      "description": "Multi-step form. Each sink: {from: <step_id>, table: 'schema.table', mode: replace|create_if_not_exists}."
+      "description": "Multi-step form. Each sink: {from: <step_id>, table: 'schema.table', mode: replace|create_if_not_exists|view|incremental|truncate_insert|merge}. 'merge' needs merge_keys: [<column>, ...] for a true UPDATE-by-key upsert."
     },
     "group_name": {"label": "Group Name", 
       "description": "Dagster asset group name.",

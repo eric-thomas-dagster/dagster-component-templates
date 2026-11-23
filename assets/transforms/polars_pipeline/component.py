@@ -59,7 +59,7 @@ from pydantic import Field
 
 _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "head", "tail", "head_per_group", "limit",
-              "unique", "join", "drop_nulls", "fill_null", "cast", "sql"}
+              "unique", "join", "union", "drop_nulls", "fill_null", "cast", "sql"}
 
 
 def _apply_partition_template(s: str, partition_key: Optional[str], partition: Optional[Dict[str, str]] = None) -> str:
@@ -278,7 +278,7 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
     """Apply one op to a polars LazyFrame; returns the updated LazyFrame.
 
     step_outputs is the map of prior-step ids → their final LazyFrame, used
-    by ops that reference other steps (join, sql).
+    by ops that reference other steps (join, union, sql).
     """
     kind = op["op"].lower()
     if kind == "filter":
@@ -399,6 +399,25 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
         if how == "cross":
             return lf.join(right_lf, how="cross")
         raise ValueError("join op: provide 'on_columns' OR 'left_on' + 'right_on'")
+    if kind == "union":
+        other = op.get("other")
+        if not isinstance(other, dict) or "ref" not in other:
+            raise ValueError("polars_pipeline union.other must be {ref: <step_id>}")
+        other_id = other["ref"]
+        if other_id not in step_outputs:
+            raise ValueError(f"union.other.ref={other_id!r} doesn't match any earlier step id")
+        other_lf = step_outputs[other_id]
+        mode = (op.get("mode") or "by_name").lower()
+        if mode not in ("by_name", "by_position"):
+            raise ValueError(f"union op: mode must be 'by_name' or 'by_position', got {mode!r}")
+        # by_name: match columns by name across inputs, filling any missing ones with
+        # null (dataframe_union's own default). by_position: take column order from the
+        # left side and stack the right side positionally, tolerating mismatched dtypes.
+        how = "diagonal_relaxed" if mode == "by_name" else "vertical_relaxed"
+        out = pl.concat([lf, other_lf], how=how)
+        if op.get("distinct", False):
+            out = out.unique(maintain_order=True)
+        return out
     if kind == "sql":
         sql = op.get("sql")
         if not sql or not isinstance(sql, str):
@@ -504,7 +523,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
 
     Supported ops: filter, with_columns, select, drop, rename, group_by,
     sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null,
-    cast, join, sql.
+    cast, join, union, sql.
 
     **Expression syntax is SQL, not Python.** Every string value under
     `filter.predicate`, `with_columns.expressions.<col>`, and `sort.by`

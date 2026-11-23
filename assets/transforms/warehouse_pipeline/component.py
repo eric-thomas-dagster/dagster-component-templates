@@ -465,8 +465,32 @@ def _sanitize_sink_asset_name(table: str) -> str:
     return s or "warehouse_output"
 
 
+_MERGE_INTO_DIALECTS = {"duckdb", "snowflake", "bigquery", "databricks", "redshift", "mssql", "oracle"}
+
+
+def _compile_select(sink: Dict[str, Any], step_refs: Dict[str, str],
+                     all_ctes: List[Tuple[str, str]], dialect: str) -> str:
+    """The compiled `SELECT` (with any CTEs) a sink's `from` step resolves to -- split out
+    from `_emit_sink_sql` so the caller can also run it as a probe query (`mode='merge'`
+    needs the SELECT's real output columns, which this pure/no-DB-access function can't
+    know on its own)."""
+    from_step = sink.get("from")
+    if not from_step:
+        raise ValueError("each sink requires a 'from' field (matching a step id)")
+    if from_step not in step_refs:
+        raise ValueError(f"sink.from={from_step!r} doesn't match any step id")
+    src_ref = step_refs[from_step]
+    if all_ctes:
+        with_clause = "WITH " + ",\n  ".join(
+            f"{_quote(name, dialect)} AS (\n    {body}\n  )" for name, body in all_ctes
+        )
+        return f"{with_clause}\nSELECT * FROM {_quote(src_ref, dialect)}"
+    return f"SELECT * FROM {_quote(src_ref, dialect)}"
+
+
 def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
-                    all_ctes: List[Tuple[str, str]], dialect: str) -> Optional[str]:
+                    all_ctes: List[Tuple[str, str]], dialect: str,
+                    columns: Optional[List[str]] = None) -> Optional[str]:
     """Emit the SQL for one sink. Returns None when the caller must issue
     a DROP + CREATE fallback (mode=replace on dialects without OR REPLACE).
 
@@ -479,12 +503,17 @@ def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
         FROM target). On first materialization when the target doesn't
         exist, falls through to a full CTAS. Requires `incremental_key`
         column in the SELECT output.
+      - `truncate_insert` — keep the existing table (schema, grants, indexes)
+        and replace its rows: TRUNCATE (DELETE on sqlite) then INSERT.
+      - `merge` — a true UPDATE-by-key upsert: INSERT...ON CONFLICT
+        (postgresql/sqlite), INSERT...ON DUPLICATE KEY UPDATE (mysql), or a
+        real MERGE INTO everywhere else (duckdb/snowflake/bigquery/databricks/
+        redshift/mssql/oracle -- confirmed per-platform, not assumed).
+        Requires `merge_keys: [<column>, ...]`, and `columns` (the caller
+        must probe the select's real output columns first -- see
+        `_compile_select`, since a portable `UPDATE SET *` wildcard doesn't
+        exist: confirmed Databricks-only, Snowflake explicitly rejects it).
     """
-    from_step = sink.get("from")
-    if not from_step:
-        raise ValueError("each sink requires a 'from' field (matching a step id)")
-    if from_step not in step_refs:
-        raise ValueError(f"sink.from={from_step!r} doesn't match any step id")
     table = sink.get("table")
     if not table:
         raise ValueError("each sink requires a 'table' field")
@@ -492,15 +521,7 @@ def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
     if mode == "overwrite":
         mode = "replace"
 
-    src_ref = step_refs[from_step]
-    if all_ctes:
-        with_clause = "WITH " + ",\n  ".join(
-            f"{_quote(name, dialect)} AS (\n    {body}\n  )" for name, body in all_ctes
-        )
-        select_sql = f"{with_clause}\nSELECT * FROM {_quote(src_ref, dialect)}"
-    else:
-        select_sql = f"SELECT * FROM {_quote(src_ref, dialect)}"
-
+    select_sql = _compile_select(sink, step_refs, all_ctes, dialect)
     out_quoted = _quote(table, dialect)
     if mode == "replace":
         if dialect in ("duckdb", "snowflake", "bigquery", "databricks"):
@@ -556,9 +577,85 @@ def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
             f"SELECT * FROM _schema WHERE 1=0"
         )
         return f"{create_sql};\n{insert_sql}"
+    if mode == "truncate_insert":
+        # Keeps the existing table (schema, grants, indexes) rather than dropping and
+        # recreating it, unlike `replace` -- a Mapping Data Flow SQL sink that truncates
+        # then inserts, not a full CTAS.
+        truncate_stmt = "DELETE FROM" if dialect == "sqlite" else f"TRUNCATE TABLE"
+        create_sql = (
+            f"CREATE TABLE IF NOT EXISTS {out_quoted} AS\n"
+            f"WITH _schema AS (\n{select_sql}\n)\n"
+            f"SELECT * FROM _schema WHERE 1=0"
+        )
+        return f"{create_sql};\n{truncate_stmt} {out_quoted};\nINSERT INTO {out_quoted}\n{select_sql}"
+    if mode == "merge":
+        merge_keys = sink.get("merge_keys")
+        if isinstance(merge_keys, str):
+            merge_keys = [merge_keys]
+        if not merge_keys:
+            raise ValueError(f"sink {table!r} mode=merge requires `merge_keys: [<column>, ...]`")
+        if not columns:
+            raise ValueError(f"sink {table!r} mode=merge needs its output columns resolved first (internal: pass columns=)")
+        non_key_cols = [c for c in columns if c not in merge_keys]
+        create_sql = (
+            f"CREATE TABLE IF NOT EXISTS {out_quoted} AS\n"
+            f"WITH _schema AS (\n{select_sql}\n)\n"
+            f"SELECT * FROM _schema WHERE 1=0"
+        )
+        statements = [create_sql]
+        insert_cols = ", ".join(_quote(c, dialect) for c in columns)
+
+        if dialect in ("postgresql", "sqlite", "mysql"):
+            # ON CONFLICT / ON DUPLICATE KEY UPDATE both require a UNIQUE index on the
+            # merge keys to even parse -- CREATE TABLE AS never declares one.
+            key_cols_sql = ", ".join(_quote(c, dialect) for c in merge_keys)
+            idx_name = _sanitize_sink_asset_name(table) + "_merge_key"
+            if dialect == "mysql":
+                # No CREATE INDEX IF NOT EXISTS in MySQL -- this only needs to run
+                # once; a real repeat run errors clearly ("duplicate key name")
+                # rather than silently doing the wrong thing.
+                statements.append(f"CREATE UNIQUE INDEX {_quote(idx_name, dialect)} ON {out_quoted} ({key_cols_sql})")
+            else:
+                statements.append(f"CREATE UNIQUE INDEX IF NOT EXISTS {_quote(idx_name, dialect)} ON {out_quoted} ({key_cols_sql})")
+
+        if dialect in ("postgresql", "sqlite"):
+            conflict_cols = ", ".join(_quote(c, dialect) for c in merge_keys)
+            if non_key_cols:
+                set_clause = ", ".join(f"{_quote(c, dialect)} = EXCLUDED.{_quote(c, dialect)}" for c in non_key_cols)
+                action = f"DO UPDATE SET {set_clause}"
+            else:
+                action = "DO NOTHING"
+            # WHERE 1=1 before ON CONFLICT is load-bearing on SQLite -- see
+            # sql_to_database_asset's build_dialect_upsert_sql, same empirically
+            # confirmed parser quirk ("near 'DO': syntax error" without it).
+            statements.append(
+                f"INSERT INTO {out_quoted} ({insert_cols})\n{select_sql} WHERE 1=1\n"
+                f"ON CONFLICT ({conflict_cols}) {action}"
+            )
+        elif dialect == "mysql":
+            if non_key_cols:
+                set_clause = ", ".join(f"{_quote(c, dialect)} = VALUES({_quote(c, dialect)})" for c in non_key_cols)
+                statements.append(f"INSERT INTO {out_quoted} ({insert_cols})\n{select_sql}\nON DUPLICATE KEY UPDATE {set_clause}")
+            else:
+                statements.append(f"INSERT IGNORE INTO {out_quoted} ({insert_cols})\n{select_sql}")
+        elif dialect in _MERGE_INTO_DIALECTS:
+            on_clause = " AND ".join(f"t.{_quote(c, dialect)} = s.{_quote(c, dialect)}" for c in merge_keys)
+            insert_vals = ", ".join(f"s.{_quote(c, dialect)}" for c in columns)
+            update_clause = ""
+            if non_key_cols:
+                set_clause = ", ".join(f"{_quote(c, dialect)} = s.{_quote(c, dialect)}" for c in non_key_cols)
+                update_clause = f"WHEN MATCHED THEN UPDATE SET {set_clause} "
+            statements.append(
+                f"MERGE INTO {out_quoted} AS t USING (\n{select_sql}\n) AS s ON {on_clause} "
+                f"{update_clause}"
+                f"WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})"
+            )
+        else:
+            raise ValueError(f"sink {table!r} mode=merge has no known syntax for dialect {dialect!r}.")
+        return ";\n".join(statements)
     raise ValueError(
         f"sink.mode must be 'replace' | 'overwrite' | 'create_if_not_exists' | "
-        f"'view' | 'incremental', got {mode!r}"
+        f"'view' | 'incremental' | 'truncate_insert' | 'merge', got {mode!r}"
     )
 
 
@@ -631,7 +728,7 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
         description="Flat shape: ordered list of ops applied to 'source'. Compiles to one anonymous step.",
     )
     output_table: Optional[str] = Field(default=None, description="Flat shape: destination table for the single-source shape")
-    mode: Optional[str] = Field(default=None, description="Sink mode (flat shape): 'replace' or 'create_if_not_exists'")
+    mode: Optional[str] = Field(default=None, description="Sink mode (flat shape): 'replace', 'create_if_not_exists', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field.")
 
     # Multi-step shape -----------------------------------------------------
     steps: Optional[List[Dict[str, Any]]] = Field(
@@ -644,7 +741,13 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
     sinks: Optional[List[Dict[str, Any]]] = Field(
         default=None,
         description=(
-            "Output sinks. Each: {from: <step_id>, table: 'schema.table', mode: replace|create_if_not_exists}. "
+            "Output sinks. Each: {from: <step_id>, table: 'schema.table', "
+            "mode: replace|create_if_not_exists|view|incremental|truncate_insert|merge}. "
+            "'incremental' needs incremental_key (+ optional incremental_merge_key for "
+            "insert-only dedup). 'truncate_insert' keeps the existing table (schema, "
+            "grants, indexes) and replaces its rows. 'merge' needs merge_keys: "
+            "[<column>, ...] -- a true UPDATE-by-key upsert (INSERT...ON CONFLICT / "
+            "ON DUPLICATE KEY UPDATE / a real MERGE INTO, chosen by dialect). "
             "Required when using the multi-step form. Multiple sinks emit multiple CTAS statements."
         ),
     )
@@ -934,7 +1037,14 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
             total_execution_seconds = 0.0
             with engine.begin() as conn:
                 for sink in local_sinks:  # type: ignore[union-attr]
-                    sql = _emit_sink_sql(sink, step_refs, all_ctes, dialect)
+                    merge_columns = None
+                    if (sink.get("mode") or "").lower() == "merge":
+                        # No portable "UPDATE SET *" wildcard exists (Databricks-only;
+                        # Snowflake explicitly rejects it) -- probe the select's real
+                        # output columns before building the MERGE/ON CONFLICT SQL.
+                        probe_select = _compile_select(sink, step_refs, all_ctes, dialect)
+                        merge_columns = list(conn.exec_driver_sql(f"SELECT * FROM (\n{probe_select}\n) AS _probe WHERE 1=0").keys())
+                    sql = _emit_sink_sql(sink, step_refs, all_ctes, dialect, columns=merge_columns)
                     if sql is None:
                         # Dialect without CREATE OR REPLACE — DROP + CREATE.
                         out_quoted = _quote(sink["table"], dialect)
@@ -1166,7 +1276,11 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
                     except Exception as _e:  # noqa: BLE001
                         context.log.warning(f"schema {_sch!r} auto-create failed: {_e}")
                 for sink in selected_sinks:
-                    sql = _emit_sink_sql(sink, step_refs, all_ctes, _dialect)
+                    merge_columns = None
+                    if (sink.get("mode") or "").lower() == "merge":
+                        probe_select = _compile_select(sink, step_refs, all_ctes, _dialect)
+                        merge_columns = list(conn.exec_driver_sql(f"SELECT * FROM (\n{probe_select}\n) AS _probe WHERE 1=0").keys())
+                    sql = _emit_sink_sql(sink, step_refs, all_ctes, _dialect, columns=merge_columns)
                     if sql is None:
                         out_quoted = _quote(sink["table"], _dialect)
                         conn.exec_driver_sql(f"DROP TABLE IF EXISTS {out_quoted}")

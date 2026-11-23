@@ -51,6 +51,13 @@ async def echo_meta(ctx: Context) -> dict:
     return {"dagster_run_id": (meta or {}).get("dagster_run_id")}
 
 
+@server.tool()
+def read_env(name: str) -> dict:
+    "Read one env var from this (sub)process's own environment."
+    import os as _os
+    return {"value": _os.environ.get(name)}
+
+
 def _bearer_app(app):
     async def wrapped(scope, receive, send):
         if scope["type"] == "http":
@@ -289,6 +296,20 @@ def test_no_run_id_means_no_meta_sent(mod, stdio_cfg, monkeypatch):
     _, out, is_error = drive(mod, stdio_cfg, "echo_meta", {}, monkeypatch, run_id=None)
     assert is_error is False
     assert '"dagster_run_id": null' in out or "null" in out
+
+
+def test_stdio_server_inherits_the_parent_process_environment(mod, stdio_cfg, monkeypatch):
+    """A real subprocess round trip, not a mock: `stdio_cfg["env"]` (_child_env()) never sets
+    DAGSTER_PLUS_FEEDBACK_TEST_VAR -- MCP's own stdio client default env is a short allowlist
+    (PATH/HOME/...), not the parent process's environment, so this var reaching the spawned
+    server's own os.environ confirms the component's StdioServerParameters merges {**os.environ,
+    **cfg['env']} rather than using cfg['env'] alone (a real production bug: a Dagster+
+    deployment's own env vars -- tokens, ENG_*/DAGSTER_PLUS_* settings -- otherwise never reach
+    the tool server, and every tool call fails as if the vars were never set)."""
+    monkeypatch.setenv("DAGSTER_PLUS_FEEDBACK_TEST_VAR", "reached-the-child")
+    _, out, is_error = drive(mod, stdio_cfg, "read_env", {"name": "DAGSTER_PLUS_FEEDBACK_TEST_VAR"}, monkeypatch)
+    assert is_error is False
+    assert "reached-the-child" in out
 
 
 def test_allowed_tools_filters_connected_tools(mod, stdio_cfg, monkeypatch):

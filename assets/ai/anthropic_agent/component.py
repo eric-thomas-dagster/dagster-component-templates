@@ -509,6 +509,17 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         return ComponentFormConfig(label='Anthropic Agent', editable=True)
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        try:
+            import anthropic  # noqa: F401
+        except ImportError:
+            import warnings
+            warnings.warn(
+                f"anthropic_agent '{self.asset_name}': the anthropic SDK is not installed (pip "
+                "install 'anthropic>=0.40.0') -- dg check/defs-load succeeds, but every "
+                "materialization will fail at run time with this exact error. Install it now "
+                "instead of waiting for the first real run to find out.",
+                stacklevel=2,
+            )
         asset_name = self.asset_name
         prompt = self.prompt
         system_prompt = self.system_prompt
@@ -926,13 +937,18 @@ async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
         transport = cfg.get("type", "stdio")
         name = cfg["name"]
         if transport == "stdio":
+            import os
             from mcp import ClientSession, StdioServerParameters
             from mcp.client.stdio import stdio_client
 
             cmd = cfg.get("command") or []
             if not cmd:
                 raise ValueError(f"MCP server '{name}' is stdio but command is empty.")
-            params = StdioServerParameters(command=cmd[0], args=list(cmd[1:]), env=cfg.get("env"))
+            # Inherit the deployment's own environment (tokens, DAGSTER_* / ENG_* settings) -- the
+            # stdio client's own default env is a short allowlist (PATH/HOME/...), not the parent
+            # process's environment, so a config-only `env:` would otherwise silently start every
+            # tool server with none of the deployment's real variables set.
+            params = StdioServerParameters(command=cmd[0], args=list(cmd[1:]), env={**os.environ, **(cfg.get("env") or {})})
             log.info(f"[mcp:{name}] starting stdio server: {' '.join(cmd)}")
             read, write = await stack.enter_async_context(stdio_client(params))
             session = await stack.enter_async_context(ClientSession(read, write))

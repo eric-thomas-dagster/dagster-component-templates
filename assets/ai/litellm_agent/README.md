@@ -76,6 +76,15 @@ Each entry in `mcp_servers` is one server connection:
     DEBUG: "1"
 ```
 
+A stdio server's subprocess inherits this process's own environment (tokens, `DAGSTER_*`/`ENG_*`
+settings, everything) -- `env:` only ADDS or overrides on top of that, it never replaces it. This
+matters in production: without it, none of a Dagster+ deployment's own env vars would reach the
+spawned tool server, and every tool call would fail as if those vars were never set. Don't rely
+on `env:` to carry a secret, though -- a literal value there is templated into component config,
+which is visible wherever that config is visible (the Dagster UI, `dg` output). A secret should
+already be a real env var on the deployment (it's inherited automatically) or passed via
+`headers_env` for an http/sse server.
+
 **http** — streamable-HTTP, the modern MCP transport (what `claude mcp add --transport http` uses):
 
 ```yaml

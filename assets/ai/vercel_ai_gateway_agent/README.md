@@ -34,6 +34,12 @@ attributes:
         Authorization: DAGSTER_PLUS_BEARER
 ```
 
+`mcp_servers` also accepts `type: stdio` (a subprocess, `command: [...]` + optional `env:`) --
+the subprocess inherits this process's own environment (tokens, `DAGSTER_*`/`ENG_*` settings),
+`env:` only adds/overrides on top of that, it never replaces it; see
+[`litellm_agent`'s README](../litellm_agent#mcp-server-config) for the full stdio/http/sse
+reference, which is identical across every `*_agent` component in this repo.
+
 ## Skills (`skill_keys`)
 
 `skill_keys` is a separate, parallel mechanism to `mcp_servers` for the same progressive-disclosure

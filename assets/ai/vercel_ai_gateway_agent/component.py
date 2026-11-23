@@ -252,6 +252,18 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
         return ComponentFormConfig(label='Vercel AI Gateway Agent', editable=True)
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        try:
+            import openai  # noqa: F401
+        except ImportError:
+            import warnings
+            warnings.warn(
+                f"vercel_ai_gateway_agent '{self.asset_name}': the openai SDK is not installed "
+                "(pip install 'openai>=1.0.0' -- the Vercel AI Gateway is OpenAI-compatible) -- "
+                "dg check/defs-load succeeds, but every materialization will fail at run time "
+                "with this exact error. Install it now instead of waiting for the first real run "
+                "to find out.",
+                stacklevel=2,
+            )
         _self = self
         _kinds = list(self.kinds or ["llm", "agent", "vercel", "ai-gateway"])
         _all_tags = dict(self.asset_tags or {})
@@ -473,12 +485,17 @@ async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
             headers[header_name] = val
 
         if transport == "stdio":
+            import os
             from mcp import ClientSession, StdioServerParameters
             from mcp.client.stdio import stdio_client
             cmd = cfg.get("command") or []
             if not cmd:
                 raise ValueError(f"MCP server '{name}' is stdio but command is empty.")
-            params = StdioServerParameters(command=cmd[0], args=list(cmd[1:]), env=cfg.get("env"))
+            # Inherit the deployment's own environment (tokens, DAGSTER_* / ENG_* settings) -- the
+            # stdio client's own default env is a short allowlist (PATH/HOME/...), not the parent
+            # process's environment, so a config-only `env:` would otherwise silently start every
+            # tool server with none of the deployment's real variables set.
+            params = StdioServerParameters(command=cmd[0], args=list(cmd[1:]), env={**os.environ, **(cfg.get("env") or {})})
             log.info(f"[mcp:{name}] starting stdio server: {' '.join(cmd)}")
             read, write = await stack.enter_async_context(stdio_client(params))
             session = await stack.enter_async_context(ClientSession(read, write))

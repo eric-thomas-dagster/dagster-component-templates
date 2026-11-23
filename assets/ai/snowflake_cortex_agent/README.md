@@ -162,6 +162,12 @@ attributes:
   group_name: ai
 ```
 
+`mcp_servers` also accepts `type: stdio` (a subprocess, `command: [...]` + optional `env:`) --
+the subprocess inherits this process's own environment (tokens, `DAGSTER_*`/`ENG_*` settings),
+`env:` only adds/overrides on top of that, it never replaces it; see
+[`litellm_agent`'s README](../litellm_agent#mcp-server-config) for the full stdio/http/sse
+reference, which is identical across every `*_agent` component in this repo.
+
 ## Validation
 
 Currently **code-validated** (loads cleanly + `dg check defs` passes) — full live validation needs a Snowflake account with Cortex enabled. The HTTP+JSON request/response shape follows Snowflake's public Cortex Inference API docs and mirrors the working live-validated OpenAI / Anthropic / Gemini agents.

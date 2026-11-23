@@ -78,7 +78,10 @@ text per run is both returned (`combined_server_instructions`) and surfaced in r
 
 ## MCP transports
 
-Identical config to `openai_agent`:
+Identical config to `openai_agent`. A stdio server's subprocess inherits this process's own
+environment (tokens, `DAGSTER_*`/`ENG_*` settings) -- `env:` only adds/overrides on top of that,
+it never replaces it; see [`litellm_agent`'s README](../litellm_agent#mcp-server-config) for why
+that matters in production.
 
 ```yaml
 mcp_servers:

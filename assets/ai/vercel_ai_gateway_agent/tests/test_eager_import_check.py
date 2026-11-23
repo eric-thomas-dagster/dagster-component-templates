@@ -22,6 +22,7 @@ def test_warns_when_openai_is_not_installed(mod, monkeypatch):
 
 
 def test_no_warning_when_openai_is_installed(mod, recwarn):
+    pytest.importorskip("openai")
     component = mod.VercelAIGatewayAgentComponent(asset_name="agent_out", prompt="hi")
     component.build_defs(None)
     assert not any("openai SDK is not installed" in str(w.message) for w in recwarn.list)

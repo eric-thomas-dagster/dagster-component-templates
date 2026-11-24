@@ -1,0 +1,80 @@
+{
+  "component_type": "dagster_community_components.DocumentIntelligenceToolsComponent",
+  "description": "Document-intelligence tools for an agent: extract named fields from ONE document, or suggest a field schema from ONE sample document. Registers a resource and ships a stdio MCP server.",
+  "category": "ai",
+  "icon": "FileSearch",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key the toolset is registered under.",
+      "required": false,
+      "default": "document_intelligence_tools"
+    },
+    "default_model": {
+      "type": "string",
+      "label": "Default Model",
+      "description": "Fallback LLM model (litellm format) used when a tool call doesn't specify its own `model`.",
+      "required": false,
+      "default": "gpt-4o"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Environment variable name holding the API key.",
+      "required": false,
+      "default": "OPENAI_API_KEY"
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "label": "Api Base Env Var",
+      "description": "Optional environment variable holding an API base URL, for a self-hosted or local OpenAI-compatible model (Ollama, LM Studio, vLLM...), e.g. OLLAMA_API_BASE=http://localhost:11434 with model 'ollama/llava'. Unset = the provider's default endpoint.",
+      "required": false
+    },
+    "llm_max_retries": {
+      "type": "integer",
+      "label": "Llm Max Retries",
+      "description": "Retry a tool call's LLM call up to this many times on transient errors (rate limits, timeouts) -- forwarded to litellm's own num_retries.",
+      "required": false,
+      "default": 2
+    },
+    "max_content_chars": {
+      "type": "integer",
+      "label": "Max Content Chars",
+      "description": "Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input documents. Doesn't apply to image documents (sent as a vision content block, not text). Set to null to disable.",
+      "required": false,
+      "default": 20000
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "Hard allow-list of tools (default: all). Valid: extract, suggest_schema.",
+      "required": false
+    },
+    "max_result_chars": {
+      "type": "integer",
+      "label": "Max Result Chars",
+      "description": "Upper bound on the serialized size of any tool result.",
+      "required": false,
+      "default": 12000
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with DOCUMENT_INTELLIGENCE_TOOLS_* env vars set from this component's own config). Any mcp_servers-aware component can then reference it via server_resource_key.",
+      "required": false
+    },
+    "mcp_extra_env_vars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Mcp Extra Env Vars",
+      "description": "mcp_server_resource_key only. Extra env var NAMES to copy into the spawned MCP server's env.",
+      "required": false
+    }
+  }
+}

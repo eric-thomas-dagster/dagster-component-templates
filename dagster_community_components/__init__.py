@@ -438,6 +438,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DocumentChunkerComponent": "assets/ai/document_chunker/component.py",
     "DocumentCorpusComponent": "assets/ai/document_corpus/component.py",
     "DocumentIngestionComponent": "assets/ingestion/document_ingestion/component.py",
+    "DocumentIntelligenceToolsComponent": "assets/ai/document_intelligence_tools/component.py",
     "DocumentLayoutAnalyzerComponent": "assets/ai/document_layout_analyzer/component.py",
     "DocumentMergerComponent": "assets/transforms/document_merger/component.py",
     "DocumentSummarizerComponent": "assets/ai/document_summarizer/component.py",

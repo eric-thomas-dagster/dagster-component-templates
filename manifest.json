@@ -21927,6 +21927,66 @@
       "vertical": "productivity"
     },
     {
+      "id": "document_intelligence_tools",
+      "name": "document_intelligence_tools",
+      "category": "ai",
+      "description": "Document-intelligence tools for an agent: extract named fields from ONE document, or suggest a field schema from ONE sample document. Registers a resource and ships a stdio MCP server.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/document_intelligence_tools",
+      "tags": [
+        "ai",
+        "mcp",
+        "document",
+        "extraction",
+        "schema",
+        "llm"
+      ],
+      "dependencies": {
+        "pip": [
+          "litellm>=1.30.0",
+          "pdfplumber>=0.7.0",
+          "mcp>=1.30,<3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intelligence_tools/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intelligence_tools/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intelligence_tools/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intelligence_tools/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intelligence_tools/requirements.txt",
+      "component_type": "dagster_community_components.DocumentIntelligenceToolsComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-23",
+        "evidence": "tests/ in the component dir: extract's happy path, non-JSON-reply failure, suggest_schema's happy path/max_fields cap/invalid-JSON failure, the allow-list/size-cap dispatcher, Dagster resource build_defs wiring (default + custom resource_key + mcp_server_resource_key), and the MCP server's exact tool registration all run for real against a fake litellm.completion -- the extract tool's own extraction core (build_extraction_messages/parse_extraction_response/extract_one) is the same code structured_document_extractor's own extract_one already runs in production, copied per this repo's self-contained-component convention, not reimplemented."
+      },
+      "agent_hints": {
+        "inputs": "extract: file_ref (path to one document) + output_fields (required), doc_label/model (optional). suggest_schema: sample_file_ref (required), doc_label/model/max_fields (optional).",
+        "outputs": "JSON dicts per tool; errors returned as {error: ...}.",
+        "side_effects": "Read-only: reads one local/fsspec file per call and makes one LLM call via litellm. No writes, no code execution.",
+        "anti_uses": "Does not split documents into pages/sections (see the Annual Report Split->Schema recipe), does not extract real financial-table structure, and does not return citations or word-level coordinates (blocked on unbuilt infrastructure, not faked here).",
+        "requires_resources": [],
+        "output_type": "none",
+        "requires_pip": [
+          "litellm",
+          "pdfplumber",
+          "mcp"
+        ]
+      },
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "document intelligence",
+        "agent diligence review",
+        "extraction",
+        "schema suggestion",
+        "mcp",
+        "pulse recipes"
+      ],
+      "icon": "FileSearch"
+    },
+    {
       "id": "document_layout_analyzer",
       "name": "Document Layout Analyzer",
       "category": "ai",

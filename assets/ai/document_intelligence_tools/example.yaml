@@ -1,0 +1,10 @@
+type: dagster_community_components.DocumentIntelligenceToolsComponent
+attributes:
+  default_model: gpt-4o
+  api_key_env_var: OPENAI_API_KEY
+  # api_base_env_var: OLLAMA_API_BASE       # for a self-hosted/local OpenAI-compatible model
+  llm_max_retries: 2
+  max_content_chars: 20000
+  # allow: [extract, suggest_schema]        # default: both
+  max_result_chars: 12000
+  # mcp_server_resource_key: document_intelligence_tools_mcp   # share this toolset via server_resource_key

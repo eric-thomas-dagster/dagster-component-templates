@@ -68677,7 +68677,7 @@
       "name": "Text Chunker",
       "category": "ai",
       "description": "Component for chunking text into smaller pieces.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/text_chunker",
       "tags": [

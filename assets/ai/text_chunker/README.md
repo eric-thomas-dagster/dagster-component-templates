@@ -131,6 +131,8 @@ That's it! The IO manager automatically passes the text.
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -151,6 +153,7 @@ That's it! The IO manager automatically passes the text.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `source_column` | `Union[str, int]` | `"text"` | Column name containing text to chunk |
+| `source_uri_column` | `Union[str, int]` | — | Column holding each document's source URI (e.g. 's3://bucket/key', 'https://...', 'file:///path'), stamped as source_uri on every chunk. Null when unset or the column is missing -- never fabricated from the asset key (a… _(full docs in schema.json + component README)_ |
 | `output_format` | `str` | `"list"` | Output format: 'list' (list of strings), 'dataframe', 'json' |
 | `output_path` | `str` | — | Path to save chunks |
 
@@ -163,6 +166,10 @@ That's it! The IO manager automatically passes the text.
 | `separator` | `str` | — | Custom separator for splitting (for recursive strategy) |
 | `preserve_sentences` | `bool` | `true` | Try to avoid breaking sentences in the middle |
 | `add_metadata` | `bool` | `true` | Add metadata to each chunk (index, character positions) |
+| `stamp_chunk_contract` | `bool` | `true` | Stamp the shared vector-metadata contract onto every chunk: document_id, source_uri, page_start/page_end, section, chunk_index, chunk_id, content_hash and extractor_version. Same contract and field names as context_engin… _(full docs in schema.json + component README)_ |
+| `document_id_column` | `Union[str, int]` | — | Column holding a stable per-document identifier, stamped as document_id on every chunk from that row (e.g. doc_id, url, file path). Falls back to the input DataFrame's row index (as a string) when unset or the column is… _(full docs in schema.json + component README)_ |
+| `page_column` | `Union[str, int]` | — | Column already holding a page number for each row (e.g. carried forward from an upstream PDF extractor that preserved page boundaries), stamped as page_start AND page_end on every chunk from that row. This component spli… _(full docs in schema.json + component README)_ |
+| `extractor_version` | `str` | — | Version string stamped as extractor_version on every chunk (e.g. a git SHA or a build tag), so a vector store can tell which version of this chunking configuration produced a given chunk -- the same role context_engineer… _(full docs in schema.json + component README)_ |
 | `save_to_file` | `bool` | `false` | Save chunks to a file |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |
@@ -234,6 +241,40 @@ attributes:
 | `paragraph` | Document structure | Paragraph boundaries |
 | `recursive` | Hierarchical | Multiple separators |
 | `semantic` | Context preservation | Structure-aware |
+
+## Vector-Metadata Contract
+
+`stamp_chunk_contract` (default on) stamps a fixed set of fields onto every chunk -- `document_id`,
+`source_uri`, `page_start`/`page_end`, `section`, `chunk_index`, `chunk_id`, `content_hash` and
+`extractor_version` -- so this chunker and a vector store agree on the shape of a chunk's metadata
+without either side guessing column names. Same field names and `content_hash` (sha256) approach as
+[`context_engineering_pipeline`'s `stamp_provenance`](../context_engineering_pipeline#receipt-ready-context)
+-- see that component's README for the full rationale -- adapted here for a plain chunker that has
+no pipeline-step/recipe concept of its own:
+
+- `document_id` / `source_uri` / `page_start` / `page_end` come from `document_id_column` /
+  `source_uri_column` / `page_column` when set, and from the input row's own index / `null`
+  otherwise -- never fabricated. This component splits plain text with no inherent page concept, so
+  `page_start`/`page_end` stay `null` unless an upstream extractor already attached page numbers to
+  the input.
+- `section` is the last markdown-style header (`#` .. `######`) found in or before each chunk,
+  carried forward until the next header -- derived from whatever real structure the source text
+  happens to have, for every `chunking_strategy` (not only a dedicated "markdown" one, which this
+  component doesn't have), and left `null` for documents with no headers rather than fabricated.
+- `chunk_id`/`content_hash` are idempotent: re-running on unchanged content reproduces the same
+  values, and editing one document's text only changes that document's own chunks' hashes.
+- `extractor_version` defaults to a fingerprint of this component's own chunking configuration
+  (`chunking_strategy`/`chunk_size`/`chunk_overlap`/etc) -- set it explicitly (e.g. a git SHA) to
+  use something else instead.
+- `embedding_model` is deliberately **not** stamped here -- this component runs before embedding, so
+  there's no model name yet. See
+  [`vector_store_writer`'s own `embedding_model` field](../vector_store_writer#vector-metadata-contract-embedding_model--embedding_model_column),
+  which stamps it once embeddings exist and completes the contract end-to-end.
+
+Set `stamp_chunk_contract: false` to turn all of this off and keep exactly the columns this
+component produced before. Present whether or not `add_metadata` is set -- that field only
+controls this component's own, unrelated preexisting metadata (`char_start`/`char_end`/
+`word_count`/`total_chunks`).
 
 ## Requirements
 - pandas >= 2.0.0

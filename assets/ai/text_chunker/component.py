@@ -4,6 +4,8 @@ Split text into chunks for embedding generation, LLM processing, or other downst
 Supports multiple chunking strategies including character-based, token-based, and semantic chunking.
 """
 
+import hashlib
+import json
 import re
 from typing import Any, Dict, List, Optional, Union
 import pandas as pd
@@ -21,6 +23,37 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+# BEGIN vector-metadata contract (inlined per component; keep copies identical across
+# document_chunker/text_chunker -- see tests/test_chunk_contract.py in each). Same field names and
+# content_hash approach as context_engineering_pipeline's stamp_provenance (see that component's
+# README, "Receipt-ready context"), adapted here for a plain chunker with no pipeline-step/recipe
+# concept of its own.
+def _sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+_SECTION_HEADER_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+
+
+def _last_markdown_header(text: str) -> Optional[str]:
+    """The text of the last markdown-style header line (``# Heading`` .. ``###### Heading``) found
+    anywhere in ``text``, or None when it contains none. Derives `section` for every chunking
+    strategy (not just a dedicated 'markdown' one, which this component doesn't have) from whatever
+    real structure the source text happens to carry -- never a fabricated section label."""
+    matches = _SECTION_HEADER_RE.findall(text)
+    return matches[-1][1] if matches else None
+
+
+def _extractor_version_fingerprint(cfg: Dict[str, Any]) -> str:
+    """Deterministic short hash of the chunking configuration that actually affects chunk
+    boundaries/content -- the same idea as context_engineering_pipeline's own code_version default
+    (a fingerprint of 'the recipe'), scoped to this component's own knobs. Two differently
+    configured builds get different values with nothing to set by hand."""
+    blob = json.dumps(cfg, sort_keys=True, default=str)
+    return f"cfg-{_sha256(blob)[:12]}"
+# END vector-metadata contract
 
 
 def _build_partitions_def(
@@ -289,6 +322,59 @@ class TextChunkerComponent(Component, Model, Resolvable):
         description="Add metadata to each chunk (index, character positions)"
     )
 
+    stamp_chunk_contract: bool = Field(
+        default=True,
+        description=(
+            "Stamp the shared vector-metadata contract onto every chunk: document_id, source_uri, "
+            "page_start/page_end, section, chunk_index, chunk_id, content_hash and extractor_version. "
+            "Same contract and field names as context_engineering_pipeline's stamp_provenance (see "
+            "that component's README) -- adapted here for a plain chunker with no pipeline-step/"
+            "recipe concept of its own. embedding_model is deliberately NOT stamped here: this "
+            "component runs before embedding, so nothing downstream of it knows a model name yet -- "
+            "see vector_store_writer's own embedding_model field, which stamps it once embeddings "
+            "exist."
+        ),
+    )
+    document_id_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description=(
+            "Column holding a stable per-document identifier, stamped as document_id on every chunk "
+            "from that row (e.g. doc_id, url, file path). Falls back to the input DataFrame's row "
+            "index (as a string) when unset or the column is missing -- stable only within a single "
+            "run, not across runs whose row order changes."
+        ),
+    )
+    source_uri_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description=(
+            "Column holding each document's source URI (e.g. 's3://bucket/key', 'https://...', "
+            "'file:///path'), stamped as source_uri on every chunk. Null when unset or the column is "
+            "missing -- never fabricated from the asset key (a Dagster asset key names the pipeline "
+            "step, not where the document actually lives)."
+        ),
+    )
+    page_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description=(
+            "Column already holding a page number for each row (e.g. carried forward from an "
+            "upstream PDF extractor that preserved page boundaries), stamped as page_start AND "
+            "page_end on every chunk from that row. This component splits plain text with no "
+            "inherent sub-page concept of its own, so both are null when unset or the column is "
+            "missing, rather than a fabricated number."
+        ),
+    )
+    extractor_version: Optional[str] = Field(
+        default=None,
+        description=(
+            "Version string stamped as extractor_version on every chunk (e.g. a git SHA or a build "
+            "tag), so a vector store can tell which version of this chunking configuration produced "
+            "a given chunk -- the same role context_engineering_pipeline's source_code_version plays "
+            "for its own stamped chunks. Defaults to a fingerprint of this component's own chunking "
+            "config (chunking_strategy/chunk_size/chunk_overlap/etc) when unset, so two "
+            "differently-configured builds naturally get different values without setting anything."
+        ),
+    )
+
     output_format: str = Field(
         default="list",
         description="Output format: 'list' (list of strings), 'dataframe', 'json'"
@@ -475,6 +561,14 @@ class TextChunkerComponent(Component, Model, Resolvable):
         separator = self.separator
         preserve_sentences = self.preserve_sentences
         add_metadata = self.add_metadata
+        stamp_chunk_contract = self.stamp_chunk_contract
+        document_id_column = self.document_id_column
+        source_uri_column = self.source_uri_column
+        page_column = self.page_column
+        extractor_version = self.extractor_version or _extractor_version_fingerprint({
+            "chunking_strategy": chunking_strategy, "chunk_size": chunk_size, "chunk_overlap": chunk_overlap,
+            "separator": separator, "preserve_sentences": preserve_sentences,
+        })
         output_format = self.output_format
         save_to_file = self.save_to_file
         output_path = self.output_path
@@ -575,7 +669,14 @@ group_name=group_name,
 
             # Filter to current partition if partitioned
             if hasattr(upstream, "columns") and (context.has_partition_key or context.has_partition_key_range):
-                import pandas as pd
+                # `pandas as pd` is already imported at module scope -- a second, nested `import
+                # pandas as pd` used to live here. Harmless-looking, but Python's scoping rules
+                # make ANY name assigned/imported anywhere in a function local to that whole
+                # function, so it silently shadowed the module-level `pd` for every call of this
+                # asset, not just partitioned ones. That made `pd.DataFrame(all_chunk_records)`
+                # below raise UnboundLocalError on every UNPARTITIONED run (the nested import's
+                # own if-branch never executes then, so the name is never actually bound) --
+                # confirmed live; this asset crashed on 100% of its own unpartitioned usages.
                 # One filter pass per partition key: a normal tick gives exactly one,
                 # a single_run backfill gives the whole range. Rows are selected by
                 # position so keys that match overlapping rows never duplicate them.
@@ -644,6 +745,31 @@ group_name=group_name,
 
                 total_chunks += len(chunks)
 
+                if stamp_chunk_contract:
+                    _doc_id = str(row[document_id_column]) if document_id_column and document_id_column in input_df.columns else str(doc_idx)
+                    _source_uri = (
+                        str(row[source_uri_column])
+                        if source_uri_column and source_uri_column in input_df.columns and pd.notna(row[source_uri_column])
+                        else None
+                    )
+                    _page_val = row[page_column] if page_column and page_column in input_df.columns else None
+                    if _page_val is not None and (isinstance(_page_val, float) and pd.isna(_page_val)):
+                        _page_val = None
+                    _running_section = None
+
+                def _stamp_contract(record: dict, i: int, chunk: str) -> None:
+                    nonlocal _running_section
+                    _running_section = _last_markdown_header(chunk) or _running_section
+                    record['document_id'] = _doc_id
+                    record['source_uri'] = _source_uri
+                    record['page_start'] = _page_val
+                    record['page_end'] = _page_val
+                    record['section'] = _running_section
+                    record['chunk_index'] = i
+                    record['content_hash'] = _sha256(chunk)
+                    record['chunk_id'] = f"{_doc_id}_{i}"
+                    record['extractor_version'] = extractor_version
+
                 # Build chunk records
                 if add_metadata:
                     current_pos = 0
@@ -661,14 +787,19 @@ group_name=group_name,
                             "word_count": len(chunk.split()),
                         }
                         current_pos = start_pos
+                        if stamp_chunk_contract:
+                            _stamp_contract(record, i, chunk)
                         all_chunk_records.append(record)
                 else:
                     for i, chunk in enumerate(chunks):
-                        all_chunk_records.append({
+                        record = {
                             "source_row_index": doc_idx,
                             "chunk_index": i,
                             "text": chunk,
-                        })
+                        }
+                        if stamp_chunk_contract:
+                            _stamp_contract(record, i, chunk)
+                        all_chunk_records.append(record)
 
             result_df = pd.DataFrame(all_chunk_records)
 
@@ -692,6 +823,8 @@ group_name=group_name,
             _metadata = {
                 "dagster/row_count": MetadataValue.int(len(result_df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "stamp_chunk_contract": MetadataValue.bool(stamp_chunk_contract),
+                "extractor_version": MetadataValue.text(extractor_version),
             }
             # Add column lineage if defined
             if column_lineage:

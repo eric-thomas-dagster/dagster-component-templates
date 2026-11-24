@@ -1552,6 +1552,7 @@ _CLASS_PATHS: dict[str, str] = {
     "WeaviateResourceComponent": "resources/weaviate_resource/component.py",
     "WebexIngestionComponent": "assets/ingestion/webex_ingestion/component.py",
     "WebflowIngestionComponent": "assets/ingestion/webflow_ingestion/component.py",
+    "WebhookInboxSensorComponent": "sensors/webhook_inbox_sensor/component.py",
     "WebhookLineageExportJobComponent": "jobs/webhook_lineage_export_job/component.py",
     "WeightedAverageComponent": "assets/transforms/weighted_average/component.py",
     "WindowCalculationComponent": "transforms/window_calculation/component.py",

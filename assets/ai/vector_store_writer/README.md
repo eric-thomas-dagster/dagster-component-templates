@@ -14,6 +14,30 @@ Native vector storage in S3 (GA since December 2025) -- no separate vector datab
 
 `demo_mode` (default `true`) is specific to this provider -- it writes to a local JSON file instead of a real AWS account, so you can build and test a pipeline before paying for anything. Point [`VectorStoreQueryComponent`](../vector_store_query)'s `connection_string` at the same path (and set its `demo_mode: true` too) to query what this component wrote in demo mode. Set `demo_mode: false` for a real bucket.
 
+### Bucket/index creation is idempotent
+
+The `create_vector_bucket`/`create_index` calls are safe to re-run: AWS's `ConflictException` (bucket or index name already exists -- whether created by hand or by an earlier run) is caught and treated as success, never surfaced as a run failure.
+
+### Bringing your own bucket and index (`manage_bucket_and_index: false`)
+
+By default this component needs `s3vectors:CreateVectorBucket`/`CreateIndex` permission in addition to the write/read permissions below. If your IAM policy doesn't grant those -- for example a least-privilege policy scoped to just:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["s3vectors:PutVectors", "s3vectors:QueryVectors", "s3vectors:GetVectors", "s3vectors:ListVectors"],
+  "Resource": "arn:aws:s3vectors:<region>:<account-id>:bucket/<vector_bucket_name>/index/<collection_name>"
+}
+```
+
+set `manage_bucket_and_index: false`, and create the bucket and index yourself (console, CLI, or IaC) before the first run. With this set, the component skips both create calls entirely and writes straight to the existing bucket/index.
+
+### Filterable metadata's 2 KB limit (`nonfilterable_metadata_keys`)
+
+S3 Vectors caps **filterable** metadata at 2 KB per vector (40 KB total per vector across filterable + non-filterable) -- a write with a filterable value over that limit is rejected outright. Chunk text commonly exceeds 2 KB, so by default (`nonfilterable_metadata_keys` left unset) this component declares `text_column` non-filterable when it creates the index, which lifts it to the 40 KB total cap instead. A non-filterable key is still returned with every query result -- it just can't be used in a query's metadata filter.
+
+This is permanent: AWS's `CreateIndex` does not allow changing an index's non-filterable keys after creation, so this field only has an effect the first time an index is created (and has no effect at all when `manage_bucket_and_index: false`, since no `CreateIndex` call happens). Set `nonfilterable_metadata_keys: []` to keep `text_column` filterable instead (only safe if your chunks are reliably short), or list your own keys (max 10, AWS's own limit).
+
 ## Shared connections (`chroma_resource_key` / `qdrant_resource_key`)
 
 For `provider: chromadb` or `provider: qdrant`, you can point this writer at a shared connection instead of repeating `connection_string`/`api_key` here: set `chroma_resource_key` (or `qdrant_resource_key`) to the `resource_key` of a registered [`ChromaResourceComponent`](../../../resources/chroma_resource) (or [`QdrantResourceComponent`](../../../resources/qdrant_resource)), and that resource's own client is used instead of building a fresh one. This is precedence, not an exclusivity rule -- set the resource key and it wins; leave it unset and `connection_string`/`api_key` keep working exactly as before. Ignored for every other provider.
@@ -177,6 +201,8 @@ Returns a dictionary with status information:
 | `vector_bucket_name` | `str` | — | S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider. |
 | `aws_region` | `str` | — | AWS region for the s3vectors client. Required when provider='s3vectors'. Ignored by every other provider. |
 | `demo_mode` | `bool` | `true` | Only affects provider='s3vectors' -- writes to a local JSON-file-backed fake instead of a real AWS account (no effect on chromadb/pinecone/qdrant/faiss, which have no demo concept and always hit the real/local service th… _(full docs in schema.json + component README)_ |
+| `manage_bucket_and_index` | `bool` | `true` | Only affects provider='s3vectors'. When true (default), creates the vector bucket and index on first write if they don't already exist -- idempotently, so a conflict from a bucket/index that already exists (created by ha… _(full docs in schema.json + component README)_ |
+| `nonfilterable_metadata_keys` | `List[str]` | — | Only affects provider='s3vectors', and only takes effect the first time an index is created (manage_bucket_and_index=true) -- AWS's CreateIndex does not allow changing an index's non-filterable metadata keys afterward. F… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 
@@ -254,6 +280,8 @@ attributes:
   vector_bucket_name: my-vector-bucket
   aws_region: us-east-2
   demo_mode: true  # local JSON file -- set false for a real bucket
+  # manage_bucket_and_index: false  # bring your own bucket/index + least-privilege IAM
+  # nonfilterable_metadata_keys: []  # keep text_column filterable (default excludes it)
 ```
 
 ### With Custom Metadata Columns

@@ -379,6 +379,22 @@ class _DemoS3VectorsClient:
         self._save(data)
 
 
+def _create_s3vectors_resource_if_missing(create_fn, **kwargs) -> None:
+    """Calls an S3 Vectors create_vector_bucket/create_index method, treating a
+    ConflictException ('already exists') as success rather than an error -- AWS
+    raises it on either call when the bucket/index was created by hand or by an
+    earlier run of this component (confirmed against botocore's own
+    `s3vectors.Client.exceptions.ConflictException` reference). Checking the
+    exception's class name rather than `client.exceptions.ConflictException`
+    keeps this working against the local `_DemoS3VectorsClient` fake too, which
+    has no `.exceptions` attribute (and never raises in the first place)."""
+    try:
+        create_fn(**kwargs)
+    except Exception as e:
+        if type(e).__name__ != "ConflictException":
+            raise
+
+
 class VectorStoreWriterComponent(Component, Model, Resolvable):
     """Component for writing embeddings to vector stores.
 
@@ -592,6 +608,32 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             "a real S3 Vectors bucket."
         ),
     )
+    manage_bucket_and_index: bool = Field(
+        default=True,
+        description=(
+            "Only affects provider='s3vectors'. When true (default), creates the vector bucket "
+            "and index on first write if they don't already exist -- idempotently, so a conflict "
+            "from a bucket/index that already exists (created by hand, or by an earlier run) is "
+            "treated as success rather than an error. Set false to skip both create calls "
+            "entirely and write straight to a bucket and index you created yourself -- the only "
+            "way to use a least-privilege IAM policy that grants just "
+            "s3vectors:PutVectors/QueryVectors/GetVectors/ListVectors on an existing bucket, with "
+            "no CreateVectorBucket/CreateIndex permission at all."
+        ),
+    )
+    nonfilterable_metadata_keys: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Only affects provider='s3vectors', and only takes effect the first time an index "
+            "is created (manage_bucket_and_index=true) -- AWS's CreateIndex does not allow "
+            "changing an index's non-filterable metadata keys afterward. Filterable metadata is "
+            "capped at 2 KB per vector (40 KB total per vector), and chunk text commonly exceeds "
+            "that, so `text_column` is excluded from filterable metadata by default (this field "
+            "left as None). Set to `[]` to keep text_column filterable instead (only safe if "
+            "your chunks are reliably short), or list your own keys (1-10 max, AWS's own "
+            "CreateIndex limit)."
+        ),
+    )
 
     retry_policy_max_retries: Optional[int] = Field(
 
@@ -679,6 +721,8 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         vector_bucket_name = self.vector_bucket_name
         aws_region = self.aws_region
         demo_mode = self.demo_mode
+        manage_bucket_and_index = self.manage_bucket_and_index
+        nonfilterable_metadata_keys = self.nonfilterable_metadata_keys
         description = self.description or f"Write embeddings to {provider}/{collection_name}"
         group_name = self.group_name
         upstream_asset_key = self.upstream_asset_key
@@ -990,12 +1034,21 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 else:
                     client = _build_s3vectors_client(aws_region)
 
-                client.create_vector_bucket(vectorBucketName=vector_bucket_name)
-                embedding_dim = len(df[embedding_column].iloc[0])
-                client.create_index(
-                    vectorBucketName=vector_bucket_name, indexName=collection_name,
-                    dataType="float32", dimension=embedding_dim, distanceMetric="cosine",
-                )
+                if manage_bucket_and_index:
+                    _create_s3vectors_resource_if_missing(
+                        client.create_vector_bucket, vectorBucketName=vector_bucket_name,
+                    )
+                    embedding_dim = len(df[embedding_column].iloc[0])
+                    nonfilterable_keys = nonfilterable_metadata_keys
+                    if nonfilterable_keys is None:
+                        nonfilterable_keys = [text_column] if text_column in df.columns else []
+                    index_kwargs = dict(
+                        vectorBucketName=vector_bucket_name, indexName=collection_name,
+                        dataType="float32", dimension=embedding_dim, distanceMetric="cosine",
+                    )
+                    if nonfilterable_keys:
+                        index_kwargs["metadataConfiguration"] = {"nonFilterableMetadataKeys": nonfilterable_keys}
+                    _create_s3vectors_resource_if_missing(client.create_index, **index_kwargs)
 
                 vectors = []
                 for idx, row in df.iterrows():

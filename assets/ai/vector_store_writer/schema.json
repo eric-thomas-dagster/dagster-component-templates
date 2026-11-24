@@ -368,6 +368,21 @@
       "label": "Prune Missing Sources",
       "description": "After writing, delete every vector in the collection whose id_column value is not present in this run's data -- treats this run as the FULL current source catalog, not an incremental batch (the same contract as knowledge_graph_builder's own prune_missing_sources). Requires id_column. Supported on chromadb, pinecone and qdrant (each can list/delete by id); not supported on faiss (no delete API -- would need a full index rebuild) or s3vectors (not yet implemented here).",
       "required": false
+    },
+    "manage_bucket_and_index": {
+      "type": "boolean",
+      "label": "Manage Bucket And Index",
+      "description": "Only affects provider='s3vectors'. When true (default), creates the vector bucket and index on first write if they don't already exist -- idempotently, so a conflict from a bucket/index that already exists (created by hand, or by an earlier run) is treated as success rather than an error. Set false to skip both create calls entirely and write straight to a bucket and index you created yourself -- the only way to use a least-privilege IAM policy that grants just s3vectors:PutVectors/QueryVectors/GetVectors/ListVectors on an existing bucket, with no CreateVectorBucket/CreateIndex permission at all.",
+      "required": false
+    },
+    "nonfilterable_metadata_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Nonfilterable Metadata Keys",
+      "description": "Only affects provider='s3vectors', and only takes effect the first time an index is created (manage_bucket_and_index=true) -- AWS's CreateIndex does not allow changing an index's non-filterable metadata keys afterward. Filterable metadata is capped at 2 KB per vector (40 KB total per vector), and chunk text commonly exceeds that, so `text_column` is excluded from filterable metadata by default (this field left as None). Set to `[]` to keep text_column filterable instead (only safe if your chunks are reliably short), or list your own keys (1-10 max, AWS's own CreateIndex limit).",
+      "required": false
     }
   },
   "tags": [

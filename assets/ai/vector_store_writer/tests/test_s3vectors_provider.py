@@ -104,8 +104,113 @@ def test_real_mode_seam_uses_configured_region_and_builds_index():
     _materialize(comp, df, raise_on_error=True)
     assert calls["region"] == "eu-west-1"
     assert calls["bucket"] == {"vectorBucketName": "buck"}
-    assert calls["index"] == {"vectorBucketName": "buck", "indexName": "idx", "dataType": "float32", "dimension": 2, "distanceMetric": "cosine"}
+    # text_column is non-filterable by default (chunk text commonly exceeds the
+    # 2 KB filterable-metadata limit -- item 18).
+    assert calls["index"] == {
+        "vectorBucketName": "buck", "indexName": "idx", "dataType": "float32",
+        "dimension": 2, "distanceMetric": "cosine",
+        "metadataConfiguration": {"nonFilterableMetadataKeys": ["text"]},
+    }
     assert calls["put"][0]["vectors"][0]["key"] == "doc_0"
+
+
+def test_create_calls_are_idempotent_against_a_conflict(tmp_path):
+    # A real account returns ConflictException on the second write, or when the
+    # bucket/index was created by hand -- this must not fail the run (item 17).
+    class ConflictException(Exception):
+        pass
+
+    class FakeClientRaisingConflict:
+        exceptions = type("exceptions", (), {"ConflictException": ConflictException})()
+
+        def create_vector_bucket(self, **kw):
+            raise ConflictException("bucket already exists")
+
+        def create_index(self, **kw):
+            raise ConflictException("index already exists")
+
+        def put_vectors(self, **kw):
+            pass
+
+    mod._build_s3vectors_client = lambda region: FakeClientRaisingConflict()
+    comp = _component(demo_mode=False)
+    df = pd.DataFrame({"embedding": [[0.5, 0.5]], "text": ["x"]})
+    result = _materialize(comp, df, raise_on_error=True)
+    assert result.success
+
+
+def test_create_calls_do_not_swallow_other_errors():
+    class FakeClientRaisingAccessDenied:
+        def create_vector_bucket(self, **kw):
+            raise Exception("AccessDeniedException: not authorized")
+
+    mod._build_s3vectors_client = lambda region: FakeClientRaisingAccessDenied()
+    comp = _component(demo_mode=False)
+    df = pd.DataFrame({"embedding": [[0.5, 0.5]], "text": ["x"]})
+    result = _materialize(comp, df, raise_on_error=False)
+    assert not result.success
+
+
+def test_manage_bucket_and_index_false_skips_both_create_calls():
+    calls = {"create_bucket": 0, "create_index": 0}
+
+    class FakeClient:
+        def create_vector_bucket(self, **kw):
+            calls["create_bucket"] += 1
+
+        def create_index(self, **kw):
+            calls["create_index"] += 1
+
+        def put_vectors(self, **kw):
+            calls.setdefault("put", []).append(kw)
+
+    mod._build_s3vectors_client = lambda region: FakeClient()
+    comp = _component(demo_mode=False, manage_bucket_and_index=False)
+    df = pd.DataFrame({"embedding": [[0.5, 0.5]], "text": ["x"]})
+    _materialize(comp, df, raise_on_error=True)
+    assert calls["create_bucket"] == 0
+    assert calls["create_index"] == 0
+    assert len(calls["put"]) == 1
+
+
+def test_nonfilterable_metadata_keys_can_be_overridden():
+    calls = {}
+
+    class FakeClient:
+        def create_vector_bucket(self, **kw):
+            pass
+
+        def create_index(self, **kw):
+            calls["index"] = kw
+
+        def put_vectors(self, **kw):
+            pass
+
+    mod._build_s3vectors_client = lambda region: FakeClient()
+    comp = _component(demo_mode=False, nonfilterable_metadata_keys=["species"], metadata_columns=["species"])
+    df = pd.DataFrame({"embedding": [[0.5, 0.5]], "text": ["x"], "species": ["canine"]})
+    _materialize(comp, df, raise_on_error=True)
+    assert calls["index"]["metadataConfiguration"] == {"nonFilterableMetadataKeys": ["species"]}
+
+
+def test_nonfilterable_metadata_keys_empty_list_opts_out():
+    calls = {}
+
+    class FakeClient:
+        def create_vector_bucket(self, **kw):
+            pass
+
+        def create_index(self, **kw):
+            calls["index"] = kw
+
+        def put_vectors(self, **kw):
+            pass
+
+    mod._build_s3vectors_client = lambda region: FakeClient()
+    comp = _component(demo_mode=False, nonfilterable_metadata_keys=[])
+    df = pd.DataFrame({"embedding": [[0.5, 0.5]], "text": ["x"]})
+    _materialize(comp, df, raise_on_error=True)
+    assert "metadataConfiguration" not in calls["index"]
 
 
 def test_missing_vector_bucket_name_raises():

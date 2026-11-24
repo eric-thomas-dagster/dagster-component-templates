@@ -43,6 +43,7 @@ on:
       - "assets/ai/dagster_api_check_tools/**"
       - "assets/ai/dagster_discovery_tools/**"
       - "assets/ai/linear_ticket_tools/**"
+      - "assets/ai/dagster_evidence_tools/**"
       - "tests/test_mcp_*.py"
       - ".github/workflows/mcp-canary.yml"
 
@@ -82,6 +83,7 @@ env:
     assets/ai/dagster_api_check_tools/tests
     assets/ai/dagster_discovery_tools/tests
     assets/ai/linear_ticket_tools/tests
+    assets/ai/dagster_evidence_tools/tests
 
 jobs:
   mcp:

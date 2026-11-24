@@ -45,8 +45,9 @@ MCP_COMPONENTS = {
     "assets/ai/dagster_api_check_tools": "server",
     "assets/ai/dagster_discovery_tools": "server",
     "assets/ai/linear_ticket_tools": "server",
+    "assets/ai/dagster_evidence_tools": "server",
 }
-SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
+SKIP_DIRS = {".git", ".claude", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 
 
 def _imports_mcp(path: pathlib.Path) -> bool:

@@ -1,0 +1,977 @@
+"""Document Section Splitter Component.
+
+Splits a long document (e.g. an annual report / 10-K) into its logical
+sections -- balance sheet, income statement, notes, MD&A, auditor's report,
+etc. -- so each section can be routed to the right downstream extraction,
+then (optionally) suggests a field schema per section type.
+
+Mechanism: page text is extracted via `pdfplumber` (same library used by
+`pdf_text_extractor` and `document_ingestion`), then ONE `litellm` call per
+document asks the model to classify every page into one of `section_types`.
+Consecutive pages sharing the same section_type are merged into a single
+contiguous section, and the output explodes one upstream row into one row
+per section (same "explode" shape `document_chunker` uses for chunks).
+
+Honesty note: classification is model-dependent, not a deterministic parser
+-- there is no guarantee every page is classified correctly, especially for
+borderline pages (e.g. the transition between MD&A and the financial
+statements). The model is asked to pick only from `section_types`, but
+nothing prevents it from returning a value outside that list; such pages are
+kept with whatever string the model actually returned rather than silently
+dropped or coerced into a known type, since coercing would misrepresent what
+the model said.
+
+"Then schema": for each UNIQUE section_type actually produced across the
+whole run (deduped, not per-row, to minimize LLM calls and cost), one
+additional LLM call asks for a short list of {field, description} entries
+worth extracting from sections of that type. This is a suggestion, not a
+guarantee -- it is not validated against the section's actual content shape.
+"""
+import os
+from typing import Any, Dict, List, Literal, Optional, Union
+
+import pandas as pd
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    AssetKey,
+    BackfillPolicy,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    MetadataValue,
+    Model,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+    cron_schedule=None,
+    cron_fmt="%Y-%m-%d",
+    end_offset=0,
+    timezone=None,
+):
+    """Construct a Dagster partitions_def from the canonical partition fields.
+
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    # Both shapes set: ambiguous. Pick one.
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        _end_offset = spec.get("end_offset", 0)
+        _timezone = spec.get("timezone")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "cron":
+            from dagster import TimeWindowPartitionsDefinition
+            if not spec.get("start"):
+                raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+            if not spec.get("cron_schedule"):
+                raise ValueError("partition dimension type='cron' requires 'cron_schedule'")
+            return TimeWindowPartitionsDefinition(start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"], end_offset=_end_offset, timezone=_timezone)
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly", "cron") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not cron_schedule:
+            raise ValueError(
+                "partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only."
+            )
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+
+# BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
+from typing import List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def normalize_upstream_keys(single, plural=None) -> List[str]:
+    """Merge ``upstream_asset_key`` / ``upstream_asset_keys`` into one clean list.
+
+    Each argument may be a str, a list/tuple of str, or None. Entries are
+    stripped, empties dropped, and duplicates removed (order preserved).
+    """
+    out: List[str] = []
+    for value in (single, plural):
+        if value is None:
+            continue
+        items = [value] if isinstance(value, str) else value
+        if not isinstance(items, (list, tuple)):
+            raise ValueError(
+                f"upstream asset key(s) must be a string or a list of strings, got {value!r}"
+            )
+        for item in items:
+            if not isinstance(item, str):
+                raise ValueError(f"upstream asset keys must be strings, got {item!r}")
+            item = item.strip()
+            if item and item not in out:
+                out.append(item)
+    return out
+
+
+def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = True):
+    """Rewrite raw component input so both spellings/shapes land on the declared field(s).
+
+    mode "single": declared field is ``upstream_asset_key`` (str); >1 key is an error.
+    mode "multi":  declared field is ``upstream_asset_keys`` (list).
+    mode "both":   both fields are declared; everything is merged into the plural one.
+    """
+    if not isinstance(data, dict):
+        return data
+    if "upstream_asset_key" not in data and "upstream_asset_keys" not in data:
+        return data
+    keys = normalize_upstream_keys(data.get("upstream_asset_key"), data.get("upstream_asset_keys"))
+    out = {k: v for k, v in data.items() if k not in ("upstream_asset_key", "upstream_asset_keys")}
+    if mode == "single":
+        if len(keys) > 1:
+            raise ValueError(f"{component} takes exactly one upstream asset, got {keys}")
+        out["upstream_asset_key"] = keys[0] if keys else (None if optional else "")
+    else:
+        out["upstream_asset_keys"] = keys or (None if optional else [])
+    return out
+# END upstream-asset-key normalization
+
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
+# -- section classification / schema suggestion ---------------------------------------------------------------
+# Module-level (not buried in the asset) so anything that wants to preview a classification
+# or a schema suggestion sends the SAME prompt production will -- see structured_document_extractor's
+# build_extraction_messages / parse_extraction_response for the precedent this follows.
+
+DEFAULT_SECTION_TYPES = [
+    "cover", "table_of_contents", "md_a", "balance_sheet", "income_statement",
+    "cash_flow_statement", "notes", "auditor_report", "other",
+]
+
+
+def build_section_classification_messages(
+    page_texts: List[str],
+    *,
+    section_types: List[str],
+    max_content_chars: Optional[int] = None,
+) -> List[dict]:
+    """The exact chat messages sent to the model to classify every page of ONE document."""
+    assembled = "\n\n".join(f"[Page {i + 1}]\n{text or ''}" for i, text in enumerate(page_texts))
+    if max_content_chars is not None and len(assembled) > max_content_chars:
+        assembled = assembled[:max_content_chars]
+    instructions = (
+        f"The following is the page-by-page text of a {len(page_texts)}-page document. "
+        f"Classify EVERY page into exactly one of these section types: {section_types}. "
+        'Return ONLY a JSON array of objects, one entry per page, in page order, each shaped '
+        'exactly like {"page": <1-based page number>, "section_type": "<one of the section types above>"}. '
+        "No prose, no markdown outside the JSON array itself."
+    )
+    return [{"role": "user", "content": f"{instructions}\n\nDocument pages:\n{assembled}"}]
+
+
+def parse_section_classification_response(
+    raw: str, num_pages: int, section_types: List[str],
+) -> List[Dict[str, Any]]:
+    """Parse the model's reply into exactly `num_pages` {"page", "section_type"} dicts, 1..num_pages
+    in order. Raises a clear error on unparseable/malformed JSON -- never silently returns garbage.
+
+    A page the model's reply omitted carries forward the previous page's section_type (or the
+    first entry of `section_types` for page 1) -- a documented, honest fallback for a genuinely
+    incomplete reply, not a silent failure.
+    """
+    import json
+
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    parsed = json.loads(raw)
+    if not isinstance(parsed, list):
+        raise ValueError(f"LLM returned {type(parsed).__name__}, expected a JSON array")
+    by_page: Dict[int, str] = {}
+    for item in parsed:
+        if not isinstance(item, dict) or "page" not in item or "section_type" not in item:
+            raise ValueError(f"LLM returned a malformed entry (expected page/section_type): {item!r}")
+        by_page[int(item["page"])] = str(item["section_type"])
+
+    out: List[Dict[str, Any]] = []
+    fallback = section_types[0] if section_types else "other"
+    for page in range(1, num_pages + 1):
+        section_type = by_page.get(page, fallback)
+        out.append({"page": page, "section_type": section_type})
+        fallback = section_type
+    return out
+
+
+def merge_consecutive_sections(
+    page_classifications: List[Dict[str, Any]], page_texts: List[str],
+) -> List[Dict[str, Any]]:
+    """Merge consecutive pages sharing the same section_type into one contiguous section.
+
+    Returns a list of {"section_type", "page_start", "page_end", "section_text"} dicts, in
+    page order (a contiguous-run merge: this is the ONLY place pages combine, no re-sorting).
+    """
+    sections: List[Dict[str, Any]] = []
+    for item in page_classifications:
+        page = item["page"]
+        section_type = item["section_type"]
+        text = page_texts[page - 1] if 0 <= page - 1 < len(page_texts) else ""
+        if sections and sections[-1]["section_type"] == section_type:
+            sections[-1]["page_end"] = page
+            sections[-1]["_texts"].append(text)
+        else:
+            sections.append({"section_type": section_type, "page_start": page, "page_end": page, "_texts": [text]})
+    for s in sections:
+        s["section_text"] = "\n\n".join(s.pop("_texts"))
+    return sections
+
+
+def classify_document_pages(
+    page_texts: List[str],
+    *,
+    section_types: List[str],
+    model: str,
+    api_key: Optional[str] = None,
+    llm_max_retries: int = 2,
+    max_content_chars: Optional[int] = 20000,
+) -> "tuple[List[Dict[str, Any]], str]":
+    """Classify every page of ONE document. Returns (page classifications, raw model reply);
+    raises on any failure (including an unparseable reply -- never returns garbage silently)."""
+    try:
+        from litellm import completion
+    except ImportError:
+        raise ImportError("litellm required: pip install litellm")
+
+    messages = build_section_classification_messages(
+        page_texts, section_types=section_types, max_content_chars=max_content_chars,
+    )
+    resp = completion(model=model, messages=messages, api_key=api_key, num_retries=llm_max_retries)
+    raw = resp.choices[0].message.content
+    return parse_section_classification_response(raw, len(page_texts), section_types), raw
+
+
+def build_section_schema_suggestion_messages(
+    section_type: str,
+    sample_text: str,
+    *,
+    max_fields: int = 12,
+    max_content_chars: Optional[int] = None,
+) -> List[dict]:
+    """The exact chat messages sent to the model to suggest a field schema for ONE section_type."""
+    content = sample_text or ""
+    if max_content_chars is not None and len(content) > max_content_chars:
+        content = content[:max_content_chars]
+    instructions = (
+        f"You are looking at a sample '{section_type}' section from a financial document. Propose up "
+        f"to {max_fields} fields worth extracting from sections of this type -- the kind of structured "
+        "data someone routing this section to downstream extraction would want pulled out automatically. "
+        'Return ONLY a JSON array of objects, each shaped exactly like {"field": "snake_case_name", '
+        '"description": "one short sentence describing what this field holds"}. No prose, no markdown '
+        "outside the JSON array itself."
+    )
+    return [{"role": "user", "content": f"{instructions}\n\nSection content:\n{content}"}]
+
+
+def parse_section_schema_suggestion_response(raw: str, max_fields: int) -> List[Dict[str, str]]:
+    """Parse the model's reply into a list of {"field", "description"} dicts, capped at `max_fields`.
+    Raises a clear error (never silently returns garbage, never fabricates a fallback schema) when
+    the reply isn't valid JSON or isn't a JSON array of field/description objects."""
+    import json
+
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    parsed = json.loads(raw)
+    if not isinstance(parsed, list):
+        raise ValueError(f"LLM returned {type(parsed).__name__}, expected a JSON array")
+    out: List[Dict[str, str]] = []
+    for item in parsed:
+        if not isinstance(item, dict) or "field" not in item or "description" not in item:
+            raise ValueError(f"LLM returned a malformed entry (expected field/description): {item!r}")
+        out.append({"field": str(item["field"]), "description": str(item["description"])})
+        if len(out) >= max_fields:
+            break
+    return out
+
+
+def suggest_schema_for_section(
+    section_type: str,
+    sample_text: str,
+    *,
+    model: str,
+    api_key: Optional[str] = None,
+    llm_max_retries: int = 2,
+    max_content_chars: Optional[int] = 20000,
+    max_fields: int = 12,
+) -> "tuple[List[Dict[str, str]], str]":
+    """Suggest a field schema for ONE section_type from ONE sample section's text. Returns
+    (fields, raw model reply); raises on any failure."""
+    try:
+        from litellm import completion
+    except ImportError:
+        raise ImportError("litellm required: pip install litellm")
+
+    messages = build_section_schema_suggestion_messages(
+        section_type, sample_text, max_fields=max_fields, max_content_chars=max_content_chars,
+    )
+    resp = completion(model=model, messages=messages, api_key=api_key, num_retries=llm_max_retries)
+    raw = resp.choices[0].message.content
+    return parse_section_schema_suggestion_response(raw, max_fields), raw
+
+
+class DocumentSectionSplitterComponent(Component, Model, Resolvable):
+    """Split a long document (e.g. an annual report) into its logical sections via one LLM
+    classification call per document, then optionally suggest a field schema per section type.
+
+    Not a deterministic parser: classification quality depends entirely on the model and the
+    page text pdfplumber was able to extract. Use `section_types` to point it at your own
+    domain's section taxonomy (financial reports, legal contracts, etc.) instead of the
+    financial-report-shaped default.
+    """
+
+    asset_name: str = Field(description="Output Dagster asset name")
+    upstream_asset_key: Union[str, List[str]] = Field(description="Upstream asset key providing a DataFrame")
+    group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned",
+    )
+
+    partition_cron_schedule: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_type='cron'. A cron expression restricting the date axis to a "
+            "custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on "
+            "Dagster's TimeWindowPartitionsDefinition(cron_schedule=...)."
+        ),
+    )
+    partition_cron_fmt: Optional[str] = Field(
+        default="%Y-%m-%d",
+        description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+    )
+    partition_end_offset: int = Field(
+        default=0,
+        description=(
+            "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron "
+            "partitions definition. 0 (the Dagster default) means a time-based "
+            "partition set only ever holds COMPLETED windows -- e.g. a daily set "
+            "never includes today until tomorrow. Set to 1 to include the "
+            "current, still-in-progress window."
+        ),
+    )
+    partition_timezone: Optional[str] = Field(
+        default=None,
+        description="IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_date_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current date partition key.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+    )
+
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+    )
+
+    partition_values: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+    )
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
+    )
+    partition_static_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+    )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (the upstream "
+            "DataFrame is filtered once per partition key in the range and the "
+            "matching rows are combined). 'multi_run' launches one run per "
+            "partition (optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, uncapped). "
+            "Ignored when partition_type/partition_dimensions is not set. "
+            "'single_run' requires a partition-range-aware IO manager -- a "
+            "generic filesystem/default IO manager cannot persist a single_run "
+            "output spanning multiple partitions and will raise a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+    owners: Optional[List[str]] = Field(
+        default=None,
+        description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+    )
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(
+        default=None,
+        description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+    )
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
+    )
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
+    )
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
+    )
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
+    )
+
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the output data in metadata (first 5 rows "
+            "as a markdown table). Used by builder UIs to render asset shape "
+            "without warehouse access."
+        ),
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+    column: Union[str, int] = Field(description="Column containing PDF file paths or PDF bytes to split into sections")
+    passthrough_columns: Optional[List[str]] = Field(
+        default=None,
+        description="Upstream columns to carry onto every output section row. Defaults to every upstream column except `column`.",
+    )
+    section_types: List[str] = Field(
+        default_factory=lambda: list(DEFAULT_SECTION_TYPES),
+        description=(
+            "The section-type taxonomy the model is asked to classify pages into. Defaults to a "
+            "financial-report shape (cover, table_of_contents, md_a, balance_sheet, income_statement, "
+            "cash_flow_statement, notes, auditor_report, other) -- replace with your own fully custom "
+            "list for a different document domain (e.g. legal contracts, SEC filings with different "
+            "section names). Classification is model-dependent, not deterministic: the model is asked "
+            "to pick only from this list, but a page's actual returned section_type is never coerced "
+            "or dropped if the model answers outside it."
+        ),
+    )
+    suggest_schema: bool = Field(
+        default=True,
+        description=(
+            "For each unique section_type actually produced (deduped across the whole run, not per "
+            "row, to minimize LLM calls and cost), make one additional LLM call suggesting a field "
+            "schema worth extracting from sections of that type. Adds a `suggested_schema_json` "
+            "column. Set False to skip schema suggestion entirely (classification/splitting only)."
+        ),
+    )
+    schema_model: Optional[str] = Field(
+        default=None,
+        description="LiteLLM model string for the schema-suggestion call. Defaults to `classification_model` when unset.",
+    )
+    max_schema_fields: int = Field(
+        default=12,
+        ge=1,
+        description="Maximum number of {field, description} entries requested per section_type's suggested schema.",
+    )
+    classification_model: str = Field(
+        default="gpt-4o-mini",
+        description=(
+            "LiteLLM model string for the per-document page-classification call. A cheap model is a "
+            "reasonable default for this kind of coarse page-level classification; it is not required "
+            "to be any specific model, and classification quality is not guaranteed regardless of model choice."
+        ),
+    )
+    api_key_env_var: str = Field(
+        default="OPENAI_API_KEY",
+        description="Environment variable holding the LLM provider API key.",
+    )
+    llm_max_retries: int = Field(
+        default=2,
+        description="Max retries forwarded to litellm's num_retries for both the classification and schema-suggestion calls.",
+    )
+    max_content_chars: int = Field(
+        default=20000,
+        description=(
+            "Maximum characters of assembled page text (classification call) or section text "
+            "(schema-suggestion call) sent to the model. A document whose combined page text exceeds "
+            "this is truncated -- later pages may then be classified less reliably; this is a known, "
+            "documented limitation, not a silent correctness claim."
+        ),
+    )
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on failure. Defines a RetryPolicy when set.",
+    )
+
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(
+            data,
+            lists=('owners', 'kinds', 'deps', 'section_types', 'passthrough_columns'),
+            csv=('partition_values',),
+            tags=('asset_tags',),
+        )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_upstream_asset_keys(cls, data):
+        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
+
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Document Section Splitter', editable=True)
+
+    def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
+        asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
+        upstream_asset_key = self.upstream_asset_key
+        group_name = self.group_name
+        column = self.column
+        passthrough_columns = self.passthrough_columns
+        section_types = list(self.section_types or DEFAULT_SECTION_TYPES)
+        suggest_schema = self.suggest_schema
+        schema_model = self.schema_model
+        max_schema_fields = self.max_schema_fields
+        classification_model = self.classification_model
+        api_key_env_var = self.api_key_env_var
+        llm_max_retries = self.llm_max_retries
+        max_content_chars = self.max_content_chars
+
+        partitions_def = _build_partitions_def(
+            self.partition_type,
+            self.partition_start,
+            self.partition_values,
+            self.dynamic_partition_name,
+            self.partition_dimensions,
+            cron_schedule=self.partition_cron_schedule,
+            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+            end_offset=self.partition_end_offset,
+            timezone=self.partition_timezone,
+        )
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
+        # Infer kinds from component name if not explicitly set
+        _comp_name = "document_section_splitter"  # component directory name
+        _kind_map = {
+            "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
+            "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
+            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
+            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
+            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
+            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
+            "chromadb": "chromadb", "pgvector": "postgres",
+        }
+        _inferred_kinds = self.kinds or []
+        if not _inferred_kinds:
+            _comp_lower = asset_name.lower()
+            for keyword, kind in _kind_map.items():
+                if keyword in _comp_lower:
+                    _inferred_kinds.append(kind)
+            if not _inferred_kinds:
+                _inferred_kinds = ["python"]
+
+        # Build combined tags: user tags + kind tags
+        _all_tags = dict(self.asset_tags or {})
+        for _kind in _inferred_kinds:
+            _all_tags[f"dagster/kind/{_kind}"] = ""
+
+        # Build freshness policy
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
+
+        owners = self.owners or []
+        column_lineage = self.column_lineage
+
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @asset(
+            description=self.description,
+            key=AssetKey.from_user_string(asset_name),
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+            owners=owners,
+            tags=_all_tags,
+            freshness_policy=_freshness_policy,
+            group_name=group_name,
+            retry_policy=_retry_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # Defensive Output/MaterializeResult unwrap — see pdf_text_extractor for the rationale.
+            if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+                upstream = upstream.value
+            # partition bridge dict-concat: when an unpartitioned asset consumes a partitioned
+            # upstream, Dagster's IO manager loads ALL partitions as a dict; concat to a single
+            # DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
+            # Filter to current partition if partitioned
+            if context.has_partition_key or context.has_partition_key_range:
+                _pk_base = upstream
+                _pk_pos = _pk_base.reset_index(drop=True) if hasattr(_pk_base, 'reset_index') else _pk_base
+                _pk_keep = set()
+                _pk_filtered = False
+                for _pk_iter in context.partition_keys:
+                    upstream = _pk_pos
+                    _pk = _pk_iter
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        upstream = upstream[_col_dates == _date_key]
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+                    if upstream is not _pk_pos:
+                        _pk_filtered = True
+                        _pk_keep.update(upstream.index)
+                upstream = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
+
+            try:
+                import pdfplumber
+            except ImportError:
+                raise ImportError("Install pdfplumber: pip install pdfplumber")
+            try:
+                import litellm  # noqa: F401 -- checked eagerly so a missing dep fails before any per-row work
+            except ImportError:
+                raise ImportError("litellm required: pip install litellm")
+
+            import io
+            import json as _json
+
+            if column not in upstream.columns:
+                raise ValueError(f"Column '{column}' not found in DataFrame.")
+
+            _passthrough_cols = list(passthrough_columns) if passthrough_columns else [c for c in upstream.columns if c != column]
+            _missing_passthrough = [c for c in _passthrough_cols if c not in upstream.columns]
+            if _missing_passthrough:
+                raise ValueError(f"passthrough_columns not found in DataFrame: {_missing_passthrough}")
+
+            api_key = os.environ.get(api_key_env_var)
+            _output_cols = _passthrough_cols + ["section_type", "page_start", "page_end", "section_text"]
+
+            records: List[Dict[str, Any]] = []
+            section_text_samples: Dict[str, str] = {}
+            classification_failures = 0
+            documents_processed = 0
+
+            for idx, row in upstream.iterrows():
+                value = row[column]
+                if value is None or (isinstance(value, float) and pd.isna(value)):
+                    context.log.warning(f"Skipping empty PDF value at index {idx}")
+                    continue
+                try:
+                    pdf_source = io.BytesIO(value) if isinstance(value, bytes) else str(value)
+                    with pdfplumber.open(pdf_source) as pdf:
+                        page_texts = [p.extract_text() or "" for p in pdf.pages]
+                except Exception as e:
+                    context.log.warning(f"Failed to read PDF at index {idx}: {e}")
+                    classification_failures += 1
+                    continue
+                if not page_texts:
+                    context.log.warning(f"PDF at index {idx} has no pages; skipping")
+                    continue
+
+                try:
+                    classifications, _raw = classify_document_pages(
+                        page_texts, section_types=section_types, model=classification_model,
+                        api_key=api_key, llm_max_retries=llm_max_retries, max_content_chars=max_content_chars,
+                    )
+                except Exception as e:
+                    context.log.warning(f"Section classification failed at index {idx}: {e}")
+                    classification_failures += 1
+                    continue
+
+                documents_processed += 1
+                sections = merge_consecutive_sections(classifications, page_texts)
+                for section in sections:
+                    record = {c: row[c] for c in _passthrough_cols}
+                    record["section_type"] = section["section_type"]
+                    record["page_start"] = section["page_start"]
+                    record["page_end"] = section["page_end"]
+                    record["section_text"] = section["section_text"]
+                    records.append(record)
+                    if section["section_type"] not in section_text_samples:
+                        section_text_samples[section["section_type"]] = section["section_text"]
+
+                if idx and idx % 100 == 0:
+                    context.log.info(f"Processed {idx} documents")
+
+            df = pd.DataFrame.from_records(records, columns=_output_cols) if records else pd.DataFrame(columns=_output_cols)
+
+            _schema_calls = 0
+            if suggest_schema and len(df) > 0:
+                _schema_model = schema_model or classification_model
+                suggested_by_type: Dict[str, Optional[str]] = {}
+                for section_type in sorted(df["section_type"].unique()):
+                    sample_text = section_text_samples.get(section_type, "")
+                    _schema_calls += 1
+                    try:
+                        fields, _raw = suggest_schema_for_section(
+                            section_type, sample_text, model=_schema_model, api_key=api_key,
+                            llm_max_retries=llm_max_retries, max_content_chars=max_content_chars,
+                            max_fields=max_schema_fields,
+                        )
+                        suggested_by_type[section_type] = _json.dumps(fields)
+                    except Exception as e:
+                        context.log.warning(f"Schema suggestion failed for section_type={section_type!r}: {e}")
+                        suggested_by_type[section_type] = None
+                df["suggested_schema_json"] = df["section_type"].map(suggested_by_type)
+                _output_cols = _output_cols + ["suggested_schema_json"]
+
+            # Build column schema metadata
+            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+            _col_schema = TableSchema(columns=[
+                TableColumn(name=str(col), type=str(df.dtypes[col]))
+                for col in df.columns
+            ])
+            _metadata = {
+                "dagster/row_count": MetadataValue.int(len(df)),
+                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "documents_processed": MetadataValue.int(documents_processed),
+                "classification_failures": MetadataValue.int(classification_failures),
+                "sections_produced": MetadataValue.int(len(df)),
+                "unique_section_types": MetadataValue.int(df["section_type"].nunique() if len(df) else 0),
+                "schema_suggestion_calls": MetadataValue.int(_schema_calls),
+            }
+            # Use explicit lineage, or auto-infer: passthrough columns map 1:1, derived columns
+            # (section_type/page_start/page_end/section_text/suggested_schema_json) map to `column`.
+            _effective_lineage = column_lineage
+            if not _effective_lineage:
+                try:
+                    _upstream_cols = set(upstream.columns)
+                    _derived_from_pdf = {"section_type", "page_start", "page_end", "section_text", "suggested_schema_json"}
+                    _effective_lineage = {}
+                    for col in _col_schema.columns:
+                        if col.name in _upstream_cols:
+                            _effective_lineage[col.name] = [col.name]
+                        elif col.name in _derived_from_pdf:
+                            _effective_lineage[col.name] = [str(column)]
+                except Exception:
+                    pass
+            if _effective_lineage:
+                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                if _upstream_key:
+                    _lineage_deps = {}
+                    for out_col, in_cols in _effective_lineage.items():
+                        _lineage_deps[str(out_col)] = [
+                            TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
+                            for ic in in_cols
+                        ]
+                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
+                        TableColumnLineage(_lineage_deps)
+                    )
+            if include_preview and len(df) > 0:
+                try:
+                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
+            context.add_output_metadata(_metadata)
+            return df
+
+        from dagster import build_column_schema_change_checks
+
+        _schema_checks = build_column_schema_change_checks(assets=[_asset])
+
+        return Definitions(assets=[_asset], asset_checks=list(_schema_checks))
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

@@ -22141,6 +22141,62 @@
       ]
     },
     {
+      "id": "document_section_splitter",
+      "name": "Document Section Splitter",
+      "category": "ai",
+      "description": "Split a long document (e.g. an annual report) into its logical sections -- balance sheet, income statement, notes, MD&A, auditor's report, etc. -- via one LLM call per document, then optionally suggest a field schema per section type.",
+      "path": "assets/ai/document_section_splitter",
+      "tags": [
+        "ai",
+        "documents",
+        "pdf",
+        "section-splitting",
+        "classification",
+        "finance"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_section_splitter/schema.json",
+      "component_type": "dagster_community_components.DocumentSectionSplitterComponent",
+      "icon": "FileSearch",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_section_splitter/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_section_splitter/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_section_splitter/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_section_splitter/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-24"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=2.0.0",
+          "pdfplumber>=0.7.0",
+          "litellm>=1.30.0"
+        ]
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "inputs": "DataFrame with a column of PDF file paths or PDF bytes.",
+        "outputs": "DataFrame with one row PER DETECTED SECTION: passthrough columns + section_type, page_start, page_end, section_text (+ suggested_schema_json when suggest_schema=True).",
+        "side_effects": "One litellm call per document (page classification) plus one litellm call per UNIQUE section_type produced across the whole run (schema suggestion, only when suggest_schema=True).",
+        "anti_uses": "For table structure extraction (not section splitting) use financial_table_extractor. For plain text extraction with no classification use pdf_text_extractor. For semantic RAG chunking use document_chunker.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "keywords": [
+        "section splitting",
+        "document classification",
+        "annual report",
+        "10-k",
+        "balance sheet",
+        "schema suggestion"
+      ]
+    },
+    {
       "id": "document_summarizer",
       "name": "Document Summarizer",
       "category": "ai",

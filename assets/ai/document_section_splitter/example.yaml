@@ -1,0 +1,24 @@
+type: dagster_community_components.DocumentSectionSplitterComponent
+attributes:
+  asset_name: annual_report_sections
+  upstream_asset_key: annual_report_pdfs
+  group_name: ai
+  column: file_path
+  passthrough_columns:
+    - doc_id
+  section_types:
+    - cover
+    - table_of_contents
+    - md_a
+    - balance_sheet
+    - income_statement
+    - cash_flow_statement
+    - notes
+    - auditor_report
+    - other
+  suggest_schema: true
+  max_schema_fields: 12
+  classification_model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  llm_max_retries: 2
+  max_content_chars: 20000

@@ -280,6 +280,12 @@
       "label": "On Required Tool Calls Missing",
       "description": "What happens when required_tool_calls is set and still unsatisfied after the one reminder. 'fail' (default) raises, so the run fails and the reason is in the run's own failure message -- turns 'did it act' into a guarantee instead of a hope. 'warn' never raises; the result (and the materialization's own metadata) instead carries required_tools_missing, the list of entries that were never satisfied (empty list when everything required was called).",
       "required": false
+    },
+    "context_notes": {
+      "type": "string",
+      "label": "Context Notes",
+      "description": "Free text appended to the system prompt under its own heading, naming what's deliberate in the repo/environment this agent reviews -- a demo's artificial flakiness, a test fixture that's supposed to fail, a known limitation that isn't a bug. Without this, an advisor agent has filed 'fix' findings against exactly the things a repo was built to demonstrate. Not a substitute for reading the repo's own README/CONTRIBUTING first (put that instruction in the prompt or system_prompt instead) -- this is for the handful of things worth saying explicitly even after that, or when no such doc exists.",
+      "required": false
     }
   }
 }

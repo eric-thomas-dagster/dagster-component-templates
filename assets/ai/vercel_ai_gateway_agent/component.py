@@ -155,6 +155,19 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name.")
     prompt: str = Field(description="User prompt sent on the first turn.")
     system_prompt: Optional[str] = Field(default=None, description="System prompt.")
+    context_notes: Optional[str] = Field(
+        default=None,
+        description=(
+            "Free text appended to the system prompt under its own heading, naming what's "
+            "deliberate in the repo/environment this agent reviews -- a demo's artificial "
+            "flakiness, a test fixture that's supposed to fail, a known limitation that isn't a "
+            "bug. Without this, an advisor agent has filed 'fix' findings against exactly the "
+            "things a repo was built to demonstrate. Not a substitute for reading the repo's own "
+            "README/CONTRIBUTING first (put that instruction in the prompt or system_prompt "
+            "instead) -- this is for the handful of things worth saying explicitly even after "
+            "that, or when no such doc exists."
+        ),
+    )
 
     model_id: str = Field(
         alias="model",
@@ -386,6 +399,9 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                     substitutions["partition_keys"] = {}
             resolved_prompt = _substitute(_self.prompt, substitutions)
             resolved_system = _substitute(_self.system_prompt, substitutions) if _self.system_prompt else None
+            if _self.context_notes:
+                _notes_block = f"## What's deliberate here (not a problem)\n{_self.context_notes}"
+                resolved_system = (resolved_system + "\n\n" + _notes_block) if resolved_system else _notes_block
 
             # Skills go into context up front as just name + description (cheap); the
             # full SKILL.md body only loads if the model actually calls load_skill.

@@ -337,6 +337,19 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name.")
     prompt: str = Field(description="User prompt sent to the model on the first turn.")
     system_prompt: Optional[str] = Field(default=None, description="System prompt (Anthropic top-level param).")
+    context_notes: Optional[str] = Field(
+        default=None,
+        description=(
+            "Free text appended to the system prompt under its own heading, naming what's "
+            "deliberate in the repo/environment this agent reviews -- a demo's artificial "
+            "flakiness, a test fixture that's supposed to fail, a known limitation that isn't a "
+            "bug. Without this, an advisor agent has filed 'fix' findings against exactly the "
+            "things a repo was built to demonstrate. Not a substitute for reading the repo's own "
+            "README/CONTRIBUTING first (put that instruction in the prompt or system_prompt "
+            "instead) -- this is for the handful of things worth saying explicitly even after "
+            "that, or when no such doc exists."
+        ),
+    )
     model_id: str = Field(
         alias="model",
         default="claude-haiku-4-5-20251001",
@@ -551,6 +564,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         prompt = self.prompt
         system_prompt = self.system_prompt
+        context_notes = self.context_notes
         model = self.model_id
         api_key_env_var = self.api_key_env_var
         base_url_env_var = self.base_url_env_var
@@ -711,6 +725,9 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                     substitutions["partition_keys"] = {}
             resolved_prompt = _substitute(prompt, substitutions)
             resolved_system = _substitute(system_prompt, substitutions) if system_prompt else None
+            if context_notes:
+                _notes_block = f"## What's deliberate here (not a problem)\n{context_notes}"
+                resolved_system = (resolved_system + "\n\n" + _notes_block) if resolved_system else _notes_block
             # `{tag.<key>}` in a stdio server's own `env` -- e.g. env: {REQUESTER: "{tag.slack/user}"}
             # -- is how a per-run identifier reaches a spawned MCP tool subprocess's environment
             # WITHOUT the model ever supplying it as a tool argument (see slack_agent_request_sensor

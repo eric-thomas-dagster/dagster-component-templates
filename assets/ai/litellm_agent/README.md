@@ -213,6 +213,26 @@ README for how to wire it to a schedule and a Dagster+ alert.
 
 ---
 
+## Telling the agent what's deliberate (`context_notes`)
+
+An advisor agent once filed "disable the artificial flakiness" against a demo repository whose
+whole point is the artificial flakiness. `context_notes` is free text appended to the resolved
+system prompt under its own heading, for exactly that: a demo's deliberate instability, a test
+fixture that's supposed to fail, a known limitation that isn't a bug.
+
+```yaml
+context_notes: |
+  This is a demo repository. The flakiness in retry_handler.py is deliberate (it's the point
+  of the demo) -- do not propose fixing it. test_flaky_retry failing twice before passing is
+  expected, not a bug.
+```
+
+This isn't a substitute for having the agent read the repo's own README/CONTRIBUTING first --
+put that instruction in `prompt` or `system_prompt` instead. `context_notes` is for the handful
+of things worth saying explicitly even after that, or for a repo with no such doc at all.
+
+---
+
 ## When to use this vs. other components
 
 | Use case | Component |
@@ -293,6 +313,7 @@ README for how to wire it to a schedule and a Dagster+ alert.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `system_prompt` | `str` | — | System prompt prepended to the message list. |
+| `context_notes` | `str` | — | Free text appended to the system prompt under its own heading, naming what's deliberate in the repo/environment this agent reviews -- a demo's artificial flakiness, a test fixture that's supposed to fail, a known limitat… _(full docs in schema.json + component README)_ |
 | `api_base_env_var` | `str` | — | Env var holding a custom API base URL (proxies, self-hosted). |
 | `temperature` | `float` | `0.0` | Sampling temperature. |
 | `max_tokens` | `int` | `2048` | Max tokens per model call. |

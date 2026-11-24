@@ -62429,6 +62429,61 @@
       ]
     },
     {
+      "id": "scheduled_slack_agent_sensor",
+      "name": "scheduled_slack_agent_sensor",
+      "component_type": "dagster_community_components.ScheduledSlackAgentSensorComponent",
+      "path": "sensors/scheduled_slack_agent_sensor",
+      "category": "sensors",
+      "icon": "si:slack",
+      "description": "A scheduled agent run that announces itself in Slack: every period it posts a top-level message, then starts the agent run tagged with that message's ts so slack_reply answers in its thread.",
+      "tags": [
+        "agentic"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/schema.json",
+      "dependencies": {
+        "pip": [
+          "slack_sdk"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-24"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "run_requests"
+        ],
+        "requires_pip": [
+          "slack_sdk"
+        ],
+        "when_to_use": "A recurring agent run (weekly review, daily digest) that should announce itself in a Slack channel and answer in that message's thread. Use cron_schedule instead when nothing needs to be posted.",
+        "chains_with": [
+          "anthropic_agent",
+          "openai_agent",
+          "litellm_agent",
+          "slack_reply",
+          "slack_agent_request_sensor"
+        ]
+      },
+      "produces": [
+        "sensor"
+      ],
+      "keywords": [
+        "slack",
+        "scheduled",
+        "agent",
+        "announce",
+        "weekly review",
+        "thread"
+      ]
+    },
+    {
       "id": "slack_approval_gate",
       "name": "Slack Approval Gate",
       "category": "ai",

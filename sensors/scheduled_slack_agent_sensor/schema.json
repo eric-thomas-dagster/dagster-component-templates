@@ -1,0 +1,87 @@
+{
+  "component_type": "dagster_community_components.ScheduledSlackAgentSensorComponent",
+  "description": "A scheduled agent run that announces itself in Slack: every period it posts a top-level message, then starts the agent run tagged with that message's ts so slack_reply answers in its thread.",
+  "category": "sensors",
+  "icon": "si:slack",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": true
+    },
+    "slack_channel_id": {
+      "type": "string",
+      "label": "Slack Channel Id",
+      "description": "Channel ID to announce in (e.g. 'C0123ABCDEF') -- the real id, not '#name'.",
+      "required": true
+    },
+    "asset_selection": {
+      "type": "string",
+      "label": "Asset Selection",
+      "description": "The agent asset (and anything downstream, e.g. a slack_reply asset) to run each period: explicit key list, the Dagster selection DSL, '*', or a bare fnmatch glob, resolved against sibling assets.",
+      "required": true
+    },
+    "announce_text": {
+      "type": "string",
+      "label": "Announce Text",
+      "description": "Text of the top-level Slack message posted when a run starts. The agent's reply lands in this message's thread.",
+      "required": false,
+      "default": ":bar_chart: Scheduled agent run started"
+    },
+    "period_hours": {
+      "type": "number",
+      "label": "Period Hours",
+      "description": "Hours between runs (168 = weekly).",
+      "required": false,
+      "default": 168.0
+    },
+    "first_run_delay_hours": {
+      "type": "number",
+      "label": "First Run Delay Hours",
+      "description": "Hours after the first tick before the first run. Unset = one full period, so the period starts at 'now' and a deploy never fires a run right away. 0 = fire on the first tick.",
+      "required": false
+    },
+    "slack_bot_token_env_var": {
+      "type": "string",
+      "label": "Slack Bot Token Env Var",
+      "description": "Env var holding the bot's 'xoxb-...' token (needs chat:write; invite the bot to the channel).",
+      "required": false,
+      "default": "SLACK_BOT_TOKEN"
+    },
+    "extra_tags": {
+      "type": "object",
+      "label": "Extra Tags",
+      "description": "Additional run tags, e.g. {'team': 'data-eng'}. slack/* tags are set by the sensor and win on a clash.",
+      "required": false
+    },
+    "set_isolation_disabled_tag": {
+      "type": "boolean",
+      "label": "Set Isolation Disabled Tag",
+      "description": "Tag each run dagster/isolation: disabled (run in-process on the code server). Off by default: a scheduled run is not latency-sensitive.",
+      "required": false,
+      "default": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false,
+      "default": 60
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED' -- initial status of the sensor.",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "skip_in_branch_deployments": {
+      "type": "boolean",
+      "label": "Skip In Branch Deployments",
+      "description": "Skip every tick inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1), which would otherwise announce and run a second copy.",
+      "required": false,
+      "default": true
+    }
+  }
+}

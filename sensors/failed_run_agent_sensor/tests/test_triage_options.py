@@ -285,3 +285,17 @@ def test_no_evidence_dir_max_runs_per_day_is_read_from_run_history(mod, monkeypa
     _fail(inst, defs, job_name="mapped_job")
     second = _tick(sensor_def, inst, defs, cursor=first.cursor)
     assert second.run_requests == []
+
+
+def test_random_temp_dirs_do_not_change_the_signature(mod):
+    a = mod.error_signature("loc", "job", "FileNotFoundError", "No such file: '/tmp/tmpab12cd/out.csv'", ["s"])
+    b = mod.error_signature("loc", "job", "FileNotFoundError", "No such file: '/tmp/tmpzz99yy/out.csv'", ["s"])
+    c = mod.error_signature("loc", "job", "FileNotFoundError", "No such file: '/tmp/tmpzz99yy/other.csv'", ["s"])
+    assert a == b
+    assert a != c  # the file name still distinguishes failures
+
+
+def test_a_different_error_still_gets_a_different_signature(mod):
+    a = mod.error_signature("loc", "job", "KeyError", "KeyError: 'discount'", ["s"])
+    b = mod.error_signature("loc", "job", "KeyError", "KeyError: 'price'", ["s"])
+    assert a != b

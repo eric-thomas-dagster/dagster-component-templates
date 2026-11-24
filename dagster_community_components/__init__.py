@@ -1259,6 +1259,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ScaleAIIngestionComponent": "assets/ingestion/scale_ai_ingestion/component.py",
     "ScdType1Component": "transforms/scd_type_1/component.py",
     "ScdType2Component": "transforms/scd_type_2/component.py",
+    "ScheduledSlackAgentSensorComponent": "sensors/scheduled_slack_agent_sensor/component.py",
     "SchemaFitComponent": "assets/ai/schema_fit/component.py",
     "SchemaValidatorComponent": "assets/transforms/schema_validator/component.py",
     "ScientificPaperExtractorComponent": "assets/ai/scientific_paper_extractor/component.py",

@@ -1,0 +1,9 @@
+type: dagster_community_components.ScheduledSlackAgentSensorComponent
+attributes:
+  sensor_name: weekly_improvement_review
+  slack_channel_id: "C0123ABCDEF"
+  asset_selection: [review_agent, review_reply]   # the agent asset + its slack_reply asset
+  announce_text: ":bar_chart: Improvement review started"
+  period_hours: 168            # weekly
+  # first_run_delay_hours: 0   # default waits one full period, so a deploy never fires a run
+  default_status: STOPPED

@@ -239,6 +239,9 @@ def error_signature(location: str, job_name: str, error_class: str, message: str
     _strip_dynamic_suffix)."""
     first = (message or "").strip().splitlines()[0] if (message or "").strip() else ""
     norm = re.sub(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", "<uuid>", first)
+    # Collapse directory text (random temp dirs, per-run work dirs) but keep the file name, so the
+    # same error under /tmp/tmpab12cd/ and /tmp/tmpzz99yy/ is one signature and a different file is not.
+    norm = re.sub(r"(?:[A-Za-z]:[\\/]|/)(?:[^\s'\"/\\:]+[\\/])+(?=[^\s'\"/\\:]+)", "<path>/", norm)
     norm = re.sub(r"0x[0-9a-fA-F]+", "<hex>", norm)
     norm = re.sub(r"\d+", "<n>", norm)[:200]
     normalized_steps = sorted({_strip_dynamic_suffix(k) for k in step_keys})

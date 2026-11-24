@@ -1,0 +1,13 @@
+type: dagster_community_components.SpreadsheetFinancialExtractorComponent
+attributes:
+  asset_name: extracted_spreadsheet_cells
+  upstream_asset_key: raw_xlsx_files
+  group_name: ai
+  column: file_path
+  use_raw_values: true
+  include_hidden_sheets: false
+  include_hidden_rows: false
+  include_hidden_cols: false
+  only_data_rows: true
+  only_data_cols: true
+  include_cell_formatting: false

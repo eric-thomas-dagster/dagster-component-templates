@@ -65453,6 +65453,61 @@
       "icon": "BarChart2"
     },
     {
+      "id": "spreadsheet_financial_extractor",
+      "name": "Spreadsheet Financial Extractor",
+      "category": "ai",
+      "description": "Extract real cell-level spreadsheet structure (sheets, rows, cells, raw values, formulas, formatting) from a column of .xlsx/.xlsm file paths or bytes using openpyxl -- not a flatten-to-markdown converter.",
+      "path": "assets/ai/spreadsheet_financial_extractor",
+      "tags": [
+        "ai",
+        "documents",
+        "spreadsheet",
+        "excel",
+        "finance"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/spreadsheet_financial_extractor/schema.json",
+      "component_type": "dagster_community_components.SpreadsheetFinancialExtractorComponent",
+      "icon": "Table",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/spreadsheet_financial_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/spreadsheet_financial_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/spreadsheet_financial_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/spreadsheet_financial_extractor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-24"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "openpyxl>=3.0.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "inputs": "DataFrame with a column of .xlsx/.xlsm file paths or bytes.",
+        "outputs": "DataFrame with one row PER SHEET: passthrough columns + sheet_name, sheet_index, row_count, col_count, cell_data (JSON list of lists), cell_formatting_json (when include_cell_formatting=True), sheet_markdown.",
+        "side_effects": "No LLM call. Opens the workbook twice (once per data_only mode) only when include_cell_formatting=True.",
+        "anti_uses": "For a generic flatten-to-markdown xlsx conversion with no cell-level fidelity, use document_ingestion instead. For PDF table structure, use financial_table_extractor.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "keywords": [
+        "spreadsheet extraction",
+        "excel",
+        "openpyxl",
+        "cell-level",
+        "formulas",
+        "financial review"
+      ]
+    },
+    {
       "id": "sql_command_job",
       "name": "sql_command_job",
       "category": "jobs",

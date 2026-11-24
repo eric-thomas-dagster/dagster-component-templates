@@ -1368,6 +1368,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SpatialProcessComponent": "assets/transforms/spatial_process/component.py",
     "SpeechToTextAssetComponent": "assets/ai/speech_to_text_asset/component.py",
     "SplineModelComponent": "assets/analytics/spline_model/component.py",
+    "SpreadsheetFinancialExtractorComponent": "assets/ai/spreadsheet_financial_extractor/component.py",
     "SqlAssetComponent": "assets/data-warehouse/sql_asset/component.py",
     "SqlCommandJobComponent": "jobs/sql_command_job/component.py",
     "SqlContextReceiptStore": "resources/context_receipt_store/component.py",

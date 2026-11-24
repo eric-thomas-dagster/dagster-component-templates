@@ -163,7 +163,7 @@ Not a Control-M killer. If you're doing a full migration off Control-M, the `air
 |---|---|---|---|
 | `demo_mode` | `bool` | `true` | Simulate the Automation API on stdout (no external calls). |
 | `jobs` | `List[ControlMJobSpec]` | `list()` | Control-M jobs to wrap as daily-partitioned Dagster assets. |
-| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
+| `upstream_deps` | `List[str]` | `list()` | Default upstream asset keys (slash-separated for nested keys) that must complete before jobs run. Applies to every job in `jobs:` EXCEPT a job that sets its own `deps:` list, which overrides this default for that job onl… _(full docs in schema.json + component README)_ |
 | `controlm_user_env` | `str` | `"CONTROLM_USER"` | Env var holding the Automation API username. |
 | `controlm_password_env` | `str` | `"CONTROLM_PASSWORD"` | Env var holding the Automation API password. |
 | `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
@@ -202,6 +202,11 @@ attributes:
       application: COMPLIANCE
       sub_application: REGULATORY_REPORTING
       host: ctm-agent-prod-02
+      # Per-job deps: this job needs a DIFFERENT upstream than the rest of
+      # the jobs declared from this same component instance -- overrides
+      # the component-level `upstream_deps` for this job only.
+      deps:
+        - raw/compliance_feed
 
   # Optional — bring Control-M-managed tables into Dagster's lineage
   source_tables:
@@ -209,6 +214,10 @@ attributes:
       asset_name: controlm_settlement_table
       produced_by: controlm_eod_settlement
 ```
+
+## Per-job upstream deps
+
+`upstream_deps` is a component-level DEFAULT, applied to every job declared in `jobs:`. When different Control-M jobs in the same component instance need different upstreams, set `deps:` on the individual `ControlMJobSpec` entry instead -- it overrides `upstream_deps` for that job only, so you no longer need a separate `ControlMIntegrationComponent` instance per distinct set of upstreams. A job with no `deps:` set (the default, an empty list) falls back to `upstream_deps`.
 
 ## Automation API endpoints
 

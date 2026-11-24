@@ -60,6 +60,15 @@ class ControlMJobSpec(dg.Model, dg.Resolvable):
     sub_application: str = Field(default="", description="Control-M sub-application tag (e.g. SETTLEMENT).")
     host: str = Field(default="", description="Control-M agent / server host that runs the job.")
     run_as: str = Field(default="svc_dagster", description="OS user Control-M runs the job as.")
+    deps: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Upstream asset keys (slash-separated for nested keys) specific to THIS job, "
+            "overriding the component-level `upstream_deps`. Leave empty to fall back to "
+            "`upstream_deps` -- set this when different Control-M jobs in the same component "
+            "instance need different upstreams."
+        ),
+    )
 
 
 class ControlMSourceTableSpec(dg.Model, dg.Resolvable):
@@ -263,7 +272,13 @@ class ControlMIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     upstream_deps: List[str] = Field(
         default_factory=list,
-        description="Upstream asset keys (slash-separated for nested keys) that must complete before jobs run.",
+        description=(
+            "Default upstream asset keys (slash-separated for nested keys) that must complete "
+            "before jobs run. Applies to every job in `jobs:` EXCEPT a job that sets its own "
+            "`deps:` list, which overrides this default for that job only -- use per-job `deps:` "
+            "when different Control-M jobs declared from the same component instance need "
+            "different upstreams."
+        ),
     )
     group_name: str = Field(
         default="controlm_integration",
@@ -322,12 +337,16 @@ class ControlMIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
         all_assets: List[dg.AssetsDefinition] = []
 
         for job in self.jobs:
+            job_upstream = (
+                [dg.AssetKey(dep.split("/")) for dep in job.deps] if job.deps else resolved_upstream
+            )
+
             def _make_asset(
                 _job=job,
                 _endpoint=endpoint,
                 _demo=demo_mode,
                 _group=group,
-                _upstream=resolved_upstream,
+                _upstream=job_upstream,
             ):
                 @dg.asset(
                     name=_job.asset_name,

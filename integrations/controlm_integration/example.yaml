@@ -16,8 +16,10 @@ attributes:
   max_retries: 2
   retry_delay_seconds: 60
 
-  # Upstream deps that must complete before Control-M jobs run
-  # (each becomes an AssetKey; nested keys use slash-separated paths)
+  # Default upstream deps that must complete before Control-M jobs run
+  # (each becomes an AssetKey; nested keys use slash-separated paths).
+  # Applies to every job below EXCEPT one that sets its own `deps:` list,
+  # which overrides this default for that job only.
   upstream_deps: []
 
   # Control-M jobs — each becomes a daily-partitioned Dagster asset
@@ -43,6 +45,8 @@ attributes:
       application: COMPLIANCE
       sub_application: REGULATORY_REPORTING
       host: ctm-agent-prod-02
+      # Per-job deps override upstream_deps for just this job.
+      deps: []
 
   # Optional: Control-M-managed tables that Dagster observes (adds to lineage)
   source_tables: []

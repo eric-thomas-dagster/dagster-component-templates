@@ -29,7 +29,7 @@
       "type": "array",
       "label": "Jobs",
       "required": false,
-      "description": "Control-M jobs to wrap as daily-partitioned Dagster assets. Each item: {job_name, asset_name, description?, folder?, application?, sub_application?, host?, run_as?}."
+      "description": "Control-M jobs to wrap as daily-partitioned Dagster assets. Each item: {job_name, asset_name, description?, folder?, application?, sub_application?, host?, run_as?, deps?}. Per-job `deps` overrides the component-level `upstream_deps` for that job only."
     },
     "source_tables": {
       "type": "array",
@@ -41,7 +41,7 @@
       "type": "array",
       "label": "Upstream Deps",
       "required": false,
-      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before jobs run."
+      "description": "Default upstream asset keys (slash-separated for nested keys) that must complete before jobs run. Applies to every job in `jobs:` except a job that sets its own `deps:` list, which overrides this default for that job only."
     },
     "group_name": {
       "type": "string",

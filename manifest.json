@@ -9401,7 +9401,7 @@
       "name": "BigQuery to GCS Export",
       "category": "sink",
       "description": "Export a BigQuery table or query result to GCS as parquet / CSV / JSONL / AVRO. The classic warehouse → lake step at the end of an ELT pipeline. Two source modes: source_table_id (uses BQ EXTRACT job — faster for whole tables) or source_query (uses EXPORT DATA SQL — flexible).",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/sinks/bigquery_export_to_gcs_asset",
       "tags": [

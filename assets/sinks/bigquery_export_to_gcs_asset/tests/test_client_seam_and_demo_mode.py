@@ -9,7 +9,10 @@ Fixed with two small instance methods, `_make_bigquery_client(creds, project,
 location)` and `_make_storage_client(creds, project)`, that the asset body
 calls instead of constructing `bigquery.Client`/`storage.Client` directly --
 and a `demo_mode` field that bypasses the real GCP calls (and the
-google-cloud-bigquery/storage imports) entirely.
+google-cloud-bigquery/storage imports) entirely. A third seam,
+`_load_credentials(creds_dict)`, was added later (feedback's "still open"
+item) so a subclass can swap in fake credentials without replacing
+`google.oauth2.service_account` at the module level either.
 
 These tests fake `google.cloud.bigquery` / `google.cloud.storage` /
 `google.oauth2.service_account` via sys.modules (those packages aren't
@@ -139,6 +142,41 @@ def test_demo_mode_needs_no_credentials_or_google_cloud_packages():
     assert isinstance(output_value, pd.DataFrame)
     assert len(output_value) >= 1
     assert "uri" in output_value.columns
+
+
+def test_credentials_loading_seam_is_overridable_without_a_real_service_account_key(fake_google_cloud_modules):
+    """Real gap reported against this registry (dagster-demo-factory component
+    feedback, 2026-10-30, 'still open'): `service_account.Credentials.
+    from_service_account_info(creds_dict)` was called inline, so a demo with
+    no real key had to replace `google.oauth2.service_account` at the module
+    level before this component even loaded. `_load_credentials(creds_dict)`
+    lets a subclass swap it in directly instead -- this test's override
+    returns the raw dict unchanged, proving the component never calls the
+    real (here, faked) `from_service_account_info` at all once overridden."""
+
+    class _FakeClientComponent(BigQueryExportToGcsAssetComponent):
+        def _load_credentials(self, creds_dict):
+            return creds_dict
+
+        def _make_bigquery_client(self, credentials, project_id, location):
+            assert credentials == _FAKE_CREDS
+            return _FakeBigQueryClient(credentials, project_id, location)
+
+        def _make_storage_client(self, credentials, project_id):
+            assert credentials == _FAKE_CREDS
+            return _FakeStorageClient(credentials, project_id)
+
+    comp = _FakeClientComponent(
+        asset_name="exports/orders_parquet",
+        source_table_id="proj.ds.orders",
+        destination_uri="gs://bucket/exports/orders_*.parquet",
+        credentials=_FAKE_CREDS,
+    )
+    defs = comp.build_defs(None)
+    result = dg.materialize(list(defs.assets), raise_on_error=True)
+    assert result.success
+    output_value = result.asset_value(dg.AssetKey.from_user_string("exports/orders_parquet"))
+    assert list(output_value["uri"]) == ["gs://bucket/exports/orders_000000000000.parquet"]
 
 
 def test_client_seam_is_overridable_without_monkeypatching_google_cloud_modules(fake_google_cloud_modules):

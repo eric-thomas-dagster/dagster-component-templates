@@ -206,6 +206,14 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
 
         return storage.Client(credentials=credentials, project=project_id)
 
+    def _load_credentials(self, creds_dict):
+        """Credentials-loading seam. Override (via subclass or instance-level
+        monkeypatch) to swap in a fake for tests/demos instead of patching
+        `google.oauth2.service_account.Credentials` process-wide."""
+        from google.oauth2 import service_account
+
+        return service_account.Credentials.from_service_account_info(creds_dict)
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -371,7 +379,7 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             except ImportError:
                 raise ImportError("pip install google-cloud-bigquery google-cloud-storage google-auth")
 
-            sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
+            sa_creds = self._load_credentials(creds_dict)
             bq = self._make_bigquery_client(sa_creds, project_id, location)
 
             # If overwrite=False, fail-fast if any objects exist at the destination prefix.

@@ -252,6 +252,31 @@ The outcome's `status` is one of: `needs_human` (a `decision_needed` ledger entr
 
 ---
 
+## First run on a real repository
+
+1. Set `practice_mode_env_var` on the tool server (e.g. `github_pr_tools`) to the NAME of an env var, and set that env var in the deployment you are testing (a Dagster+ branch deployment is ideal; leave it unset in the full deployment).
+2. Turn on `emit_outcome_asset` and run the agent. It reads everything for real but files nothing: the outcome's `status` is `practice`, `drafts` holds the full text of what it would have opened, and `would_file` lists each entry.
+3. Read `drafts` and `would_file`, adjust the prompt or scope rules, and repeat. A run that found nothing reads `nothing_new`.
+4. Unset the env var. The same YAML now acts for real and the outcome reads `filed`.
+
+## Run pod memory
+
+An agent run holds the model conversation, every tool result, and any MCP server subprocesses in one process, so give the run pod a few GB. A pod left at 1Gi was OOMKilled mid-run. On Kubernetes set it per code location in `dagster_cloud.yaml`:
+
+```yaml
+locations:
+  - location_name: agents
+    container_context:
+      k8s:
+        run_k8s_config:
+          container_config:
+            resources:
+              limits:
+                memory: 4Gi
+              requests:
+                memory: 2Gi
+```
+
 ## When to use this vs. other components
 
 | Use case | Component |

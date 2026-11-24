@@ -839,7 +839,12 @@ class GithubPrTools:
             write_outcome_ledger_entry(self.ledger_path, run_id, {
                 "component": "github_pr_tools", "tool": tool, "kind": _LEDGER_KIND_BY_TOOL[tool], "bucket": bucket,
                 **({"reason": result.get("error")} if bucket in ("refused", "decision_needed") else
-                   {k: v for k, v in result.items() if k != "practice_mode"}),
+                   # title/body from the call's own args first -- open_issue/propose_fix's real
+                   # (non-practice-mode) success result never echoes them back, only number/url,
+                   # so without this the drafts entry on the outcome asset would have nothing to
+                   # show for anything actually filed, only practice-mode previews.
+                   {**{k: v for k, v in args.items() if k in ("title", "body")},
+                    **{k: v for k, v in result.items() if k != "practice_mode"}}),
             })
         return self._fit(result)
 

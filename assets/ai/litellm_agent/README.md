@@ -233,6 +233,19 @@ of things worth saying explicitly even after that, or for a repo with no such do
 
 ---
 
+## A readable outcome (`drafts` metadata)
+
+When `emit_outcome_asset` is on, the companion `{asset_name}_outcome` asset's `drafts` metadata
+is one markdown blob with the full title and body of everything the ledger recorded -- each
+issue or PR actually filed, or drafted in `practice_mode` -- so a person can read what the agent
+did (or would have done) straight from the Dagster UI, without digging through tool-call logs or
+clicking through to GitHub/Linear. Built from the same ledger entries as `filed`/`would_file`;
+`github_pr_tools`/`linear_ticket_tools` pass the full `title`/`body` through to the ledger even
+when the underlying GitHub/Linear API response doesn't echo them back. Reads
+`"Nothing was filed or drafted."` when the run's ledger is empty.
+
+---
+
 ## When to use this vs. other components
 
 | Use case | Component |

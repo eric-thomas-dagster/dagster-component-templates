@@ -287,6 +287,19 @@ def summarize_outcome_ledger(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
 # END agent outcome ledger
 
 
+def _drafts_markdown(filed: List[Dict[str, Any]], would_file: List[Dict[str, Any]]) -> str:
+    """The full text of what was filed, or what would have been filed in practice mode, as one
+    markdown blob readable in the Dagster UI without digging through the run's own tool-call
+    logs -- a readable outcome, not just counts."""
+    parts = []
+    for row in would_file:
+        parts.append(f"## {row.get('title', '(untitled)')}\n\n_Practice mode, not filed ({row.get('component', '')})._\n\n{row.get('body', '')}")
+    for row in filed:
+        link = f" {row['url']}" if row.get("url") else ""
+        parts.append(f"## {row.get('title', row.get('kind', 'filed'))}\n\n_Filed ({row.get('kind', '')}).{link}_\n\n{row.get('body', '')}")
+    return "\n\n---\n\n".join(parts) or "Nothing was filed or drafted."
+
+
 class LiteLLMAgentComponent(Component, Model, Resolvable):
     """Single-shot LiteLLM agent with MCP tool support.
 
@@ -768,6 +781,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
                     "would_file_count": MetadataValue.int(len(outcome["would_file"])),
                     "refused_count": MetadataValue.int(len(outcome["refused"])),
                     "decisions_for_you_count": MetadataValue.int(len(outcome["decisions_for_you"])),
+                    "drafts": MetadataValue.md(_drafts_markdown(outcome["filed"], outcome["would_file"])),
                 }
                 if "required_tools_missing" in outcome:
                     md["required_tools_missing"] = MetadataValue.json(outcome["required_tools_missing"])

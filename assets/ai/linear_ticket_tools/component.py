@@ -337,7 +337,12 @@ class LinearTicketTools:
             write_outcome_ledger_entry(self.ledger_path, run_id, {
                 "component": "linear_ticket_tools", "tool": tool, "kind": _LEDGER_KIND_BY_TOOL[tool], "bucket": bucket,
                 **({"reason": result.get("error")} if bucket == "refused" else
-                   {k: v for k, v in result.items() if k != "practice_mode"}),
+                   # body from the call's own args first -- create_issue's real (non-practice-mode)
+                   # success result is Linear's own {identifier, title, url}, with no body, so
+                   # without this the drafts entry on the outcome asset would have nothing to show
+                   # for anything actually filed, only practice-mode previews.
+                   {**{k: v for k, v in args.items() if k in ("title", "body")},
+                    **{k: v for k, v in result.items() if k != "practice_mode"}}),
             })
         return self._fit(result)
 

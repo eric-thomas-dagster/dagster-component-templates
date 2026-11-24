@@ -62394,7 +62394,7 @@
       "name": "SlackPrApprovalWatcher",
       "category": "sensor",
       "description": "Watches a GitHub-pull-request Slack thread for a reaction; records a GitHub review through a second identity, refuses to approve while checks fail, and optionally merges once approved and checks pass -- only for branches with a given prefix.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "sensors/slack_pr_approval_watcher",
       "tags": [

@@ -102,6 +102,36 @@
       "label": "Refresh Other Agent Prs After Merge",
       "description": "After auto_merge successfully merges a PR, bring every OTHER open branch_prefix PR up to date with the new base_branch (GitHub's update-branch API) so their CI runs against the just-merged code instead of a stale base, the same reconciliation github_pr_tools' refresh_open_agent_prs tool does manually. Best-effort -- a PR that can't be updated (e.g. a real merge conflict) is skipped, never raised. Ignored when auto_merge is false.",
       "required": false
+    },
+    "verify_after_merge": {
+      "type": "boolean",
+      "label": "Verify After Merge",
+      "description": "After auto_merge merges a PR, look for 'Fixes failed run <uuid>' or 'Run ID: <uuid>' in the PR body (the same convention failed_run_agent_sensor's launched fixer asset should put there) and re-execute that failed run (Dagster's launchRunReexecution, ALL_STEPS strategy) against the just-merged code, then post pass/fail/timeout in the PR's Slack thread once it resolves -- 'the fix worked' is then something this sensor confirms, not something it assumes. Requires dagster_url and dagster_cloud_api_token_env_var. Ignored when auto_merge is false, since there's nothing to verify until a merge actually happens.",
+      "required": false
+    },
+    "post_merge_command": {
+      "type": "string",
+      "label": "Post Merge Command",
+      "description": "Only used when verify_after_merge is true. An optional shell command run once, right before launching the verification re-run -- e.g. a deploy/redeploy step so the re-run actually executes against the just-merged code instead of whatever was already running. A non-zero exit skips verification and reports the failure in the thread instead.",
+      "required": false
+    },
+    "dagster_url": {
+      "type": "string",
+      "label": "Dagster Url",
+      "description": "Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod'). Required when verify_after_merge is true -- both for the GraphQL endpoint (<dagster_url>/graphql) and for building run links in Slack messages.",
+      "required": false
+    },
+    "dagster_cloud_api_token_env_var": {
+      "type": "string",
+      "label": "Dagster Cloud Api Token Env Var",
+      "description": "Only used when verify_after_merge is true. Env var holding a Dagster+ API token with permission to launch runs in this deployment. Same convention as dagster_discovery_tools' own token_env_var.",
+      "required": false
+    },
+    "verify_timeout_minutes": {
+      "type": "integer",
+      "label": "Verify Timeout Minutes",
+      "description": "Only used when verify_after_merge is true. Give up waiting for the verification re-run after this many minutes and report a timeout instead of a pass/fail.",
+      "required": false
     }
   }
 }

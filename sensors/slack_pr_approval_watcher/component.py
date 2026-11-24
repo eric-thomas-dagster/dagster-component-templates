@@ -14,6 +14,7 @@ on rewriting.
 """
 import json
 import os
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -428,6 +429,74 @@ def _fetch_reactions(client, channel_id: str, message_ts: str) -> Dict[str, List
 # END slack PR review metadata
 
 
+# BEGIN post-merge verification (inlined per component; this sensor's own addition, not shared
+# with another component -- no drift test needed).
+import re as _re_verify  # noqa: E402
+_FAILED_RUN_IN_BODY = _re_verify.compile(
+    r"(?:Fixes failed run|Run ID)[^0-9a-f]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+    _re_verify.IGNORECASE,
+)
+
+
+def _dagster_plus_gql(deployment_url: str, token: str, query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
+    """Minimal Dagster+ GraphQL client -- same endpoint-suffix/auth-header convention as
+    dagster_discovery_tools' own _Client (Dagster-Cloud-Api-Token header, POST {query, variables}
+    to <deployment_url>/graphql), without that component's retry/backoff machinery -- this is an
+    occasional, one-shot call (launch a re-execution, poll its status), not a high-volume tool."""
+    import requests
+    resp = requests.post(
+        deployment_url.rstrip("/") + "/graphql",
+        json={"query": query, "variables": variables},
+        headers={"Dagster-Cloud-Api-Token": token},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    payload = resp.json()
+    if payload.get("errors"):
+        raise RuntimeError(f"Dagster+ GraphQL errors: {json.dumps(payload['errors'])[:500]}")
+    return payload["data"]
+
+
+def _start_verification(deployment_url: str, token: str, failed_run_id: str, post_merge_command: Optional[str]) -> Dict[str, Any]:
+    """After a merge: optionally run a deploy hook, then re-execute the run the PR says it fixes
+    (Dagster's own launchRunReexecution mutation, ALL_STEPS strategy -- a full re-run of the
+    failed run's job, now against the just-merged code)."""
+    import subprocess as _subprocess
+    if post_merge_command:
+        import shlex as _shlex
+        cmd = _shlex.split(post_merge_command) if isinstance(post_merge_command, str) else post_merge_command
+        done = _subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
+        if done.returncode:
+            return {"ok": False, "message": f"the deploy step failed, so I did not verify: {done.stderr.strip()[:200]}"}
+    data = _dagster_plus_gql(
+        deployment_url, token,
+        "mutation($p:ReexecutionParams!){ launchRunReexecution(reexecutionParams:$p){ __typename "
+        "... on LaunchRunSuccess { run { runId } } ... on PythonError { message } } }",
+        {"p": {"parentRunId": failed_run_id, "strategy": "ALL_STEPS"}},
+    )["launchRunReexecution"]
+    if data["__typename"] != "LaunchRunSuccess":
+        return {"ok": False, "message": f"I could not re-run {failed_run_id[:8]}: {data.get('message', data['__typename'])[:200]}"}
+    return {"ok": True, "run_id": data["run"]["runId"]}
+
+
+def _check_verification(deployment_url: str, token: str, entry: Dict[str, Any], timeout_minutes: int) -> Optional[Dict[str, Any]]:
+    """Poll one in-flight verification re-run. Returns None while still running, or
+    {"result": "fixed"|"still_failing"|"timed_out", "text": "..."} once it's resolved."""
+    import time as _time_verify
+    run_id = entry["run_id"]
+    status = _dagster_plus_gql(
+        deployment_url, token, "query($id:ID!){ runOrError(runId:$id){ ... on Run { status } } }", {"id": run_id},
+    )["runOrError"].get("status")
+    if status == "SUCCESS":
+        return {"result": "fixed", "text": f":white_check_mark: Verified: the re-run of {entry['failed_run'][:8]} succeeded, so the fix works."}
+    if status in ("FAILURE", "CANCELED"):
+        return {"result": "still_failing", "text": f":x: Still failing after the fix: re-run of {entry['failed_run'][:8]} {status.lower()}. A person needs to look."}
+    if _time_verify.time() - entry["started"] > timeout_minutes * 60:
+        return {"result": "timed_out", "text": f":hourglass: I could not confirm the fix: the re-run of {entry['failed_run'][:8]} did not finish in {timeout_minutes} minutes."}
+    return None
+# END post-merge verification
+
+
 def _classify_pr_votes(reactions: Dict[str, List[str]], approve_emoji: str, reject_emoji: str, allowlist: Optional[List[str]], bot_user_id: Optional[str]) -> Dict[str, List[str]]:
     """Filter reactions to allowlisted users (anyone, if no allowlist is configured). Bot's own seed reactions
     don't count as votes."""
@@ -490,6 +559,40 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    verify_after_merge: bool = Field(
+        default=False,
+        description=(
+            "After auto_merge merges a PR, look for 'Fixes failed run <uuid>' or 'Run ID: <uuid>' in the "
+            "PR body (the same convention failed_run_agent_sensor's launched fixer asset should put there) "
+            "and re-execute that failed run (Dagster's launchRunReexecution, ALL_STEPS strategy) against the "
+            "just-merged code, then post pass/fail/timeout in the PR's Slack thread once it resolves -- "
+            "'the fix worked' is then something this sensor confirms, not something it assumes. Requires "
+            "dagster_url and dagster_cloud_api_token_env_var. Ignored when auto_merge is false, since there's "
+            "nothing to verify until a merge actually happens."
+        ),
+    )
+    post_merge_command: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only used when verify_after_merge is true. An optional shell command run once, right before "
+            "launching the verification re-run -- e.g. a deploy/redeploy step so the re-run actually executes "
+            "against the just-merged code instead of whatever was already running. A non-zero exit skips "
+            "verification and reports the failure in the thread instead."
+        ),
+    )
+    dagster_url: Optional[str] = Field(
+        default=None,
+        description="Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod'). Required when verify_after_merge is true -- both for the GraphQL endpoint (<dagster_url>/graphql) and for building run links in Slack messages.",
+    )
+    dagster_cloud_api_token_env_var: str = Field(
+        default="DAGSTER_CLOUD_API_TOKEN",
+        description="Only used when verify_after_merge is true. Env var holding a Dagster+ API token with permission to launch runs in this deployment. Same convention as dagster_discovery_tools' own token_env_var.",
+    )
+    verify_timeout_minutes: int = Field(
+        default=30,
+        description="Only used when verify_after_merge is true. Give up waiting for the verification re-run after this many minutes and report a timeout instead of a pass/fail.",
+    )
+
     minimum_interval_seconds: int = Field(default=30, description="Sensor cadence -- how often to poll Slack + GitHub.")
     default_status: str = Field(default="RUNNING", description="'RUNNING' or 'STOPPED'.")
 
@@ -511,6 +614,11 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
         auto_merge = self.auto_merge
         refresh_other_agent_prs_after_merge = self.refresh_other_agent_prs_after_merge
         skip_in_branch_deployments = self.skip_in_branch_deployments
+        verify_after_merge = self.verify_after_merge
+        post_merge_command = self.post_merge_command
+        dagster_url = self.dagster_url
+        dagster_cloud_api_token_env_var = self.dagster_cloud_api_token_env_var
+        verify_timeout_minutes = self.verify_timeout_minutes
 
         def sensor_fn(context: dg.SensorEvaluationContext, **_resources):
             if skip_in_branch_deployments and os.environ.get("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT") == "1":
@@ -526,25 +634,56 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
                 cur = {}
             resolved_ts = set(cur.get("resolved_ts") or [])
             last_error = dict(cur.get("last_error") or {})
+            verifying = dict(cur.get("verifying") or {})
 
             client = _get_slack_client(slack_bot_token_env_var)
-            try:
-                pending = [item for item in _iter_pr_review_messages(client, slack_channel, history_lookback_hours) if item["message_ts"] not in resolved_ts]
-            except Exception as e:  # noqa: BLE001
-                return dg.SkipReason(f"Slack channel scan failed: {e}")
-
-            if not pending:
-                return dg.SkipReason("no open PR-review threads in the scanned window")
-
-            bot_user_id = _lookup_bot_user_id(client)
             actions: List[str] = []
-            newly_resolved: List[str] = []
 
             def say(ts: str, text: str) -> None:
                 try:
                     client.chat_postMessage(channel=slack_channel, thread_ts=ts, text=text)
                 except Exception:  # noqa: BLE001
                     pass
+
+            # Poll every in-flight post-merge verification FIRST, regardless of whether this tick
+            # finds any new pending PR-review threads -- a verification re-run can easily outlive
+            # the window a merged PR's own thread stays "pending" in.
+            verification_resolved: List[str] = []
+            if verifying:
+                for ts in list(verifying.keys()):
+                    try:
+                        outcome = _check_verification(dagster_url, os.environ.get(dagster_cloud_api_token_env_var, ""), verifying[ts], verify_timeout_minutes)
+                    except Exception as e:  # noqa: BLE001
+                        outcome = None
+                        if last_error.get(ts) != str(e):
+                            last_error[ts] = str(e)
+                            say(ts, f":warning: Could not check the verification re-run: {e}")
+                    if outcome is not None:
+                        say(ts, outcome["text"])
+                        actions.append(f"verification {outcome['result']}")
+                        del verifying[ts]
+                        verification_resolved.append(ts)
+
+            try:
+                pending = [item for item in _iter_pr_review_messages(client, slack_channel, history_lookback_hours) if item["message_ts"] not in resolved_ts]
+            except Exception as e:  # noqa: BLE001
+                pending = []
+                actions.append(f"Slack channel scan failed: {e}")
+
+            if not pending:
+                resolved_ts = resolved_ts | set(verification_resolved)
+                new_cursor = json.dumps({
+                    "resolved_ts": sorted(resolved_ts)[-500:],
+                    "last_error": {k: v for k, v in last_error.items() if k not in resolved_ts},
+                    "verifying": verifying,
+                })
+                return dg.SensorResult(
+                    skip_reason="; ".join(actions) if actions else "no open PR-review threads in the scanned window",
+                    cursor=new_cursor,
+                )
+
+            bot_user_id = _lookup_bot_user_id(client)
+            newly_resolved: List[str] = []
 
             for item in pending:
                 ts, payload = item["message_ts"], item["payload"]
@@ -601,7 +740,6 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
                             last_error[ts] = str(e)
                             say(ts, f":warning: Not merged: {e}")
                     else:
-                        newly_resolved.append(ts)
                         actions.append(f"PR #{number}: merged")
                         say(ts, f":rocket: Merged #{number} into main.")
                         if refresh_other_agent_prs_after_merge:
@@ -609,10 +747,33 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
                                 _gh_refresh_open_agent_prs(repo, branch_prefix=branch_prefix, token=token, api_base_url=api_base_url)
                             except GithubPrScopeError:
                                 pass
+                        started_verification = False
+                        if verify_after_merge:
+                            found = _FAILED_RUN_IN_BODY.search(pr.get("body") or "")
+                            if not found:
+                                say(ts, ":grey_question: Merged, but the pull request does not name the failed run, so I could not verify it.")
+                            elif not dagster_url:
+                                say(ts, ":warning: Merged, but dagster_url is not set, so I could not verify it.")
+                            else:
+                                failed_run_id = found.group(1)
+                                try:
+                                    result = _start_verification(dagster_url, os.environ.get(dagster_cloud_api_token_env_var, ""), failed_run_id, post_merge_command)
+                                except Exception as e:  # noqa: BLE001
+                                    result = {"ok": False, "message": str(e)}
+                                if result["ok"]:
+                                    verifying[ts] = {"failed_run": failed_run_id, "run_id": result["run_id"], "started": time.time()}
+                                    say(ts, f":arrows_counterclockwise: Re-running the failed run <{dagster_url.rstrip('/')}/runs/{failed_run_id}|{failed_run_id[:8]}> to check the fix.")
+                                    started_verification = True
+                                else:
+                                    say(ts, f":warning: Merged, but {result['message']}")
+                        if not started_verification:
+                            newly_resolved.append(ts)
 
+            resolved_ts = resolved_ts | set(newly_resolved) | set(verification_resolved)
             new_cursor = json.dumps({
-                "resolved_ts": sorted(resolved_ts | set(newly_resolved))[-500:],
-                "last_error": {k: v for k, v in last_error.items() if k not in resolved_ts and k not in newly_resolved},
+                "resolved_ts": sorted(resolved_ts)[-500:],
+                "last_error": {k: v for k, v in last_error.items() if k not in resolved_ts},
+                "verifying": verifying,
             })
             if not actions:
                 return dg.SensorResult(skip_reason=f"scanned {len(pending)} open PR-review thread(s); no changes", cursor=new_cursor)

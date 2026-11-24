@@ -30,6 +30,9 @@ class _FakeResp:
     def json(self):
         return self._body
 
+    def raise_for_status(self):
+        pass
+
 
 class FakeGithubApi:
     def __init__(self, repo="acme/widgets"):
@@ -153,7 +156,10 @@ def _run(mod, monkeypatch, comp, github, slack, cursor=None, reviewer_token="rev
 def test_no_open_threads_skips(mod, monkeypatch):
     comp = _component(mod)
     result = _run(mod, monkeypatch, comp, FakeGithubApi(), FakeSlackClient())
-    assert "no open PR-review" in result.skip_message
+    # A SensorResult (not a bare SkipReason) now, so the cursor can still carry
+    # verifying state across ticks even when there's nothing pending to scan --
+    # SensorResult wraps a string skip_reason in its own SkipReason object.
+    assert "no open PR-review" in result.skip_reason.skip_message
 
 
 def test_approve_reaction_records_a_review_under_the_reviewer_identity(mod, monkeypatch):
@@ -262,6 +268,133 @@ def test_auto_merge_refuses_a_non_agent_branch(mod, monkeypatch):
     assert any("agent branches" in r["text"] for r in slack.posted_replies)
 
 
+class FakeDagsterPlusApi:
+    """A tiny fake of Dagster+'s GraphQL endpoint -- just the two operations
+    verify_after_merge uses: launchRunReexecution and runOrError{status}."""
+
+    def __init__(self):
+        self.run_statuses = {}
+        self.launched = []
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        query = json["query"]
+        if "launchRunReexecution" in query:
+            parent = json["variables"]["p"]["parentRunId"]
+            self.launched.append(parent)
+            run_id = f"rerun-of-{parent[:8]}"
+            self.run_statuses.setdefault(run_id, "STARTED")
+            return _FakeResp(200, {"data": {"launchRunReexecution": {"__typename": "LaunchRunSuccess", "run": {"runId": run_id}}}})
+        if "runOrError" in query:
+            run_id = json["variables"]["id"]
+            return _FakeResp(200, {"data": {"runOrError": {"status": self.run_statuses.get(run_id, "STARTED")}}})
+        raise AssertionError(f"FakeDagsterPlusApi: no handler for query: {query[:80]}")
+
+
+_FAILED_RUN_ID = "11111111-2222-3333-4444-555555555555"
+
+
+def _merge_ready_pull(github, number=42, body=f"Fixes failed run {_FAILED_RUN_ID}."):
+    github.add_pull(number, head_ref="agent/fix-1")
+    github.pulls[number]["body"] = body
+    github.set_checks("sha1", {"build": "success"})
+    github.reviews[number] = [{"user": {"login": "reviewer-bot"}, "state": "APPROVED"}]
+
+
+def test_verify_after_merge_starts_a_reexecution_and_keeps_the_thread_open(mod, monkeypatch):
+    github, slack, plus = FakeGithubApi(), FakeSlackClient(), FakeDagsterPlusApi()
+    _merge_ready_pull(github)
+    slack.add_message("1.0", {"pr_number": 42})
+    monkeypatch.setattr("requests.post", plus.post)
+    comp = _component(mod, auto_merge=True, verify_after_merge=True, dagster_url="https://acme.dagster.cloud/prod")
+    result = _run(mod, monkeypatch, comp, github, slack)
+    assert github.pulls[42]["merged"] is True
+    assert plus.launched == [_FAILED_RUN_ID]
+    assert any("Re-running" in r["text"] for r in slack.posted_replies)
+    cur = json.loads(result.cursor)
+    assert "1.0" not in cur["resolved_ts"]  # still open -- waiting on verification
+    assert cur["verifying"]["1.0"]["failed_run"] == _FAILED_RUN_ID
+
+
+def test_verify_after_merge_reports_success_on_a_later_tick(mod, monkeypatch):
+    github, slack, plus = FakeGithubApi(), FakeSlackClient(), FakeDagsterPlusApi()
+    _merge_ready_pull(github)
+    slack.add_message("1.0", {"pr_number": 42})
+    monkeypatch.setattr("requests.post", plus.post)
+    comp = _component(mod, auto_merge=True, verify_after_merge=True, dagster_url="https://acme.dagster.cloud/prod")
+    first = _run(mod, monkeypatch, comp, github, slack)
+
+    plus.run_statuses[f"rerun-of-{_FAILED_RUN_ID[:8]}"] = "SUCCESS"
+    # Nothing new pending -- the thread is resolved as far as PR state goes -- but the
+    # verification must still be polled and reported.
+    second = _run(mod, monkeypatch, comp, github, slack, cursor=first.cursor)
+    assert any("Verified" in r["text"] and "succeeded" in r["text"] for r in slack.posted_replies)
+    assert "1.0" in json.loads(second.cursor)["resolved_ts"]
+    assert json.loads(second.cursor)["verifying"] == {}
+
+
+def test_verify_after_merge_reports_still_failing(mod, monkeypatch):
+    github, slack, plus = FakeGithubApi(), FakeSlackClient(), FakeDagsterPlusApi()
+    _merge_ready_pull(github)
+    slack.add_message("1.0", {"pr_number": 42})
+    monkeypatch.setattr("requests.post", plus.post)
+    comp = _component(mod, auto_merge=True, verify_after_merge=True, dagster_url="https://acme.dagster.cloud/prod")
+    first = _run(mod, monkeypatch, comp, github, slack)
+
+    plus.run_statuses[f"rerun-of-{_FAILED_RUN_ID[:8]}"] = "FAILURE"
+    _run(mod, monkeypatch, comp, github, slack, cursor=first.cursor)
+    assert any("Still failing" in r["text"] for r in slack.posted_replies)
+
+
+def test_verify_after_merge_times_out(mod, monkeypatch):
+    github, slack, plus = FakeGithubApi(), FakeSlackClient(), FakeDagsterPlusApi()
+    _merge_ready_pull(github)
+    slack.add_message("1.0", {"pr_number": 42})
+    monkeypatch.setattr("requests.post", plus.post)
+    comp = _component(mod, auto_merge=True, verify_after_merge=True, dagster_url="https://acme.dagster.cloud/prod", verify_timeout_minutes=5)
+    first = _run(mod, monkeypatch, comp, github, slack)
+
+    # Backdate the tracked verification's start time well past the 5-minute timeout, rather
+    # than faking time.time() globally -- simpler and just as real a test of the timeout path.
+    cur = json.loads(first.cursor)
+    cur["verifying"]["1.0"]["started"] -= 10 * 60
+    second = _run(mod, monkeypatch, comp, github, slack, cursor=json.dumps(cur))
+    assert any("did not finish" in r["text"] for r in slack.posted_replies)
+    assert "1.0" in json.loads(second.cursor)["resolved_ts"]
+
+
+def test_verify_after_merge_with_no_failed_run_in_body_resolves_immediately(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    _merge_ready_pull(github, body="No run id mentioned here.")
+    slack.add_message("1.0", {"pr_number": 42})
+    comp = _component(mod, auto_merge=True, verify_after_merge=True, dagster_url="https://acme.dagster.cloud/prod")
+    result = _run(mod, monkeypatch, comp, github, slack)
+    assert any("does not name the failed run" in r["text"] for r in slack.posted_replies)
+    assert "1.0" in json.loads(result.cursor)["resolved_ts"]
+
+
+def test_verify_after_merge_requires_dagster_url(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    _merge_ready_pull(github)
+    slack.add_message("1.0", {"pr_number": 42})
+    comp = _component(mod, auto_merge=True, verify_after_merge=True)  # dagster_url unset
+    result = _run(mod, monkeypatch, comp, github, slack)
+    assert any("dagster_url is not set" in r["text"] for r in slack.posted_replies)
+    assert "1.0" in json.loads(result.cursor)["resolved_ts"]
+
+
+def test_post_merge_command_failure_skips_verification(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    _merge_ready_pull(github)
+    slack.add_message("1.0", {"pr_number": 42})
+    comp = _component(
+        mod, auto_merge=True, verify_after_merge=True, dagster_url="https://acme.dagster.cloud/prod",
+        post_merge_command="false",  # the `false` shell builtin/binary always exits 1
+    )
+    result = _run(mod, monkeypatch, comp, github, slack)
+    assert any("deploy step failed" in r["text"] for r in slack.posted_replies)
+    assert "1.0" in json.loads(result.cursor)["resolved_ts"]
+
+
 def test_already_closed_pr_is_resolved_without_a_review_call(mod, monkeypatch):
     github, slack = FakeGithubApi(), FakeSlackClient()
     github.add_pull(42, state="closed", merged=True)
@@ -283,7 +416,7 @@ def test_resolved_thread_is_not_rescanned(mod, monkeypatch):
         raise AssertionError("should not re-fetch an already-resolved PR")
     monkeypatch.setattr(mod, "_gh_get_pull_request", _boom)
     second = _run(mod, monkeypatch, comp, github, slack, cursor=first.cursor)
-    assert "no open PR-review" in second.skip_message
+    assert "no open PR-review" in second.skip_reason.skip_message
 
 
 def test_skips_in_branch_deployment_by_default(mod, monkeypatch):

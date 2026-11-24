@@ -16,6 +16,20 @@ One sensor. Per tick: scans the Slack channel for still-open PR-review threads (
 
 Already-resolved threads and already-shown warnings are tracked in this sensor's own Dagster-native sensor cursor -- not a shared document two sensors could race on rewriting (a real race the reference sandbox this was built from hit: "two sensors rewriting one state file re-announced PRs").
 
+## Verifying the fix actually worked (`verify_after_merge`)
+
+Merging a PR doesn't prove the fix works -- it proves CI passed, which may not even cover the failure the PR claims to fix. With `verify_after_merge: true`, once `auto_merge` merges a PR, this sensor looks for `Fixes failed run <uuid>` or `Run ID: <uuid>` in the PR body (the convention a fixer asset's PR description should use) and re-executes that exact failed run (Dagster's own `launchRunReexecution`, `ALL_STEPS` strategy) against the just-merged code:
+
+```yaml
+auto_merge: true
+verify_after_merge: true
+dagster_url: "https://my-org.dagster.cloud/prod"
+dagster_cloud_api_token_env_var: DAGSTER_CLOUD_API_TOKEN
+post_merge_command: "./deploy.sh"   # optional -- run before the re-run, e.g. a redeploy step
+```
+
+The thread stays open (not marked resolved) until the re-run finishes -- a later tick polls it and posts `:white_check_mark: Verified...` / `:x: Still failing...` / `:hourglass: ... did not finish in N minutes` into the SAME thread. Tracked in the cursor (`verifying`), same no-shared-state-file discipline as everything else here -- a pod restart doesn't lose track of an in-flight verification. If the PR body never names a failed run, or `dagster_url` isn't set, the thread is simply marked resolved with a note instead of silently hanging forever.
+
 ## `reviewer_token_env_var` / `reviewer_login`
 
 Set up a second GitHub account or bot with write access to the repo, and export its token under a different env var than the one that opens PRs. `reviewer_login` is that identity's username -- checked before merging, to confirm the SPECIFIC reviewer identity approved (not just anyone). Leave `reviewer_token_env_var` unset and every approve attempt fails loudly with an explanatory message instead of silently only commenting.
@@ -66,6 +80,11 @@ Off by default. When on, a merge still requires ALL of: the reviewer identity's 
 | `auto_merge` | `bool` | `false` | When True, squash-merge automatically once the reviewer identity has approved and checks pass (still gated by branch_prefix). |
 | `refresh_other_agent_prs_after_merge` | `bool` | `true` | After auto_merge successfully merges a PR, bring every OTHER open branch_prefix PR up to date with the new base_branch (GitHub's update-branch API) so their CI runs against the just-merged code instead of a stale base, t… _(full docs in schema.json + component README)_ |
 | `skip_in_branch_deployments` | `bool` | `true` | Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch de… _(full docs in schema.json + component README)_ |
+| `verify_after_merge` | `bool` | `false` | After auto_merge merges a PR, look for 'Fixes failed run <uuid>' or 'Run ID: <uuid>' in the PR body (the same convention failed_run_agent_sensor's launched fixer asset should put there) and re-execute that failed run (Da… _(full docs in schema.json + component README)_ |
+| `post_merge_command` | `str` | — | Only used when verify_after_merge is true. An optional shell command run once, right before launching the verification re-run -- e.g. a deploy/redeploy step so the re-run actually executes against the just-merged code in… _(full docs in schema.json + component README)_ |
+| `dagster_url` | `str` | — | Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod'). Required when verify_after_merge is true -- both for the GraphQL endpoint (<dagster_url>/graphql) and for building run links in Slack messages. |
+| `dagster_cloud_api_token_env_var` | `str` | `"DAGSTER_CLOUD_API_TOKEN"` | Only used when verify_after_merge is true. Env var holding a Dagster+ API token with permission to launch runs in this deployment. Same convention as dagster_discovery_tools' own token_env_var. |
+| `verify_timeout_minutes` | `int` | `30` | Only used when verify_after_merge is true. Give up waiting for the verification re-run after this many minutes and report a timeout instead of a pass/fail. |
 
 [//]: # (FIELDS:END)
 

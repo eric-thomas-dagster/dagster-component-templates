@@ -30689,8 +30689,8 @@
       "id": "github_pr_tools",
       "name": "github_pr_tools",
       "category": "ai",
-      "description": "Repo-scoped GitHub pull-request tools for engineering agents: read a PR, assess its deterministic risk level, propose a targeted-edit fix, and review (COMMENT or risk-gated APPROVE under a second identity). Registers a resource and ships a stdio MCP server.",
-      "version": "1.1.0",
+      "description": "Repo-scoped GitHub pull-request tools for engineering agents: read a PR, assess its deterministic risk level, propose a targeted-edit fix, review (COMMENT or risk-gated APPROVE under a second identity), and browse the repo itself (list_files/read_file, honoring exclude_paths and refusing path traversal). Registers a resource and ships a stdio MCP server.",
+      "version": "1.2.0",
       "author": "Dagster Community",
       "path": "assets/ai/github_pr_tools",
       "tags": [
@@ -30713,8 +30713,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/github_pr_tools/requirements.txt",
       "validation": {
         "level": "code",
-        "last_validated": "2026-11-20",
-        "evidence": "tests/ in the component dir against an in-memory fake GitHub REST API (requests.request faked, nothing else): risk assessment thresholds, the second-identity APPROVE gate, propose_fix's protected-path/duplicate-PR/unique-old-text guards, merge readiness (branch prefix + reviewer approval + passing checks), and the call()/t_* dispatch."
+        "last_validated": "2026-11-23",
+        "evidence": "tests/ in the component dir against an in-memory fake GitHub REST API (requests.request faked, nothing else): risk assessment thresholds, the second-identity APPROVE gate, propose_fix's protected-path/duplicate-PR/unique-old-text guards, merge readiness (branch prefix + reviewer approval + passing checks), the call()/t_* dispatch, and list_files/read_file's exclude_paths filtering, path-traversal refusal, and ref pass-through."
       },
       "agent_hints": {
         "inputs": "repo, token_env_var, reviewer_token_env_var (a second identity, required for APPROVE); tool args per-call (e.g. propose_fix's files: [{path, old, new}] or {path, content}).",

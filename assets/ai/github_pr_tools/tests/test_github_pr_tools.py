@@ -41,8 +41,17 @@ class FakeGithubApi:
         self.checks = {}
         self.reviews = {}
         self.contents = {}
+        self.dirs = {}
         self.refs = {"heads/main": "basesha123"}
         self.comments = {}
+
+    def add_dir(self, path, entries):
+        """`entries` is a list of {name, type} under `path` ('' for the repo root); `add_dir`
+        fills in `path` (joined) and `size` so callers don't repeat the joined path."""
+        self.dirs[path] = [
+            {"name": e["name"], "path": f"{path}/{e['name']}" if path else e["name"], "type": e["type"], "size": e.get("size", 0)}
+            for e in entries
+        ]
 
     def add_pull(self, number, *, title="Fix bug", author="bot", head_sha="abc123", head_ref="agent/fix-1", state="open", merged=False, body=""):
         self.pulls[number] = {
@@ -122,9 +131,11 @@ class FakeGithubApi:
         if method == "DELETE" and m:
             self.refs.pop(f"heads/{m.group(1)}", None)
             return _FakeResp(204, None)
-        m = re.match(r"^/contents/(.+)$", path)
+        m = re.match(r"^/contents/(.*)$", path)
         if method == "GET" and m:
             p = m.group(1)
+            if p in self.dirs:
+                return _FakeResp(200, self.dirs[p])
             if p not in self.contents:
                 return _FakeResp(404, {"message": "Not Found"})
             return _FakeResp(200, {"sha": "filesha", "content": base64.b64encode(self.contents[p].encode()).decode()})
@@ -640,3 +651,94 @@ def test_restrict_to_branch_prefix_blocks_assess_and_review(mod, patched):
     result = tools.call("review_pull_request", {"number": 1, "decision": "COMMENT", "body": "hi"})
     assert "error" in result
     assert not api.reviews[1]
+
+
+# ── list_files / read_file (repository reading tools, ported from the engineering-agents reference's
+# github_scope.list_files/read_file -- same exclude_paths matching and path-traversal safety as the
+# rest of this component) ────────────────────────────────────────────────────────────────────────────
+
+def test_read_file_refuses_an_excluded_path(mod, patched):
+    api = patched
+    api.contents["assets/ai/github_pr_tools/component.py"] = "secret internals"
+    tools = _tools(mod, api, exclude_paths=("assets/ai/github_pr_tools/",))
+    result = tools.call("read_file", {"path": "assets/ai/github_pr_tools/component.py"})
+    assert "error" in result and "excluded" in result["error"]
+
+
+def test_list_files_never_lists_an_excluded_entry_even_in_its_parent_directory(mod, patched):
+    api = patched
+    api.add_dir("assets/ai", [
+        {"name": "github_pr_tools", "type": "dir"},
+        {"name": "other_tool", "type": "dir"},
+    ])
+    tools = _tools(mod, api, exclude_paths=("assets/ai/github_pr_tools/",))
+    result = tools.call("list_files", {"path": "assets/ai"})
+    assert [e["path"] for e in result["entries"]] == ["assets/ai/other_tool"]
+
+
+def test_propose_fix_still_refuses_an_excluded_path(mod, patched):
+    """Regression check: exclude_paths is one shared field across get_pull_request/assess_pull_request/
+    review_pull_request/propose_fix/list_files/read_file -- adding the last two must not change
+    propose_fix's existing refusal."""
+    api = patched
+    tools = _tools(mod, api, exclude_paths=("assets/ai/github_pr_tools/",))
+    result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": [{"path": "assets/ai/github_pr_tools/component.py", "content": "x"}]})
+    assert "error" in result and "excluded" in result["error"]
+
+
+def test_list_files_refuses_path_traversal_before_any_http_call(mod, patched):
+    api = patched
+    tools = _tools(mod, api)
+    result = tools.call("list_files", {"path": "../etc/passwd"})
+    assert "error" in result and "Invalid path" in result["error"]
+    assert api.calls == []
+
+
+def test_read_file_refuses_path_traversal_before_any_http_call(mod, patched):
+    api = patched
+    tools = _tools(mod, api)
+    result = tools.call("read_file", {"path": "../../secret"})
+    assert "error" in result and "Invalid path" in result["error"]
+    assert api.calls == []
+
+
+def test_read_file_passes_ref_through_to_the_api_call(mod, patched):
+    api = patched
+    api.contents["src/a.py"] = "hello from a branch"
+    tools = _tools(mod, api)
+    result = tools.t_read_file("src/a.py", ref="feature-branch")
+    assert result["ref"] == "feature-branch"
+    assert result["content"] == "hello from a branch"
+    contents_calls = [c for c in api.calls if "/contents/" in c[1]]
+    assert contents_calls[-1][3]["params"]["ref"] == "feature-branch"
+
+
+def test_read_file_defaults_ref_to_base_branch(mod, patched):
+    api = patched
+    api.contents["src/a.py"] = "hello from main"
+    tools = _tools(mod, api, base_branch="main")
+    result = tools.t_read_file("src/a.py")
+    assert result["ref"] == "main"
+    contents_calls = [c for c in api.calls if "/contents/" in c[1]]
+    assert contents_calls[-1][3]["params"]["ref"] == "main"
+
+
+def test_list_files_repo_root_and_a_subdir(mod, patched):
+    api = patched
+    api.add_dir("", [
+        {"name": "README.md", "type": "file", "size": 10},
+        {"name": "src", "type": "dir"},
+    ])
+    api.add_dir("src", [
+        {"name": "a.py", "type": "file", "size": 20},
+        {"name": "sub", "type": "dir"},
+    ])
+    api.add_dir("src/sub", [
+        {"name": "b.py", "type": "file", "size": 5},
+    ])
+    tools = _tools(mod, api)
+    root = tools.t_list_files("")
+    assert {e["path"] for e in root["entries"]} == {"README.md", "src"}
+    subdir = tools.t_list_files("src/sub")
+    assert [e["path"] for e in subdir["entries"]] == ["src/sub/b.py"]
+    assert subdir["entries"][0]["type"] == "file"

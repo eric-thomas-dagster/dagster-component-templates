@@ -21,6 +21,17 @@ Tools:
   review_pull_request(number, decision, body) -- decision is COMMENT or APPROVE. APPROVE is refused unless the PR
                                           is low risk, and is posted under the SECOND identity (reviewer_token_env_var)
                                           -- GitHub blocks an author approving their own PR.
+  list_files(path="")                 -- lists files/directories under `path` in the configured repo (GitHub's
+                                          Contents API, pinned to base_branch). An entry matching exclude_paths
+                                          never appears in the listing at all.
+  read_file(path, ref=None)           -- reads one file's content (ref defaults to base_branch; pass a branch,
+                                          commit SHA or tag to read a different one). Refuses a path matching
+                                          exclude_paths.
+
+Both list_files and read_file refuse a path containing '..' before doing anything else, same as every other
+path this component touches (_gh_safe_path) -- ported from the engineering-agents reference's
+github_scope.list_files/read_file/is_excluded/_safe_path, through this component's own GitHub-calling and
+error-shaping conventions rather than a second style.
 
 Deliberately NOT a tool: merging. `merge_if_ready` (same GitHub-PR-scope block, copied into
 `sensors/slack_pr_approval_watcher`) is a human-reaction-triggered sensor action only, never something an agent
@@ -561,12 +572,59 @@ def _gh_open_issue(
     return {"number": issue["number"], "url": issue["html_url"]}
 
 
+# ── Repository reading tools (list_files/read_file), ported from the engineering-agents reference's
+# github_scope.list_files/read_file/is_excluded/_safe_path -- same traversal-safety (_gh_safe_path, shared
+# block above) and exclude_paths matching (_gh_path_matches_any, same function get_pull_request/propose_fix
+# already use -- not a second matching function) as the rest of this component, not the reference's own
+# settings-object/is_excluded style. Not part of the shared "github PR scope" block above for the same
+# reason find_issues/open_issue aren't: neither slack_pr_approval_watcher nor
+# github_pull_request_agent_sensor needs repo-browsing, only PR review/merge ─────────────────────────────
+def _gh_list_files(
+    repo: str, path: str, *, ref: str, token: str, api_base_url: str, exclude_paths=(),
+) -> List[Dict[str, Any]]:
+    """List files/directories under `path` (GitHub's Contents API: an array of entries for a directory,
+    one entry for a file) filtered through the SAME exclude_paths matching get_pull_request/propose_fix
+    already use -- an excluded entry never appears in the listing at all, not just refused if asked
+    directly."""
+    p = _gh_safe_path(path)
+    items = _gh_call("GET", repo, f"/contents/{p}", token=token, api_base_url=api_base_url, params={"ref": ref})
+    items = items if isinstance(items, list) else [items]
+
+    def _excluded(i: Dict[str, Any]) -> bool:
+        # _gh_path_matches_any treats a path's LAST segment as a filename and checks the directory
+        # segments before it against a trailing-slash pattern (built for a PR's changed-file paths,
+        # which are always files) -- a directory ENTRY's own path has no such trailing filename, so
+        # 'assets/ai/github_pr_tools' (the directory itself) wouldn't match 'assets/ai/github_pr_tools/'
+        # without this. Appending a placeholder segment makes a directory entry checked the same way a
+        # file nested inside it already is, with no second matching function.
+        check_path = i["path"] + "/." if i["type"] == "dir" else i["path"]
+        return _gh_path_matches_any(check_path, exclude_paths)
+
+    return [{"path": i["path"], "type": i["type"], "size": i.get("size")} for i in items if not _excluded(i)]
+
+
+def _gh_read_file_tool(
+    repo: str, path: str, ref: str, *, token: str, api_base_url: str, exclude_paths=(),
+) -> str:
+    """read_file tool: refuses a path matching exclude_paths (_gh_read_file above has no reason to do this
+    itself -- its one caller, _gh_apply_edit, only ever reaches a file propose_fix has already checked
+    against exclude_paths before calling it), then reuses _gh_read_file for the actual fetch + traversal
+    check (_gh_safe_path) + base64 decode."""
+    p = _gh_safe_path(path)
+    if _gh_path_matches_any(p, exclude_paths):
+        raise GithubPrScopeError(f"{p!r} is excluded (exclude_paths); agents may not read it.")
+    return _gh_read_file(repo, p, ref, token=token, api_base_url=api_base_url)
+
+
 _AUDIT_LOGGER_NAME = "github_pr_tools.audit"
-ALL_TOOLS = ("get_pull_request", "list_open_pull_requests", "assess_pull_request", "propose_fix", "review_pull_request", "refresh_open_agent_prs", "find_issues", "open_issue")
+ALL_TOOLS = (
+    "get_pull_request", "list_open_pull_requests", "assess_pull_request", "propose_fix", "review_pull_request",
+    "refresh_open_agent_prs", "find_issues", "open_issue", "list_files", "read_file",
+)
 
 # Which tools write an outcome-ledger entry, and what kind of action each is -- see the "agent outcome
 # ledger" block above. Read-only tools (get_pull_request, list_open_pull_requests, assess_pull_request,
-# refresh_open_agent_prs, find_issues) never write one.
+# refresh_open_agent_prs, find_issues, list_files, read_file) never write one.
 _LEDGER_KIND_BY_TOOL = {"propose_fix": "pull_request", "open_issue": "github_issue", "review_pull_request": "review"}
 
 
@@ -714,6 +772,24 @@ class GithubPrTools:
             practice_mode=_gh_is_practice_mode(self.practice_mode_env_var),
         )
 
+    def t_list_files(self, path: str = "") -> Dict[str, Any]:
+        """Files/directories under `path` in the configured repo, pinned to base_branch. An entry
+        matching exclude_paths never appears in the listing at all."""
+        return {"path": path, "entries": _gh_list_files(
+            self.repo, path, ref=self.base_branch, token=self.token, api_base_url=self.api_base_url,
+            exclude_paths=self.exclude_paths,
+        )}
+
+    def t_read_file(self, path: str, ref: Optional[str] = None) -> Dict[str, Any]:
+        """One file's content. ref defaults to base_branch; pass a branch, commit SHA or tag to read a
+        different one. Refuses a path matching exclude_paths."""
+        used_ref = ref or self.base_branch
+        content = _gh_read_file_tool(
+            self.repo, path, used_ref, token=self.token, api_base_url=self.api_base_url,
+            exclude_paths=self.exclude_paths,
+        )
+        return {"path": path, "ref": used_ref, "content": content}
+
     def t_review_pull_request(self, number: int, decision: str, body: str) -> Dict[str, Any]:
         return _gh_review_pull_request(
             self.repo, number, decision, body, token=self.token, reviewer_token=self.reviewer_token,
@@ -810,8 +886,9 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         description=(
             "Path prefixes the agent may neither READ nor change -- get_pull_request/"
             "assess_pull_request/review_pull_request never include a matching file in the PR's "
-            "file list at all (not just refuse to approve touching it), and propose_fix refuses "
-            "to change one. For when the repository that hosts these agent components is the "
+            "file list at all (not just refuse to approve touching it), propose_fix refuses "
+            "to change one, list_files never includes a matching entry in its listing at all, "
+            "and read_file refuses to read one. For when the repository that hosts these agent components is the "
             "SAME repository they review (e.g. 'assets/ai/github_pr_tools/' for this repo's own "
             "copy) -- without this, a review agent spends its review on its own source instead "
             "of the PR it's actually meant to look at. Same directory-like/filename-like "
@@ -1033,6 +1110,18 @@ def build_mcp_server(tools: GithubPrTools):
     def open_issue(title: str, body: str, labels: list = None, ctx: _Context = None) -> dict:
         """File a GitHub issue (labeled 'engineering-agent'). Check find_issues first."""
         return tools.call("open_issue", {"title": title, "body": body, "labels": labels}, run_id=_run_id_from(ctx))
+
+    @_tool
+    def list_files(path: str = "") -> dict:
+        """List files/directories under `path` in the configured repo (pinned to base_branch). An
+        entry matching exclude_paths never appears in the listing at all."""
+        return tools.call("list_files", {"path": path})
+
+    @_tool
+    def read_file(path: str, ref: str = None) -> dict:
+        """Read one file's content from the configured repo. ref defaults to base_branch; pass a
+        branch, commit SHA or tag to read a different one. Refuses a path matching exclude_paths."""
+        return tools.call("read_file", {"path": path, "ref": ref})
 
     return mcp
 

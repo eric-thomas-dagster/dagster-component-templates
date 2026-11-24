@@ -164,7 +164,7 @@
         "type": "string"
       },
       "label": "Exclude Paths",
-      "description": "Path prefixes the agent may neither READ nor change -- get_pull_request/assess_pull_request/review_pull_request never include a matching file in the PR's file list at all (not just refuse to approve touching it), and propose_fix refuses to change one. For when the repository that hosts these agent components is the SAME repository they review (e.g. 'assets/ai/github_pr_tools/' for this repo's own copy) -- without this, a review agent spends its review on its own source instead of the PR it's actually meant to look at. Same directory-like/filename-like matching convention as protected_paths.",
+      "description": "Path prefixes the agent may neither READ nor change -- get_pull_request/assess_pull_request/review_pull_request never include a matching file in the PR's file list at all (not just refuse to approve touching it), propose_fix refuses to change one, list_files never includes a matching entry in its listing at all, and read_file refuses to read one. For when the repository that hosts these agent components is the SAME repository they review (e.g. 'assets/ai/github_pr_tools/' for this repo's own copy) -- without this, a review agent spends its review on its own source instead of the PR it's actually meant to look at. Same directory-like/filename-like matching convention as protected_paths.",
       "required": false
     },
     "duplicate_check_lookback_days": {

@@ -71,9 +71,11 @@ from dagster_snowflake import SnowflakeResource
 
 
 # Entity-type import flags demo_mode does NOT cover -- see the component's
-# demo_mode field and the guard at the top of write_state_to_path.
+# demo_mode field and the guard at the top of write_state_to_path. Stored
+# procedures, tasks, and dynamic tables ARE covered (see _DemoSnowflakeCursor);
+# the rest still require a real Snowflake connection.
 _DEMO_MODE_UNSUPPORTED_IMPORT_FLAGS = [
-    "import_tasks", "import_dynamic_tables", "import_streams", "import_snowpipes",
+    "import_streams", "import_snowpipes",
     "import_stages", "import_materialized_views", "import_external_tables",
     "import_alerts", "import_openflow_flows", "import_tables", "import_views",
 ]
@@ -151,16 +153,37 @@ def _build_partitions_def_from_dict(spec: Dict[str, Any]):
     return _build_single_partitions_def(spec)
 
 
-class _DemoSnowflakeCursor:
-    """Answers the exact SQL the stored-procedures discovery + CALL path
-    sends (SHOW PROCEDURES, CALL <proc>(...)) -- demo_mode's scope, see the
-    field's own description and the guard in write_state_to_path. Any other
-    query (e.g. the perf-trace QUERY_HISTORY_BY_QUERY_ID lookup) returns an
-    empty result rather than raising -- _emit_query_perf already tolerates
-    that and just omits the perf metadata."""
+def _demo_extract_like_name(text: str) -> Optional[str]:
+    """Pull the quoted literal out of a `... LIKE '<name>' ...` clause, as
+    used by both `SHOW TASKS LIKE '<name>' IN SCHEMA ...` (per-task metadata
+    enrichment) and `SHOW DYNAMIC TABLES LIKE '<name>' IN SCHEMA ...`
+    (per-DT metadata enrichment). Returns None for the plain
+    `SHOW ... IN SCHEMA ...` discovery shape (no LIKE clause), in which case
+    the caller should return every tracked object instead of just one."""
+    m = re.search(r"LIKE\s+'([^']+)'", text, re.IGNORECASE)
+    return m.group(1) if m else None
 
-    def __init__(self, procedure_names: List[str], schema: str) -> None:
-        self._procedure_names = procedure_names
+
+class _DemoSnowflakeCursor:
+    """Answers the exact SQL shapes demo_mode needs to fake for stored
+    procedures, tasks, and dynamic tables (see the `demo_mode` field's own
+    description and the guard in write_state_to_path for exactly which
+    entity types that covers):
+
+      - SHOW PROCEDURES / CALL <proc>(...)
+      - SHOW TASKS [LIKE '<name>'] IN SCHEMA ... / EXECUTE TASK ... /
+        the TASK_HISTORY table function
+      - SHOW DYNAMIC TABLES [LIKE '<name>'] IN SCHEMA ... /
+        ALTER DYNAMIC TABLE ... REFRESH / the
+        DYNAMIC_TABLE_REFRESH_HISTORY table function
+
+    Any other query (e.g. the perf-trace QUERY_HISTORY_BY_QUERY_ID lookup)
+    returns an empty result rather than raising -- the callers of those
+    already tolerate that and just omit the optional enrichment."""
+
+    def __init__(self, object_names: List[str], database: str, schema: str) -> None:
+        self._object_names = object_names
+        self._database = database
         self._schema = schema
         self._rows: List[tuple] = []
         self.description: Optional[List[tuple]] = None
@@ -170,17 +193,81 @@ class _DemoSnowflakeCursor:
         text = " ".join(str(sql).split())
         upper = text.upper()
         self.description, self._rows = None, []
+
         if upper.startswith("SHOW PROCEDURES"):
             self.description = [(c,) for c in ("NAME", "SCHEMA_NAME", "ARGUMENTS")]
-            self._rows = [(name, self._schema, f"{name} () RETURN VARCHAR") for name in self._procedure_names]
+            self._rows = [(name, self._schema, f"{name} () RETURN VARCHAR") for name in self._object_names]
+
         elif upper.startswith("CALL "):
             proc_name = text[len("CALL "):].split("(", 1)[0].rsplit(".", 1)[-1]
             self.sfqid = f"demo-{proc_name.lower()}"
             self._rows = [(f"{proc_name} completed successfully",)]
+
+        elif upper.startswith("SHOW TASKS"):
+            # Matches both the plain discovery shape (write_state_to_path)
+            # and the `LIKE '<name>'` per-task enrichment shape
+            # (_run_task_body) -- same column set either way; real
+            # Snowflake's SHOW TASKS returns these uppercase column names.
+            self.description = [
+                (c,) for c in (
+                    "NAME", "DATABASE_NAME", "SCHEMA_NAME", "STATE", "SCHEDULE",
+                    "WAREHOUSE", "OWNER", "COMMENT", "DEFINITION",
+                )
+            ]
+            like_name = _demo_extract_like_name(text)
+            names = [like_name] if like_name else self._object_names
+            self._rows = [
+                (name, self._database, self._schema, "started", None, "DEMO_WH", "DEMO_ROLE", None, f"-- demo task {name}")
+                for name in names
+            ]
+
+        elif upper.startswith("EXECUTE TASK"):
+            self.sfqid = "demo-execute-task"
+            self._rows = []
+
+        elif "TASK_HISTORY(" in upper:
+            self.description = [
+                (c,) for c in (
+                    "QUERY_ID", "STATE", "SCHEDULED_TIME", "QUERY_START_TIME",
+                    "COMPLETED_TIME", "RETURN_VALUE", "ERROR_MESSAGE",
+                )
+            ]
+            self._rows = [("demo-query-id", "SUCCEEDED", None, None, None, "Demo run completed successfully", None)]
+
+        elif upper.startswith("SHOW DYNAMIC TABLES"):
+            # Matches the plain discovery/sensor shape (write_state_to_path,
+            # snowflake_dt_refresh_sensor) and the `LIKE '<name>'` per-DT
+            # enrichment shape (_make_dynamic_table_asset) -- same column
+            # set either way; real Snowflake's SHOW DYNAMIC TABLES returns
+            # these uppercase column names.
+            self.description = [
+                (c,) for c in (
+                    "NAME", "DATABASE_NAME", "SCHEMA_NAME", "TARGET_LAG", "REFRESH_MODE",
+                    "SCHEDULING_STATE", "ROWS", "BYTES", "DATA_TIMESTAMP", "LAST_COMPLETED_REFRESH_STATUS",
+                )
+            ]
+            like_name = _demo_extract_like_name(text)
+            names = [like_name] if like_name else self._object_names
+            self._rows = [
+                (name, self._database, self._schema, "1 minute", "INCREMENTAL", "ACTIVE", 100, 2048, "2026-01-01T00:00:00Z", "SUCCEEDED")
+                for name in names
+            ]
+
+        elif upper.startswith("ALTER DYNAMIC TABLE"):
+            self.sfqid = "demo-dt-refresh"
+            self._rows = []
+
+        elif "DYNAMIC_TABLE_REFRESH_HISTORY(" in upper:
+            self.description = [(c,) for c in ("NAME", "REFRESH_ACTION")]
+            self._rows = [(name, "INCREMENTAL") for name in self._object_names]
+
         return self
 
     def fetchone(self) -> Optional[tuple]:
         return self._rows[0] if self._rows else None
+
+    def fetchall(self) -> List[tuple]:
+        return list(self._rows)
 
     def __iter__(self) -> Iterator[tuple]:
         return iter(self._rows)
@@ -190,11 +277,11 @@ class _DemoSnowflakeCursor:
 
 
 class _DemoSnowflakeConnection:
-    def __init__(self, procedure_names: List[str], schema: str) -> None:
-        self._procedure_names, self._schema = procedure_names, schema
+    def __init__(self, object_names: List[str], database: str, schema: str) -> None:
+        self._object_names, self._database, self._schema = object_names, database, schema
 
     def cursor(self) -> _DemoSnowflakeCursor:
-        return _DemoSnowflakeCursor(self._procedure_names, self._schema)
+        return _DemoSnowflakeCursor(self._object_names, self._database, self._schema)
 
     def close(self) -> None:
         return None
@@ -735,7 +822,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         its own try/finally still works cleanly.
         """
         if self.demo_mode:
-            return _DemoSnowflakeConnection(sorted(self.assets_by_name or {}), self.workspace.schema_ or "PUBLIC")  # type: ignore[return-value]
+            return _DemoSnowflakeConnection(
+                sorted(self.assets_by_name or {}),
+                self.workspace.database or "DEMO_DB",
+                self.workspace.schema_ or "PUBLIC",
+            )  # type: ignore[return-value]
         cm = self.workspace.get_connection()
         conn = cm.__enter__()
         original_close = conn.close
@@ -965,14 +1056,19 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     demo_mode: bool = Field(
         default=False,
         description=(
-            "Skip the real Snowflake connection for stored procedures: discovery "
-            "returns a synthetic catalog (one entry per assets_by_name key) and CALL "
-            "always 'succeeds', instead of running real SQL. Scoped to "
-            "import_stored_procedures only -- raises a clear error at state-write "
-            "time if any other import_* flag is also enabled (import_tasks defaults "
-            "to true, so set it false explicitly when using demo_mode). Use to "
-            "smoke-test the stored-procedure shape (assets_by_name overrides, "
-            "procedure_row_count_checks) with no real Snowflake account available."
+            "Skip the real Snowflake connection for stored procedures, tasks, and "
+            "dynamic tables: discovery returns a synthetic catalog (one entry per "
+            "assets_by_name key, reused across every enabled entity kind) instead "
+            "of running real SQL -- CALL / EXECUTE TASK / ALTER DYNAMIC TABLE ... "
+            "REFRESH always 'succeed', and SHOW TASKS / TASK_HISTORY / SHOW DYNAMIC "
+            "TABLES / DYNAMIC_TABLE_REFRESH_HISTORY all answer with synthetic rows. "
+            "Scoped to import_stored_procedures, import_tasks, and "
+            "import_dynamic_tables -- raises a clear error at state-write time if "
+            "any OTHER import_* flag (streams, snowpipes, stages, materialized "
+            "views, external tables, alerts, OpenFlow flows, tables, views) is also "
+            "enabled. Use to smoke-test the shape (assets_by_name overrides, "
+            "procedure_row_count_checks, task/DT asset materialization) with no "
+            "real Snowflake account available."
         ),
     )
     procedure_row_count_checks: Optional[List[Dict[str, Any]]] = Field(
@@ -1077,10 +1173,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             unsupported = [f for f in _DEMO_MODE_UNSUPPORTED_IMPORT_FLAGS if getattr(self, f)]
             if unsupported:
                 raise ValueError(
-                    "demo_mode is currently scoped to import_stored_procedures only -- "
-                    f"disable {', '.join(unsupported)} to use it (note: import_tasks "
-                    "defaults to true), or turn demo_mode off for a real Snowflake "
-                    "connection covering those entity types too."
+                    "demo_mode is currently scoped to import_stored_procedures, "
+                    "import_tasks, and import_dynamic_tables -- "
+                    f"disable {', '.join(unsupported)} to use it, or turn demo_mode "
+                    "off for a real Snowflake connection covering those entity types too."
                 )
         state: Dict[str, Any] = {}
         conn = self._create_connection()

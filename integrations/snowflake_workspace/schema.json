@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SnowflakeWorkspaceComponent",
-  "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive). assets_by_name supports per-entity partitions_def and procedure_row_count_checks verifies a stored procedure's output table received rows; demo_mode (stored procedures only) needs no real Snowflake account.",
+  "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive). assets_by_name supports per-entity partitions_def and procedure_row_count_checks verifies a stored procedure's output table received rows; demo_mode (stored procedures, tasks, and dynamic tables) needs no real Snowflake account.",
   "category": "integration",
   "icon": "si:snowflake",
   "x-dagster-io": {
@@ -230,7 +230,7 @@
     "demo_mode": {
       "type": "boolean",
       "label": "Demo Mode",
-      "description": "Skip the real Snowflake connection for stored procedures: discovery returns a synthetic catalog (one entry per assets_by_name key) and CALL always succeeds. Scoped to import_stored_procedures only -- raises a clear error at state-write time if any other import_* flag is also enabled (import_tasks defaults to true).",
+      "description": "Skip the real Snowflake connection for stored procedures, tasks, and dynamic tables: discovery returns a synthetic catalog (one entry per assets_by_name key, reused across every enabled entity kind) and CALL / EXECUTE TASK / ALTER DYNAMIC TABLE ... REFRESH always succeed. Scoped to import_stored_procedures, import_tasks, and import_dynamic_tables -- raises a clear error at state-write time if any OTHER import_* flag is also enabled.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"

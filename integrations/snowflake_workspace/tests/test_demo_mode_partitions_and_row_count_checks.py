@@ -56,7 +56,10 @@ def _write_state(tmp_path, state):
 # ── Gap 1: demo_mode ──────────────────────────────────────────────────────
 
 def test_demo_mode_requires_other_import_flags_disabled(tmp_path):
-    comp = _component(demo_mode=True, import_tasks=True)  # import_tasks left on
+    # demo_mode now covers stored procedures, tasks, AND dynamic tables (see
+    # test_demo_mode_tasks_and_dynamic_tables.py) -- the guard still fires for
+    # every OTHER import_* flag, e.g. streams.
+    comp = _component(demo_mode=True, import_streams=True)
     with pytest.raises(ValueError, match="demo_mode is currently scoped"):
         asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
 

@@ -116,7 +116,7 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 | `generate_sensor` | `bool` | `true` | If true, create the observation sensor. It polls Snowflake and emits AssetMaterialization for: task runs (TASK_HISTORY), Snowpipe loads (COPY_HISTORY), stream CDC advances (SYSTEM$STREAM_HAS_DATA + QUERY_HISTORY), stage… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 | `assets_by_name` | `Dict[str, Dict[str, Any]]` | — | Override the AssetSpec for specific imported entities (Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, etc.) by their Snowflake name. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.as… _(full docs in schema.json + component README)_ |
-| `demo_mode` | `bool` | `false` | Skip the real Snowflake connection for stored procedures: discovery returns a synthetic catalog (one entry per assets_by_name key) and CALL always 'succeeds', instead of running real SQL. Scoped to import_stored_procedur… _(full docs in schema.json + component README)_ |
+| `demo_mode` | `bool` | `false` | Skip the real Snowflake connection for stored procedures, tasks, and dynamic tables: discovery returns a synthetic catalog (one entry per assets_by_name key, reused across every enabled entity kind) instead of running re… _(full docs in schema.json + component README)_ |
 | `procedure_row_count_checks` | `List[Dict[str, Any]]` | — | Attach a row-count asset_check to specific stored procedures, evaluated against each procedure's output table (SELECT COUNT(*)) after it runs -- catches a CALL that 'succeeds' but writes zero rows, which nothing else her… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
@@ -291,19 +291,29 @@ procedure_row_count_checks:
 
 One subsettable `multi_asset_check` is built for all entries — not one job per check.
 
-## Demo mode — stored procedures only, no real Snowflake account
+## Demo mode — stored procedures, tasks, and dynamic tables, no real Snowflake account
 
-`demo_mode: true` replaces the one network boundary (`_create_connection`) with a synthetic stand-in for stored-procedure discovery (`SHOW PROCEDURES`) and execution (`CALL`) — the synthetic catalog is derived from `assets_by_name`'s keys, so without `assets_by_name` demo_mode discovers nothing.
+`demo_mode: true` replaces the one network boundary (`_create_connection`) with a synthetic stand-in covering:
+
+- **Stored procedures** — discovery (`SHOW PROCEDURES`) and execution (`CALL`)
+- **Tasks** — discovery and per-task enrichment (`SHOW TASKS`, `SHOW TASKS LIKE '<name>'`), execution (`EXECUTE TASK ... [USING CONFIG = '<json>']`), and the `TASK_HISTORY` table function
+- **Dynamic tables** — discovery and per-DT enrichment (`SHOW DYNAMIC TABLES`, `SHOW DYNAMIC TABLES LIKE '<name>'`), refresh (`ALTER DYNAMIC TABLE ... REFRESH`), and the `DYNAMIC_TABLE_REFRESH_HISTORY` table function (so the DT-refresh sensor also works in demo mode)
+
+The synthetic catalog is derived from `assets_by_name`'s keys (reused across every entity kind you enable), so without `assets_by_name` demo_mode discovers nothing.
 
 ```yaml
 demo_mode: true
-import_tasks: false              # import_tasks defaults to true -- must be disabled explicitly
+import_tasks: true
 import_stored_procedures: true
+import_dynamic_tables: true
+dt_modeling: asset                # or 'external' (the default) for AssetSpec-only DTs
 assets_by_name:
-  LOAD_CUSTOMER_METRICS: {}
+  LOAD_CUSTOMER_METRICS: {}       # becomes a demo stored procedure
+  REFRESH_METRICS_TASK: {}        # becomes a demo task
+  CUSTOMER_360_DT: {}             # becomes a demo dynamic table
 ```
 
-**Scoped to `import_stored_procedures` only** — `write_state_to_path` raises a clear `ValueError` if `demo_mode: true` is combined with any other `import_*` flag (tasks, dynamic tables, streams, snowpipes, stages, materialized views, external tables, alerts, OpenFlow flows, tables, views), since none of those entity types' discovery/execution SQL has a synthetic stand-in yet.
+**Scoped to `import_stored_procedures`, `import_tasks`, and `import_dynamic_tables`** — `write_state_to_path` raises a clear `ValueError` if `demo_mode: true` is combined with any OTHER `import_*` flag (streams, snowpipes, stages, materialized views, external tables, alerts, OpenFlow flows, tables, views), since none of those entity types' discovery/execution SQL has a synthetic stand-in yet.
 
 ## Task `config:` and `config_schema:`
 

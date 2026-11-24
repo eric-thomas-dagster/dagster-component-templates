@@ -1036,7 +1036,7 @@
       "name": "Agent Fixture Check",
       "category": "ai",
       "description": "Grade an agent's structured outcome against owner-written fixtures (word/phrase groups) -- an asset check attached to the agent's own outcome asset, reporting recall/precision as metadata.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/agent_fixture_check",
       "tags": [

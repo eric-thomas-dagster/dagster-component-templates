@@ -66,6 +66,34 @@
       "label": "Description",
       "description": "Check description. Defaults to a generated one naming the fixtures file and threshold.",
       "required": false
+    },
+    "match_mode": {
+      "type": "string",
+      "enum": [
+        "text",
+        "fields"
+      ],
+      "label": "Match Mode",
+      "description": "'text' (default, unchanged): pools {title, body} free-text findings and matches them against word-group fixtures (see fixtures_file). 'fields': grades structured extraction output instead -- the outcome's fields_key holds a flat {field_name: value} dict (e.g. document-extraction output), compared field-by-field against fixtures_file entries shaped {\"id\": \"...\", \"field\": \"...\", \"expected\": ...} using fuzzy string/numeric matching (see fuzzy_field_threshold, numeric_tolerance).",
+      "required": false
+    },
+    "fields_key": {
+      "type": "string",
+      "label": "Fields Key",
+      "description": "Top-level key of the outcome dict holding the extracted field_name -> value dict. Only used when match_mode is 'fields'.",
+      "required": false
+    },
+    "fuzzy_field_threshold": {
+      "type": "number",
+      "label": "Fuzzy Field Threshold",
+      "description": "Minimum text-similarity ratio (0-1) for a string field to count as matching its fixture's expected value, in 'fields' mode. Computed with a token-sort ratio (word order ignored, case-insensitive) over Python's stdlib difflib.SequenceMatcher -- e.g. 'Acme Corp' vs 'Acme Corporation' scores 0.72, above the 0.7 default, while a genuinely different value scores well below it. Only used when match_mode is 'fields'.",
+      "required": false
+    },
+    "numeric_tolerance": {
+      "type": "number",
+      "label": "Numeric Tolerance",
+      "description": "Relative tolerance for a numeric field to count as matching its fixture's expected value, in 'fields' mode -- e.g. 0.01 means within 1% (so 1042.50 matches an expected 1042.51, but not an expected 950.00). Passed as math.isclose's rel_tol. Only used when match_mode is 'fields'.",
+      "required": false
     }
   }
 }

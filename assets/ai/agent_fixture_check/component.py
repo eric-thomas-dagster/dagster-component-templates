@@ -17,9 +17,21 @@ Fixture file shape (JSON): `{"fixtures": [{"id": "...", "any": [["word", "word"]
 finding matches a fixture when it contains every word of AT LEAST ONE of its `any` groups
 (case-insensitive substring match). Confirmed via the reference's own `_matches`/`grade` functions,
 not reinvented.
+
+A second mode, `match_mode: "fields"`, grades structured extraction output instead of free text --
+found while auditing this registry against a document-intelligence recipe list: a document-extraction
+agent's outcome is a flat `{field_name: value}` dict (e.g. `invoice_total: 1042.50`), and the original
+whole-word-substring matcher can't grade that at all (it only pools `{title} {body}` free text). In
+`fields` mode, the fixtures file instead lists `{"id": "...", "field": "...", "expected": ...}`
+entries; each named field is compared against its golden value with a type-appropriate fuzzy match
+(string: `difflib.SequenceMatcher` token-sort ratio; number: `math.isclose` near-equality) instead of
+substring containment. `text` mode (the default) is completely unchanged -- `fields` mode is an
+additional capability, not a replacement.
 """
 
 import json
+import math
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
@@ -60,6 +72,74 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 def _agent_fixture_matches(text: str, fixture: Dict[str, Any]) -> bool:
     low = text.lower()
     return any(all(word.lower() in low for word in group) for group in fixture["any"])
+
+
+# ── fields mode: fuzzy-compare structured extraction output against golden values ────────────────
+
+
+def _as_number(value: Any) -> Optional[float]:
+    """Coerce a value to float for near-equality comparison, or None if it isn't numeric.
+    Booleans are excluded even though `isinstance(True, int)` is true in Python -- a bool field
+    should be graded as text ("true"/"false"), not as 0/1."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.replace(",", "").strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _field_fuzzy_match(actual: Any, expected: Any, *, fuzzy_field_threshold: float, numeric_tolerance: float) -> bool:
+    """Compare one extracted field value against its golden fixture value. Numbers (including
+    numeric strings like "1,042.50") are compared via near-equality (`math.isclose`, relative
+    tolerance); everything else is compared as text via a token-sort ratio (case-insensitive,
+    word order ignored) using stdlib `difflib.SequenceMatcher` -- no new third-party dependency,
+    matching this repo's existing precedent for lightweight fuzzy text similarity (see
+    `assets/transforms/fuzzy_match` and `assets/ai/text_similarity`, which use the same approach;
+    neither `rapidfuzz` nor `python-Levenshtein` is a dependency anywhere in this repo)."""
+    if actual is None:
+        return False
+    a_num, e_num = _as_number(actual), _as_number(expected)
+    if a_num is not None and e_num is not None:
+        return math.isclose(a_num, e_num, rel_tol=numeric_tolerance, abs_tol=1e-9)
+    a_sorted = " ".join(sorted(str(actual).lower().split()))
+    e_sorted = " ".join(sorted(str(expected).lower().split()))
+    return SequenceMatcher(None, a_sorted, e_sorted).ratio() >= fuzzy_field_threshold
+
+
+def agent_fixture_grade_fields(
+    outcome: Dict[str, Any], fixtures: List[Dict[str, Any]], *, fields_key: str, fuzzy_field_threshold: float, numeric_tolerance: float,
+) -> Dict[str, Any]:
+    """Field-level counterpart to `agent_fixture_grade()` -- compares a flat `field_name: value`
+    dict (e.g. a document-extraction outcome) against per-field golden fixtures shaped
+    `{"id": ..., "field": ..., "expected": ...}`, instead of pooling free text. Returns the SAME
+    matched/missed/recall/precision shape so both modes feed identical `AssetCheckResult` metadata.
+    Pure/standalone so it's directly unit-testable without building a whole check."""
+    extracted: Dict[str, Any] = outcome.get(fields_key) or {}
+    matched = [
+        fx["id"] for fx in fixtures
+        if fx["field"] in extracted
+        and _field_fuzzy_match(extracted[fx["field"]], fx["expected"], fuzzy_field_threshold=fuzzy_field_threshold, numeric_tolerance=numeric_tolerance)
+    ]
+    matched_field_names = {fx["field"] for fx in fixtures if fx["id"] in matched}
+    graded_field_names = {fx["field"] for fx in fixtures}
+    # Precision denominator is extracted fields the fixtures actually grade (not every field the
+    # agent happened to extract) -- mirrors text mode's "findings that match a fixture / findings
+    # produced", scoped to fields we have a golden value for at all.
+    extracted_graded = [name for name in extracted if name in graded_field_names]
+    useful = sum(1 for name in extracted_graded if name in matched_field_names)
+    return {
+        "matched": matched,
+        "missed": [fx["id"] for fx in fixtures if fx["id"] not in matched],
+        "findings_count": len(extracted_graded),
+        "findings_matching_a_fixture": useful,
+        "recall": round(len(matched) / len(fixtures), 2) if fixtures else None,
+        "precision": round(useful / len(extracted_graded), 2) if extracted_graded else None,
+    }
 
 
 def agent_fixture_grade(
@@ -125,6 +205,40 @@ class AgentFixtureCheckComponent(dg.Component, dg.Model, dg.Resolvable):
         default="text",
         description="Top-level key of the outcome dict used as the only evidence when no findings_keys entries exist at all (e.g. practice mode matched nothing, or a tool-less agent's final note).",
     )
+    match_mode: Literal["text", "fields"] = Field(
+        default="text",
+        description=(
+            "'text' (default, unchanged): pools {title, body} free-text findings and matches them "
+            "against word-group fixtures (see fixtures_file). 'fields': grades structured extraction "
+            "output instead -- the outcome's fields_key holds a flat {field_name: value} dict (e.g. "
+            "document-extraction output), compared field-by-field against fixtures_file entries shaped "
+            "{\"id\": \"...\", \"field\": \"...\", \"expected\": ...} using fuzzy string/numeric matching "
+            "(see fuzzy_field_threshold, numeric_tolerance)."
+        ),
+    )
+    fields_key: str = Field(
+        default="fields",
+        description="Top-level key of the outcome dict holding the extracted field_name -> value dict. Only used when match_mode is 'fields'.",
+    )
+    fuzzy_field_threshold: float = Field(
+        default=0.7,
+        description=(
+            "Minimum text-similarity ratio (0-1) for a string field to count as matching its fixture's "
+            "expected value, in 'fields' mode. Computed with a token-sort ratio (word order ignored, "
+            "case-insensitive) over Python's stdlib difflib.SequenceMatcher -- e.g. 'Acme Corp' vs "
+            "'Acme Corporation' scores 0.72, above the 0.7 default, while a genuinely different value "
+            "scores well below it. Only used when match_mode is 'fields'."
+        ),
+    )
+    numeric_tolerance: float = Field(
+        default=0.01,
+        description=(
+            "Relative tolerance for a numeric field to count as matching its fixture's expected value, "
+            "in 'fields' mode -- e.g. 0.01 means within 1% (so 1042.50 matches an expected 1042.51, but "
+            "not an expected 950.00). Passed as math.isclose's rel_tol. Only used when match_mode is "
+            "'fields'."
+        ),
+    )
     description: Optional[str] = Field(default=None, description="Check description. Defaults to a generated one naming the fixtures file and threshold.")
 
     @model_validator(mode="before")
@@ -144,6 +258,10 @@ class AgentFixtureCheckComponent(dg.Component, dg.Model, dg.Resolvable):
         findings_keys = list(self.findings_keys)
         fallback_text_key = self.fallback_text_key
         check_name = self.check_name
+        match_mode = self.match_mode
+        fields_key = self.fields_key
+        fuzzy_field_threshold = self.fuzzy_field_threshold
+        numeric_tolerance = self.numeric_tolerance
 
         fixtures_path = Path(self.fixtures_file)
         if not fixtures_path.is_absolute():
@@ -163,7 +281,13 @@ class AgentFixtureCheckComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _agent_fixture_check(context: dg.AssetCheckExecutionContext, outcome: Dict[str, Any]) -> dg.AssetCheckResult:
             fixtures = json.loads(fixtures_path.read_text())["fixtures"]
-            result = agent_fixture_grade(outcome, fixtures, findings_keys=findings_keys, fallback_text_key=fallback_text_key)
+            if match_mode == "fields":
+                result = agent_fixture_grade_fields(
+                    outcome, fixtures, fields_key=fields_key,
+                    fuzzy_field_threshold=fuzzy_field_threshold, numeric_tolerance=numeric_tolerance,
+                )
+            else:
+                result = agent_fixture_grade(outcome, fixtures, findings_keys=findings_keys, fallback_text_key=fallback_text_key)
             return dg.AssetCheckResult(
                 passed=bool(result["recall"] is not None and result["recall"] >= min_recall),
                 severity=severity,

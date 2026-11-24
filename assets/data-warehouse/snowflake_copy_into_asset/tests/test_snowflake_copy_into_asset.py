@@ -24,12 +24,14 @@ class FakeCursor:
             ("orders_1.csv", "LOADED", 100, 100, 0),
             ("orders_2.csv", "LOAD_FAILED", 50, 40, 10),
         ]
+        self.rowcount = 0
 
     def execute(self, sql, *a, **k):
         if self.conn.delay_seconds:
             import time
             time.sleep(self.conn.delay_seconds)
         self.conn.executed.append(sql)
+        self.rowcount = 7 if sql.startswith("DELETE") else len(self._rows)
 
     def fetchall(self):
         return self._rows
@@ -188,6 +190,82 @@ def test_timeout_seconds_fails_a_slow_copy(mod, sf):
     result = dg.materialize([asset_def], raise_on_error=False)
     assert not result.success
     assert time.monotonic() - start < 1
+
+
+def test_loads_collection_builds_one_asset_per_entry(mod, sf):
+    comp = mod.SnowflakeCopyIntoAssetComponent(
+        database="DB", schema="RAW",
+        account_env_var="SNOWFLAKE_ACCOUNT", user_env_var="SNOWFLAKE_USER", password_env_var="SNOWFLAKE_PASSWORD",
+        loads=[
+            {"asset_key": "snowflake/loads/orders", "table": "ORDERS", "stage": "orders_stage", "stage_path": "orders/"},
+            {"asset_key": "snowflake/loads/customers", "table": "CUSTOMERS", "stage": "customers_stage", "stage_path": "customers/"},
+        ],
+    )
+    defs = comp.build_defs(None)
+    keys = {a.key for a in defs.assets}
+    assert keys == {dg.AssetKey(["snowflake", "loads", "orders"]), dg.AssetKey(["snowflake", "loads", "customers"])}
+    result = dg.materialize(list(defs.assets))
+    assert result.success
+    assert len(sf.conns) == 2
+    executed_first_statements = {c.executed[0] for c in sf.conns}
+    assert any(s.startswith("COPY INTO DB.RAW.ORDERS") for s in executed_first_statements)
+    assert any(s.startswith("COPY INTO DB.RAW.CUSTOMERS") for s in executed_first_statements)
+
+
+def test_loads_mutually_exclusive_with_single_instance_fields(mod):
+    with pytest.raises(ValueError, match="not both"):
+        mod.SnowflakeCopyIntoAssetComponent(
+            asset_key="snowflake/loads/orders", database="DB", schema="RAW", table="ORDERS", stage="s",
+            account_env_var="A", user_env_var="U",
+            loads=[{"asset_key": "x", "table": "T", "stage": "s"}],
+        ).build_defs(None)
+
+
+def test_loads_entry_missing_required_field_raises(mod):
+    comp = mod.SnowflakeCopyIntoAssetComponent(
+        database="DB", schema="RAW",
+        account_env_var="SNOWFLAKE_ACCOUNT", user_env_var="SNOWFLAKE_USER",
+        loads=[{"asset_key": "snowflake/loads/orders", "table": "ORDERS"}],  # missing stage
+    )
+    with pytest.raises(ValueError, match="stage"):
+        comp.build_defs(None)
+
+
+def test_partition_key_substitution_in_stage_path(mod, sf):
+    comp = _comp(mod, stage="orders_stage", stage_path="{partition_key}/", partition_type="daily", partition_start="2024-01-01")
+    asset_def = comp.build_defs(None).assets[0]
+    result = dg.materialize([asset_def], partition_key="2024-06-01")
+    assert result.success
+    (conn,) = sf.conns
+    assert "FROM @orders_stage/2024-06-01/" in conn.executed[0]
+
+
+def test_replace_partition_column_deletes_before_copy(mod, sf):
+    comp = _comp(
+        mod, stage="orders_stage", stage_path="{partition_key}/",
+        partition_type="daily", partition_start="2024-01-01",
+        replace_partition_column="load_date",
+    )
+    asset_def = comp.build_defs(None).assets[0]
+    result = dg.materialize([asset_def], partition_key="2024-06-01")
+    assert result.success
+    (conn,) = sf.conns
+    assert conn.executed[0] == "DELETE FROM DB.RAW.ORDERS WHERE load_date = '2024-06-01'"
+    assert conn.executed[1].startswith("COPY INTO DB.RAW.ORDERS")
+    mats = result.asset_materializations_for_node("snowflake__loads__orders")
+    md = mats[0].metadata
+    assert md["replace_partition_rows_deleted"].value == 7
+
+
+def test_replace_partition_column_skipped_without_partition_key(mod, sf):
+    """No partition on this run -- replace_partition_column must not DELETE the whole table."""
+    comp = _comp(mod, stage="orders_stage", replace_partition_column="load_date")
+    asset_def = comp.build_defs(None).assets[0]
+    result = dg.materialize([asset_def])
+    assert result.success
+    (conn,) = sf.conns
+    assert len(conn.executed) == 1
+    assert conn.executed[0].startswith("COPY INTO")
 
 
 def test_resource_path_uses_real_snowflake_resource(mod, sf, monkeypatch):

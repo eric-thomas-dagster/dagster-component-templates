@@ -63894,7 +63894,7 @@
       "id": "snowflake_copy_into_asset",
       "name": "Snowflake Copy Into Asset",
       "category": "integration",
-      "description": "Bulk-load files from a Snowflake stage into a table via COPY INTO -- mirrors Airflow's CopyFromExternalStageToSnowflakeOperator.",
+      "description": "Bulk-load files from a Snowflake stage into a table via COPY INTO -- mirrors Airflow's CopyFromExternalStageToSnowflakeOperator. One component instance, N COPY INTO assets: set loads: (a list of per-table overrides) instead of the single-instance asset_key/database/schema/table/stage fields. Supports partitions_def with {partition_key} substitution in stage_path, and replace_partition_column to DELETE the partition before COPY INTO so a re-run is idempotent.",
       "path": "assets/data-warehouse/snowflake_copy_into_asset",
       "tags": [
         "data-warehouse",
@@ -63920,7 +63920,7 @@
         ]
       },
       "vendor": "Snowflake",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "produces": [
         "asset"
@@ -63928,7 +63928,7 @@
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame",
-        "outputs": "Bulk-load files from a Snowflake stage into a table.",
+        "outputs": "Bulk-load files from a Snowflake stage into a table; loads: builds one asset per table, each optionally partitioned with idempotent partition replace.",
         "requires_pip": [
           "snowflake-connector-python>=3.0.0"
         ]

@@ -103,17 +103,163 @@ def _render_options(options: Dict[str, Any]) -> str:
     return " ".join(f"{k.upper()} = {_format_option_value(v)}" for k, v in options.items())
 
 
+# ───────────────────────────────────────────────────────────────────────────
+# Partition helper (canonical shape, copied from external_*_asset / sql_transform
+# -- self-contained per the registry's distribution model)
+# ───────────────────────────────────────────────────────────────────────────
+
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+    cron_schedule=None,
+    cron_fmt="%Y-%m-%d",
+    end_offset=0,
+    timezone=None,
+):
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        _end_offset = spec.get("end_offset", 0)
+        _timezone = spec.get("timezone")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "cron":
+            from dagster import TimeWindowPartitionsDefinition
+            if not spec.get("start"):
+                raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+            if not spec.get("cron_schedule"):
+                raise ValueError("partition dimension type='cron' requires 'cron_schedule'")
+            return TimeWindowPartitionsDefinition(start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"], end_offset=_end_offset, timezone=_timezone)
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly", "cron") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date)."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not cron_schedule:
+            raise ValueError(
+                "partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only."
+            )
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values.")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
 class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Bulk-load files from a Snowflake stage into a table via COPY INTO -- mirrors Airflow's
-    `CopyFromExternalStageToSnowflakeOperator`."""
+    `CopyFromExternalStageToSnowflakeOperator`.
 
-    asset_key: str = Field(description="Dagster asset key (e.g. 'snowflake/loads/orders').")
-    database: str = Field(description="Target Snowflake database.")
-    schema_name: str = Field(description="Target Snowflake schema.", alias="schema")
-    table: str = Field(description="Target table name.")
+    One component instance, N COPY INTO assets: set `loads:` (a list of per-table overrides)
+    instead of the single-instance fields (asset_key/database/schema/table/stage) -- mutually
+    exclusive, same convention as `sql_transform`'s `transforms:` / `external_sftp_path`'s `paths:`.
+    """
 
-    stage: str = Field(description="Stage to copy from, e.g. 'my_stage', '@my_stage', or '@~' for the user stage. The leading '@' is added automatically if omitted.")
-    stage_path: Optional[str] = Field(default=None, description="Subpath/prefix within the stage to copy from, e.g. '2026/01/'.")
+    asset_key: Optional[str] = Field(default=None, description="Dagster asset key (e.g. 'snowflake/loads/orders'). Required unless `loads:` is set (mutually exclusive with it).")
+    database: Optional[str] = Field(default=None, description="Target Snowflake database. Required unless `loads:` is set.")
+    schema_name: Optional[str] = Field(default=None, description="Target Snowflake schema.", alias="schema")
+    table: Optional[str] = Field(default=None, description="Target table name. Required unless `loads:` is set.")
+
+    loads: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "One component instance, N COPY INTO assets: a list of per-table overrides, each "
+            "applied on top of this instance's own field values (connection fields, group_name, "
+            "kinds, etc. are shared defaults unless an entry overrides them). Each entry requires "
+            "at least `asset_key`, `table`, and `stage_path`; any other field on this component "
+            "(database, schema, file_format_options, partition_type, replace_partition_column, "
+            "...) can be set per-entry too. Mutually exclusive with the top-level "
+            "asset_key/database/schema/table/stage (single-instance mode)."
+        ),
+    )
+
+    stage: Optional[str] = Field(default=None, description="Stage to copy from, e.g. 'my_stage', '@my_stage', or '@~' for the user stage. The leading '@' is added automatically if omitted. Required unless `loads:` is set.")
+    stage_path: Optional[str] = Field(default=None, description="Subpath/prefix within the stage to copy from, e.g. '2026/01/'. Supports {partition_key} substitution when a partitions_def is configured.")
+    replace_partition_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "When set (and a partitions_def is configured), runs "
+            "`DELETE FROM <table> WHERE <replace_partition_column> = '<partition_key>'` before "
+            "the COPY INTO, so re-running a partition is idempotent instead of appending "
+            "duplicate rows on top of a prior load."
+        ),
+    )
+
+    # Partitions — canonical shape used across the registry.
+    partition_type: Optional[str] = Field(default=None, description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'cron' | 'static' | 'dynamic'.")
+    partition_start: Optional[str] = Field(default=None, description="Required for daily/weekly/monthly/hourly/cron -- ISO start date.")
+    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for partition_type='static'.")
+    partition_cron_schedule: Optional[str] = Field(default=None, description="Required for partition_type='cron', e.g. '0 0 * * 1-5'.")
+    partition_cron_fmt: Optional[str] = Field(default="%Y-%m-%d", description="strftime format for partition_type='cron' keys.")
+    partition_end_offset: int = Field(default=0, description="Passed through to the underlying time-window partitions definition.")
+    partition_timezone: Optional[str] = Field(default=None, description="IANA timezone for the partitions definition (defaults to UTC).")
+    dynamic_partition_name: Optional[str] = Field(default=None, description="Required for partition_type='dynamic'.")
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(default=None, description="Multi-axis partitions -- set instead of partition_type.")
     files: Optional[List[str]] = Field(default=None, description="Explicit list of filenames (relative to the stage) to load, rendered as FILES = ('a.csv', 'b.csv'). Leave unset to load every file matching `pattern` (or every file in the stage/path if `pattern` is also unset).")
     pattern: Optional[str] = Field(default=None, description="Regex pattern (Snowflake's PATTERN clause) to filter which staged files are loaded.")
 
@@ -203,11 +349,12 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             kwargs["password"] = os.environ.get(self.password_env_var, "")
         return kwargs
 
-    def _build_copy_sql(self) -> str:
+    def _build_copy_sql(self, stage_path_override: Optional[str] = None) -> str:
         fqn = f"{self.database}.{self.schema_name}.{self.table}"
         stage_ref = self.stage if self.stage.startswith("@") else f"@{self.stage}"
-        if self.stage_path:
-            stage_ref = f"{stage_ref.rstrip('/')}/{self.stage_path.lstrip('/')}"
+        stage_path = self.stage_path if stage_path_override is None else stage_path_override
+        if stage_path:
+            stage_ref = f"{stage_ref.rstrip('/')}/{stage_path.lstrip('/')}"
 
         parts = [f"COPY INTO {fqn}", f"FROM {stage_ref}"]
         if self.files:
@@ -252,7 +399,48 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         from dagster.components.resolved.form_config import ComponentFormConfig
         return ComponentFormConfig(label="Snowflake Copy Into Asset", editable=True)
 
+    def _missing_single_fields(self) -> List[str]:
+        return [f for f in ("asset_key", "database", "schema_name", "table", "stage") if not getattr(self, f)]
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """Dispatch to single-load or collection mode -- mutually exclusive, same convention as
+        sql_transform's asset_name/sql vs transforms: / external_sftp_path's asset_key/remote_path
+        vs paths:."""
+        has_single = bool(self.asset_key or self.table)
+        has_collection = bool(self.loads)
+        if has_single and has_collection:
+            raise ValueError(
+                "SnowflakeCopyIntoAssetComponent: set either the single-instance fields "
+                "(asset_key/database/schema/table/stage) or loads: (several COPY INTO assets), not both."
+            )
+        if not has_single and not has_collection:
+            raise ValueError(
+                "SnowflakeCopyIntoAssetComponent: set either the single-instance fields "
+                "(asset_key/database/schema/table/stage) or loads:."
+            )
+
+        if not has_collection:
+            missing = self._missing_single_fields()
+            if missing:
+                raise ValueError(f"SnowflakeCopyIntoAssetComponent: missing required field(s) {missing} for a single COPY INTO asset.")
+            return self._build_single_defs(context)
+
+        defs_list = []
+        for i, entry in enumerate(self.loads):
+            if not isinstance(entry, dict):
+                raise ValueError(f"loads[{i}] must be a mapping, got {type(entry).__name__}")
+            merged = {**self.model_dump(by_alias=True), **entry, "loads": None}
+            try:
+                instance = type(self)(**merged)
+            except Exception as e:
+                raise ValueError(f"loads[{i}] ({entry.get('asset_key', '<no asset_key>')!r}): {e}") from e
+            missing = instance._missing_single_fields()
+            if missing:
+                raise ValueError(f"loads[{i}]: missing required field(s) {missing}.")
+            defs_list.append(instance._build_single_defs(context))
+        return dg.Definitions.merge(*defs_list)
+
+    def _build_single_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         component = self
         kinds = set(component.kinds) if component.kinds else set()
         kinds.add("snowflake")
@@ -268,6 +456,15 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 backoff=Backoff[component.retry_policy_backoff.upper()],
             )
 
+        partitions_def = _build_partitions_def(
+            component.partition_type, component.partition_start, component.partition_values,
+            component.dynamic_partition_name, component.partition_dimensions,
+            cron_schedule=component.partition_cron_schedule,
+            cron_fmt=component.partition_cron_fmt or "%Y-%m-%d",
+            end_offset=component.partition_end_offset,
+            timezone=component.partition_timezone,
+        )
+
         @dg.asset(
             key=dg.AssetKey(component.asset_key.split("/")),
             description=component.description or f"Snowflake COPY INTO: {component.database}.{component.schema_name}.{component.table}",
@@ -279,13 +476,29 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=({resource_key} if resource_key else None),
             retry_policy=_retry_policy,
             pool=component.pool,
+            partitions_def=partitions_def,
         )
         def _snowflake_copy_into(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+            partition_key = context.partition_key if context.has_partition_key else None
+            stage_path_rendered = component.stage_path
+            if partition_key is not None and stage_path_rendered:
+                rendered = stage_path_rendered.replace("{partition_key}", partition_key).replace("{date}", partition_key)
+                keys_by_dimension = getattr(partition_key, "keys_by_dimension", None)
+                if keys_by_dimension:
+                    for dim_name, dim_val in keys_by_dimension.items():
+                        rendered = rendered.replace("{partition." + dim_name + "}", dim_val)
+                stage_path_rendered = rendered
+
             def _do_copy_into():
                 import contextlib
                 import snowflake.connector
 
-                copy_sql = component._build_copy_sql()
+                copy_sql = component._build_copy_sql(stage_path_override=stage_path_rendered)
+                delete_sql = None
+                if component.replace_partition_column and partition_key is not None:
+                    fqn = f"{component.database}.{component.schema_name}.{component.table}"
+                    escaped_pk = str(partition_key).replace("'", "''")
+                    delete_sql = f"DELETE FROM {fqn} WHERE {component.replace_partition_column} = '{escaped_pk}'"
 
                 stack = contextlib.ExitStack()
                 if resource_key:
@@ -294,31 +507,41 @@ class SnowflakeCopyIntoAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     conn = snowflake.connector.connect(**component._connection_kwargs())
                 cursor = conn.cursor()
                 try:
+                    deleted_rows = None
+                    if delete_sql:
+                        context.log.info(delete_sql)
+                        cursor.execute(delete_sql)
+                        deleted_rows = cursor.rowcount
                     context.log.info(copy_sql)
                     cursor.execute(copy_sql)
                     columns = [c[0].lower() for c in (cursor.description or [])]
                     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
                     conn.commit()
-                    return copy_sql, rows
+                    return copy_sql, rows, delete_sql, deleted_rows
                 finally:
                     cursor.close()
                     if not resource_key:
                         conn.close()
                     stack.close()
 
-            copy_sql, rows = _run_with_timeout(_do_copy_into, component.timeout_seconds)
+            copy_sql, rows, delete_sql, deleted_rows = _run_with_timeout(_do_copy_into, component.timeout_seconds)
 
             rows_loaded = sum(int(r.get("rows_loaded") or 0) for r in rows)
             rows_parsed = sum(int(r.get("rows_parsed") or 0) for r in rows)
             errors_seen = sum(int(r.get("errors_seen") or 0) for r in rows)
 
-            return dg.MaterializeResult(metadata={
+            metadata: Dict[str, Any] = {
                 "copy_sql": dg.MetadataValue.text(copy_sql),
                 "file_count": dg.MetadataValue.int(len(rows)),
                 "rows_loaded": dg.MetadataValue.int(rows_loaded),
                 "rows_parsed": dg.MetadataValue.int(rows_parsed),
                 "errors_seen": dg.MetadataValue.int(errors_seen),
                 "files": dg.MetadataValue.json(rows),
-            })
+            }
+            if delete_sql:
+                metadata["replace_partition_delete_sql"] = dg.MetadataValue.text(delete_sql)
+                metadata["replace_partition_rows_deleted"] = dg.MetadataValue.int(deleted_rows if deleted_rows is not None else -1)
+
+            return dg.MaterializeResult(metadata=metadata)
 
         return dg.Definitions(assets=[_snowflake_copy_into])

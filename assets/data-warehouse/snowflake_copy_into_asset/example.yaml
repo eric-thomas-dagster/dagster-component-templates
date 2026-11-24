@@ -5,7 +5,9 @@ attributes:
   schema: RAW
   table: ORDERS
   stage: orders_stage
-  stage_path: "2026/01/"
+  # {partition_key} is substituted with the current partition key when a
+  # partitions_def is configured (partition_type/partition_start below).
+  stage_path: "{partition_key}/"
   pattern: ".*\\.csv"
   file_format_options:
     TYPE: CSV
@@ -13,9 +15,28 @@ attributes:
     SKIP_HEADER: 1
   on_error: CONTINUE
   purge: true
+
+  partition_type: daily
+  partition_start: "2024-01-01"
+  # Idempotent partition re-runs: DELETE FROM <table> WHERE load_date = '<partition_key>'
+  # runs before the COPY INTO, instead of appending duplicate rows.
+  replace_partition_column: load_date
+
   account_env_var: SNOWFLAKE_ACCOUNT
   user_env_var: SNOWFLAKE_USER
   password_env_var: SNOWFLAKE_PASSWORD
   warehouse_env_var: SNOWFLAKE_WAREHOUSE
   role_env_var: SNOWFLAKE_ROLE
   group_name: snowflake
+
+  # One component instance, N COPY INTO assets -- set `loads:` instead of the
+  # single-instance fields above (asset_key/database/schema/table/stage are then
+  # mutually exclusive with this). Each entry can override any field, including
+  # partition_type/replace_partition_column.
+  # loads:
+  #   - asset_key: snowflake/loads/orders
+  #     table: ORDERS
+  #     stage_path: "orders/{partition_key}/"
+  #   - asset_key: snowflake/loads/customers
+  #     table: CUSTOMERS
+  #     stage_path: "customers/{partition_key}/"

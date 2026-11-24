@@ -19,20 +19,12 @@ of a hand-written SQL string.
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_key` | `str` | Dagster asset key (e.g. 'snowflake/loads/orders'). |
-| `database` | `str` | Target Snowflake database. |
-| `schema` | `str` | Target Snowflake schema. |
-| `table` | `str` | Target table name. |
-| `stage` | `str` | Stage to copy from, e.g. 'my_stage', '@my_stage', or '@~' for the user stage. The leading '@' is added automatically if omitted. |
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `database` | `str` | — | Target Snowflake database. Required unless `loads:` is set. |
+| `schema` | `str` | — | Target Snowflake schema. |
 | `account_env_var` | `str` | — | Env var with Snowflake account. Required unless resource_key is set. |
 | `user_env_var` | `str` | — | Env var with Snowflake username. Required unless resource_key is set. |
 | `password_env_var` | `str` | — | Env var with Snowflake password. |
@@ -50,12 +42,26 @@ of a hand-written SQL string.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_key` | `str` | — | Dagster asset key (e.g. 'snowflake/loads/orders'). Required unless `loads:` is set (mutually exclusive with it). |
 | `group_name` | `str` | `"snowflake"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `deps` | `List[str]` | — | Upstream Dagster asset keys for lineage. |
 | `owners` | `List[str]` | — | Asset owners -- team names ('team:analytics') or email addresses. |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'snowflake'). |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'cron' \| 'static' \| 'dynamic'. |
+| `partition_start` | `str` | — | Required for daily/weekly/monthly/hourly/cron -- ISO start date. |
+| `partition_values` | `str` | — | Comma-separated values for partition_type='static'. |
+| `partition_cron_schedule` | `str` | — | Required for partition_type='cron', e.g. '0 0 * * 1-5'. |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition_type='cron' keys. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying time-window partitions definition. |
+| `partition_timezone` | `str` | — | IANA timezone for the partitions definition (defaults to UTC). |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partitions -- set instead of partition_type. |
 
 ### Retry policy
 
@@ -65,11 +71,21 @@ of a hand-written SQL string.
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `table` | `str` | — | Target table name. Required unless `loads:` is set. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `stage_path` | `str` | — | Subpath/prefix within the stage to copy from, e.g. '2026/01/'. |
+| `loads` | `List[Dict[str, Any]]` | — | One component instance, N COPY INTO assets: a list of per-table overrides, each applied on top of this instance's own field values (connection fields, group_name, kinds, etc. are shared defaults unless an entry overrides… _(full docs in schema.json + component README)_ |
+| `stage` | `str` | — | Stage to copy from, e.g. 'my_stage', '@my_stage', or '@~' for the user stage. The leading '@' is added automatically if omitted. Required unless `loads:` is set. |
+| `stage_path` | `str` | — | Subpath/prefix within the stage to copy from, e.g. '2026/01/'. Supports {partition_key} substitution when a partitions_def is configured. |
+| `replace_partition_column` | `str` | — | When set (and a partitions_def is configured), runs `DELETE FROM <table> WHERE <replace_partition_column> = '<partition_key>'` before the COPY INTO, so re-running a partition is idempotent instead of appending duplicate… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_name` | `str` | — | Required for partition_type='dynamic'. |
 | `files` | `List[str]` | — | Explicit list of filenames (relative to the stage) to load, rendered as FILES = ('a.csv', 'b.csv'). Leave unset to load every file matching `pattern` (or every file in the stage/path if `pattern` is also unset). |
 | `pattern` | `str` | — | Regex pattern (Snowflake's PATTERN clause) to filter which staged files are loaded. |
 | `file_format_name` | `str` | — | Name of an existing named file format object, rendered as FILE_FORMAT = (FORMAT_NAME = '...'). Set this or file_format_options, not both. |

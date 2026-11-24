@@ -171,8 +171,40 @@ def read_outcome_ledger_entries(ledger_path: Optional[str], run_id: Optional[str
     return entries
 
 
-def summarize_outcome_ledger(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Collapse one run's ledger entries into {status, filed, would_file, refused, decisions_for_you}."""
+def _answer_decisions(answer: Any, marker: str) -> List[str]:
+    """The lines under a trailing "<marker>:" heading in an agent's final answer (the LAST occurrence, any case),
+    as plain strings. "none" / an empty section yields []. Capped at 10."""
+    import re
+    if not marker or not isinstance(answer, str):
+        return []
+    idx = answer.lower().rfind(marker.lower())
+    if idx < 0:
+        return []
+    items = []
+    for line in re.sub(r"^[\s:*_#]+", "", answer[idx + len(marker):]).splitlines():
+        item = re.sub(r"^\s*(?:[-*\u2022]+|\d+[.)])\s*", "", line).strip()
+        if re.search(r"\w", item) and item.strip(" .*_").lower() != "none":
+            items.append(item)
+    return items[:10]
+
+
+def _answer_summary(answer: Any, marker: str, limit: int = 700) -> str:
+    """The agent's final answer up to (not including) its "<marker>" section, trimmed to `limit` characters."""
+    text = answer if isinstance(answer, str) else ""
+    idx = text.lower().rfind(marker.lower()) if marker else -1
+    if idx >= 0:
+        text = text[:idx].rstrip("#*_:\t\n ")
+    text = text.strip()
+    return text[:limit] + ("\u2026" if len(text) > limit else "")
+
+
+def summarize_outcome_ledger(entries: List[Dict[str, Any]], answer: Any = "",
+                             decisions_marker: str = "decisions for you") -> Dict[str, Any]:
+    """Collapse one run's ledger entries (+ the agent's final answer) into {status, filed, would_file, refused,
+    decisions_for_you, summary}. status: needs_human (a decision_needed ledger entry) > filed (anything filed) >
+    practice (only would_file entries: practice mode drafted, nothing was filed) > refused > nothing_new (no entries).
+    decisions_for_you = decision_needed ledger entries (objects) then lines under the answer's `decisions_marker`
+    section (strings); the answer's own decisions never change `status`."""
     filed, would_file, refused, decisions_for_you = [], [], [], []
     for e in entries:
         bucket = e.get("bucket")
@@ -187,13 +219,18 @@ def summarize_outcome_ledger(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
             decisions_for_you.append(detail)
     if decisions_for_you:
         status = "needs_human"
-    elif refused and not filed and not would_file:
+    elif filed:
+        status = "filed"
+    elif would_file:
+        status = "practice"
+    elif refused:
         status = "refused"
     else:
-        status = "ok"
+        status = "nothing_new"
     return {
         "status": status, "filed": filed, "would_file": would_file,
-        "refused": refused, "decisions_for_you": decisions_for_you,
+        "refused": refused, "decisions_for_you": decisions_for_you + _answer_decisions(answer, decisions_marker),
+        "summary": _answer_summary(answer, decisions_marker),
     }
 # END agent outcome ledger
 
@@ -502,6 +539,14 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
             "empty filed/would_file/refused/decisions_for_you."
         ),
     )
+    decisions_marker: str = Field(
+        default="decisions for you",
+        description=(
+            "Heading (case-insensitive) that starts the agent's 'decisions for a person' section at the end of its "
+            "final answer. The lines under it fill the outcome asset's decisions_for_you (\"none\" gives nothing), "
+            "and the answer text before it becomes the outcome's `summary` metadata (700 chars). Empty disables both."
+        ),
+    )
     emit_outcome_asset: bool = Field(
         default=False,
         description=(
@@ -602,6 +647,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
         owners = self.owners or []
         outcome_ledger_path = self.outcome_ledger_path
         emit_outcome_asset = self.emit_outcome_asset
+        decisions_marker = self.decisions_marker
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
@@ -835,7 +881,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
             )
             def _agent_outcome_asset(context: AssetExecutionContext, agent_result: Dict[str, Any]) -> Dict[str, Any]:
                 entries = read_outcome_ledger_entries(outcome_ledger_path, context.run.run_id)
-                outcome = summarize_outcome_ledger(entries)
+                outcome = summarize_outcome_ledger(entries, agent_result.get("final_answer", ""), decisions_marker)
                 outcome["text"] = agent_result.get("final_answer", "")
                 if "required_tools_missing" in agent_result:
                     outcome["required_tools_missing"] = agent_result["required_tools_missing"]
@@ -845,6 +891,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
                     "would_file_count": MetadataValue.int(len(outcome["would_file"])),
                     "refused_count": MetadataValue.int(len(outcome["refused"])),
                     "decisions_for_you_count": MetadataValue.int(len(outcome["decisions_for_you"])),
+                    "summary": MetadataValue.md(outcome["summary"]),
                     "drafts": MetadataValue.md(_drafts_markdown(outcome["filed"], outcome["would_file"])),
                 }
                 if "required_tools_missing" in outcome:

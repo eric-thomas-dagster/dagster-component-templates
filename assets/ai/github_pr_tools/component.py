@@ -131,8 +131,40 @@ def read_outcome_ledger_entries(ledger_path: Optional[str], run_id: Optional[str
     return entries
 
 
-def summarize_outcome_ledger(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Collapse one run's ledger entries into {status, filed, would_file, refused, decisions_for_you}."""
+def _answer_decisions(answer: Any, marker: str) -> List[str]:
+    """The lines under a trailing "<marker>:" heading in an agent's final answer (the LAST occurrence, any case),
+    as plain strings. "none" / an empty section yields []. Capped at 10."""
+    import re
+    if not marker or not isinstance(answer, str):
+        return []
+    idx = answer.lower().rfind(marker.lower())
+    if idx < 0:
+        return []
+    items = []
+    for line in re.sub(r"^[\s:*_#]+", "", answer[idx + len(marker):]).splitlines():
+        item = re.sub(r"^\s*(?:[-*\u2022]+|\d+[.)])\s*", "", line).strip()
+        if re.search(r"\w", item) and item.strip(" .*_").lower() != "none":
+            items.append(item)
+    return items[:10]
+
+
+def _answer_summary(answer: Any, marker: str, limit: int = 700) -> str:
+    """The agent's final answer up to (not including) its "<marker>" section, trimmed to `limit` characters."""
+    text = answer if isinstance(answer, str) else ""
+    idx = text.lower().rfind(marker.lower()) if marker else -1
+    if idx >= 0:
+        text = text[:idx].rstrip("#*_:\t\n ")
+    text = text.strip()
+    return text[:limit] + ("\u2026" if len(text) > limit else "")
+
+
+def summarize_outcome_ledger(entries: List[Dict[str, Any]], answer: Any = "",
+                             decisions_marker: str = "decisions for you") -> Dict[str, Any]:
+    """Collapse one run's ledger entries (+ the agent's final answer) into {status, filed, would_file, refused,
+    decisions_for_you, summary}. status: needs_human (a decision_needed ledger entry) > filed (anything filed) >
+    practice (only would_file entries: practice mode drafted, nothing was filed) > refused > nothing_new (no entries).
+    decisions_for_you = decision_needed ledger entries (objects) then lines under the answer's `decisions_marker`
+    section (strings); the answer's own decisions never change `status`."""
     filed, would_file, refused, decisions_for_you = [], [], [], []
     for e in entries:
         bucket = e.get("bucket")
@@ -147,13 +179,18 @@ def summarize_outcome_ledger(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
             decisions_for_you.append(detail)
     if decisions_for_you:
         status = "needs_human"
-    elif refused and not filed and not would_file:
+    elif filed:
+        status = "filed"
+    elif would_file:
+        status = "practice"
+    elif refused:
         status = "refused"
     else:
-        status = "ok"
+        status = "nothing_new"
     return {
         "status": status, "filed": filed, "would_file": would_file,
-        "refused": refused, "decisions_for_you": decisions_for_you,
+        "refused": refused, "decisions_for_you": decisions_for_you + _answer_decisions(answer, decisions_marker),
+        "summary": _answer_summary(answer, decisions_marker),
     }
 # END agent outcome ledger
 

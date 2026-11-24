@@ -144,8 +144,8 @@ repo_notes: |
 | `github_api_base_url` | `str` | `"https://api.github.com"` | GitHub API base URL. Change for GitHub Enterprise Server. |
 | `base_branch` | `str` | `"main"` | Branch deprecation_report/the dependency scan read `repo` from. |
 | `exclude_paths` | `List[str]` | — | Path prefixes deprecation_report's file scan and the dependency scan never read -- e.g. vendored code or generated files. Same directory-like ('src/')/filename-like ('Dockerfile') matching convention as github_pr_tools'… _(full docs in schema.json + component README)_ |
+| `include_locations` | `List[str]` | — | Allow-list of code location names: when set, ONLY these locations are visible to the tools (everything else is hidden or refused). `exclude_locations` still applies on top and takes precedence, so a name in both is exclu… _(full docs in schema.json + component README)_ |
 | `exclude_locations` | `List[str]` | — | Code location names project_overview refuses to review -- typically the improvement-advisor agent's OWN code location, so it never reviews or reacts to itself. Same name/convention as dagster_discovery_tools' own exclude_locations. |
-| `include_locations` | `List[str]` | — | Allow-list: when set, `project_overview` only accepts these code locations and refuses any other. `exclude_locations` still applies and takes precedence. |
 | `repo_notes` | `str` | — | Free text passed through project_overview's output verbatim, under `repo_notes` -- for what's deliberate in this deployment (a demo's artificial flakiness, a known limitation that isn't a bug). Same idea as the *_agent c… _(full docs in schema.json + component README)_ |
 | `allow` | `List[str]` | — | `f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}."` |
 | `max_result_chars` | `int` | `12000` | Upper bound on the serialized size of any tool result. |

@@ -304,6 +304,13 @@
       "description": "Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own ledger_path field pointed at this SAME directory) writes this run's consequential actions into, keyed by run_id -- read by the companion outcome asset (see emit_outcome_asset). Unset: the outcome asset still emits (when enabled), just with empty filed/would_file/refused/decisions_for_you.",
       "required": false
     },
+    "decisions_marker": {
+      "type": "string",
+      "default": "decisions for you",
+      "label": "Decisions Marker",
+      "description": "Heading (case-insensitive) that starts the agent's 'decisions for a person' section at the end of its final answer. The lines under it fill the outcome asset's decisions_for_you (\"none\" gives nothing), and the answer text before it becomes the outcome's `summary` metadata (700 chars). Empty disables both.",
+      "required": false
+    },
     "emit_outcome_asset": {
       "type": "boolean",
       "label": "Emit Outcome Asset",

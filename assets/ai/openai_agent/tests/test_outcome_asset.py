@@ -46,9 +46,9 @@ def test_outcome_asset_appears_when_enabled(mod, monkeypatch):
     assert {a.key.to_user_string() for a in assets} == {"agent_out", "agent_out_outcome"}
 
 
-def test_outcome_asset_with_no_ledger_entries_is_ok_and_empty(mod, tmp_path, monkeypatch):
+def test_outcome_asset_with_no_ledger_entries_is_nothing_new_and_empty(mod, tmp_path, monkeypatch):
     """No entries at all (e.g. a tool-less agent, or every ledger_path/run_id mismatched) still
-    produces a valid outcome: empty buckets, status 'ok', final_answer carried through as text."""
+    produces a valid outcome: empty buckets, status 'nothing_new', final_answer carried through as text."""
     async def fake_run_agent(**kwargs):
         return _fake_result("nothing to report")
 
@@ -62,7 +62,7 @@ def test_outcome_asset_with_no_ledger_entries_is_ok_and_empty(mod, tmp_path, mon
     result = dg.materialize(assets, resources={"io_manager": dg.InMemoryIOManager()})
     assert result.success
     outcome = result.output_for_node("agent_out_outcome")
-    assert outcome == {"status": "ok", "filed": [], "would_file": [], "refused": [], "decisions_for_you": [], "text": "nothing to report"}
+    assert outcome == {"status": "nothing_new", "filed": [], "would_file": [], "refused": [], "decisions_for_you": [], "summary": "nothing to report", "text": "nothing to report"}
 
 
 def test_outcome_asset_reads_this_runs_ledger_entries(mod, tmp_path, monkeypatch):

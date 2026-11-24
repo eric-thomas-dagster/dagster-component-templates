@@ -15,6 +15,7 @@ COMPONENTS = [
 ]
 SHARED_FUNCS = (
     "_outcome_ledger_file", "write_outcome_ledger_entry", "read_outcome_ledger_entries", "summarize_outcome_ledger",
+    "_answer_decisions", "_answer_summary",
 )
 
 

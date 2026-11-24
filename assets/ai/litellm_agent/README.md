@@ -244,6 +244,12 @@ clicking through to GitHub/Linear. Built from the same ledger entries as `filed`
 when the underlying GitHub/Linear API response doesn't echo them back. Reads
 `"Nothing was filed or drafted."` when the run's ledger is empty.
 
+The outcome's `status` is one of: `needs_human` (a `decision_needed` ledger entry), `filed` (anything was filed),
+`practice` (only `would_file` entries: practice mode drafted, nothing was filed), `refused`, or `nothing_new`
+(no entries at all). Its `summary` metadata is the final answer up to a trailing `decisions_marker` section
+(default "Decisions for you", 700 chars); the lines under that section are added to `decisions_for_you` as strings
+("none" adds nothing) and never change `status`. (Before this, `filed` and `practice`/`nothing_new` all read `ok`.)
+
 ---
 
 ## When to use this vs. other components
@@ -341,6 +347,7 @@ when the underlying GitHub/Linear API response doesn't echo them back. Reads
 | `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
 | `include_reasoning` | `bool` | `false` | Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the transcript and final_answer; when true it is also returned as a 'reasoning' key in the result dict (all itera… _(full docs in schema.json + component README)_ |
 | `outcome_ledger_path` | `str` | — | Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own ledger_path field pointed at this SAME directory) writes this run's consequential actions into, keyed by run_id -- read by the companion… _(full docs in schema.json + component README)_ |
+| `decisions_marker` | `str` | `"decisions for you"` | Heading (case-insensitive) that starts the agent's 'decisions for a person' section at the end of its final answer. The lines under it fill the outcome asset's decisions_for_you ("none" gives nothing), and the answer tex… _(full docs in schema.json + component README)_ |
 | `emit_outcome_asset` | `bool` | `false` | Build a companion '{asset_name}_outcome' asset (same partitions_def as this asset) that collapses this run's outcome-ledger entries (see outcome_ledger_path) plus this asset's own final_answer into {status, filed, would_… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 

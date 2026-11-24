@@ -190,6 +190,29 @@ required was called).
 
 ---
 
+## Provider errors show the real reason, not an `ExceptionGroup`
+
+A provider error (an expired key, a quota limit, a rate limit) raised while the agent loop's MCP
+stdio client is still open gets wrapped by anyio's `TaskGroup` during the client's teardown --
+without this fix, the step failure reads `ExceptionGroup: unhandled errors in a TaskGroup (1
+sub-exception)`, with the real error buried one or more levels inside it and nothing in the
+message pointing at the provider at all. This was reported from production: an OpenAI
+`insufficient_quota` rejection on the very first request cost an hour of debugging before anyone
+suspected it wasn't an MCP problem.
+
+The asset body now unwraps any such group down to the real leaf error and raises a clean
+`dagster.Failure` instead, with the provider, HTTP status, and message both in the failure
+description and as structured metadata (`error_class`, `provider`, `status_code`,
+`error_message`) -- visible on the run's own failure event, no digging through a nested group
+required. An error that was never wrapped in the first place (most errors, outside the narrow
+MCP-teardown window) passes through completely unchanged.
+
+To catch a bad key or an exhausted quota *before* a real agent run hits it, pair this component
+with [`model_provider`](../model_provider)'s live-connectivity check -- see that component's
+README for how to wire it to a schedule and a Dagster+ alert.
+
+---
+
 ## When to use this vs. other components
 
 | Use case | Component |

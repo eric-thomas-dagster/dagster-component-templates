@@ -36,6 +36,7 @@ from dagster import (
     Component,
     ComponentLoadContext,
     Definitions,
+    Failure,
     MetadataValue,
     Model,
     Resolvable,
@@ -727,29 +728,42 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                     f"directly, no load_skill call needed):\n{_ce_lines}"
                 )
 
-            result = asyncio.run(
-                _run_agent(
-                    log=context.log,
-                    prompt=resolved_prompt,
-                    system_prompt=resolved_system,
-                    model=model,
-                    api_key_env_var=api_key_env_var,
-                    base_url_env_var=base_url_env_var,
-                    organization_env_var=organization_env_var,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    max_iterations=max_iterations,
-                    mcp_servers=resolved_mcp_servers,
-                    reasoning_effort=reasoning_effort,
-                    skill_resources=usable_skill_resources,
-                    allowed_tools=allowed_tools,
-                    required_tool_calls=required_tool_calls,
-                    hosted_code_execution=hosted_code_execution,
-                    code_execution_skill_resources=code_execution_skill_resources,
-                    hosted_code_execution_files_dir=hosted_code_execution_files_dir,
-                    run_id=context.run_id,
+            try:
+                result = asyncio.run(
+                    _run_agent(
+                        log=context.log,
+                        prompt=resolved_prompt,
+                        system_prompt=resolved_system,
+                        model=model,
+                        api_key_env_var=api_key_env_var,
+                        base_url_env_var=base_url_env_var,
+                        organization_env_var=organization_env_var,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        max_iterations=max_iterations,
+                        mcp_servers=resolved_mcp_servers,
+                        reasoning_effort=reasoning_effort,
+                        skill_resources=usable_skill_resources,
+                        allowed_tools=allowed_tools,
+                        required_tool_calls=required_tool_calls,
+                        hosted_code_execution=hosted_code_execution,
+                        code_execution_skill_resources=code_execution_skill_resources,
+                        hosted_code_execution_files_dir=hosted_code_execution_files_dir,
+                        run_id=context.run_id,
+                    )
                 )
-            )
+            except BaseException as e:
+                leaf = _unwrap_exception_group(e)
+                if leaf is e:
+                    raise
+                info = _provider_error_metadata(leaf)
+                headline = info["error_class"]
+                if info["provider"] or info["status_code"] is not None:
+                    headline += f" ({info['provider'] or 'unknown provider'}, status {info['status_code']})"
+                raise Failure(
+                    description=f"Agent run failed: {headline}: {info['error_message']}",
+                    metadata={k: MetadataValue.text(str(v)) for k, v in info.items() if v is not None},
+                ) from leaf
             if result.get("required_tools_missing") and on_required_tool_calls_missing == "fail":
                 raise RuntimeError(
                     "required_tool_calls not satisfied: " + _required_tools_reminder_text(result["required_tools_missing"])
@@ -994,6 +1008,44 @@ def _required_tools_reminder_text(missing: List[Any]) -> str:
         "Before finishing, you still need to call: " + "; ".join(parts) + ". "
         "Call the required tool(s) now, then give your final answer."
     )
+
+
+def _unwrap_exception_group(exc: BaseException) -> BaseException:
+    """Walk down nested ExceptionGroup/BaseExceptionGroup wrappers to the real leaf error.
+
+    A provider error raised from inside `_run_agent`'s `async with AsyncExitStack() as stack:`
+    block -- which owns the MCP stdio client -- gets wrapped in a BaseExceptionGroup by
+    anyio's TaskGroup during the client's teardown, burying the real error one or more
+    levels deep behind an opaque "unhandled errors in a TaskGroup" message. Duck-typed on
+    `.exceptions` (both the 3.11+ builtin and the 3.10 `exceptiongroup` backport expose it)
+    so this needs no import of either. Cancellation noise from sibling tasks being torn
+    down is skipped in favor of the real error."""
+    seen = exc
+    while True:
+        subs = getattr(seen, "exceptions", None)
+        if not subs:
+            return seen
+        real = [s for s in subs if "Cancelled" not in type(s).__name__]
+        if not real:
+            return seen
+        seen = real[0]
+
+
+def _provider_error_metadata(exc: BaseException) -> Dict[str, Any]:
+    """Best-effort provider/status/message extraction, duck-typed across provider SDK
+    exception shapes (litellm/openai: `.llm_provider`/`.status_code`/`.message`; anthropic/
+    google-genai: `.status_code`/`.code`) so this needs no import of any of them."""
+    provider = getattr(exc, "llm_provider", None) or getattr(exc, "provider", None)
+    status = getattr(exc, "status_code", None)
+    if status is None:
+        status = getattr(exc, "code", None)
+    message = getattr(exc, "message", None) or str(exc) or type(exc).__name__
+    return {
+        "error_class": type(exc).__name__,
+        "provider": str(provider) if provider else None,
+        "status_code": status,
+        "error_message": str(message),
+    }
 
 
 async def _run_agent(

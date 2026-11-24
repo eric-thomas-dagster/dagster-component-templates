@@ -36,6 +36,7 @@ from dagster import (
     Component,
     ComponentLoadContext,
     Definitions,
+    Failure,
     MetadataValue,
     Model,
     Resolvable,
@@ -426,9 +427,14 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                     result["fallback_chain"] = models_to_try
                     break
                 except Exception as e:  # noqa: BLE001
-                    last_error = e
+                    # Unwrap here too -- a provider error raised inside _run_agent's MCP
+                    # stdio-client context comes back wrapped in a BaseExceptionGroup by
+                    # anyio's TaskGroup teardown, which would otherwise hide the actual
+                    # reason this model failed (and break the insufficient_funds string
+                    # match below, since it checks str(last_error)).
+                    last_error = _unwrap_exception_group(e)
                     context.log.warning(
-                        f"[vercel_ai_gateway] model {m!r} failed: {e}. "
+                        f"[vercel_ai_gateway] model {m!r} failed: {last_error}. "
                         f"Trying next in fallback chain."
                     )
             else:
@@ -439,9 +445,11 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                         "Vercel AI Gateway rejected every model call: credit balance is 0. "
                         "Top up at https://vercel.com/dashboard → AI Gateway → Billing, then retry."
                     ) from last_error
-                raise RuntimeError(
-                    f"Every model in fallback chain {models_to_try} failed. Last error: {last_error}"
-                )
+                info = _provider_error_metadata(last_error) if last_error is not None else {}
+                raise Failure(
+                    description=f"Every model in fallback chain {models_to_try} failed. Last error: {err_str}",
+                    metadata={k: MetadataValue.text(str(v)) for k, v in info.items() if v is not None},
+                ) from last_error
 
             # Checked OUTSIDE the fallback try/except above -- that except is model/provider
             # failures only; a required_tool_calls policy violation must propagate, not trigger a
@@ -516,6 +524,44 @@ def _required_tools_reminder_text(missing: List[Any]) -> str:
         "Before finishing, you still need to call: " + "; ".join(parts) + ". "
         "Call the required tool(s) now, then give your final answer."
     )
+
+
+def _unwrap_exception_group(exc: BaseException) -> BaseException:
+    """Walk down nested ExceptionGroup/BaseExceptionGroup wrappers to the real leaf error.
+
+    A provider error raised from inside `_run_agent`'s `async with AsyncExitStack() as stack:`
+    block -- which owns the MCP stdio client -- gets wrapped in a BaseExceptionGroup by
+    anyio's TaskGroup during the client's teardown, burying the real error one or more
+    levels deep behind an opaque "unhandled errors in a TaskGroup" message. Duck-typed on
+    `.exceptions` (both the 3.11+ builtin and the 3.10 `exceptiongroup` backport expose it)
+    so this needs no import of either. Cancellation noise from sibling tasks being torn
+    down is skipped in favor of the real error."""
+    seen = exc
+    while True:
+        subs = getattr(seen, "exceptions", None)
+        if not subs:
+            return seen
+        real = [s for s in subs if "Cancelled" not in type(s).__name__]
+        if not real:
+            return seen
+        seen = real[0]
+
+
+def _provider_error_metadata(exc: BaseException) -> Dict[str, Any]:
+    """Best-effort provider/status/message extraction, duck-typed across provider SDK
+    exception shapes (litellm/openai: `.llm_provider`/`.status_code`/`.message`; anthropic/
+    google-genai: `.status_code`/`.code`) so this needs no import of any of them."""
+    provider = getattr(exc, "llm_provider", None) or getattr(exc, "provider", None)
+    status = getattr(exc, "status_code", None)
+    if status is None:
+        status = getattr(exc, "code", None)
+    message = getattr(exc, "message", None) or str(exc) or type(exc).__name__
+    return {
+        "error_class": type(exc).__name__,
+        "provider": str(provider) if provider else None,
+        "status_code": status,
+        "error_message": str(message),
+    }
 
 
 async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):

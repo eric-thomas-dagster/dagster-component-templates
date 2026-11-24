@@ -5776,7 +5776,7 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/supabase_rag.md",
         "last_validated": "2026-06-04"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
@@ -30021,7 +30021,7 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
         "last_validated": "2026-06-04"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
@@ -40410,7 +40410,7 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
         "last_validated": "2026-06-04"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
@@ -44173,7 +44173,7 @@
       "name": "Model Provider",
       "category": "ai",
       "description": "Declare an LLM provider credential and surface its health as a Dagster asset -- an api-key-presence check (always on) and an opt-in live models-list API call, plus the models the provider offers.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/model_provider",
       "tags": [
@@ -48033,7 +48033,7 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
         "last_validated": "2026-06-04"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
@@ -63054,7 +63054,7 @@
         "level": "code",
         "last_validated": "2026-06-04"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
@@ -71815,7 +71815,7 @@
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_ai_gateway_agent.md",
         "last_validated": "2026-07-02"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [

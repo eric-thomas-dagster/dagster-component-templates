@@ -16,6 +16,7 @@ Also confirms the component class itself declares `partition_cron_schedule`
 as a real pydantic field (not just accepted by the free function), since a
 YAML user configures the component, not the helper directly.
 """
+import dataclasses
 import importlib.util
 import inspect
 import sys
@@ -23,6 +24,20 @@ from pathlib import Path
 
 import dagster as dg
 import pytest
+
+
+def _field_names(obj) -> set:
+    """Field names declared on a Component class, whether it's a pydantic
+    `dg.Model` (exposes `model_fields`) or a plain `@dataclass` + `dg.Resolvable`
+    (exposes `__dataclass_fields__` via `dataclasses.fields`) -- both are real,
+    supported ways to declare a Resolvable component's config in this
+    framework (see e.g. aws_glue/step_functions_asset's StateBackedComponent
+    dataclass variants), so a coverage check that only recognized
+    `model_fields` was silently blind to every dataclass-based component."""
+    names = set(getattr(obj, "model_fields", {}) or {})
+    if dataclasses.is_dataclass(obj):
+        names |= {f.name for f in dataclasses.fields(obj)}
+    return names
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -84,7 +99,7 @@ def test_build_partitions_def_supports_cron(path):
     )
 
     has_field = any(
-        isinstance(obj, type) and "partition_cron_schedule" in getattr(obj, "model_fields", {})
+        isinstance(obj, type) and "partition_cron_schedule" in _field_names(obj)
         for name in dir(mod)
         for obj in [getattr(mod, name)]
     )

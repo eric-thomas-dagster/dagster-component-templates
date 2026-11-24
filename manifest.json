@@ -8022,7 +8022,7 @@
       "name": "Aws Glue",
       "category": "integration",
       "description": "Component for importing AWS Glue entities as Dagster assets.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "integrations/aws_glue",
       "tags": [
@@ -8033,7 +8033,8 @@
       "dependencies": {
         "pip": [
           "boto3>=1.28.0",
-          "dagster>=1.8.0"
+          "dagster>=1.8.0",
+          "dagster-aws>=0.29"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/README.md",

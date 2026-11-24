@@ -1,0 +1,109 @@
+{
+  "component_type": "dagster_community_components.DocumentIntakeStatusLedgerComponent",
+  "description": "A durable, queryable per-file status ledger for batch document intake: a local JSONL store (append-only on disk, latest-write-per-key on read) tracking each file through discovered/processing/extracted/failed/reviewed, keyed by a content hash (e.g. an S3 etag). Registers a DocumentIntakeStatusLedger resource other asset/sensor code reads and writes, plus a summary asset with per-status counts and an optional stuck-processing check. Composes with sensors/s3_monitor without modifying it.",
+  "category": "ai",
+  "icon": "FileCheck",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dict",
+      "description": "summary() output: {counts: {discovered, processing, extracted, failed, reviewed}, total, recent_failed}. Metadata on the materialization carries count_<status>, total_count, recent_failed."
+    }
+  },
+  "attributes": {
+    "ledger_name": {
+      "type": "string",
+      "label": "Ledger Name",
+      "description": "Used to derive the default ledger_path ('./{ledger_name}.jsonl') and the default summary asset name ('{ledger_name}_intake_summary').",
+      "required": false
+    },
+    "ledger_path": {
+      "type": "string",
+      "label": "Ledger Path",
+      "description": "Path to the local JSONL ledger file. Default: './{ledger_name}.jsonl'. Created (with parent directories) on first write.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key the ledger is registered under -- reference it from your own asset/sensor code via required_resource_keys.",
+      "required": false
+    },
+    "summary_asset_name": {
+      "type": "string",
+      "label": "Summary Asset Name",
+      "description": "Dagster asset name for the summary asset. Default: '{ledger_name}_intake_summary'.",
+      "required": false
+    },
+    "recent_failed_cap": {
+      "type": "integer",
+      "label": "Recent Failed Cap",
+      "description": "Max number of most-recent failed entries surfaced by the summary asset's metadata.",
+      "required": false
+    },
+    "stuck_after_minutes": {
+      "type": "number",
+      "label": "Stuck After Minutes",
+      "description": "When set, the summary asset also emits an asset check that fails when any file has been in 'processing' longer than this many minutes. Unset (default): no check.",
+      "required": false
+    },
+    "stuck_severity": {
+      "type": "string",
+      "label": "Stuck Severity",
+      "description": "Asset check severity when files are stuck: 'WARN' or 'ERROR'. Only used when stuck_after_minutes is set.",
+      "required": false
+    },
+    "cron_schedule": {
+      "type": "string",
+      "label": "Cron Schedule",
+      "description": "Optional cron expression; when set, a schedule re-materializes the summary asset on this cadence (e.g. '*/5 * * * *').",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners -- team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    }
+  },
+  "tags": [
+    "document intelligence",
+    "batch intake",
+    "status ledger",
+    "s3",
+    "ingestion"
+  ],
+  "name": "document_intake_status_ledger"
+}

@@ -1,0 +1,9 @@
+type: dagster_community_components.DocumentIntakeStatusLedgerComponent
+attributes:
+  ledger_name: invoice_batch_intake
+  ledger_path: ./state/invoice_batch_intake.jsonl
+  resource_key: invoice_batch_ledger    # reference from your own asset/sensor code via required_resource_keys
+  stuck_after_minutes: 30               # flag files stuck in "processing" for 30+ minutes
+  stuck_severity: WARN
+  cron_schedule: "*/10 * * * *"         # keep the summary fresh
+  group_name: ai

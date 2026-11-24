@@ -15989,6 +15989,68 @@
       "icon": "Search"
     },
     {
+      "id": "dagster_evidence_tools",
+      "name": "dagster_evidence_tools",
+      "category": "ai",
+      "description": "Read-only deployment-health evidence tools for an improvement-advisor agent over the Dagster+ GraphQL API, GitHub, PyPI and OSV.dev: project overview (assets/freshness/automation/schedules/code refs, retries, partition+check health, runtime changes, dependency/package risk, incidents), deprecated-API scan, latest Dagster release. Registers a resource and ships a stdio MCP server.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/dagster_evidence_tools",
+      "tags": [
+        "ai",
+        "mcp",
+        "dagster-plus",
+        "graphql",
+        "github",
+        "evidence",
+        "advisor"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests",
+          "mcp>=1.30,<3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_evidence_tools/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_evidence_tools/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_evidence_tools/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_evidence_tools/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_evidence_tools/requirements.txt",
+      "component_type": "dagster_community_components.DagsterEvidenceToolsComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-23",
+        "evidence": "tests/ in the component dir: parsing/shaping logic for every project_overview section (assets/freshness/automation/schedules/code refs, retries, partition+check health, runtime changes, dependency/OSV risk with fixed-in version, incidents), deprecation_report's ast scan, and latest_dagster_release all run for real against a fake GraphQL transport plus fake requests.request/get/post (GitHub, PyPI, OSV.dev) -- every GraphQL field queried was independently confirmed present in the installed dagster_graphql package's own schema classes while building this component, not merely assumed from the reference ops_tools.py this was ported from."
+      },
+      "agent_hints": {
+        "inputs": "location for project_overview (required; refused if in exclude_locations). max_files for deprecation_report (optional).",
+        "outputs": "JSON dicts per tool; errors returned as {error: ...}.",
+        "side_effects": "Read-only GraphQL calls against the Dagster+ API, read-only GitHub REST calls against `repo`, and read-only calls to PyPI's JSON API and OSV.dev. No writes, no code execution.",
+        "anti_uses": "deprecation_report and project_overview's dependency/package-risk section both require `repo` configured -- without it they refuse (deprecation_report) or degrade with a note (project_overview), never guess. Vulnerability checking only covers dagster-family packages (the only ones Dagster+'s GraphQL schema exposes a running version for), not arbitrary third-party dependencies.",
+        "requires_resources": [],
+        "output_type": "none",
+        "requires_pip": [
+          "requests",
+          "mcp"
+        ]
+      },
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "evidence",
+        "improvement advisor",
+        "dagster plus",
+        "graphql",
+        "github",
+        "deprecation",
+        "osv",
+        "pypi",
+        "project overview"
+      ],
+      "icon": "ShieldCheck"
+    },
+    {
       "id": "dagster_failures_to_otlp_sensor",
       "name": "dagster_failures_to_otlp_sensor",
       "category": "sensor",

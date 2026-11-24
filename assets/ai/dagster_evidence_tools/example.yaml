@@ -1,0 +1,17 @@
+type: dagster_community_components.DagsterEvidenceToolsComponent
+attributes:
+  deployment_url: auto
+  token_env_var: DAGSTER_CLOUD_API_TOKEN
+  repo: acme/hooli-data-eng-pipelines
+  # github_token_env_var: GITHUB_TOKEN
+  # base_branch: main
+  exclude_locations: [improvement_advisor]   # never let the advisor agent review its own code location
+  # allow: [project_overview, deprecation_report, latest_dagster_release]  # default: all
+  repo_notes: |
+    This is a demo repository. The flakiness in retry_handler.py is deliberate (it's the point of the
+    demo) -- do not propose fixing it.
+  retry_window_days: 7
+  runtime_change_window_days: 14
+  incident_window_hours: 24
+  max_result_chars: 12000
+  # mcp_server_resource_key: evidence_tools_mcp   # share this toolset via server_resource_key; set deployment_url explicitly (not auto) when using this

@@ -1,0 +1,147 @@
+{
+  "component_type": "dagster_community_components.DagsterEvidenceToolsComponent",
+  "description": "Read-only deployment-health evidence tools for an improvement-advisor agent over the Dagster+ GraphQL API, GitHub, PyPI and OSV.dev: project overview (assets/freshness/automation/schedules/code refs, retries, partition+check health, runtime changes, dependency/package risk, incidents), deprecated-API scan, latest Dagster release. Registers a resource and ships a stdio MCP server.",
+  "category": "ai",
+  "icon": "ShieldCheck",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key the toolset is registered under.",
+      "required": false
+    },
+    "deployment_url": {
+      "type": "string",
+      "label": "Deployment Url",
+      "description": "Full Dagster+ deployment URL, e.g. https://acme.dagster.cloud/prod. 'auto' derives it at run time from DAGSTER_CLOUD_DEPLOYMENT_NAME + the instance's Dagster+ organization -- resolvable for the plain resource (it sees the real DagsterInstance), but NOT for mcp_server_resource_key (that spawns a separate subprocess with no DagsterInstance at all): set deployment_url explicitly whenever mcp_server_resource_key is also set. An explicit value always wins.",
+      "required": false,
+      "default": "auto"
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "description": "Env var holding a Dagster+ API token with read access to this deployment.",
+      "required": false
+    },
+    "repo": {
+      "type": "string",
+      "label": "Repo",
+      "description": "GitHub repository 'owner/repo' this deployment's code lives in -- required for deprecation_report and for project_overview's dependency/package-risk scan (pyproject.toml, lock files). Without it, deprecation_report refuses with a clear error and project_overview's dependency section is skipped with a note, rather than guessing.",
+      "required": false
+    },
+    "github_token_env_var": {
+      "type": "string",
+      "label": "Github Token Env Var",
+      "description": "Env var holding a GitHub token with read access to `repo`.",
+      "required": false
+    },
+    "github_api_base_url": {
+      "type": "string",
+      "label": "Github Api Base Url",
+      "description": "GitHub API base URL. Change for GitHub Enterprise Server.",
+      "required": false
+    },
+    "base_branch": {
+      "type": "string",
+      "label": "Base Branch",
+      "description": "Branch deprecation_report/the dependency scan read `repo` from.",
+      "required": false
+    },
+    "exclude_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Paths",
+      "description": "Path prefixes deprecation_report's file scan and the dependency scan never read -- e.g. vendored code or generated files. Same directory-like ('src/')/filename-like ('Dockerfile') matching convention as github_pr_tools' exclude_paths/protected_paths.",
+      "required": false
+    },
+    "exclude_locations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Locations",
+      "description": "Code location names project_overview refuses to review -- typically the improvement-advisor agent's OWN code location, so it never reviews or reacts to itself. Same name/convention as dagster_discovery_tools' own exclude_locations.",
+      "required": false
+    },
+    "repo_notes": {
+      "type": "string",
+      "label": "Repo Notes",
+      "description": "Free text passed through project_overview's output verbatim, under `repo_notes` -- for what's deliberate in this deployment (a demo's artificial flakiness, a known limitation that isn't a bug). Same idea as the *_agent components' context_notes -- see litellm_agent/README.md's 'Telling the agent what's deliberate' section.",
+      "required": false
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "Hard allow-list of tools (default: all). Valid: project_overview, deprecation_report, latest_dagster_release.",
+      "required": false
+    },
+    "max_result_chars": {
+      "type": "integer",
+      "label": "Max Result Chars",
+      "description": "Upper bound on the serialized size of any tool result.",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "description": "HTTP timeout per GraphQL call.",
+      "required": false
+    },
+    "retry_window_days": {
+      "type": "integer",
+      "label": "Retry Window Days",
+      "description": "project_overview's retried-steps lookback window, in days.",
+      "required": false
+    },
+    "runtime_change_window_days": {
+      "type": "integer",
+      "label": "Runtime Change Window Days",
+      "description": "project_overview's slower-than-before-runs lookback window, in days.",
+      "required": false
+    },
+    "incident_window_hours": {
+      "type": "integer",
+      "label": "Incident Window Hours",
+      "description": "project_overview's recent-incidents lookback window, in hours.",
+      "required": false
+    },
+    "max_runs_scanned": {
+      "type": "integer",
+      "label": "Max Runs Scanned",
+      "description": "Upper bound on runs fetched per project_overview call (retries/incidents/runtime-changes all derive from this one fetch).",
+      "required": false
+    },
+    "max_files_scanned": {
+      "type": "integer",
+      "label": "Max Files Scanned",
+      "description": "Default cap on .py files deprecation_report scans (override per call with max_files).",
+      "required": false
+    },
+    "osv_max_packages": {
+      "type": "integer",
+      "label": "Osv Max Packages",
+      "description": "Upper bound on packages checked against OSV.dev per project_overview call.",
+      "required": false
+    },
+    "mcp_server_resource_key": {
+      "type": "string",
+      "label": "Mcp Server Resource Key",
+      "description": "If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with DAGSTER_EVIDENCE_TOOLS_* env vars set from this component's own config). Any mcp_servers-aware component can then reference it via server_resource_key.",
+      "required": false
+    },
+    "mcp_extra_env_vars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Mcp Extra Env Vars",
+      "description": "mcp_server_resource_key only. Extra env var NAMES to copy into the spawned MCP server's env.",
+      "required": false
+    }
+  }
+}

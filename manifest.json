@@ -12082,7 +12082,7 @@
       "name": "ClickHouse Table Observation Sensor",
       "category": "observation",
       "description": "Emit health observations for an external ClickHouse table.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "observations/clickhouse_table_observation_sensor",
       "tags": [
@@ -57843,7 +57843,7 @@
       "name": "S3 Observation Sensor",
       "category": "observation",
       "description": "Periodically connect to S3 and record an AssetObservation on the target external asset — surfaces health metrics in the Dagster UI without triggering a pipeline run.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "observations/s3_observation_sensor",
       "tags": [

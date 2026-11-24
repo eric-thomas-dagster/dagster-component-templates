@@ -1,8 +1,30 @@
 # ClickHouse Table Observation Sensor
 
-Periodically connects to ClickHouse and emits `AssetObservation` events for an external ClickHouse table. Captures row count, disk size, active parts count, engine type, and last modified timestamp from ClickHouse system tables.
+Periodically connects to ClickHouse and emits `AssetObservation` events for one or more external ClickHouse tables. Captures row count, disk size, active parts count, engine type, and last modified timestamp from ClickHouse system tables -- ONLY when a table's `dagster/data_version` has changed since the last tick.
 
 Connect via a `ClickHouseResource` (using `resource_key`) or directly via env vars. `resource_key` accepts either a custom resource exposing `.observe(source) -> dict`, or (new) a registered `ClickHouseResourceComponent` (`resources/clickhouse_resource`) exposing only `.get_client()` -- the sensor then runs the same system-table queries against that shared client that the native env-var path runs, so one credential can back this sensor and other ClickHouse components.
+
+## Change-only emission
+
+A cursor (`{asset_key: last_seen_data_version}`, JSON-encoded) tracks the last observed DataVersion per table. A tick where nothing changed emits nothing -- not a materialization with an unchanged tag. Without this, any downstream freshness policy on the observed asset is meaningless: the asset would look fresh on every tick whether or not anything new actually landed.
+
+## Multiple tables from one instance
+
+`targets:` declares several ClickHouse tables from one component instance -- one sensor, one poll tick, one connection/resource call per tick -- instead of needing N component instances for N tables. Mutually exclusive with the single-table `asset_key`/`database`/`table` fields:
+
+```yaml
+type: dagster_community_components.ClickHouseTableObservationSensorComponent
+attributes:
+  sensor_name: clickhouse_observation
+  resource_key: clickhouse
+  targets:
+    - asset_key: clickhouse/analytics/events
+      database: analytics
+      table: events
+    - asset_key: clickhouse/analytics/sessions
+      database: analytics
+      table: sessions
+```
 
 ## Required packages
 
@@ -19,19 +41,23 @@ clickhouse-connect>=0.6.0
 | Field | Type | Description |
 |---|---|---|
 | `sensor_name` | `str` | Unique sensor name |
-| `asset_key` | `str` | Asset key of the external ClickHouse table to observe |
-| `database` | `str` | ClickHouse database name |
-| `table` | `str` | ClickHouse table name |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `database` | `str` | — | ClickHouse database name, for a single table. Mutually exclusive with `targets:`. |
 | `host_env_var` | `str` | — | Env var with ClickHouse host |
 | `port` | `int` | `8443` | ClickHouse port |
 | `username_env_var` | `str` | — | Env var with ClickHouse username |
 | `password_env_var` | `str` | — | Env var with ClickHouse password |
 | `resource_key` | `str` | — | Key of a registered resource. When set, env var fields are ignored. Two resource shapes are supported: (1) a custom resource exposing `.observe(source) -> dict` (source is 'database.table'), which returns `{'data_version… _(full docs in schema.json + component README)_ |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `asset_key` | `str` | — | Asset key of the external ClickHouse table to observe, for a single table. Mutually exclusive with `targets:`. |
 
 ### Sensor configuration
 
@@ -39,10 +65,17 @@ clickhouse-connect>=0.6.0
 |---|---|---|---|
 | `default_status` | `str` | `"running"` | running or stopped |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `table` | `str` | — | ClickHouse table name, for a single table. Mutually exclusive with `targets:`. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `targets` | `List[Dict[str, Any]]` | — | Declare several ClickHouse tables from one component instance, instead of one ClickHouseTableObservationSensorComponent YAML block (and one polling sensor, one connection/resource call per tick) per table. Each entry: `a… _(full docs in schema.json + component README)_ |
 | `check_interval_seconds` | `int` | `300` | Seconds between observations |
 | `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit… _(full docs in schema.json + component README)_ |
 

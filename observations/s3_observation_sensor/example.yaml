@@ -5,3 +5,18 @@ attributes:
   bucket_name: my-data-bucket
   prefix: incoming/orders/
   check_interval_seconds: 300
+
+---
+# Several bucket/prefix feeds from one component instance (one sensor, one tick)
+type: dagster_community_components.S3ObservationSensorComponent
+attributes:
+  sensor_name: s3_feeds_observation
+  resource_key: s3_obs
+  check_interval_seconds: 300
+  targets:
+    - asset_key: raw/orders
+      bucket_name: my-data-bucket
+      prefix: incoming/orders/
+    - asset_key: raw/customers
+      bucket_name: my-data-bucket
+      prefix: incoming/customers/

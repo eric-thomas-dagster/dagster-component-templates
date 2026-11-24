@@ -19,21 +19,33 @@
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Asset key of the external asset to observe",
-      "required": true
+      "description": "Asset key of the external asset to observe, for a single target. Mutually exclusive with targets.",
+      "required": false,
+      "default": null
     },
     "bucket_name": {
       "type": "string",
       "label": "Bucket Name",
-      "description": "S3 bucket name",
-      "required": true
+      "description": "S3 bucket name, for a single target. Mutually exclusive with targets.",
+      "required": false,
+      "default": null
     },
     "prefix": {
       "type": "string",
       "label": "Prefix",
-      "description": "Key prefix",
+      "description": "Key prefix, for a single target. Mutually exclusive with targets.",
       "required": false,
       "default": ""
+    },
+    "targets": {
+      "type": "array",
+      "label": "Targets",
+      "description": "Declare several bucket/prefix feeds from one component instance, instead of one S3ObservationSensorComponent YAML block per feed. Each entry: asset_key (required), bucket_name (required), prefix (optional). Mutually exclusive with the top-level asset_key/bucket_name/prefix fields.",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "object"
+      }
     },
     "region_name": {
       "type": "string",

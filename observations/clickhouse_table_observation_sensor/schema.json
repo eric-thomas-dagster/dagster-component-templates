@@ -19,20 +19,33 @@
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Asset key of the external ClickHouse table to observe",
-      "required": true
+      "description": "Asset key of the external ClickHouse table to observe, for a single table. Mutually exclusive with targets.",
+      "required": false,
+      "default": null
     },
     "database": {
       "type": "string",
       "label": "Database",
-      "description": "ClickHouse database name",
-      "required": true
+      "description": "ClickHouse database name, for a single table. Mutually exclusive with targets.",
+      "required": false,
+      "default": null
     },
     "table": {
       "type": "string",
       "label": "Table",
-      "description": "ClickHouse table name",
-      "required": true
+      "description": "ClickHouse table name, for a single table. Mutually exclusive with targets.",
+      "required": false,
+      "default": null
+    },
+    "targets": {
+      "type": "array",
+      "label": "Targets",
+      "description": "Declare several ClickHouse tables from one component instance, instead of one ClickHouseTableObservationSensorComponent YAML block per table. Each entry: asset_key (required), database (required), table (required). Mutually exclusive with the top-level asset_key/database/table fields.",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "object"
+      }
     },
     "host_env_var": {
       "type": "string",

@@ -8,3 +8,18 @@ attributes:
   host_env_var: CLICKHOUSE_HOST
   password_env_var: CLICKHOUSE_PASSWORD
   check_interval_seconds: 300
+
+---
+# Several tables from one component instance (one sensor, one connection per tick)
+type: dagster_community_components.ClickHouseTableObservationSensorComponent
+attributes:
+  sensor_name: clickhouse_observation
+  resource_key: clickhouse
+  check_interval_seconds: 300
+  targets:
+    - asset_key: clickhouse/analytics/events
+      database: analytics
+      table: events
+    - asset_key: clickhouse/analytics/sessions
+      database: analytics
+      table: sessions

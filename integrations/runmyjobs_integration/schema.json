@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.RunMyJobsIntegrationComponent",
-  "description": "Redwood RunMyJobs (RMJ / SAP Redwood Scheduler) REST API integration. Each declared JobDefinition becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (restart, hold, release, kill, reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies.",
+  "description": "Redwood RunMyJobs (RMJ / SAP Redwood Scheduler) REST API integration. `jobs:` wraps a JobDefinition as a Dagster-submitted, daily-partitioned asset; `observed_chains:` instead declares a non-executable external AssetSpec for a chain that RunMyJobs keeps scheduling itself -- `runmyjobs_external_monitor` polls GET /scheduler/api/processes?status=Completed and emits one partitioned AssetMaterialization per completed process, deduped via a cursor. Restart/hold/release/kill/reconcile ops+jobs and the reconciliation schedule are opt-in (`include_operations: true`). demo_mode=true simulates the full REST API lifecycle deterministically on stdout so the whole component runs end-to-end with zero external dependencies.",
   "category": "integration",
   "icon": "Schedule",
   "x-dagster-io": {
@@ -36,6 +36,12 @@
       "label": "Source Tables",
       "required": false,
       "description": "Tables loaded by RunMyJobs that Dagster observes (adds to lineage). Each item: {table_name, asset_name, description?, group_name?, produced_by?}."
+    },
+    "observed_chains": {
+      "type": "array",
+      "label": "Observed Chains",
+      "required": false,
+      "description": "RunMyJobs chains where RMJ stays the master scheduler. Each becomes a non-executable external AssetSpec; runmyjobs_external_monitor records completions. Each item: {job_definition, asset_name, description?, application?, group_name?, deps?}."
     },
     "upstream_deps": {
       "type": "array",
@@ -113,6 +119,24 @@
       "required": false,
       "default": "0 * * * *",
       "description": "Cron for the RunMyJobs vs Dagster state reconciliation job."
+    },
+    "business_date_parameter": {
+      "type": "string",
+      "label": "Business Date Parameter",
+      "description": "Name of the RunMyJobs process parameter that carries the business date for a completed process. Used by `runmyjobs_external_monitor` to derive the Dagster partition key for an observed-chain completion.",
+      "required": false
+    },
+    "include_operations": {
+      "type": "boolean",
+      "label": "Include Operations",
+      "description": "Build the restart/hold/release/kill/reconcile ops+jobs and the reconciliation schedule. Default False -- most deployments only need the asset(s) and the external-execution monitor sensor.",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the daily partitions definition (defaults to UTC, matching Dagster's own default).",
+      "required": false
     }
   },
   "tags": [

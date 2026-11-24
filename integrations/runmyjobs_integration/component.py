@@ -86,6 +86,36 @@ class RunMyJobsSourceTableSpec(dg.Model, dg.Resolvable):
     )
 
 
+class RunMyJobsObservedChainSpec(dg.Model, dg.Resolvable):
+    """A RunMyJobs chain for which RunMyJobs (not Dagster) remains the scheduler.
+
+    Unlike `RunMyJobsJobSpec` (which Dagster submits and polls), an observed
+    chain is wrapped as a plain external `AssetSpec` -- Dagster never calls
+    `/scheduler/api/submitjob` for it. Completions are recorded exclusively by
+    `runmyjobs_external_monitor`, which polls RunMyJobs for completed
+    processes and emits one `AssetMaterialization` per completed process.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    job_definition: str = Field(
+        description="RunMyJobs JobDefinition name (as registered in the RMJ scheduler) this external asset tracks.",
+    )
+    asset_name: str = Field(
+        description="Dagster asset name for this RMJ-owned chain (observed-only -- never submitted/executed by Dagster).",
+    )
+    description: str = Field(default="", description="Prose description shown in the Dagster UI.")
+    application: str = Field(default="", description="RunMyJobs Application (analog to Control-M Folder).")
+    group_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset group for this chain (defaults to the component's group_name).",
+    )
+    deps: List[str] = Field(
+        default_factory=list,
+        description="Upstream asset keys (slash-separated for nested keys), for lineage only -- RunMyJobs still owns scheduling.",
+    )
+
+
 # ═════════════════════════════════════════════════════════════════════
 # Demo simulator
 # ═════════════════════════════════════════════════════════════════════
@@ -277,6 +307,31 @@ class RunMyJobsIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
         default_factory=list,
         description="Tables loaded by RunMyJobs that Dagster observes (adds to lineage).",
     )
+    observed_chains: List[RunMyJobsObservedChainSpec] = Field(
+        default_factory=list,
+        description=(
+            "RunMyJobs chains where RMJ stays the master scheduler. Each becomes a "
+            "non-executable external AssetSpec; `runmyjobs_external_monitor` records "
+            "completions. Use this instead of `jobs:` whenever Dagster should never "
+            "submit/execute the chain itself."
+        ),
+    )
+    business_date_parameter: str = Field(
+        default="BUSINESS_DATE",
+        description=(
+            "Name of the RunMyJobs process parameter that carries the business date for a "
+            "completed process. Used by `runmyjobs_external_monitor` to derive the Dagster "
+            "partition key for an observed-chain completion."
+        ),
+    )
+    include_operations: bool = Field(
+        default=False,
+        description=(
+            "Build the restart/hold/release/kill/reconcile ops+jobs and the reconciliation "
+            "schedule. Default False -- most deployments only need the asset(s) and the "
+            "external-execution monitor sensor."
+        ),
+    )
     upstream_deps: List[str] = Field(
         default_factory=list,
         description="Upstream asset keys (slash-separated for nested keys) that must complete before jobs run.",
@@ -306,6 +361,10 @@ class RunMyJobsIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
         default="2024-01-01",
         description="Start date for the daily partitioned assets.",
     )
+    partition_timezone: Optional[str] = Field(
+        default=None,
+        description="IANA timezone for the daily partitions definition (defaults to UTC, matching Dagster's own default).",
+    )
 
     reconciliation_cron: str = Field(
         default="0 * * * *",
@@ -328,7 +387,10 @@ class RunMyJobsIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
         stdout_retrieval = self.stdout_retrieval
 
         resolved_upstream = [dg.AssetKey(dep.split("/")) for dep in self.upstream_deps]
-        daily_partition = dg.DailyPartitionsDefinition(start_date=self.partition_start_date)
+        daily_partition = dg.DailyPartitionsDefinition(
+            start_date=self.partition_start_date,
+            timezone=self.partition_timezone,
+        )
 
         retry_policy = RetryPolicy(
             max_retries=self.max_retries,
@@ -424,42 +486,119 @@ class RunMyJobsIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
 
             source_assets.append(_make_source())
 
+        # Observed chains — RunMyJobs stays the master scheduler. These are
+        # plain external AssetSpecs (no @asset body, nothing for Dagster to
+        # submit/execute). `runmyjobs_external_monitor` below is the ONLY
+        # thing that ever emits an event against them.
+        observed_assets: List[dg.AssetSpec] = []
+        # job_definition -> (asset_key, has_partitions) used by the sensor to
+        # route each completed RunMyJobs process to the right Dagster asset.
+        chain_map: dict = {}
+        for chain in self.observed_chains:
+            chain_deps = [dg.AssetKey(dep.split("/")) for dep in chain.deps]
+            asset_key = dg.AssetKey([chain.asset_name])
+            observed_assets.append(
+                dg.AssetSpec(
+                    key=asset_key,
+                    description=chain.description or (
+                        f"RunMyJobs-owned chain: {chain.job_definition}. RunMyJobs (not Dagster) "
+                        f"schedules and executes this chain; Dagster only records completions."
+                    ),
+                    group_name=chain.group_name or group,
+                    kinds={"runmyjobs"},
+                    deps=chain_deps,
+                    partitions_def=daily_partition,
+                    metadata={
+                        "dagster.observability_type": "external",
+                        "runmyjobs_job_definition": chain.job_definition,
+                        "rmj_application": chain.application,
+                        "scheduler_owner": "RunMyJobs",
+                        "integration_pattern": "runmyjobs-orchestrates-dagster-observes",
+                    },
+                )
+            )
+            chain_map[chain.job_definition] = asset_key
+
         _demo = demo_mode
         _ep = endpoint
+        _business_date_param = self.business_date_parameter
+        _chain_map = chain_map
+        _has_partitions = bool(self.observed_chains)
 
         @dg.sensor(
             name="runmyjobs_external_execution_monitor",
             minimum_interval_seconds=60,
             default_status=dg.DefaultSensorStatus.STOPPED,
-            description="Monitors RunMyJobs for process completions Dagster didn't trigger.",
+            description=(
+                "Polls RunMyJobs for completed processes against `observed_chains` and emits one "
+                "AssetMaterialization per completed process RunMyJobs ran -- Dagster never submits "
+                "these chains itself."
+            ),
         )
         def runmyjobs_external_monitor(context: dg.SensorEvaluationContext):
-            import random as _rand
-            last_cursor = context.cursor or "0|"
-            parts = last_cursor.split("|")
-            tick = int(parts[0]) + 1
+            if not _chain_map:
+                context.log.info(
+                    "No observed_chains configured -- nothing for this sensor to monitor. "
+                    "Declare observed_chains: [...] to have this sensor record RunMyJobs completions."
+                )
+                return
+
+            try:
+                cursor_state = json.loads(context.cursor) if context.cursor else {}
+            except (ValueError, TypeError):
+                cursor_state = {}
+            seen_ids = set(cursor_state.get("seen_process_ids") or [])
+            last_run_end = cursor_state.get("last_run_end")
+
+            events: List[dg.AssetMaterialization] = []
+            max_run_end = last_run_end
+
+            def _record(job_definition: str, process_id: str, run_end: Optional[str], business_date: Optional[str]):
+                nonlocal max_run_end
+                if process_id in seen_ids:
+                    return
+                asset_key = _chain_map.get(job_definition)
+                if asset_key is None:
+                    context.log.warning(
+                        f"Completed RunMyJobs process for jobDefinition={job_definition!r} does not match "
+                        f"any observed_chains entry -- skipping (known chains: {sorted(_chain_map)})"
+                    )
+                    return
+                partition = business_date if (_has_partitions and business_date) else None
+                if _has_partitions and not business_date:
+                    context.log.warning(
+                        f"Completed process {process_id} for {job_definition!r} had no "
+                        f"'{_business_date_param}' parameter -- recording materialization without a partition."
+                    )
+                events.append(
+                    dg.AssetMaterialization(
+                        asset_key=asset_key,
+                        partition=partition,
+                        metadata={
+                            "external_process_id": dg.MetadataValue.text(process_id),
+                            "runmyjobs_job_definition": dg.MetadataValue.text(job_definition),
+                            "status": dg.MetadataValue.text("Completed"),
+                            "triggered_by": dg.MetadataValue.text("RunMyJobs schedule"),
+                        },
+                    )
+                )
+                seen_ids.add(process_id)
+                if run_end and (max_run_end is None or run_end > max_run_end):
+                    max_run_end = run_end
 
             if _demo:
-                process_id = f"ext-{uuid.uuid4().hex[:8]}"
-                context.log.info(f"[DETECTED] External RunMyJobs process")
-                context.log.info(f"  Triggered by: RunMyJobs schedule")
-                context.log.info(f"  Status: Completed")
-                context.log.info(f"  Duration: {_rand.randint(60, 600)}s")
-                context.log.info(f"  processId: {process_id}")
-                context.log.info(f"  Dagster was NOT the orchestrator — recording observation")
-
-                first_asset = self.jobs[0].asset_name if self.jobs else "runmyjobs_job"
-                observation = dg.AssetObservation(
-                    asset_key=dg.AssetKey(first_asset),
-                    metadata={
-                        "external_process_id": dg.MetadataValue.text(process_id),
-                        "platform": dg.MetadataValue.text("runmyjobs"),
-                        "triggered_by": dg.MetadataValue.text("RunMyJobs schedule"),
-                    },
-                )
-                context.update_cursor(f"{tick}|{time.strftime('%Y-%m-%dT%H:%M:%SZ')}")
-                yield dg.SensorResult(asset_events=[observation])
-                return
+                # Deterministic: one completion per declared chain per business date (today,
+                # UTC) -- never a random asset, never a random duration. Once a chain's
+                # process for today has been recorded it won't be replayed; a later tick
+                # only emits again once the (simulated) business date advances.
+                business_date = time.strftime("%Y-%m-%d", time.gmtime())
+                for job_definition in sorted(_chain_map):
+                    process_id = f"RMJ-{job_definition}-{business_date}"
+                    context.log.info(
+                        f"[DETECTED] {job_definition} Completed (processId={process_id}, "
+                        f"{_business_date_param}={business_date}) -- RunMyJobs was the orchestrator"
+                    )
+                    _record(job_definition, process_id, run_end=f"{business_date}T00:00:00Z", business_date=business_date)
             else:
                 import os
                 import requests
@@ -467,30 +606,74 @@ class RunMyJobsIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 user = os.environ.get(user_env)
                 pw = os.environ.get(password_env)
-                if user and pw:
+                if not user or not pw:
+                    context.log.warning(f"Missing {user_env}/{password_env} -- skipping this tick")
+                else:
                     try:
                         headers = _rmj_headers(user, pw)
                         resp = requests.get(
                             f"{_ep}/scheduler/api/processes",
-                            params={"status": "Completed", "limit": 20},
+                            params={"status": "Completed", "limit": 100},
                             headers=headers, verify=False, timeout=30,
                         )
                         resp.raise_for_status()
-                        for p in resp.json().get("processes", [])[:1]:
-                            observation = dg.AssetObservation(
-                                asset_key=dg.AssetKey(f"rmj_{(p.get('jobDefinition') or 'unknown').lower().replace(' ', '_')}"),
-                                metadata={
-                                    "external_process_id": dg.MetadataValue.text(str(p.get("processId", "unknown"))),
-                                    "status": dg.MetadataValue.text(p.get("status", "unknown")),
-                                },
-                            )
-                            context.update_cursor(f"{tick}|{time.strftime('%Y-%m-%dT%H:%M:%SZ')}")
-                            yield dg.SensorResult(asset_events=[observation])
-                            return
+                        for p in resp.json().get("processes", []):
+                            job_definition = p.get("jobDefinition") or "unknown"
+                            process_id = str(p.get("processId") or p.get("id") or "unknown")
+                            run_end = p.get("runEnd") or p.get("endTime")
+                            business_date = (p.get("parameters") or {}).get(_business_date_param)
+                            _record(job_definition, process_id, run_end, business_date)
                     except Exception as e:
                         context.log.warning(f"RunMyJobs monitor failed: {e}")
 
-            context.update_cursor(f"{tick}|{time.strftime('%Y-%m-%dT%H:%M:%SZ')}")
+            new_cursor = json.dumps({
+                # Cap to bound cursor size -- a sorted trailing slice is sufficient since
+                # process ids embed the business date / are issued in roughly increasing order.
+                "seen_process_ids": sorted(seen_ids)[-500:],
+                "last_run_end": max_run_end,
+            })
+            if events:
+                yield dg.SensorResult(asset_events=events, cursor=new_cursor)
+            else:
+                context.update_cursor(new_cursor)
+
+        operation_jobs: List[dg.JobDefinition] = []
+        recon_schedules: List[dg.ScheduleDefinition] = []
+
+        if self.include_operations:
+            self._build_operation_jobs(operation_jobs, recon_schedules, _demo, _ep, user_env, password_env)
+
+        @dg.sensor(
+            name="runmyjobs_inbound_trigger",
+            minimum_interval_seconds=300,
+            default_status=dg.DefaultSensorStatus.STOPPED,
+            description=(
+                "Monitors for RunMyJobs-initiated pipeline triggers. In production, "
+                "a RunMyJobs job calls Dagster's GraphQL API (launchRun mutation) to "
+                "start runs after a scheduled process completes."
+            ),
+        )
+        def runmyjobs_inbound_trigger(context: dg.SensorEvaluationContext):
+            last_cursor = int(context.cursor) if context.cursor else 0
+            tick = last_cursor + 1
+            if _demo and tick % 3 == 0:
+                context.log.info(f"[INBOUND]  RunMyJobs trigger detected (tick {tick})")
+                context.log.info(f"  Source: RunMyJobs scheduled process completion")
+                context.log.info(f"  Action: In production, RunMyJobs calls:")
+                context.log.info(f"    POST https://dagster.cloud/graphql")
+                context.log.info(f"    mutation {{ launchRun(executionParams: {{ ... }}) }}")
+                context.log.info(f"  This sensor confirms the inbound trigger was received")
+            context.update_cursor(str(tick))
+
+        return dg.Definitions(
+            assets=[*all_assets, *source_assets, *observed_assets],
+            sensors=[runmyjobs_external_monitor, runmyjobs_inbound_trigger],
+            jobs=operation_jobs,
+            schedules=recon_schedules,
+        )
+
+    def _build_operation_jobs(self, operation_jobs, recon_schedules, _demo, _ep, user_env, password_env):
+        """Build the restart/hold/release/kill/reconcile ops+jobs (opt-in via include_operations)."""
 
         @dg.op(config_schema={"process_id": dg.Field(str, is_required=False, default_value="RMJ-UNKNOWN")})
         def restart_failed_runmyjobs_process(context: dg.OpExecutionContext):
@@ -629,35 +812,9 @@ class RunMyJobsIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=dg.DefaultScheduleStatus.STOPPED,
         )
 
-        @dg.sensor(
-            name="runmyjobs_inbound_trigger",
-            minimum_interval_seconds=300,
-            default_status=dg.DefaultSensorStatus.STOPPED,
-            description=(
-                "Monitors for RunMyJobs-initiated pipeline triggers. In production, "
-                "a RunMyJobs job calls Dagster's GraphQL API (launchRun mutation) to "
-                "start runs after a scheduled process completes."
-            ),
-        )
-        def runmyjobs_inbound_trigger(context: dg.SensorEvaluationContext):
-            last_cursor = int(context.cursor) if context.cursor else 0
-            tick = last_cursor + 1
-            if _demo and tick % 3 == 0:
-                context.log.info(f"[INBOUND]  RunMyJobs trigger detected (tick {tick})")
-                context.log.info(f"  Source: RunMyJobs scheduled process completion")
-                context.log.info(f"  Action: In production, RunMyJobs calls:")
-                context.log.info(f"    POST https://dagster.cloud/graphql")
-                context.log.info(f"    mutation {{ launchRun(executionParams: {{ ... }}) }}")
-                context.log.info(f"  This sensor confirms the inbound trigger was received")
-            context.update_cursor(str(tick))
-
-        return dg.Definitions(
-            assets=[*all_assets, *source_assets],
-            sensors=[runmyjobs_external_monitor, runmyjobs_inbound_trigger],
-            jobs=[
-                runmyjobs_restart_process, runmyjobs_hold_application,
-                runmyjobs_release_processes, runmyjobs_kill_process,
-                runmyjobs_reconciliation,
-            ],
-            schedules=[recon_schedule],
-        )
+        operation_jobs.extend([
+            runmyjobs_restart_process, runmyjobs_hold_application,
+            runmyjobs_release_processes, runmyjobs_kill_process,
+            runmyjobs_reconciliation,
+        ])
+        recon_schedules.append(recon_schedule)

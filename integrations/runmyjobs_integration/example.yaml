@@ -49,3 +49,23 @@ attributes:
   #   - table_name: "CORE_BANKING.SETTLEMENT_LEDGER"
   #     asset_name: rmj_settlement_table
   #     produced_by: rmj_eod_settlement
+
+  # Observed chains — RunMyJobs stays the master scheduler for these. Each
+  # becomes a non-executable external AssetSpec; Dagster never submits/executes
+  # it. `runmyjobs_external_monitor` (STOPPED by default -- flip to RUNNING to
+  # use) polls GET /scheduler/api/processes?status=Completed and emits one
+  # AssetMaterialization per completed process, partitioned by the process
+  # parameter named in `business_date_parameter`.
+  observed_chains: []
+  # observed_chains:
+  #   - job_definition: SAP_FI_NIGHTLY_CLOSE
+  #     asset_name: rmj_sap_fi_nightly_close
+  #     application: SAP_FINANCE
+  #     description: >-
+  #       SAP FI nightly close. RunMyJobs owns scheduling end-to-end; Dagster
+  #       only records completions for lineage/freshness.
+  business_date_parameter: BUSINESS_DATE
+
+  # Restart/hold/release/kill/reconcile ops+jobs + the reconciliation schedule
+  # are opt-in -- most deployments only need the asset(s) + external monitor.
+  include_operations: false

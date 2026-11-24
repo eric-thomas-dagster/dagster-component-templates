@@ -1,26 +1,33 @@
 # RunMyJobsIntegrationComponent
 
-Redwood **RunMyJobs** (aka SAP Redwood Scheduler / RMJ) REST API integration. Each declared JobDefinition becomes a **daily-partitioned Dagster asset** with a retry policy. Ships with 5 operational ops + jobs (restart / hold / release / kill / reconcile), 2 sensors (external-execution monitor + inbound trigger), and an hourly reconciliation schedule.
+Redwood **RunMyJobs** (aka SAP Redwood Scheduler / RMJ) REST API integration. Two mutually-compatible ways to represent a JobDefinition:
 
-`demo_mode: true` (default) simulates the whole REST API lifecycle on stdout — the component runs end-to-end with zero external dependencies. Flip to `false` and set `RUNMYJOBS_USER` / `RUNMYJOBS_PASSWORD` to hit a real RunMyJobs instance.
+- **`jobs:`** — Dagster submits the chain (`POST /scheduler/api/submitjob`), polls it, and wraps it as a **daily-partitioned Dagster asset** with a retry policy.
+- **`observed_chains:`** — RunMyJobs stays the master scheduler. The chain becomes a **non-executable external `AssetSpec`** — Dagster never submits/executes it. `runmyjobs_external_monitor` polls `GET /scheduler/api/processes?status=Completed` and emits one partitioned `AssetMaterialization` per completed process (partition derived from the process parameter named by `business_date_parameter`, default `BUSINESS_DATE`), deduped via a cursor so the same completion is never replayed.
+
+Restart/hold/release/kill/reconcile ops+jobs and the hourly reconciliation schedule are **opt-in** (`include_operations: true`) — most deployments only need the asset(s) and the external monitor.
+
+`demo_mode: true` (default) simulates the whole REST API lifecycle deterministically on stdout — the component runs end-to-end with zero external dependencies. Flip to `false` and set `RUNMYJOBS_USER` / `RUNMYJOBS_PASSWORD` to hit a real RunMyJobs instance.
 
 ## What you get
 
 ```
 Dagster catalog after `dg dev`:
 
-Assets   ── rmj_eod_settlement                 [daily partitioned, kinds: python, runmyjobs]
-         ── rmj_regulatory_extract             [daily partitioned, kinds: python, runmyjobs]
+Assets   ── rmj_eod_settlement                 [daily partitioned, kinds: python, runmyjobs]       (jobs: -- Dagster-submitted)
+         ── rmj_regulatory_extract             [daily partitioned, kinds: python, runmyjobs]       (jobs: -- Dagster-submitted)
+         ── rmj_sap_fi_nightly_close           [external, daily partitioned, kinds: runmyjobs]      (observed_chains: -- RMJ-owned)
          ── rmj_settlement_table               [source, kinds: runmyjobs, database]  (optional)
 
+Sensors  ── runmyjobs_external_execution_monitor   (poll every 60s -- records observed_chains completions)
+         ── runmyjobs_inbound_trigger              (RMJ -> Dagster GraphQL)
+
+# Only built when include_operations: true
 Jobs     ── runmyjobs_restart_process          (run config: {process_id})
          ── runmyjobs_hold_application         (run config: {application, queue})
          ── runmyjobs_release_processes        (run config: {application})
          ── runmyjobs_kill_process             (run config: {process_id})
          ── runmyjobs_reconciliation           (drift report)
-
-Sensors  ── runmyjobs_external_execution_monitor   (poll every 60s)
-         ── runmyjobs_inbound_trigger              (RMJ -> Dagster GraphQL)
 
 Schedules ── runmyjobs_reconciliation_schedule (cron: 0 * * * *)
 ```
@@ -161,6 +168,7 @@ Not a RunMyJobs killer. If you're doing a full migration off RMJ, the `airflow_d
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
+| `partition_timezone` | `str` | — | IANA timezone for the daily partitions definition (defaults to UTC, matching Dagster's own default). |
 
 ### Retry policy
 
@@ -180,6 +188,9 @@ Not a RunMyJobs killer. If you're doing a full migration off RMJ, the `airflow_d
 |---|---|---|---|
 | `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
 | `jobs` | `List[RunMyJobsJobSpec]` | `list()` | RunMyJobs JobDefinitions to wrap as daily-partitioned Dagster assets. |
+| `observed_chains` | `List[RunMyJobsObservedChainSpec]` | `list()` | RunMyJobs chains where RMJ stays the master scheduler. Each becomes a non-executable external AssetSpec; `runmyjobs_external_monitor` records completions. Use this instead of `jobs:` whenever Dagster should never submit/… _(full docs in schema.json + component README)_ |
+| `business_date_parameter` | `str` | `"BUSINESS_DATE"` | Name of the RunMyJobs process parameter that carries the business date for a completed process. Used by `runmyjobs_external_monitor` to derive the Dagster partition key for an observed-chain completion. |
+| `include_operations` | `bool` | `false` | Build the restart/hold/release/kill/reconcile ops+jobs and the reconciliation schedule. Default False -- most deployments only need the asset(s) and the external-execution monitor sensor. |
 | `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
 | `runmyjobs_user_env` | `str` | `"RUNMYJOBS_USER"` | Env var holding the RunMyJobs REST username. |
 | `runmyjobs_password_env` | `str` | `"RUNMYJOBS_PASSWORD"` | Env var holding the RunMyJobs REST password. |

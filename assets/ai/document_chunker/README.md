@@ -238,6 +238,38 @@ Output will include:
 - **Medium overlap (100-200)**: Balanced (recommended)
 - **Low overlap (0-50)**: Less redundancy, more chunks
 
+## Vector-Metadata Contract
+
+`stamp_chunk_contract` (default on) stamps a fixed set of fields onto every chunk -- `document_id`,
+`source_uri`, `page_start`/`page_end`, `section`, `chunk_index`, `chunk_id`, `content_hash` and
+`extractor_version` -- so this chunker and a vector store agree on the shape of a chunk's metadata
+without either side guessing column names. Same field names and `content_hash` (sha256) approach as
+[`context_engineering_pipeline`'s `stamp_provenance`](../context_engineering_pipeline#receipt-ready-context)
+-- see that component's README for the full rationale -- adapted here for a plain chunker that has
+no pipeline-step/recipe concept of its own:
+
+- `document_id` / `source_uri` / `page_start` / `page_end` come from `document_id_column` /
+  `source_uri_column` / `page_column` when set, and from the input row's own index / `null`
+  otherwise -- never fabricated. This component splits plain text with no inherent page concept, so
+  `page_start`/`page_end` stay `null` unless an upstream extractor already attached page numbers to
+  the input.
+- `section` is the last markdown-style header (`#` .. `######`) found in or before each chunk,
+  carried forward until the next header -- derived from whatever real structure the source text
+  happens to have, for every strategy (not only a dedicated "markdown" one, which this component
+  doesn't have), and left `null` for documents with no headers rather than fabricated.
+- `chunk_id`/`content_hash` are idempotent: re-running on unchanged content reproduces the same
+  values, and editing one document's text only changes that document's own chunks' hashes.
+- `extractor_version` defaults to a fingerprint of this component's own chunking configuration
+  (`strategy`/`chunk_size`/`chunk_overlap`/etc) -- set it explicitly (e.g. a git SHA) to use
+  something else instead.
+- `embedding_model` is deliberately **not** stamped here -- this component runs before embedding, so
+  there's no model name yet. See
+  [`vector_store_writer`'s own `embedding_model` field](../vector_store_writer#vector-metadata-contract-embedding_model--embedding_model_column),
+  which stamps it once embeddings exist and completes the contract end-to-end.
+
+Set `stamp_chunk_contract: false` to turn all of this off and keep exactly the columns this
+component produced before.
+
 ## Integration with Other Components
 
 ### Upstream Components
@@ -322,6 +354,7 @@ Process chunks with:
 |---|---|---|---|
 | `source_column` | `Union[str, int]` | `"text"` | Column name containing document text |
 | `output_column` | `Union[str, int]` | `"chunk"` | Column name for chunk text |
+| `source_uri_column` | `Union[str, int]` | — | Column holding each document's source URI (e.g. 's3://bucket/key', 'https://...', 'file:///path'), stamped as source_uri on every chunk. Null when unset or the column is missing -- never fabricated from the asset key (a… _(full docs in schema.json + component README)_ |
 
 ### Other
 
@@ -340,6 +373,10 @@ Process chunks with:
 | `parent_chunk_overlap` | `int` | `0` | Overlap between parent passages, in the same units as parent_chunk_size. Only used when parent_chunk_size is set. |
 | `metadata_columns` | `Union[str, int]` | — | Comma-separated list of columns to preserve as metadata (e.g., 'doc_id,title,author') |
 | `add_chunk_metadata` | `bool` | `true` | Add chunk metadata (chunk_index, total_chunks, start_char, end_char) |
+| `stamp_chunk_contract` | `bool` | `true` | Stamp the shared vector-metadata contract onto every chunk: document_id, source_uri, page_start/page_end, section, chunk_index, chunk_id, content_hash and extractor_version. Same contract and field names as context_engin… _(full docs in schema.json + component README)_ |
+| `document_id_column` | `Union[str, int]` | — | Column holding a stable per-document identifier, stamped as document_id on every chunk from that row (e.g. doc_id, url, file path). Falls back to the input DataFrame's row index (as a string) when unset or the column is… _(full docs in schema.json + component README)_ |
+| `page_column` | `Union[str, int]` | — | Column already holding a page number for each row (e.g. carried forward from an upstream PDF extractor that preserved page boundaries), stamped as page_start AND page_end on every chunk from that row. This component spli… _(full docs in schema.json + component README)_ |
+| `extractor_version` | `str` | — | Version string stamped as extractor_version on every chunk (e.g. a git SHA or a build tag), so a vector store can tell which version of this chunking configuration produced a given chunk -- the same role context_engineer… _(full docs in schema.json + component README)_ |
 | `separators` | `str` | — | Custom separators for recursive strategy (comma-separated). Default: '\n\n,\n, ,' |
 | `sentence_tokenizer` | `str` | `"simple"` | Sentence tokenizer: simple (regex), nltk, spacy |
 | `tokenizer_model` | `str` | — | Model for token counting (e.g., 'gpt-3.5-turbo', 'cl100k_base'). Required for token_aware strategy. |

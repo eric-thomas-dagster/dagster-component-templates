@@ -4,6 +4,8 @@ Split documents into chunks for RAG (Retrieval Augmented Generation) and embeddi
 Supports multiple chunking strategies: fixed-size, semantic, recursive, sentence-based, and token-aware.
 """
 
+import hashlib
+import json
 import re
 from typing import Any, Dict, List, Optional, Union
 from typing import Literal  # noqa: E402,F401
@@ -89,6 +91,37 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
             raise ValueError(f"database_url_env_var {env_var!r} is unset")
         return pd.read_sql(sql, create_engine(url))
     raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
+# BEGIN vector-metadata contract (inlined per component; keep copies identical across
+# document_chunker/text_chunker -- see tests/test_chunk_contract.py in each). Same field names and
+# content_hash approach as context_engineering_pipeline's stamp_provenance (see that component's
+# README, "Receipt-ready context"), adapted here for a plain chunker with no pipeline-step/recipe
+# concept of its own.
+def _sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+_SECTION_HEADER_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+
+
+def _last_markdown_header(text: str) -> Optional[str]:
+    """The text of the last markdown-style header line (``# Heading`` .. ``###### Heading``) found
+    anywhere in ``text``, or None when it contains none. Derives `section` for every chunking
+    strategy (not just a dedicated 'markdown' one, which this component doesn't have) from whatever
+    real structure the source text happens to carry -- never a fabricated section label."""
+    matches = _SECTION_HEADER_RE.findall(text)
+    return matches[-1][1] if matches else None
+
+
+def _extractor_version_fingerprint(cfg: Dict[str, Any]) -> str:
+    """Deterministic short hash of the chunking configuration that actually affects chunk
+    boundaries/content -- the same idea as context_engineering_pipeline's own code_version default
+    (a fingerprint of 'the recipe'), scoped to this component's own knobs. Two differently
+    configured builds get different values with nothing to set by hand."""
+    blob = json.dumps(cfg, sort_keys=True, default=str)
+    return f"cfg-{_sha256(blob)[:12]}"
+# END vector-metadata contract
 
 
 def _build_partitions_def(
@@ -429,6 +462,59 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
         description="Add chunk metadata (chunk_index, total_chunks, start_char, end_char)"
     )
 
+    stamp_chunk_contract: bool = Field(
+        default=True,
+        description=(
+            "Stamp the shared vector-metadata contract onto every chunk: document_id, source_uri, "
+            "page_start/page_end, section, chunk_index, chunk_id, content_hash and extractor_version. "
+            "Same contract and field names as context_engineering_pipeline's stamp_provenance (see "
+            "that component's README) -- adapted here for a plain chunker with no pipeline-step/"
+            "recipe concept of its own. embedding_model is deliberately NOT stamped here: this "
+            "component runs before embedding, so nothing downstream of it knows a model name yet -- "
+            "see vector_store_writer's own embedding_model field, which stamps it once embeddings "
+            "exist."
+        ),
+    )
+    document_id_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description=(
+            "Column holding a stable per-document identifier, stamped as document_id on every chunk "
+            "from that row (e.g. doc_id, url, file path). Falls back to the input DataFrame's row "
+            "index (as a string) when unset or the column is missing -- stable only within a single "
+            "run, not across runs whose row order changes."
+        ),
+    )
+    source_uri_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description=(
+            "Column holding each document's source URI (e.g. 's3://bucket/key', 'https://...', "
+            "'file:///path'), stamped as source_uri on every chunk. Null when unset or the column is "
+            "missing -- never fabricated from the asset key (a Dagster asset key names the pipeline "
+            "step, not where the document actually lives)."
+        ),
+    )
+    page_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description=(
+            "Column already holding a page number for each row (e.g. carried forward from an "
+            "upstream PDF extractor that preserved page boundaries), stamped as page_start AND "
+            "page_end on every chunk from that row. This component splits plain text with no "
+            "inherent sub-page concept of its own, so both are null when unset or the column is "
+            "missing, rather than a fabricated number."
+        ),
+    )
+    extractor_version: Optional[str] = Field(
+        default=None,
+        description=(
+            "Version string stamped as extractor_version on every chunk (e.g. a git SHA or a build "
+            "tag), so a vector store can tell which version of this chunking configuration produced "
+            "a given chunk -- the same role context_engineering_pipeline's source_code_version plays "
+            "for its own stamped chunks. Defaults to a fingerprint of this component's own chunking "
+            "config (strategy/chunk_size/chunk_overlap/etc) when unset, so two differently-configured "
+            "builds naturally get different values without setting anything."
+        ),
+    )
+
     separators: Optional[str] = Field(
         default=None,
         description="Custom separators for recursive strategy (comma-separated). Default: '\\n\\n,\\n, ,'"
@@ -687,6 +773,17 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
         min_chunk_size = self.min_chunk_size
         merge_small_chunks = self.merge_small_chunks
         preserve_sentences = self.preserve_sentences
+        stamp_chunk_contract = self.stamp_chunk_contract
+        document_id_column = self.document_id_column
+        source_uri_column = self.source_uri_column
+        page_column = self.page_column
+        extractor_version = self.extractor_version or _extractor_version_fingerprint({
+            "strategy": strategy, "chunk_size": chunk_size, "chunk_overlap": chunk_overlap,
+            "parent_chunk_size": parent_chunk_size, "parent_chunk_overlap": parent_chunk_overlap,
+            "preserve_sentences": preserve_sentences, "min_chunk_size": min_chunk_size,
+            "merge_small_chunks": merge_small_chunks, "separators": self.separators,
+            "sentence_tokenizer": sentence_tokenizer, "tokenizer_model": tokenizer_model,
+        })
         description = self.description or f"Document chunks using {strategy} strategy"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
@@ -1181,6 +1278,16 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                         except Exception as e:
                             context.log.warning(f"qa (llm): generation failed for document at index {idx}: {e}")
                             pairs = []
+                    if stamp_chunk_contract:
+                        _doc_id = str(row[document_id_column]) if document_id_column and document_id_column in input_df.columns else str(idx)
+                        _source_uri = (
+                            str(row[source_uri_column])
+                            if source_uri_column and source_uri_column in input_df.columns and pd.notna(row[source_uri_column])
+                            else None
+                        )
+                        _page_val = row[page_column] if page_column and page_column in input_df.columns else None
+                        if _page_val is not None and (isinstance(_page_val, float) and pd.isna(_page_val)):
+                            _page_val = None
                     for pair_idx, pair in enumerate(pairs):
                         chunk_record = {output_column: pair["question"], "answer": pair["answer"]}
                         for col in metadata_cols:
@@ -1189,6 +1296,18 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                             chunk_record['chunk_index'] = pair_idx
                             chunk_record['total_chunks'] = len(pairs)
                             chunk_record['chunk_size'] = len(pair["question"])
+                        if stamp_chunk_contract:
+                            # Q&A pairs aren't tied to a document section -- there's no body text to
+                            # scan for headers, only a generated/sourced question.
+                            chunk_record['document_id'] = _doc_id
+                            chunk_record['source_uri'] = _source_uri
+                            chunk_record['page_start'] = _page_val
+                            chunk_record['page_end'] = _page_val
+                            chunk_record['section'] = None
+                            chunk_record['chunk_index'] = pair_idx
+                            chunk_record['content_hash'] = _sha256(pair["question"])
+                            chunk_record['chunk_id'] = f"{_doc_id}_{pair_idx}"
+                            chunk_record['extractor_version'] = extractor_version
                         all_chunks.append(chunk_record)
                     if idx % 100 == 0 and idx > 0:
                         context.log.info(f"Processed {idx}/{total_documents} documents")
@@ -1200,6 +1319,18 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                     if not doc_text.strip():
                         context.log.warning(f"Skipping empty document at index {idx}")
                         continue
+
+                    if stamp_chunk_contract:
+                        _doc_id = str(row[document_id_column]) if document_id_column and document_id_column in input_df.columns else str(idx)
+                        _source_uri = (
+                            str(row[source_uri_column])
+                            if source_uri_column and source_uri_column in input_df.columns and pd.notna(row[source_uri_column])
+                            else None
+                        )
+                        _page_val = row[page_column] if page_column and page_column in input_df.columns else None
+                        if _page_val is not None and (isinstance(_page_val, float) and pd.isna(_page_val)):
+                            _page_val = None
+                        _running_section = None
 
                     # parent_chunk_size unset (default): one flat level of chunks, exactly today's
                     # behavior. Set: split into larger parent passages first, then each parent into
@@ -1230,6 +1361,22 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                                 chunk_record['chunk_size'] = len(chunk_text)
                                 if strategy == "token_aware" and tokenizer:
                                     chunk_record['chunk_tokens'] = count_tokens(chunk_text)
+                            if stamp_chunk_contract:
+                                _running_section = _last_markdown_header(chunk_text) or _running_section
+                                chunk_record['document_id'] = _doc_id
+                                chunk_record['source_uri'] = _source_uri
+                                chunk_record['page_start'] = _page_val
+                                chunk_record['page_end'] = _page_val
+                                chunk_record['section'] = _running_section
+                                chunk_record['chunk_index'] = doc_chunk_idx
+                                # A child's identity includes its parent passage: the text a
+                                # retrieval returns changes if either does (mirrors
+                                # context_engineering_pipeline's own parent-aware content_hash).
+                                chunk_record['content_hash'] = _sha256(
+                                    chunk_text if parent_text is None else chunk_text + "\x1f" + parent_text
+                                )
+                                chunk_record['chunk_id'] = f"{_doc_id}_{doc_chunk_idx}"
+                                chunk_record['extractor_version'] = extractor_version
                             doc_chunk_records.append(chunk_record)
                             doc_chunk_idx += 1
                         doc_total_chunks += len(chunks)
@@ -1270,6 +1417,8 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                 "max_chunk_size": max_chunk,
                 "target_chunk_size": chunk_size,
                 "chunk_overlap": chunk_overlap,
+                "stamp_chunk_contract": stamp_chunk_contract,
+                "extractor_version": extractor_version,
             }
 
             if include_preview and len(result_df) > 0:
@@ -1282,7 +1431,13 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")
                     context.add_output_metadata(metadata)
-                return result_df
+                # Falls through to the column-schema/lineage metadata below instead of returning
+                # here -- a real, pre-existing bug: with include_preview_metadata=True (the
+                # default), this used to `return result_df` right here, so `dagster/column_schema`
+                # was NEVER emitted in the default configuration, which silently broke
+                # build_column_schema_change_checks (it always reported "no column schema
+                # metadata" instead of actually comparing schemas) for every asset built with this
+                # component's default settings. Confirmed live.
             else:
                 context.add_output_metadata(metadata)
             # Build column schema metadata

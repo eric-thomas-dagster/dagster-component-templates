@@ -415,6 +415,39 @@
       "label": "Parent Chunk Overlap",
       "description": "Overlap between parent passages, in the same units as parent_chunk_size. Only used when parent_chunk_size is set.",
       "required": false
+    },
+    "stamp_chunk_contract": {
+      "type": "boolean",
+      "label": "Stamp Chunk Contract",
+      "description": "Stamp the shared vector-metadata contract onto every chunk: document_id, source_uri, page_start/page_end, section, chunk_index, chunk_id, content_hash and extractor_version. Same contract and field names as context_engineering_pipeline's stamp_provenance (see that component's README) -- adapted here for a plain chunker with no pipeline-step/recipe concept of its own. embedding_model is deliberately NOT stamped here: this component runs before embedding, so nothing downstream of it knows a model name yet -- see vector_store_writer's own embedding_model field, which stamps it once embeddings exist.",
+      "required": false
+    },
+    "document_id_column": {
+      "type": "string",
+      "label": "Document Id Column",
+      "description": "Column holding a stable per-document identifier, stamped as document_id on every chunk from that row (e.g. doc_id, url, file path). Falls back to the input DataFrame's row index (as a string) when unset or the column is missing -- stable only within a single run, not across runs whose row order changes.",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "source_uri_column": {
+      "type": "string",
+      "label": "Source Uri Column",
+      "description": "Column holding each document's source URI (e.g. 's3://bucket/key', 'https://...', 'file:///path'), stamped as source_uri on every chunk. Null when unset or the column is missing -- never fabricated from the asset key (a Dagster asset key names the pipeline step, not where the document actually lives).",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "page_column": {
+      "type": "string",
+      "label": "Page Column",
+      "description": "Column already holding a page number for each row (e.g. carried forward from an upstream PDF extractor that preserved page boundaries), stamped as page_start AND page_end on every chunk from that row. This component splits plain text with no inherent sub-page concept of its own, so both are null when unset or the column is missing, rather than a fabricated number.",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "extractor_version": {
+      "type": "string",
+      "label": "Extractor Version",
+      "description": "Version string stamped as extractor_version on every chunk (e.g. a git SHA or a build tag), so a vector store can tell which version of this chunking configuration produced a given chunk -- the same role context_engineering_pipeline's source_code_version plays for its own stamped chunks. Defaults to a fingerprint of this component's own chunking config (strategy/chunk_size/chunk_overlap/etc) when unset, so two differently-configured builds naturally get different values without setting anything.",
+      "required": false
     }
   },
   "tags": [

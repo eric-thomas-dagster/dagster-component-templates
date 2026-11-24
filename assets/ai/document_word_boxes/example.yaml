@@ -1,0 +1,7 @@
+type: dagster_community_components.DocumentWordBoxesComponent
+attributes:
+  asset_name: pdf_word_boxes
+  upstream_asset_key: raw_pdf_files
+  group_name: ai
+  column: file_path
+  page_range: 1-5

@@ -22302,6 +22302,63 @@
       ]
     },
     {
+      "id": "document_word_boxes",
+      "name": "Document Word Boxes",
+      "category": "ai",
+      "description": "Extract word-level bounding boxes (text + page + x0/x1/top/bottom position) from a column of PDF file paths or PDF bytes using pdfplumber -- born-digital/text-layer PDFs only.",
+      "path": "assets/ai/document_word_boxes",
+      "tags": [
+        "ai",
+        "documents",
+        "pdf",
+        "word-boxes",
+        "bounding-boxes",
+        "ocr-adjacent"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_word_boxes/schema.json",
+      "component_type": "dagster_community_components.DocumentWordBoxesComponent",
+      "icon": "ScanText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_word_boxes/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_word_boxes/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_word_boxes/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_word_boxes/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-24"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "pdfplumber>=0.7.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "inputs": "DataFrame with a column of PDF file paths or PDF bytes.",
+        "outputs": "DataFrame with one row PER WORD: page_number, word_index, text, x0, x1, top, bottom, confidence (always 1.0), plus passthrough columns.",
+        "side_effects": "No LLM call, no model call. Local pdfplumber text-layer extraction only.",
+        "anti_uses": "For a region-level bounding box (table/figure/header) with a real model confidence score, use document_layout_analyzer instead. For plain text extraction with no coordinates, use pdf_text_extractor instead. For scanned/photographed PDFs with no embedded text layer, this component cannot help -- that needs real OCR, not built here.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "keywords": [
+        "word boxes",
+        "bounding boxes",
+        "pdfplumber",
+        "redaction",
+        "citation",
+        "review overlay",
+        "field-level qa"
+      ]
+    },
+    {
       "id": "docusign_envelope_send",
       "name": "DocuSign Envelope Send",
       "category": "reverse_etl",

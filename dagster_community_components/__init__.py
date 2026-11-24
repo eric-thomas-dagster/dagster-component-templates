@@ -445,6 +445,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DocumentSectionSplitterComponent": "assets/ai/document_section_splitter/component.py",
     "DocumentSummarizerComponent": "assets/ai/document_summarizer/component.py",
     "DocumentTextExtractorComponent": "assets/ai/document_text_extractor/component.py",
+    "DocumentWordBoxesComponent": "assets/ai/document_word_boxes/component.py",
     "DominoDataLabIngestionComponent": "assets/ingestion/domino_data_lab_ingestion/component.py",
     "DorisQueryAssetComponent": "assets/sources/doris_query_asset/component.py",
     "DorisResource": "resources/doris_resource/component.py",

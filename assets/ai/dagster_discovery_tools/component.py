@@ -270,11 +270,12 @@ class DagsterDiscoveryTools:
     methods are the raw implementations. Every tool is read-only."""
 
     def __init__(self, client: _Client, *, allow: Optional[List[str]] = None, max_result_chars: int = 12000,
-                 exclude_locations: Optional[List[str]] = None,
+                 exclude_locations: Optional[List[str]] = None, include_locations: Optional[List[str]] = None,
                  audit: Optional[Callable[[str], None]] = None):
         import logging
         self._client = client
         self._exclude_locations = frozenset(exclude_locations or ())
+        self._include_locations = frozenset(include_locations or ())  # empty = every location; exclude wins
         if allow is None:
             allow = list(ALL_TOOLS)
         unknown = sorted(set(allow) - set(ALL_TOOLS))
@@ -286,6 +287,9 @@ class DagsterDiscoveryTools:
 
     def tool_names(self) -> List[str]:
         return [t for t in ALL_TOOLS if t in self.allow]
+
+    def _location_allowed(self, name: Any) -> bool:
+        return name not in self._exclude_locations and (not self._include_locations or name in self._include_locations)
 
     def call(self, tool: str, args: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         args = dict(args or {})
@@ -344,7 +348,7 @@ class DagsterDiscoveryTools:
             raise DiscoveryToolError(f"workspaceOrError: {ws.get('message')}")
         locations = []
         for entry in ws.get("locationEntries") or []:
-            if entry.get("name") in self._exclude_locations:
+            if not self._location_allowed(entry.get("name")):
                 continue
             loc = entry.get("locationOrLoadError") or {}
             row: Dict[str, Any] = {"name": entry.get("name"), "load_status": entry.get("loadStatus")}
@@ -386,7 +390,7 @@ class DagsterDiscoveryTools:
         ws = data.get("workspaceOrError") or {}
         rows = []
         for entry in ws.get("locationEntries") or []:
-            if entry.get("name") in self._exclude_locations:
+            if not self._location_allowed(entry.get("name")):
                 continue
             if location_name and entry.get("name") != location_name:
                 continue
@@ -409,6 +413,8 @@ class DagsterDiscoveryTools:
                                       "concurrent, unrelated runs from every code location.")
         if location_name in self._exclude_locations:
             raise DiscoveryToolError(f"location {location_name!r} is excluded (exclude_locations) -- an agent may not list its own runs.")
+        if not self._location_allowed(location_name):
+            raise DiscoveryToolError(f"location {location_name!r} is not in include_locations {sorted(self._include_locations)}.")
         n = max(1, min(int(limit or 20), 200))
         gql_filter: Dict[str, Any] = {"repositoryOrigin": {"repositoryLocationName": location_name}}
         if statuses:
@@ -594,6 +600,14 @@ class DagsterDiscoveryToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                      "explicitly whenever mcp_server_resource_key is also set. An explicit value always wins.",
     )
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN", description="Env var holding a Dagster+ API token with read access to this deployment.")
+    include_locations: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Allow-list of code location names: when set, ONLY these locations are visible to the tools (everything "
+            "else is hidden or refused). `exclude_locations` still applies on top and takes precedence, so a name in "
+            "both is excluded. Use it for 'review only these locations' / 'watch only these'."
+        ),
+    )
     exclude_locations: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -619,7 +633,7 @@ class DagsterDiscoveryToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=("allow", "mcp_extra_env_vars", "exclude_locations"), csv=(), tags=())
+        return coerce_field_shapes(data, lists=("allow", "mcp_extra_env_vars", "exclude_locations", "include_locations"), csv=(), tags=())
 
     @classmethod
     def get_form_config(cls):
@@ -635,6 +649,7 @@ class DagsterDiscoveryToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         max_chars = int(self.max_result_chars)
         deployment_url, token_env_var, timeout = self.deployment_url, self.token_env_var, self.timeout_seconds
         exclude_locations = list(self.exclude_locations or [])
+        include_locations = list(self.include_locations or [])
 
         def _init(init_context):
             url = resolve_deployment_url(deployment_url, init_context.instance)
@@ -642,7 +657,8 @@ class DagsterDiscoveryToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             if not token:
                 raise ValueError(f"DagsterDiscoveryToolsComponent: env var {token_env_var!r} is empty or unset.")
             client = _Client(url, token, token_env_var=token_env_var, timeout=timeout)
-            return DagsterDiscoveryTools(client, allow=allow, max_result_chars=max_chars, exclude_locations=exclude_locations)
+            return DagsterDiscoveryTools(client, allow=allow, max_result_chars=max_chars, exclude_locations=exclude_locations,
+                                        include_locations=include_locations)
 
         res = dg.ResourceDefinition(
             resource_fn=_init,
@@ -660,6 +676,8 @@ class DagsterDiscoveryToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["DAGSTER_DISCOVERY_TOOLS_ALLOW"] = ",".join(allow)
             if exclude_locations:
                 mcp_env["DAGSTER_DISCOVERY_TOOLS_EXCLUDE_LOCATIONS"] = ",".join(exclude_locations)
+            if include_locations:
+                mcp_env["DAGSTER_DISCOVERY_TOOLS_INCLUDE_LOCATIONS"] = ",".join(include_locations)
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
                 name=self.mcp_server_resource_key, type="stdio", command=[sys.executable, "-m", _this_module_name()],
                 env=mcp_env, live_env_passthrough=list(self.mcp_extra_env_vars or []) + [token_env_var, _DEPLOYMENT_ENV],
@@ -740,7 +758,7 @@ def build_mcp_server(tools: DagsterDiscoveryTools):
 
 def main(argv: Optional[List[str]] = None) -> None:
     """Env: DAGSTER_DISCOVERY_TOOLS_DEPLOYMENT_URL (default 'auto'), _TOKEN_ENV_VAR (default
-    DAGSTER_CLOUD_API_TOKEN), _ALLOW (csv), _MAX_CHARS (default 12000), _EXCLUDE_LOCATIONS (csv)."""
+    DAGSTER_CLOUD_API_TOKEN), _ALLOW (csv), _MAX_CHARS (default 12000), _EXCLUDE_LOCATIONS (csv), _INCLUDE_LOCATIONS (csv)."""
     import logging
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
 
@@ -751,6 +769,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     max_chars = int(os.environ.get("DAGSTER_DISCOVERY_TOOLS_MAX_CHARS", "12000"))
     exclude_env = os.environ.get("DAGSTER_DISCOVERY_TOOLS_EXCLUDE_LOCATIONS")
     exclude_locations = [t.strip() for t in exclude_env.split(",") if t.strip()] if exclude_env else None
+    include_env = os.environ.get("DAGSTER_DISCOVERY_TOOLS_INCLUDE_LOCATIONS")
+    include_locations = [t.strip() for t in include_env.split(",") if t.strip()] if include_env else None
 
     if deployment_url.strip().lower() == _AUTO:
         # 'auto' needs instance.dagit_url for the org/region -- unavailable in THIS process: the
@@ -769,7 +789,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         print(f"ERROR: env var {token_env_var!r} is empty or unset", file=sys.stderr)
         sys.exit(1)
     client = _Client(url, token, token_env_var=token_env_var)
-    tools = DagsterDiscoveryTools(client, allow=allow, max_result_chars=max_chars, exclude_locations=exclude_locations)
+    tools = DagsterDiscoveryTools(client, allow=allow, max_result_chars=max_chars, exclude_locations=exclude_locations,
+                                  include_locations=include_locations)
     build_mcp_server(tools).run(transport="stdio")
 
 

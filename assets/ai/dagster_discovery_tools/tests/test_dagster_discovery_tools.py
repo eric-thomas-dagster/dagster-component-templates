@@ -180,6 +180,33 @@ def test_exclude_locations_refuses_list_runs_for_the_excluded_location():
     assert "excluded" in result["error"]
 
 
+def _three_locations_client():
+    def entry(name):
+        return {"name": name, "loadStatus": "LOADED", "locationOrLoadError": {"__typename": "RepositoryLocation", "dagsterLibraryVersions": [], "repositories": []}}
+    return _FakeClient(call_responses={"workspaceOrError": {"workspaceOrError": {
+        "__typename": "Workspace", "locationEntries": [entry("a"), entry("b"), entry("c")]}}})
+
+
+def test_include_locations_with_exclude_locations_exclude_wins_in_list_locations():
+    tools = DagsterDiscoveryTools(_three_locations_client(), allow=["list_locations"],
+                                  include_locations=["a", "b"], exclude_locations=["b"])
+    assert [l["name"] for l in tools.call("list_locations")["locations"]] == ["a"]
+
+
+def test_include_locations_alone_limits_list_locations_and_refuses_other_list_runs():
+    tools = DagsterDiscoveryTools(_three_locations_client(), allow=["list_locations", "list_runs"], include_locations=["a", "b"])
+    assert [l["name"] for l in tools.call("list_locations")["locations"]] == ["a", "b"]
+    for outside in ("c", "zzz"):
+        assert "not in include_locations" in tools.call("list_runs", {"location_name": outside})["error"]
+    both = DagsterDiscoveryTools(_FakeClient(), allow=["list_runs"], include_locations=["a", "b"], exclude_locations=["b"])
+    assert "excluded" in both.call("list_runs", {"location_name": "b"})["error"]
+
+
+def test_include_locations_default_is_every_location():
+    tools = DagsterDiscoveryTools(_three_locations_client(), allow=["list_locations"])
+    assert [l["name"] for l in tools.call("list_locations")["locations"]] == ["a", "b", "c"]
+
+
 # ── list_runs ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_list_runs_requires_location_name():

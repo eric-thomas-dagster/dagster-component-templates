@@ -622,7 +622,7 @@ class DagsterEvidenceTools:
         deployment_url: str = "",
         repo: Optional[str] = None, github_token: str = "", github_api_base_url: str = "https://api.github.com",
         base_branch: str = "main", exclude_paths: Optional[List[str]] = None,
-        exclude_locations: Optional[List[str]] = None, repo_notes: str = "",
+        exclude_locations: Optional[List[str]] = None, include_locations: Optional[List[str]] = None, repo_notes: str = "",
         allow: Optional[List[str]] = None, max_result_chars: int = 12000,
         retry_window_days: int = 7, runtime_change_window_days: int = 14, incident_window_hours: int = 24,
         max_runs_scanned: int = 100, max_files_scanned: int = 40, osv_max_packages: int = 25,
@@ -635,6 +635,7 @@ class DagsterEvidenceTools:
         self._github_token, self._github_api_base_url, self._base_branch = github_token, github_api_base_url, base_branch
         self._exclude_paths = list(exclude_paths or ())
         self._exclude_locations = frozenset(exclude_locations or ())
+        self._include_locations = frozenset(include_locations or ())  # empty = every location; exclude wins
         self._repo_notes = repo_notes or ""
         self._retry_window_days = max(1, int(retry_window_days))
         self._runtime_change_window_days = max(1, int(runtime_change_window_days))
@@ -900,6 +901,8 @@ class DagsterEvidenceTools:
         if not location or not str(location).strip():
             raise EvidenceToolError("project_overview requires `location` (a code location name).")
         location = str(location).strip()
+        if location not in self._exclude_locations and self._include_locations and location not in self._include_locations:
+            raise EvidenceToolError(f"location {location!r} is not in include_locations {sorted(self._include_locations)}.")
         if location in self._exclude_locations:
             raise EvidenceToolError(
                 f"location {location!r} is excluded (exclude_locations) -- an agent may not review its own code location.")
@@ -1084,6 +1087,14 @@ class DagsterEvidenceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                      "vendored code or generated files. Same directory-like ('src/')/filename-like ('Dockerfile') "
                      "matching convention as github_pr_tools' exclude_paths/protected_paths.",
     )
+    include_locations: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Allow-list of code location names: when set, ONLY these locations are visible to the tools (everything "
+            "else is hidden or refused). `exclude_locations` still applies on top and takes precedence, so a name in "
+            "both is excluded. Use it for 'review only these locations' / 'watch only these'."
+        ),
+    )
     exclude_locations: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -1119,7 +1130,7 @@ class DagsterEvidenceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=("allow", "mcp_extra_env_vars", "exclude_locations", "exclude_paths"), csv=(), tags=())
+        return coerce_field_shapes(data, lists=("allow", "mcp_extra_env_vars", "exclude_locations", "include_locations", "exclude_paths"), csv=(), tags=())
 
     @classmethod
     def get_form_config(cls):
@@ -1136,6 +1147,7 @@ class DagsterEvidenceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         deployment_url, token_env_var, timeout = self.deployment_url, self.token_env_var, self.timeout_seconds
         repo, github_token_env_var, github_api_base_url, base_branch = self.repo, self.github_token_env_var, self.github_api_base_url, self.base_branch
         exclude_paths, exclude_locations, repo_notes = list(self.exclude_paths or []), list(self.exclude_locations or []), self.repo_notes or ""
+        include_locations = list(self.include_locations or [])
         retry_window_days, runtime_change_window_days, incident_window_hours = self.retry_window_days, self.runtime_change_window_days, self.incident_window_hours
         max_runs_scanned, max_files_scanned, osv_max_packages = self.max_runs_scanned, self.max_files_scanned, self.osv_max_packages
 
@@ -1148,7 +1160,7 @@ class DagsterEvidenceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             return DagsterEvidenceTools(
                 client, deployment_url=url, repo=repo, github_token=os.environ.get(github_token_env_var, ""),
                 github_api_base_url=github_api_base_url, base_branch=base_branch, exclude_paths=exclude_paths,
-                exclude_locations=exclude_locations, repo_notes=repo_notes, allow=allow, max_result_chars=max_chars,
+                exclude_locations=exclude_locations, include_locations=include_locations, repo_notes=repo_notes, allow=allow, max_result_chars=max_chars,
                 retry_window_days=retry_window_days, runtime_change_window_days=runtime_change_window_days,
                 incident_window_hours=incident_window_hours, max_runs_scanned=max_runs_scanned,
                 max_files_scanned=max_files_scanned, osv_max_packages=osv_max_packages,
@@ -1184,6 +1196,8 @@ class DagsterEvidenceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 mcp_env["DAGSTER_EVIDENCE_TOOLS_ALLOW"] = ",".join(allow)
             if exclude_locations:
                 mcp_env["DAGSTER_EVIDENCE_TOOLS_EXCLUDE_LOCATIONS"] = ",".join(exclude_locations)
+            if include_locations:
+                mcp_env["DAGSTER_EVIDENCE_TOOLS_INCLUDE_LOCATIONS"] = ",".join(include_locations)
             if exclude_paths:
                 mcp_env["DAGSTER_EVIDENCE_TOOLS_EXCLUDE_PATHS"] = ",".join(exclude_paths)
             resources[self.mcp_server_resource_key] = _McpServerShapeResource(
@@ -1240,7 +1254,7 @@ def build_mcp_server(tools: DagsterEvidenceTools):
 def main(argv: Optional[List[str]] = None) -> None:
     """Env: DAGSTER_EVIDENCE_TOOLS_DEPLOYMENT_URL (default 'auto'), _TOKEN_ENV_VAR (default
     DAGSTER_CLOUD_API_TOKEN), _REPO, _GITHUB_TOKEN_ENV_VAR (default GITHUB_TOKEN), _GITHUB_API_BASE_URL,
-    _BASE_BRANCH, _EXCLUDE_LOCATIONS (csv), _EXCLUDE_PATHS (csv), _REPO_NOTES, _ALLOW (csv), _MAX_CHARS,
+    _BASE_BRANCH, _EXCLUDE_LOCATIONS (csv), _INCLUDE_LOCATIONS (csv), _EXCLUDE_PATHS (csv), _REPO_NOTES, _ALLOW (csv), _MAX_CHARS,
     _RETRY_WINDOW_DAYS, _RUNTIME_CHANGE_WINDOW_DAYS, _INCIDENT_WINDOW_HOURS, _MAX_RUNS_SCANNED,
     _MAX_FILES_SCANNED, _OSV_MAX_PACKAGES."""
     import logging
@@ -1254,6 +1268,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     allow = [t.strip() for t in allow_env.split(",") if t.strip()] if allow_env else None
     exclude_env = env.get("DAGSTER_EVIDENCE_TOOLS_EXCLUDE_LOCATIONS")
     exclude_locations = [t.strip() for t in exclude_env.split(",") if t.strip()] if exclude_env else None
+    include_env = env.get("DAGSTER_EVIDENCE_TOOLS_INCLUDE_LOCATIONS")
+    include_locations = [t.strip() for t in include_env.split(",") if t.strip()] if include_env else None
     exclude_paths_env = env.get("DAGSTER_EVIDENCE_TOOLS_EXCLUDE_PATHS")
     exclude_paths = [t.strip() for t in exclude_paths_env.split(",") if t.strip()] if exclude_paths_env else None
 
@@ -1277,7 +1293,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         github_token=env.get(github_token_env_var, ""),
         github_api_base_url=env.get("DAGSTER_EVIDENCE_TOOLS_GITHUB_API_BASE_URL", "https://api.github.com"),
         base_branch=env.get("DAGSTER_EVIDENCE_TOOLS_BASE_BRANCH", "main"),
-        exclude_paths=exclude_paths, exclude_locations=exclude_locations,
+        exclude_paths=exclude_paths, exclude_locations=exclude_locations, include_locations=include_locations,
         repo_notes=env.get("DAGSTER_EVIDENCE_TOOLS_REPO_NOTES", ""),
         allow=allow, max_result_chars=int(env.get("DAGSTER_EVIDENCE_TOOLS_MAX_CHARS", "12000")),
         retry_window_days=int(env.get("DAGSTER_EVIDENCE_TOOLS_RETRY_WINDOW_DAYS", "7")),

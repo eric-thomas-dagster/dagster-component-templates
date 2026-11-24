@@ -568,3 +568,23 @@ def test_check_dagster_api_is_a_verbatim_copy_of_dagster_api_check_tools():
 
     here = pathlib.Path(mod.__file__).resolve().parent
     assert fn_source(here / "component.py") == fn_source(here.parent / "dagster_api_check_tools" / "component.py")
+
+
+# ── include_locations ──────────────────────────────────────────────────────────────────────────────────────────────
+
+def test_include_locations_refuses_anything_outside_the_list_with_zero_http_calls(monkeypatch):
+    monkeypatch.setattr("requests.request", _deny_http)
+    monkeypatch.setattr("requests.get", _deny_http)
+    monkeypatch.setattr("requests.post", _deny_http)
+    tools, client = _overview_tools(None, include_locations=["a", "b"], exclude_locations=["b"])
+    for name, needle in (("b", "excluded"), ("c", "not in include_locations")):
+        result = tools.call("project_overview", {"location": name})
+        assert needle in result["error"], result
+    assert client.calls == []
+
+
+def test_include_locations_allows_a_listed_location(monkeypatch):
+    _pypi_github_release(monkeypatch)
+    _osv(monkeypatch)
+    tools, _ = _overview_tools(None, include_locations=["ingestion", "b"], exclude_locations=["b"])
+    assert "error" not in tools.call("project_overview", {"location": "ingestion"})

@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.S3ListKeysAssetComponent",
   "description": "List S3 object keys under a bucket/prefix as a Dagster asset -- mirrors Airflow's S3ListOperator.",
-  "category": "sources",
+  "category": "source",
   "icon": "si:amazons3",
   "x-dagster-io": {
     "outputs": {

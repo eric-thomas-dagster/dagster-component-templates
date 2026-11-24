@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-11-13",
+  "last_updated": "2026-11-24",
   "components": [
     {
       "id": "ab_controls",
@@ -559,9 +559,7 @@
       "category": "ai",
       "description": "Adaptive research pipeline where the planner LLM decides N sub-topics at runtime. Row-wise researcher writes one note per subtopic; synthesizer combines into a markdown brief. Where DynamicOutput / dynamic partitions fits — N is truly runtime-decided.",
       "path": "assets/ai/adaptive_research_brief",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Sparkles",
       "type": "dagster_community_components.AdaptiveResearchBriefComponent",
       "component_type": "dagster_community_components.AdaptiveResearchBriefComponent",
@@ -946,7 +944,6 @@
       "description": "Declare one hosted agent (reached over MCP or plain HTTP) and its skills, so AgenticPipelineComponent's `delegate` op can discover and dynamically pick it.",
       "path": "assets/ai/agent_card",
       "tags": [
-        "agentic",
         "ai",
         "agent",
         "a2a",
@@ -993,7 +990,6 @@
       "description": "Load a manifest of agent cards (URL or local file) and emit one declare-only AssetSpec per entry -- the multi-asset 'workspace' sibling of AgentCardComponent.",
       "path": "assets/ai/agent_card_workspace",
       "tags": [
-        "agentic",
         "ai",
         "agent",
         "a2a",
@@ -1037,23 +1033,17 @@
     },
     {
       "id": "agent_fixture_check",
-      "name": "Agent Fixture Check",
+      "name": "agent_fixture_check",
       "category": "ai",
       "description": "Grade an agent's structured outcome against owner-written fixtures (word/phrase groups) -- an asset check attached to the agent's own outcome asset, reporting recall/precision as metadata.",
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/agent_fixture_check",
-      "tags": [
-        "agentic",
-        "ai",
-        "asset-check",
-        "engineering-agents",
-        "grading",
-        "evaluation"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
-          "dagster"
+          "dagster",
+          "pydantic"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_fixture_check/README.md",
@@ -1095,7 +1085,6 @@
       "description": "Form long-term agent memory from a DataFrame of conversation turns using Mem0 (self-hosted) -- distinct from simple chat-history storage, this extracts and consolidates durable facts per user/session via an LLM + vector store, retrievable later via semantic search. Grouped per user (and optionally per agent/session) before calling Mem0's add() once per group.",
       "path": "assets/ai/agent_memory_store",
       "tags": [
-        "agentic",
         "ai",
         "mem0",
         "memory",
@@ -1148,15 +1137,11 @@
     },
     {
       "id": "agent_result_to_dataframe",
-      "name": "Agent Result To DataFrame",
+      "name": "agent_result_to_dataframe",
       "category": "transformation",
       "description": "Turn an agent/agentic_pipeline-step dict result into a DataFrame.",
       "path": "assets/transforms/agent_result_to_dataframe",
-      "tags": [
-        "agent-result-to-dataframe",
-        "transforms",
-        "agents"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/agent_result_to_dataframe/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/agent_result_to_dataframe/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/agent_result_to_dataframe/schema.json",
@@ -1201,7 +1186,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/agent_review_queue",
       "tags": [
-        "agentic",
         "agents",
         "human in the loop",
         "review queue",
@@ -1257,9 +1241,7 @@
       "author": "Dagster Community",
       "version": "1.0.0",
       "description": "Whole agentic pipeline in one YAML. `source: + steps: + outputs:` — every step becomes a first-class Dagster asset with cost / latency / tokens / router-reasoning as metadata. 16 ops for the common shapes (single call, routing, debate, critique, synthesis, MCP tool calls, tool-use loops, framework handoffs, map, extract, classify, reduce, self-reflect, sub-pipelines, calls to pre-built agents). Any LiteLLM provider. Reusable `personas:` + pre-built `agents:` declared once and referenced by name.",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "produces": [
         "multi_asset"
       ],
@@ -4686,7 +4668,6 @@
       "description": "Read-only authoring/introspection tools for agentic_pipeline: list_ops, describe_op (real per-op JSON Schema), list_examples, get_example, validate_pipeline (agentic_pipeline's own load-time validation), preview_pipeline (assets/edges/partitioning/env-vars-and-servers-needed, without running a step). Registers a resource and ships a stdio MCP server (python -m this module) that works identically from Claude Code (claude mcp add) and from an agent running inside a code location.",
       "path": "assets/ai/agentic_pipeline_authoring_tools",
       "tags": [
-        "agentic",
         "ai",
         "mcp",
         "agentic_pipeline",
@@ -5773,9 +5754,7 @@
       "category": "ai",
       "description": "Single-shot LLM agent with MCP tool support, using the Anthropic SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
       "path": "assets/ai/anthropic_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/schema.json",
       "component_type": "dagster_community_components.AnthropicAgentComponent",
       "icon": "si:anthropic",
@@ -6104,9 +6083,7 @@
       "category": "ai",
       "icon": "History",
       "description": "Materialize the full who/when/why history of an approval workflow as a Dagster DataFrame asset. Reads every JSON approval token in a shared `approval_dir` (written by HumanApprovalGate, SlackApprovalGate, TeamsApprovalGate — or any external system dropping tokens in that dir) and emits one row per token with columns: partition_key, approved, approver, reason, feedback, decided_at, token_file, upstream_asset, source. Governance-grade audit surface — point Insights at it, join to run history, export to GRC on a schedule. Independent of which component WROTE the token — audits Human/Slack/Teams/external-webhook tokens uniformly. Complements the approval-gate components (read-only, additive, no coupling).",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/README.md",
@@ -6628,7 +6605,7 @@
     {
       "id": "asset_reference",
       "name": "Asset Reference",
-      "category": "core",
+      "category": "infrastructure",
       "description": "Reference an existing asset (dbt, Python, etc.) in a pipeline definition",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -8252,7 +8229,8 @@
       ],
       "dependencies": {
         "pip": [
-          "dagster-aws"
+          "dagster-aws",
+          "boto3"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/aws_s3_resource/README.md",
@@ -8772,8 +8750,8 @@
           "azure-identity>=1.12.0",
           "azure-mgmt-synapse>=2.0.0",
           "azure-synapse-artifacts>=0.18.0",
-          "azure-synapse-spark>=0.7.0",
-          "dagster>=1.6.0"
+          "dagster>=1.6.0",
+          "azure-synapse-spark>=0.7.0"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/README.md",
@@ -11172,9 +11150,7 @@
       "category": "ai",
       "description": "Iterative + catalog. Planner runs per step, sees REAL columns/preview from prior step's materialization, picks next component from the live registry. Handles customer-built data with unknown schemas — schema is discovered at runtime from the actual output.",
       "path": "assets/ai/catalog_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Sparkles",
       "type": "dagster_community_components.CatalogAgentComponent",
       "component_type": "dagster_community_components.CatalogAgentComponent",
@@ -12881,21 +12857,13 @@
     },
     {
       "id": "cloud_storage_copy_asset",
-      "name": "Cloud Storage Copy Asset",
+      "name": "cloud_storage_copy_asset",
       "category": "ingestion",
-      "description": "A generic Copy-activity stand-in: binary or DataFrame copy between fsspec-resolvable cloud-storage/local paths (s3://, gs://, abfss://...), or a DataFrame load into a warehouse table. Supports a wildcard/recursive mode for copying every file under a directory matching a glob pattern.",
+      "description": "A generic Copy-activity stand-in: moves data from one cloud-storage (or local) path to another (single file, or every file matching a wildcard pattern), or into a warehouse table. copy_mode=binary does a raw byte-stream copy; copy_mode=dataframe reads/writes with format conversion or loads a warehouse table.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ingestion/cloud_storage_copy_asset",
-      "tags": [
-        "ingestion",
-        "cloud-storage",
-        "s3",
-        "adls",
-        "gcs",
-        "copy",
-        "asset"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
           "dagster",
@@ -13739,6 +13707,53 @@
       }
     },
     {
+      "id": "conditional_asset",
+      "name": "ConditionalAsset",
+      "category": "infrastructure",
+      "description": "Branch / short-circuit as a Dagster asset -- the Airflow ShortCircuitOperator / BranchPythonOperator equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/conditional_asset",
+      "tags": [
+        "infrastructure",
+        "airflow",
+        "branch",
+        "short-circuit",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Whatever the callable returns (short_circuit) or the chosen branch's payload (branch).",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "branch",
+        "short-circuit",
+        "conditional",
+        "migration"
+      ],
+      "icon": "GitBranch"
+    },
+    {
       "id": "confluence_documents",
       "name": "Confluence Documents",
       "category": "ingestion",
@@ -14304,7 +14319,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/conversation_memory",
       "tags": [
-        "agentic",
         "ai",
         "conversation",
         "memory"
@@ -15836,16 +15850,11 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/dagster_api_check_tools",
-      "tags": [
-        "agentic",
-        "ai",
-        "mcp",
-        "dagster-api",
-        "deprecation",
-        "code-review"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "mcp>=1.30,<3"
         ]
       },
@@ -16014,16 +16023,11 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/dagster_discovery_tools",
-      "tags": [
-        "agentic",
-        "ai",
-        "mcp",
-        "dagster-plus",
-        "graphql",
-        "discovery"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "mcp>=1.30,<3"
         ]
       },
@@ -16072,20 +16076,14 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/dagster_evidence_tools",
-      "tags": [
-        "agentic",
-        "ai",
-        "mcp",
-        "dagster-plus",
-        "graphql",
-        "github",
-        "evidence",
-        "advisor"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "requests",
-          "mcp>=1.30,<3"
+          "mcp>=1.30,<3",
+          "tomli; python_version < \"3.11\""
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_evidence_tools/README.md",
@@ -16182,7 +16180,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/dagster_instance_tools",
       "tags": [
-        "agentic",
         "agents",
         "mcp",
         "observability",
@@ -16785,9 +16782,7 @@
       "category": "ai",
       "description": "\"Workflow as tool\": WRITE-capable tools over the Dagster instance (materialize_assets, run_job) for agents -- each a real, synchronous dagster.execute_job run, not a read-only query. Registers a resource and ships a stdio MCP server (python -m <module>) for agentic_pipeline's tool_use_loop / mcp_call. A deliberately separate component from the read-only dagster_instance_tools.",
       "path": "assets/ai/dagster_workflow_tools",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Zap",
       "agent_hints": {
         "inputs": "None -- declares which Definitions module this tool is allowed to materialize/run.",
@@ -21350,7 +21345,7 @@
     {
       "id": "dependency_graph",
       "name": "Dependency Graph",
-      "category": "core",
+      "category": "infrastructure",
       "description": "Define dependencies between assets without modifying component schemas",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -22012,17 +22007,11 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/document_intelligence_tools",
-      "tags": [
-        "agentic",
-        "ai",
-        "mcp",
-        "document",
-        "extraction",
-        "schema",
-        "llm"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "litellm>=1.30.0",
           "pdfplumber>=0.7.0",
           "mcp>=1.30,<3"
@@ -22168,15 +22157,15 @@
       "id": "document_section_splitter",
       "name": "Document Section Splitter",
       "category": "ai",
-      "description": "Split a long document (e.g. an annual report) into its logical sections -- balance sheet, income statement, notes, MD&A, auditor's report, etc. -- via one LLM call per document, then optionally suggest a field schema per section type.",
+      "description": "Split a long document (e.g. an annual report) into its logical sections via one LLM call per document, then optionally suggest a field schema per section type.",
       "path": "assets/ai/document_section_splitter",
       "tags": [
         "ai",
         "documents",
         "pdf",
         "section-splitting",
-        "classification",
-        "finance"
+        "schema-suggestion",
+        "llm"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_section_splitter/schema.json",
       "component_type": "dagster_community_components.DocumentSectionSplitterComponent",
@@ -22193,7 +22182,6 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "dagster",
           "pandas>=2.0.0",
           "pdfplumber>=0.7.0",
           "litellm>=1.30.0"
@@ -24489,7 +24477,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/email_approval_gate",
       "tags": [
-        "agentic",
         "ai",
         "human-in-the-loop",
         "approval",
@@ -24589,17 +24576,11 @@
     },
     {
       "id": "email_send_asset",
-      "name": "Email Send Asset",
-      "category": "sink",
-      "description": "Send one email through a registered smtp_resource or sendgrid_resource -- a mid-chain notification step (RunMyJobs' System_Mail_Send shape: To, Subject, Text, JobFile), not a bulk per-row campaign tool.",
+      "name": "email_send_asset",
+      "category": "integration",
+      "description": "Send one email through a registered smtp_resource or sendgrid_resource -- a mid-chain notification step, not a bulk per-row campaign tool.",
       "path": "assets/sinks/email_send_asset",
-      "tags": [
-        "sink",
-        "email",
-        "smtp",
-        "sendgrid",
-        "notification"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/email_send_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/email_send_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/email_send_asset/schema.json",
@@ -24743,7 +24724,7 @@
     {
       "id": "enriched_dbt_cloud_workspace",
       "name": "Enriched dbt Cloud Workspace",
-      "category": "dbt",
+      "category": "integration",
       "description": "Enriched drop-in for DbtCloudComponent — mid-run per-model monitor, dbt-style job-selection DSL, plus the same manifest-based enrichments as EnrichedDbtProjectComponent (freshness policies, exposures as AssetSpecs, contract asset checks, mesh via external_packages). All opt-in; defaults preserve base DbtCloudComponent behavior.",
       "path": "assets/dbt/enriched_dbt_cloud_workspace",
       "tags": [
@@ -24812,7 +24793,7 @@
     {
       "id": "enriched_dbt_project",
       "name": "Enriched dbt Project",
-      "category": "dbt",
+      "category": "integration",
       "description": "Enriched drop-in for DbtProjectComponent — real freshness policies (models + sources), exposure/mesh AssetSpecs, contract asset checks, per-model partitions/automation from dbt meta, and rich docs metadata. All opt-in; defaults preserve base DbtProjectComponent behavior.",
       "path": "assets/dbt/enriched_dbt_project",
       "tags": [
@@ -27631,22 +27612,17 @@
     },
     {
       "id": "failed_run_agent_sensor",
-      "name": "FailedRunAgentSensor",
+      "name": "failed_run_agent_sensor",
       "category": "sensor",
-      "description": "On a failed run (optionally filtered by code location, job or tag), launch an agent asset selection with the failed run id on the run's tags, post an announcement to Slack, and put the run's Slack thread in the run's tags so slack_reply answers in it. Cooldown per (job, error signature).",
+      "description": "On a failed run, launch an agent asset selection with the failed run id on the launched run's tags, and announce it in Slack -- the thread stays open for slack_reply. Rate-limited per (job, error signature).",
       "version": "1.2.0",
       "author": "Dagster Community",
       "path": "sensors/failed_run_agent_sensor",
-      "tags": [
-        "agentic",
-        "sensor",
-        "slack",
-        "run-failure",
-        "agents",
-        "cooldown"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "slack_sdk>=3.0"
         ]
       },
@@ -30495,9 +30471,7 @@
       "category": "ai",
       "description": "Single-shot LLM agent with MCP tool support, using the Google Gen AI SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
       "path": "assets/ai/gemini_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_agent/schema.json",
       "component_type": "dagster_community_components.GeminiAgentComponent",
       "icon": "si:googlegemini",
@@ -31177,20 +31151,15 @@
       "id": "github_pr_tools",
       "name": "github_pr_tools",
       "category": "ai",
-      "description": "Repo-scoped GitHub pull-request tools for engineering agents: read a PR, assess its deterministic risk level, propose a targeted-edit fix, review (COMMENT or risk-gated APPROVE under a second identity), and browse the repo itself (list_files/read_file, honoring exclude_paths and refusing path traversal). Registers a resource and ships a stdio MCP server.",
+      "description": "Repo-scoped GitHub pull-request tools for engineering agents: read a PR, assess its deterministic risk level, propose a targeted-edit fix, and review (COMMENT or risk-gated APPROVE under a second identity). Registers a resource and ships a stdio MCP server.",
       "version": "1.4.0",
       "author": "Dagster Community",
       "path": "assets/ai/github_pr_tools",
-      "tags": [
-        "agentic",
-        "ai",
-        "mcp",
-        "github",
-        "pull-request",
-        "code-review"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "requests",
           "mcp>=1.30,<3"
         ]
@@ -31231,22 +31200,17 @@
     },
     {
       "id": "github_pull_request_agent_sensor",
-      "name": "GithubPullRequestAgentSensor",
+      "name": "github_pull_request_agent_sensor",
       "category": "sensor",
-      "description": "On each new pull request or new head commit, launch an agent asset selection with the PR number on the run's tags, and announce it in Slack with approve/reject reactions seeded -- the thread stays open for slack_reply and for slack_pr_approval_watcher.",
+      "description": "On each new or updated pull request, launch an agent asset selection with the PR number on the run's tags and announce it in Slack with approve/reject reactions seeded.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/github_pull_request_agent_sensor",
-      "tags": [
-        "agentic",
-        "sensor",
-        "github",
-        "pull-request",
-        "slack",
-        "agents"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "requests",
           "slack_sdk>=3.0"
         ]
@@ -33011,7 +32975,7 @@
     {
       "id": "graph_first_assets",
       "name": "Graph-First Assets",
-      "category": "core",
+      "category": "infrastructure",
       "description": "Declare a list of assets from YAML with a no-op materialization body -- lineage, checks, freshness, and automation without real compute",
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -33872,17 +33836,11 @@
     },
     {
       "id": "hosted_mcp_server",
-      "name": "Hosted MCP Server",
+      "name": "hosted_mcp_server",
       "category": "ai",
-      "description": "Local stdio MCP server proxying an allow-listed subset of tools from any hosted MCP server that uses OAuth (Linear, GitHub, Salesforce, Sentry, ...), refreshing the signed-in person's token as needed. Generalizes notion_mcp_server.",
+      "description": "Local stdio MCP server proxying an allow-listed subset of tools from any hosted MCP server that uses OAuth, refreshing the signed-in person's token as needed.",
       "path": "assets/ai/hosted_mcp_server",
-      "tags": [
-        "agentic",
-        "ai",
-        "mcp",
-        "oauth",
-        "chat-agent"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/schema.json",
@@ -34762,9 +34720,7 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/human_approval_gate",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
           "dagster",
@@ -34856,16 +34812,11 @@
     },
     {
       "id": "hybrid_knowledge_search_query",
-      "name": "Hybrid Knowledge Search Query",
+      "name": "hybrid_knowledge_search_query",
       "category": "ai",
       "description": "Ask-a-question run against a hybrid (vector + graph) knowledge base, via an already-registered HybridKnowledgeSearchResource.",
       "path": "assets/ai/hybrid_knowledge_search_query",
-      "tags": [
-        "knowledge-graph",
-        "vector-search",
-        "ai",
-        "retrieval-test"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_query/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_query/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_query/schema.json",
@@ -34907,16 +34858,11 @@
     },
     {
       "id": "hybrid_knowledge_search_server",
-      "name": "Hybrid Knowledge Search Server",
+      "name": "hybrid_knowledge_search_server",
       "category": "ai",
       "description": "Combined vector + graph retrieval over one corpus joined by chunk_id -- search_entities/get_entity/get_neighbors/find_path/get_chunks_for_entity/get_graph_context plus a combined search tool.",
       "path": "assets/ai/hybrid_knowledge_search_server",
-      "tags": [
-        "knowledge-graph",
-        "vector-search",
-        "ai",
-        "mcp-server"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_server/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_server/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hybrid_knowledge_search_server/schema.json",
@@ -36666,9 +36612,7 @@
       "category": "ai",
       "description": "Iterative / chained supervisor agent. Planner runs once per step, sees prior steps' tool outputs, and picks the NEXT tool call — or declares done. Each step is its own Dagster asset (full ReAct-loop lineage). Static DAG shape via pre-declared max_iterations, dynamic termination via short-circuit.",
       "path": "assets/ai/iterative_supervisor_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Sparkles",
       "type": "dagster_community_components.IterativeSupervisorAgentComponent",
       "component_type": "dagster_community_components.IterativeSupervisorAgentComponent",
@@ -38580,18 +38524,13 @@
     },
     {
       "id": "knowledge_base_eval",
-      "name": "Knowledge Base Eval",
+      "name": "knowledge_base_eval",
       "category": "ai",
       "description": "Golden-set retrieval quality eval against a LIVE knowledge-search resource (KnowledgeSearchResource or HybridKnowledgeSearchResource), not a vector-index snapshot. Asset check fails below min_score or on regression vs the prior real eval.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/knowledge_base_eval",
-      "tags": [
-        "rag",
-        "eval",
-        "knowledge-graph",
-        "ai"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
           "dagster>=1.10.0"
@@ -38634,15 +38573,11 @@
     },
     {
       "id": "knowledge_graph_builder",
-      "name": "Knowledge Graph Builder",
+      "name": "knowledge_graph_builder",
       "category": "ai",
       "description": "Chunk text, extract (subject, relation, object) triples, resolve entity aliases, and write a provenance-carrying knowledge graph.",
       "path": "assets/ai/knowledge_graph_builder",
-      "tags": [
-        "knowledge-graph",
-        "ai",
-        "entity-extraction"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_builder/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_builder/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_builder/schema.json",
@@ -38720,15 +38655,11 @@
     },
     {
       "id": "knowledge_graph_search_query",
-      "name": "Knowledge Graph Search Query",
+      "name": "knowledge_graph_search_query",
       "category": "ai",
       "description": "Ask-a-question run against a knowledge graph, via an already-registered KnowledgeGraphSearchResource -- no vector-store settings required.",
       "path": "assets/ai/knowledge_graph_search_query",
-      "tags": [
-        "knowledge-graph",
-        "ai",
-        "retrieval-test"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_query/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_query/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_query/schema.json",
@@ -38769,15 +38700,11 @@
     },
     {
       "id": "knowledge_graph_search_server",
-      "name": "Knowledge Graph Search Server",
+      "name": "knowledge_graph_search_server",
       "category": "ai",
       "description": "Lets an agent search a knowledge graph built by KnowledgeGraphBuilderComponent via search_entities/get_entity/get_neighbors/find_path/top_entities.",
       "path": "assets/ai/knowledge_graph_search_server",
-      "tags": [
-        "knowledge-graph",
-        "ai",
-        "mcp-server"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_server/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_server/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/knowledge_graph_search_server/schema.json",
@@ -39331,9 +39258,7 @@
       "category": "ai",
       "description": "Multi-step LangGraph StateGraph as a Dagster asset. Either a declarative prompt-chain DSL (`steps`) or a bring-your-own pre-built graph (`graph_fn`) -- exactly one of the two must be set.",
       "path": "assets/ai/langgraph_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Sparkles",
       "type": "dagster_community_components.LangGraphAgentComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langgraph_agent/README.md",
@@ -40672,16 +40597,12 @@
       "version": "1.2.0",
       "author": "Dagster Community",
       "path": "assets/ai/linear_ticket_tools",
-      "tags": [
-        "agentic",
-        "ai",
-        "mcp",
-        "linear",
-        "tickets",
-        "engineering-agents"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
+          "requests",
           "mcp>=1.30,<3"
         ]
       },
@@ -40896,9 +40817,7 @@
       "category": "ai",
       "description": "Single-shot LLM agent with MCP tool support (via LiteLLM — works against 100+ providers). Runs a tool-calling loop until the model returns a final answer or max_iterations is hit.",
       "path": "assets/ai/litellm_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_agent/schema.json",
       "component_type": "dagster_community_components.LiteLLMAgentComponent",
       "icon": "favicon:litellm.ai",
@@ -42000,6 +41919,47 @@
       "icon": "Shuffle"
     },
     {
+      "id": "loop_gate_asset",
+      "name": "loop_gate_asset",
+      "category": "infrastructure",
+      "description": "Repeat a step's work until a condition is met -- Airflow 3.4's task-loop (@task_group.loop(max_iterations=, until=)).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/loop_gate_asset",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "The body callable's return value from the iteration that stopped the loop (or the last iteration, for a fixed-count loop).",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "loop",
+        "task_loop",
+        "until",
+        "migration"
+      ],
+      "icon": "Repeat"
+    },
+    {
       "id": "ltv_prediction",
       "name": "LTV Prediction",
       "category": "analytics",
@@ -43015,9 +42975,7 @@
       "category": "resource",
       "description": "Register one MCP server connection once, referenced by name (server_resource_key) from mcp_tool_call/mcp_tool_picker and the MCP-capable agent components instead of repeating the same connection fields inline in every one of them.",
       "path": "resources/mcp_server_resource",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Network",
       "component_type": "dagster_community_components.MCPServerResourceComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mcp_server_resource/README.md",
@@ -43048,16 +43006,11 @@
     },
     {
       "id": "mcp_token_refresher",
-      "name": "MCP Token Refresher",
+      "name": "mcp_token_refresher",
       "category": "ai",
       "description": "The one writer for a token_store='state' hosted-MCP OAuth token: refreshes via the stored refresh_token and uploads a new version to Dagster's defs_state_storage. Emits a job (not an asset), with an optional inline cron schedule.",
       "path": "assets/ai/mcp_token_refresher",
-      "tags": [
-        "ai",
-        "mcp",
-        "oauth",
-        "maintenance"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_token_refresher/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_token_refresher/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_token_refresher/schema.json",
@@ -43100,9 +43053,7 @@
       "category": "source",
       "description": "Deterministic single-shot call to one MCP tool — no LLM in the loop. Args templating supports {partition_key}, {partition_keys.<dim>}, {run_id}.",
       "path": "assets/sources/mcp_tool_call",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/schema.json",
       "component_type": "dagster_community_components.MCPToolCallComponent",
       "icon": "Network",
@@ -43144,9 +43095,7 @@
       "category": "ai",
       "description": "Planner LLM picks MCP tools + args to invoke from a bounded YAML-declared set. Each pick becomes a Dagster asset that actually calls the MCP server; a synthesizer LLM writes the grounded final answer. The 'agent picks MCPs' pattern with full lineage.",
       "path": "assets/ai/mcp_tool_picker",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Sparkles",
       "type": "dagster_community_components.MCPToolPickerComponent",
       "component_type": "dagster_community_components.MCPToolPickerComponent",
@@ -44677,23 +44626,17 @@
     },
     {
       "id": "model_provider",
-      "name": "Model Provider",
+      "name": "model_provider",
       "category": "ai",
       "description": "Declare an LLM provider credential and surface its health as a Dagster asset -- an api-key-presence check (always on) and an opt-in live models-list API call, plus the models the provider offers.",
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/model_provider",
-      "tags": [
-        "ai",
-        "asset-check",
-        "credentials",
-        "engineering-agents",
-        "litellm",
-        "observability"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
           "dagster",
+          "pydantic",
           "litellm"
         ]
       },
@@ -45795,7 +45738,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/multi_approver_gate",
       "tags": [
-        "agentic",
         "human",
         "approval",
         "quorum",
@@ -47297,19 +47239,11 @@
     },
     {
       "id": "notion_mcp_documents",
-      "name": "Notion MCP Documents",
+      "name": "notion_mcp_documents",
       "category": "ingestion",
-      "description": "Extract Notion page body text via Notion's hosted MCP server (OAuth as the signed-in person) -- for workspaces where creating a real integration token isn't an option. Same document-source contract as notion_documents.",
+      "description": "Extract Notion page body text via Notion's hosted MCP server (OAuth as the signed-in person -- no admin-created integration token needed).",
       "path": "assets/ingestion/notion_mcp_documents",
-      "tags": [
-        "ingestion",
-        "notion",
-        "documents",
-        "rag",
-        "mcp",
-        "oauth",
-        "dlt"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_mcp_documents/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_mcp_documents/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_mcp_documents/schema.json",
@@ -47319,10 +47253,10 @@
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
-          "dlt",
-          "requests",
-          "pandas",
           "dagster",
+          "dlt",
+          "pandas",
+          "requests",
           "mcp",
           "anyio"
         ]
@@ -47348,18 +47282,11 @@
     },
     {
       "id": "notion_mcp_server",
-      "name": "Notion MCP Server",
+      "name": "notion_mcp_server",
       "category": "ai",
-      "description": "Local stdio MCP server proxying notion-search/notion-fetch to Notion's hosted MCP server for a chat agent, refreshing the signed-in person's OAuth token as needed. Pairs with notion_mcp_documents's sign-in flow.",
+      "description": "Registers a local stdio MCP server proxying notion-search/notion-fetch to Notion's hosted MCP server, refreshing the signed-in person's OAuth token as needed.",
       "path": "assets/ai/notion_mcp_server",
-      "tags": [
-        "agentic",
-        "ai",
-        "mcp",
-        "notion",
-        "oauth",
-        "chat-agent"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/notion_mcp_server/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/notion_mcp_server/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/notion_mcp_server/schema.json",
@@ -48529,9 +48456,7 @@
       "category": "ai",
       "description": "Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the OpenAI SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations is hit.",
       "path": "assets/ai/openai_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_agent/schema.json",
       "component_type": "dagster_community_components.OpenAIAgentComponent",
       "icon": "si:openai",
@@ -48789,7 +48714,6 @@
       "description": "Turn an OpenAPI/Swagger spec's operations into agent-callable tools, gated by an operationId allow-list.",
       "path": "assets/ai/openapi_tool_server",
       "tags": [
-        "agentic",
         "ai",
         "openapi",
         "agent",
@@ -50336,6 +50260,46 @@
         "partition",
         "event-log",
         "infrastructure"
+      ]
+    },
+    {
+      "id": "partition_window_sensor",
+      "name": "partition_window_sensor",
+      "category": "sensor",
+      "description": "Waits for a window of an upstream asset's partitions (categorical or time-based), then triggers a downstream job -- Airflow 3.3's RollupMapper/FanOutMapper + Day/Week/MonthWindow/SegmentWindow + WaitForAll/MinimumCount.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/partition_window_sensor",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/requirements.txt",
+      "icon": "Clock",
+      "validation": {
+        "level": "unit",
+        "evidence": "sensors/partition_window_sensor/tests/test_partition_window_sensor.py",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Fires RunRequest(s) for a downstream job once a window of upstream partitions is (fully or partially) materialized.",
+        "requires_resources": []
+      },
+      "keywords": [
+        "rollupmapper",
+        "fanoutmapper",
+        "segmentwindow",
+        "waitforall",
+        "minimumcount"
       ]
     },
     {
@@ -52006,6 +51970,54 @@
       ]
     },
     {
+      "id": "pipes_python_asset",
+      "name": "PipesPythonAsset",
+      "category": "infrastructure",
+      "description": "Run a Python script in a fresh virtualenv or a given external interpreter, through Dagster Pipes -- the Airflow @task.virtualenv / @task.external_python equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/pipes_python_asset",
+      "tags": [
+        "infrastructure",
+        "airflow",
+        "pipes",
+        "virtualenv",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-pipes"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Whatever the script reports via the Pipes context (report_asset_materialization).",
+        "requires_pip": [
+          "dagster",
+          "dagster-pipes"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "pipes",
+        "virtualenv",
+        "migration"
+      ],
+      "icon": "Terminal"
+    },
+    {
       "id": "pivot",
       "name": "pivot",
       "category": "transformation",
@@ -52093,9 +52105,7 @@
       "category": "ai",
       "description": "StateBackedComponent — runs the LLM planner + real materializations once at prepare time (write_state_to_path) and caches the full plan. build_defs_from_state builds REAL Dagster assets from the cached plan on every subsequent load. Zero LLM cost after prepare. Perfect for the 'input a task in Dagster+ UI, real assets appear' UX.",
       "path": "assets/ai/planned_catalog_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Sparkles",
       "type": "dagster_community_components.PlannedCatalogAgentComponent",
       "component_type": "dagster_community_components.PlannedCatalogAgentComponent",
@@ -54449,6 +54459,54 @@
       ]
     },
     {
+      "id": "python_callable_asset",
+      "name": "PythonCallableAsset",
+      "category": "infrastructure",
+      "description": "Run an arbitrary Python callable as a Dagster asset -- Airflow PythonOperator / @task equivalent, with an optional Airflow-compatible execution context.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/python_callable_asset",
+      "tags": [
+        "infrastructure",
+        "python",
+        "airflow",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "jinja2",
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Whatever the callable returns.",
+        "requires_pip": [
+          "dagster",
+          "jinja2",
+          "boto3"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "callable",
+        "migration"
+      ],
+      "icon": "Function"
+    },
+    {
       "id": "python_callable_job",
       "name": "python_callable_job",
       "category": "jobs",
@@ -54482,6 +54540,45 @@
         "materialize batch"
       ],
       "icon": "Play"
+    },
+    {
+      "id": "python_sensor",
+      "name": "python_sensor",
+      "category": "sensor",
+      "description": "Wraps an arbitrary Python callable in a Dagster sensor -- mirrors Airflow's PythonSensor (trigger mode) and serves as the generic 'discover items via a callable' dynamic-task-mapping source (discover_partitions mode).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/python_sensor",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/requirements.txt",
+      "icon": "python",
+      "validation": {
+        "level": "unit",
+        "evidence": "sensors/python_sensor/tests/test_python_sensor.py",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Fires a RunRequest (trigger mode) or registers dynamic partitions (discover_partitions mode) based on an arbitrary callable.",
+        "requires_resources": []
+      },
+      "keywords": [
+        "pythonsensor",
+        "dynamic-task-mapping",
+        "expand",
+        "watcher"
+      ]
     },
     {
       "id": "qdrant_resource",
@@ -56161,7 +56258,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/receipt_outcome_ingestion",
       "tags": [
-        "agentic",
         "context receipts",
         "feedback",
         "learning loop",
@@ -56964,9 +57060,7 @@
       "category": "ai",
       "icon": "Loop",
       "description": "Sensor that watches an approval-token directory for `approved: false` tokens with a `feedback: \"...\"` field, and re-triggers an upstream job with that feedback captured as new input — letting the agent revise based on the human's specific rejection reason. Bounded by `max_iterations` so a stubborn agent can't loop forever. Composes with HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate via shared `approval_dir`. Writes feedback to `{approval_dir}/.feedback/{partition_key}.txt` — pipeline reads it via a `synthesize` step (typed input `feedback: {from: <file-reader-step>}`) OR a plain `source: {kind: file, path: ...}`. Moves consumed rejection tokens to `.consumed/` so they aren't re-processed. Persists iteration state in `.state/{partition_key}.json`. Optional companion state DataFrame asset for observability into which partitions are mid-loop.",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/README.md",
@@ -57014,9 +57108,8 @@
       "path": "assets/ai/report_tools_server",
       "category": "ai",
       "icon": "ChartBar",
-      "description": "Deterministic chart / PDF / Word / Excel file builders for a chat agent: make_chart, make_pdf, make_docx, make_xlsx. The model fills in a schema (chart kind + series, or report sections); matplotlib/reportlab/python-docx/openpyxl render it -- no network, no credentials, every tool's output is a pure function of its arguments. Registers a resource and, when mcp_server_resource_key is set, a stdio MCP server any mcp_servers-aware agent (OpenAI/Anthropic/LiteLLM/Gemini) can call. Files are written per dagster/run_id under files_dir with a manifest.json slack_reply/teams_reply read to post every generated file into the chat thread.",
+      "description": "Deterministic chart / PDF / Word / Excel file builders for the chat agent -- a component with mcp_server_resource_key that registers a stdio MCP server any agent (OpenAI/Anthropic/LiteLLM/Gemini) can call to make_chart / make_pdf / make_docx / make_xlsx from data it already has. No network, no credentials.",
       "tags": [
-        "agentic",
         "agents",
         "mcp",
         "chat",
@@ -57840,7 +57933,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/run_failure_remediation",
       "tags": [
-        "agentic",
         "agents",
         "self-healing",
         "remediation",
@@ -58102,10 +58194,51 @@
       ]
     },
     {
+      "id": "runtime_partition_asset",
+      "name": "runtime_partition_asset",
+      "category": "infrastructure",
+      "description": "An asset whose partition key is chosen while it runs, not before -- Airflow's PartitionedAtRuntime.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/runtime_partition_asset",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/infrastructure/runtime_partition_asset/tests/test_runtime_partition_asset.py",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Registers the runtime-chosen key as a dynamic partition and reports a materialization of the catalog-facing partitioned asset for that key.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "partitionedatruntime",
+        "dynamic-partitions",
+        "runtime-partition",
+        "airflow-migration"
+      ],
+      "icon": "GitBranch"
+    },
+    {
       "id": "s3_cleanup_job",
       "name": "s3_cleanup_job",
       "category": "jobs",
-      "description": "Delete S3 objects by age, by an explicit key list, or both -- cost control + compliance retention.",
+      "description": "Delete S3 objects by age, by an explicit key list, or both — cost control + compliance retention.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "jobs/s3_cleanup_job",
@@ -58147,27 +58280,6 @@
       "icon": "si:amazonwebservices"
     },
     {
-      "id": "s3_list_keys_asset",
-      "name": "S3ListKeysAsset",
-      "category": "sources",
-      "description": "List S3 object keys under a bucket/prefix as a Dagster asset -- mirrors Airflow's S3ListOperator.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/sources/s3_list_keys_asset",
-      "tags": ["sources", "aws", "s3", "airflow", "official"],
-      "dependencies": {"pip": ["dagster", "boto3"]},
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/requirements.txt",
-      "validation": {"level": "code", "last_validated": "2026-11-17"},
-      "produces": ["asset"],
-      "agent_hints": {"outputs": "keys (List[str]), common_prefixes (List[str]), count (int).", "requires_pip": ["dagster", "boto3"]},
-      "keywords": ["airflow", "s3", "list", "migration"],
-      "icon": "si:amazons3"
-    },
-    {
       "id": "s3_copy_object_asset",
       "name": "S3CopyObjectAsset",
       "category": "infrastructure",
@@ -58175,80 +58287,87 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/infrastructure/s3_copy_object_asset",
-      "tags": ["infrastructure", "aws", "s3", "airflow", "official"],
-      "dependencies": {"pip": ["dagster", "boto3"]},
+      "tags": [
+        "infrastructure",
+        "aws",
+        "s3",
+        "airflow",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_copy_object_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_copy_object_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_copy_object_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_copy_object_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_copy_object_asset/requirements.txt",
-      "validation": {"level": "code", "last_validated": "2026-11-17"},
-      "produces": ["asset"],
-      "agent_hints": {"outputs": "source, destination, acl.", "requires_pip": ["dagster", "boto3"]},
-      "keywords": ["airflow", "s3", "copy", "migration"],
-      "icon": "si:amazons3"
-    },
-    {
-      "id": "s3_delete_objects_asset",
-      "name": "S3DeleteObjectsAsset",
-      "category": "infrastructure",
-      "description": "Delete a list of S3 objects as a Dagster asset -- mirrors Airflow's S3DeleteObjectsOperator.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/s3_delete_objects_asset",
-      "tags": ["infrastructure", "aws", "s3", "airflow", "official"],
-      "dependencies": {"pip": ["dagster", "boto3"]},
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/requirements.txt",
-      "validation": {"level": "code", "last_validated": "2026-11-17"},
-      "produces": ["asset"],
-      "agent_hints": {"outputs": "deleted_count, deleted_keys.", "requires_pip": ["dagster", "boto3"]},
-      "keywords": ["airflow", "s3", "delete", "migration"],
-      "icon": "si:amazons3"
-    },
-    {
-      "id": "s3_upload_file_asset",
-      "name": "S3UploadFileAsset",
-      "category": "infrastructure",
-      "description": "Upload a local file to S3 as a Dagster asset -- mirrors Airflow's LocalFilesystemToS3Operator / S3Hook.load_file.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/s3_upload_file_asset",
-      "tags": ["infrastructure", "aws", "s3", "airflow", "official"],
-      "dependencies": {"pip": ["dagster", "boto3"]},
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/requirements.txt",
-      "validation": {"level": "code", "last_validated": "2026-11-17"},
-      "produces": ["asset"],
-      "agent_hints": {"outputs": "local_path, destination.", "requires_pip": ["dagster", "boto3"]},
-      "keywords": ["airflow", "s3", "upload", "migration"],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "source, destination, acl.",
+        "requires_pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "s3",
+        "copy",
+        "migration"
+      ],
       "icon": "si:amazons3"
     },
     {
       "id": "s3_create_object_asset",
-      "name": "S3CreateObjectAsset",
+      "name": "s3_create_object_asset",
       "category": "infrastructure",
       "description": "Write a literal string/bytes value to an S3 object as a Dagster asset -- mirrors Airflow's S3CreateObjectOperator.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/infrastructure/s3_create_object_asset",
-      "tags": ["infrastructure", "aws", "s3", "airflow-migration", "official"],
-      "dependencies": {"pip": ["dagster", "boto3"]},
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_create_object_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_create_object_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_create_object_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_create_object_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_create_object_asset/requirements.txt",
-      "validation": {"level": "unit", "evidence": "assets/infrastructure/s3_create_object_asset/tests/test_s3_create_object_asset.py", "last_validated": "2026-11-18"},
-      "produces": ["asset"],
-      "agent_hints": {"outputs": "destination, bytes_written.", "requires_pip": ["dagster", "boto3"]},
-      "keywords": ["airflow-migration", "s3", "put_object", "s3createobjectoperator"],
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/infrastructure/s3_create_object_asset/tests/test_s3_create_object_asset.py",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "destination, bytes_written.",
+        "requires_pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "keywords": [
+        "airflow-migration",
+        "s3",
+        "put_object",
+        "s3createobjectoperator"
+      ],
       "icon": "si:amazons3"
     },
     {
@@ -58304,6 +58423,102 @@
         "io"
       ],
       "icon": "si:amazonwebservices"
+    },
+    {
+      "id": "s3_delete_objects_asset",
+      "name": "S3DeleteObjectsAsset",
+      "category": "infrastructure",
+      "description": "Delete a list of S3 objects as a Dagster asset -- mirrors Airflow's S3DeleteObjectsOperator.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/s3_delete_objects_asset",
+      "tags": [
+        "infrastructure",
+        "aws",
+        "s3",
+        "airflow",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_delete_objects_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "deleted_count, deleted_keys.",
+        "requires_pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "s3",
+        "delete",
+        "migration"
+      ],
+      "icon": "si:amazons3"
+    },
+    {
+      "id": "s3_list_keys_asset",
+      "name": "S3ListKeysAsset",
+      "category": "source",
+      "description": "List S3 object keys under a bucket/prefix as a Dagster asset -- mirrors Airflow's S3ListOperator.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sources/s3_list_keys_asset",
+      "tags": [
+        "sources",
+        "aws",
+        "s3",
+        "airflow",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/s3_list_keys_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "keys (List[str]), common_prefixes (List[str]), count (int).",
+        "requires_pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "s3",
+        "list",
+        "migration"
+      ],
+      "icon": "si:amazons3"
     },
     {
       "id": "s3_monitor",
@@ -58523,6 +58738,54 @@
         "upsert"
       ],
       "vertical": "cloud-storage"
+    },
+    {
+      "id": "s3_upload_file_asset",
+      "name": "S3UploadFileAsset",
+      "category": "infrastructure",
+      "description": "Upload a local file to S3 as a Dagster asset -- mirrors Airflow's LocalFilesystemToS3Operator / S3Hook.load_file.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/s3_upload_file_asset",
+      "tags": [
+        "infrastructure",
+        "aws",
+        "s3",
+        "airflow",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_upload_file_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "local_path, destination.",
+        "requires_pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "s3",
+        "upload",
+        "migration"
+      ],
+      "icon": "si:amazons3"
     },
     {
       "id": "sage_intacct_ar_invoices_ingestion",
@@ -59338,20 +59601,11 @@
     },
     {
       "id": "sap_job_trigger_asset",
-      "name": "SAP Job Trigger Asset",
-      "category": "infrastructure",
+      "name": "sap_job_trigger_asset",
+      "category": "integration",
       "description": "Start an SAP background job (via the XBP external interface) or BW process chain, then poll until it finishes, raising with the SAP job/chain log on failure.",
       "path": "assets/infrastructure/sap_job_trigger_asset",
-      "tags": [
-        "infrastructure",
-        "sap",
-        "rfc",
-        "bapi",
-        "xbp",
-        "process-chain",
-        "ecc",
-        "bw"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sap_job_trigger_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sap_job_trigger_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/sap_job_trigger_asset/schema.json",
@@ -59620,6 +59874,60 @@
       "icon": "Shuffle"
     },
     {
+      "id": "scheduled_slack_agent_sensor",
+      "name": "scheduled_slack_agent_sensor",
+      "component_type": "dagster_community_components.ScheduledSlackAgentSensorComponent",
+      "path": "sensors/scheduled_slack_agent_sensor",
+      "category": "sensor",
+      "icon": "si:slack",
+      "description": "A scheduled agent run that announces itself in Slack: every period it posts a top-level message, then starts the agent run tagged with that message's ts so slack_reply answers in its thread.",
+      "tags": [],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "slack_sdk>=3.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-24"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "run_requests"
+        ],
+        "requires_pip": [
+          "slack_sdk"
+        ],
+        "when_to_use": "A recurring agent run (weekly review, daily digest) that should announce itself in a Slack channel and answer in that message's thread. Use cron_schedule instead when nothing needs to be posted.",
+        "chains_with": [
+          "anthropic_agent",
+          "openai_agent",
+          "litellm_agent",
+          "slack_reply",
+          "slack_agent_request_sensor"
+        ]
+      },
+      "produces": [
+        "sensor"
+      ],
+      "keywords": [
+        "slack",
+        "scheduled",
+        "agent",
+        "announce",
+        "weekly review",
+        "thread"
+      ]
+    },
+    {
       "id": "schema_fit",
       "name": "Schema Fit",
       "category": "ai",
@@ -59761,6 +60069,54 @@
       "keywords": [
         "llm",
         "genai"
+      ]
+    },
+    {
+      "id": "scoped_setup_teardown",
+      "name": "ScopedSetupTeardown",
+      "category": "resource",
+      "description": "Registers a Dagster resource with real setup/teardown lifecycle hooks -- the Airflow setup/teardown task pattern equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/scoped_setup_teardown",
+      "tags": [
+        "resource",
+        "airflow",
+        "setup-teardown",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/requirements.txt",
+      "icon": "Sliders",
+      "x-dagster-provides": [
+        "scoped_setup_teardown"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Registers a Dagster resource with real setup/teardown lifecycle hooks -- the Airflow setup/teardown task pattern equivalent.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "setup",
+        "teardown",
+        "migration"
       ]
     },
     {
@@ -60013,17 +60369,11 @@
     },
     {
       "id": "semantic_model_refresh_asset",
-      "name": "Semantic Model Refresh Asset",
+      "name": "semantic_model_refresh_asset",
       "category": "infrastructure",
       "description": "Trigger a Power BI / Fabric semantic model (dataset) refresh via the Power BI REST API and wait for it to finish. Supports basic (notify_option) and enhanced (selective table/partition, parallelism, incremental-refresh effectiveDate override) refresh.",
       "path": "assets/infrastructure/semantic_model_refresh_asset",
-      "tags": [
-        "infrastructure",
-        "powerbi",
-        "fabric",
-        "semantic-model",
-        "dataset-refresh"
-      ],
+      "tags": [],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/semantic_model_refresh_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/semantic_model_refresh_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/semantic_model_refresh_asset/schema.json",
@@ -60034,6 +60384,8 @@
       "component_type": "dagster_community_components.SemanticModelRefreshAssetComponent",
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "requests",
           "azure-identity>=1.12.0"
         ]
@@ -61251,379 +61603,6 @@
       "icon": "Server"
     },
     {
-      "id": "task_chain_asset",
-      "name": "TaskChainAsset",
-      "category": "infrastructure",
-      "description": "Run an ordered list of command/sql/python steps as a single Dagster asset -- what a job scheduler like RunMyJobs/AutoSys/Control-M calls one job with multiple sequential steps.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/task_chain_asset",
-      "tags": [
-        "infrastructure",
-        "exec",
-        "airflow-migration",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-19"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "outputs": "No value -- per-step results are attached as JSON metadata (step_results).",
-        "requires_pip": [
-          "dagster"
-        ]
-      },
-      "keywords": [
-        "infra",
-        "multi-step",
-        "chain"
-      ],
-      "icon": "ListOrdered"
-    },
-    {
-      "id": "wait_until_asset",
-      "name": "WaitUntilAsset",
-      "category": "infrastructure",
-      "description": "Hold a single Dagster step open until a condition becomes true -- Airflow's sensor-mode operators (PythonSensor, BashSensor, FileSensor, TimeSensor, TimeDeltaSensor).",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/wait_until_asset",
-      "tags": [
-        "infrastructure",
-        "sensor",
-        "airflow-migration",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/requirements.txt",
-      "validation": {
-        "level": "unit",
-        "evidence": "assets/infrastructure/wait_until_asset/tests/test_wait_until_asset.py",
-        "last_validated": "2026-11-18"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "outputs": "Materializes once its condition is met (or on_timeout='skip' after a timeout).",
-        "requires_pip": [
-          "dagster"
-        ]
-      },
-      "keywords": [
-        "sensor-mode",
-        "pythonsensor",
-        "bashsensor",
-        "filesensor",
-        "poll",
-        "blocking"
-      ],
-      "icon": "Clock"
-    },
-    {
-      "id": "python_callable_asset",
-      "name": "PythonCallableAsset",
-      "category": "infrastructure",
-      "description": "Run an arbitrary Python callable as a Dagster asset -- Airflow PythonOperator / @task equivalent, with an optional Airflow-compatible execution context.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/python_callable_asset",
-      "tags": [
-        "infrastructure",
-        "python",
-        "airflow",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "jinja2",
-          "boto3"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/python_callable_asset/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-17"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "outputs": "Whatever the callable returns.",
-        "requires_pip": [
-          "dagster",
-          "jinja2",
-          "boto3"
-        ]
-      },
-      "keywords": [
-        "airflow",
-        "callable",
-        "migration"
-      ],
-      "icon": "Function"
-    },
-    {
-      "id": "conditional_asset",
-      "name": "ConditionalAsset",
-      "category": "infrastructure",
-      "description": "Branch / short-circuit as a Dagster asset -- the Airflow ShortCircuitOperator / BranchPythonOperator equivalent.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/conditional_asset",
-      "tags": [
-        "infrastructure",
-        "airflow",
-        "branch",
-        "short-circuit",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/conditional_asset/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-17"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "outputs": "Whatever the callable returns (short_circuit) or the chosen branch's payload (branch).",
-        "requires_pip": [
-          "dagster"
-        ]
-      },
-      "keywords": [
-        "airflow",
-        "branch",
-        "short-circuit",
-        "conditional",
-        "migration"
-      ],
-      "icon": "GitBranch"
-    },
-    {
-      "id": "loop_gate_asset",
-      "name": "LoopGateAsset",
-      "category": "infrastructure",
-      "description": "Repeat a step's work until a condition is met -- Airflow 3.4's task-loop (@task_group.loop(max_iterations=, until=)).",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/loop_gate_asset",
-      "tags": [
-        "infrastructure",
-        "airflow",
-        "loop",
-        "retry",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/loop_gate_asset/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-18"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "outputs": "The body callable's return value from the iteration that stopped the loop (or the last iteration, for a fixed-count loop).",
-        "requires_pip": [
-          "dagster"
-        ]
-      },
-      "keywords": [
-        "airflow",
-        "loop",
-        "task_loop",
-        "until",
-        "migration"
-      ],
-      "icon": "Repeat"
-    },
-    {
-      "id": "runtime_partition_asset",
-      "name": "RuntimePartitionAsset",
-      "category": "infrastructure",
-      "description": "An asset whose partition key is chosen while it runs, not before -- Airflow 3.3's PartitionedAtRuntime.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/runtime_partition_asset",
-      "tags": [
-        "infrastructure",
-        "airflow-migration",
-        "dynamic-partitions",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/runtime_partition_asset/requirements.txt",
-      "validation": {
-        "level": "unit",
-        "evidence": "assets/infrastructure/runtime_partition_asset/tests/test_runtime_partition_asset.py",
-        "last_validated": "2026-11-18"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "outputs": "Registers the runtime-chosen key as a dynamic partition and reports a materialization of the catalog-facing partitioned asset for that key.",
-        "requires_pip": [
-          "dagster"
-        ]
-      },
-      "keywords": [
-        "partitionedatruntime",
-        "dynamic-partitions",
-        "runtime-partition",
-        "airflow-migration"
-      ],
-      "icon": "GitBranch"
-    },
-    {
-      "id": "trigger_job_asset",
-      "name": "TriggerJobAsset",
-      "category": "infrastructure",
-      "description": "An asset that synchronously launches another Dagster job with config and waits for it to finish -- the Airflow TriggerDagRunOperator equivalent, Dagster-to-Dagster.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/trigger_job_asset",
-      "tags": [
-        "infrastructure",
-        "airflow",
-        "trigger",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-17"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "outputs": "Metadata about the triggered run: triggered_run_id, triggered_job_name, success.",
-        "requires_pip": [
-          "dagster"
-        ]
-      },
-      "keywords": [
-        "airflow",
-        "trigger",
-        "job",
-        "migration"
-      ],
-      "icon": "Play"
-    },
-    {
-      "id": "pipes_python_asset",
-      "name": "PipesPythonAsset",
-      "category": "infrastructure",
-      "description": "Run a Python script in a fresh virtualenv or a given external interpreter, through Dagster Pipes -- the Airflow @task.virtualenv / @task.external_python equivalent.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/pipes_python_asset",
-      "tags": [
-        "infrastructure",
-        "airflow",
-        "pipes",
-        "virtualenv",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "dagster-pipes"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pipes_python_asset/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-17"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "outputs": "Whatever the script reports via the Pipes context (report_asset_materialization).",
-        "requires_pip": [
-          "dagster",
-          "dagster-pipes"
-        ]
-      },
-      "keywords": [
-        "airflow",
-        "pipes",
-        "virtualenv",
-        "migration"
-      ],
-      "icon": "Terminal"
-    },
-    {
       "id": "shell_command_job",
       "name": "shell_command_job",
       "category": "jobs",
@@ -62290,9 +62269,7 @@
       "category": "resource",
       "description": "Register a skill (Anthropic Agent Skills format: a SKILL.md file with YAML front matter + markdown body) once, referenced by name (skill_keys) from the MCP-aware agent components instead of repeating the same source fields inline in every one of them. mode='collection' registers every skill in a repo/directory at once (e.g. all of anthropics/skills).",
       "path": "resources/skill_resource",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "BookOpen",
       "component_type": "dagster_community_components.SkillResourceComponent",
       "agent_hints": {
@@ -62377,12 +62354,10 @@
       "name": "slack_agent_request_sensor",
       "component_type": "dagster_community_components.SlackAgentRequestSensorComponent",
       "path": "sensors/slack_agent_request_sensor",
-      "category": "sensors",
+      "category": "sensor",
       "icon": "si:slack",
-      "description": "Polls a Slack channel and launches a chat-agent asset for a mention, a DM, or a reply in an already-answered thread -- free-form questions, not fixed phrases (see slack_run_request_sensor for that). Identifiers only in run tags (channel/thread/message/user), never the message text; the agent reads the conversation live via slack_chat_tools. No owners check here -- that's dagster_workflow_tools' launch_job's job, for writes specifically.",
-      "tags": [
-        "agentic"
-      ],
+      "description": "Polls a Slack channel and launches a chat-agent asset for a mention, a DM, or a reply in an already-answered thread -- identifiers only in run tags, never the message text.",
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/README.md",
@@ -62390,7 +62365,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/schema.json",
       "dependencies": {
         "pip": [
-          "slack_sdk"
+          "dagster",
+          "slack_sdk>=3.0"
         ]
       },
       "validation": {
@@ -62429,61 +62405,6 @@
       ]
     },
     {
-      "id": "scheduled_slack_agent_sensor",
-      "name": "scheduled_slack_agent_sensor",
-      "component_type": "dagster_community_components.ScheduledSlackAgentSensorComponent",
-      "path": "sensors/scheduled_slack_agent_sensor",
-      "category": "sensors",
-      "icon": "si:slack",
-      "description": "A scheduled agent run that announces itself in Slack: every period it posts a top-level message, then starts the agent run tagged with that message's ts so slack_reply answers in its thread.",
-      "tags": [
-        "agentic"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/scheduled_slack_agent_sensor/schema.json",
-      "dependencies": {
-        "pip": [
-          "slack_sdk"
-        ]
-      },
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-24"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "run_requests"
-        ],
-        "requires_pip": [
-          "slack_sdk"
-        ],
-        "when_to_use": "A recurring agent run (weekly review, daily digest) that should announce itself in a Slack channel and answer in that message's thread. Use cron_schedule instead when nothing needs to be posted.",
-        "chains_with": [
-          "anthropic_agent",
-          "openai_agent",
-          "litellm_agent",
-          "slack_reply",
-          "slack_agent_request_sensor"
-        ]
-      },
-      "produces": [
-        "sensor"
-      ],
-      "keywords": [
-        "slack",
-        "scheduled",
-        "agent",
-        "announce",
-        "weekly review",
-        "thread"
-      ]
-    },
-    {
       "id": "slack_approval_gate",
       "name": "Slack Approval Gate",
       "category": "ai",
@@ -62492,7 +62413,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/slack_approval_gate",
       "tags": [
-        "agentic",
         "ai",
         "human-in-the-loop",
         "approval",
@@ -62600,10 +62520,8 @@
       "path": "assets/ai/slack_chat_tools",
       "category": "ai",
       "icon": "si:slack",
-      "description": "MCP server exposing get_thread() -- the live Slack conversation a chat-triggered agent run is answering, fetched fresh every call from the channel/thread identifiers this run's own tags name (never a model-settable tool argument). Pairs with slack_agent_request_sensor and the agent components' {tag.<key>} substitution.",
-      "tags": [
-        "agentic"
-      ],
+      "description": "MCP server exposing get_thread() -- the live Slack conversation a chat-triggered agent run is answering, fetched fresh every call from the channel/thread identifiers this run's own tags name.",
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/README.md",
@@ -62611,7 +62529,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/schema.json",
       "dependencies": {
         "pip": [
-          "slack_sdk"
+          "dagster",
+          "slack_sdk>=3.0"
         ]
       },
       "validation": {
@@ -62852,23 +62771,17 @@
     },
     {
       "id": "slack_pr_approval_watcher",
-      "name": "SlackPrApprovalWatcher",
+      "name": "slack_pr_approval_watcher",
       "category": "sensor",
-      "description": "Watches a GitHub-pull-request Slack thread for a reaction; records a GitHub review through a second identity, refuses to approve while checks fail, and optionally merges once approved and checks pass -- only for branches with a given prefix.",
+      "description": "Watch a GitHub-pull-request Slack thread for a reaction; record a GitHub review through a second identity, refuse to approve while checks fail, and optionally merge once approved and checks pass.",
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "sensors/slack_pr_approval_watcher",
-      "tags": [
-        "agentic",
-        "sensor",
-        "slack",
-        "github",
-        "pull-request",
-        "approval",
-        "human-in-the-loop"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "requests",
           "slack_sdk>=3.0"
         ]
@@ -62911,12 +62824,10 @@
       "name": "slack_reply",
       "component_type": "dagster_community_components.SlackReplyComponent",
       "path": "assets/sinks/slack_reply",
-      "category": "sinks",
+      "category": "sink",
       "icon": "si:slack",
-      "description": "Posts a chat agent's answer into the Slack thread named by the run's own tags, deterministically -- plus a run-status sensor so a crashed run (not just a wrong answer) still gets a reply instead of silence. Splits or truncates long answers; redacts secrets.",
-      "tags": [
-        "agentic"
-      ],
+      "description": "Posts a chat agent's answer into the Slack thread named by the run's own tags -- deterministically, plus a run-failure sensor so a crashed run is never silent.",
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/README.md",
@@ -62924,7 +62835,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/schema.json",
       "dependencies": {
         "pip": [
-          "slack_sdk"
+          "dagster",
+          "slack_sdk>=3.0"
         ]
       },
       "validation": {
@@ -63016,12 +62928,10 @@
       "name": "slack_run_request_sensor",
       "component_type": "dagster_community_components.SlackRunRequestSensorComponent",
       "path": "sensors/slack_run_request_sensor",
-      "category": "sensors",
+      "category": "sensor",
       "icon": "si:slack",
-      "description": "Polls a Slack channel for \"can you run X\" messages and launches the matching RunRequest -- but only for a requester already listed as an owner of the target. Matches plain-text phrases, not an LLM. Just a bot token (no OAuth refresh dance); first tick seeds its cursor to now, so activating it never replays channel history.",
-      "tags": [
-        "agentic"
-      ],
+      "description": "Polls a Slack channel for chat-requested job/asset runs and launches them -- but only for a requester already listed as an owner of the target.",
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/README.md",
@@ -63029,7 +62939,8 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/schema.json",
       "dependencies": {
         "pip": [
-          "slack_sdk"
+          "dagster",
+          "slack_sdk>=3.0"
         ]
       },
       "validation": {
@@ -63623,14 +63534,60 @@
       ]
     },
     {
+      "id": "snowflake_copy_into_asset",
+      "name": "snowflake_copy_into_asset",
+      "category": "integration",
+      "description": "Bulk-load files from a Snowflake stage into a table via COPY INTO -- mirrors Airflow's CopyFromExternalStageToSnowflakeOperator. One component instance, N COPY INTO assets: set loads: (a list of per-table overrides) instead of the single-instance asset_key/database/schema/table/stage fields. Supports partitions_def with {partition_key} substitution in stage_path, and replace_partition_column to DELETE the partition before COPY INTO so a re-run is idempotent.",
+      "path": "assets/data-warehouse/snowflake_copy_into_asset",
+      "tags": [],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/schema.json",
+      "component_type": "dagster_community_components.SnowflakeCopyIntoAssetComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/data-warehouse/snowflake_copy_into_asset/tests/test_snowflake_copy_into_asset.py",
+        "last_validated": "2026-11-17"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "vendor": "Snowflake",
+      "version": "1.1.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Bulk-load files from a Snowflake stage into a table; loads: builds one asset per table, each optionally partitioned with idempotent partition replace.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "consumes": [
+        "resource:snowflake"
+      ],
+      "keywords": [
+        "copyfromexternalstagetosnowflakeoperator",
+        "s3tosnowflakeoperator",
+        "bulk-load",
+        "stage"
+      ]
+    },
+    {
       "id": "snowflake_cortex_agent",
       "name": "snowflake_cortex_agent",
       "category": "ai",
       "description": "Single-shot LLM agent backed by Snowflake Cortex COMPLETE REST API + MCP tools. Runs the same tool-calling loop as openai_agent / anthropic_agent / gemini_agent but routes through Snowflake's inference endpoint.",
       "path": "assets/ai/snowflake_cortex_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_agent/schema.json",
       "component_type": "dagster_community_components.SnowflakeCortexAgentComponent",
       "icon": "si:snowflake",
@@ -64242,54 +64199,6 @@
       "featured": true
     },
     {
-      "id": "scoped_setup_teardown",
-      "name": "ScopedSetupTeardown",
-      "category": "resource",
-      "description": "Registers a Dagster resource with real setup/teardown lifecycle hooks -- the Airflow setup/teardown task pattern equivalent.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "resources/scoped_setup_teardown",
-      "tags": [
-        "resource",
-        "airflow",
-        "setup-teardown",
-        "official"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/scoped_setup_teardown/requirements.txt",
-      "icon": "Sliders",
-      "x-dagster-provides": [
-        "scoped_setup_teardown"
-      ],
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-17"
-      },
-      "produces": [
-        "resource"
-      ],
-      "agent_hints": {
-        "outputs": "Registers a Dagster resource with real setup/teardown lifecycle hooks -- the Airflow setup/teardown task pattern equivalent.",
-        "requires_pip": [
-          "dagster"
-        ]
-      },
-      "keywords": [
-        "airflow",
-        "setup",
-        "teardown",
-        "migration"
-      ]
-    },
-    {
       "id": "snowflake_snowpipe",
       "name": "snowflake_snowpipe",
       "category": "integration",
@@ -64381,6 +64290,53 @@
       ]
     },
     {
+      "id": "snowflake_sql_asset",
+      "name": "snowflake_sql_asset",
+      "category": "integration",
+      "description": "Run one or more SQL statements against Snowflake as a Dagster asset -- mirrors Airflow's SnowflakeOperator / SQLExecuteQueryOperator.",
+      "path": "assets/data-warehouse/snowflake_sql_asset",
+      "tags": [],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/schema.json",
+      "component_type": "dagster_community_components.SnowflakeSqlAssetComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/data-warehouse/snowflake_sql_asset/tests/test_snowflake_sql_asset.py",
+        "last_validated": "2026-11-17"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Run one or more SQL statements against Snowflake.",
+        "requires_pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "consumes": [
+        "resource:snowflake"
+      ],
+      "keywords": [
+        "snowsql",
+        "sqlexecutequeryoperator",
+        "snowflakeoperator"
+      ]
+    },
+    {
       "id": "snowflake_stored_procedure",
       "name": "snowflake_stored_procedure",
       "category": "integration",
@@ -64425,162 +64381,6 @@
         "snowsql",
         "3rd party",
         "external system"
-      ]
-    },
-    {
-      "id": "sql_asset",
-      "name": "SQL Asset",
-      "category": "integration",
-      "description": "Run one or more SQL statements against any registered resource exposing .get_connection() -- one component covering postgres/mysql/duckdb/databricks_sql/mssql/oracle/db2/doris/starburst/starrocks/timescaledb/trino instead of a dialect-specific asset per resource type. For Snowflake, use snowflake_sql_asset instead.",
-      "path": "assets/data-warehouse/sql_asset",
-      "tags": [
-        "data-warehouse",
-        "sql",
-        "postgres",
-        "mysql",
-        "generic"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/schema.json",
-      "component_type": "dagster_community_components.SqlAssetComponent",
-      "icon": "database",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/requirements.txt",
-      "validation": {
-        "level": "unit",
-        "evidence": "assets/data-warehouse/sql_asset/tests/test_sql_asset.py",
-        "last_validated": "2026-11-17"
-      },
-      "dependencies": {
-        "pip": []
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "pd.DataFrame",
-        "output_type": "pd.DataFrame",
-        "outputs": "Run one or more SQL statements against any resource exposing .get_connection().",
-        "requires_resources": [
-          "any resource with .get_connection()"
-        ]
-      },
-      "consumes": [
-        "resource:sql"
-      ],
-      "keywords": [
-        "postgres",
-        "mysql",
-        "generic-sql",
-        "sqlexecutequeryoperator"
-      ]
-    },
-    {
-      "id": "snowflake_copy_into_asset",
-      "name": "Snowflake Copy Into Asset",
-      "category": "integration",
-      "description": "Bulk-load files from a Snowflake stage into a table via COPY INTO -- mirrors Airflow's CopyFromExternalStageToSnowflakeOperator. One component instance, N COPY INTO assets: set loads: (a list of per-table overrides) instead of the single-instance asset_key/database/schema/table/stage fields. Supports partitions_def with {partition_key} substitution in stage_path, and replace_partition_column to DELETE the partition before COPY INTO so a re-run is idempotent.",
-      "path": "assets/data-warehouse/snowflake_copy_into_asset",
-      "tags": [
-        "data-warehouse",
-        "snowflake",
-        "copy-into",
-        "airflow-migration"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/schema.json",
-      "component_type": "dagster_community_components.SnowflakeCopyIntoAssetComponent",
-      "icon": "si:snowflake",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_copy_into_asset/requirements.txt",
-      "validation": {
-        "level": "unit",
-        "evidence": "assets/data-warehouse/snowflake_copy_into_asset/tests/test_snowflake_copy_into_asset.py",
-        "last_validated": "2026-11-17"
-      },
-      "dependencies": {
-        "pip": [
-          "snowflake-connector-python>=3.0.0"
-        ]
-      },
-      "vendor": "Snowflake",
-      "version": "1.1.0",
-      "author": "Dagster Community",
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "pd.DataFrame",
-        "output_type": "pd.DataFrame",
-        "outputs": "Bulk-load files from a Snowflake stage into a table; loads: builds one asset per table, each optionally partitioned with idempotent partition replace.",
-        "requires_pip": [
-          "snowflake-connector-python>=3.0.0"
-        ]
-      },
-      "consumes": [
-        "resource:snowflake"
-      ],
-      "keywords": [
-        "copyfromexternalstagetosnowflakeoperator",
-        "s3tosnowflakeoperator",
-        "bulk-load",
-        "stage"
-      ]
-    },
-    {
-      "id": "snowflake_sql_asset",
-      "name": "Snowflake SQL Asset",
-      "category": "integration",
-      "description": "Run one or more SQL statements against Snowflake as a Dagster asset -- mirrors Airflow's SnowflakeOperator / SQLExecuteQueryOperator. Multi-statement execution, bind parameters, and session-level USE overrides go beyond dagster.TemplatedSqlComponent's single-statement case.",
-      "path": "assets/data-warehouse/snowflake_sql_asset",
-      "tags": [
-        "data-warehouse",
-        "snowflake",
-        "sql",
-        "airflow-migration"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/schema.json",
-      "component_type": "dagster_community_components.SnowflakeSqlAssetComponent",
-      "icon": "si:snowflake",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_sql_asset/requirements.txt",
-      "validation": {
-        "level": "unit",
-        "evidence": "assets/data-warehouse/snowflake_sql_asset/tests/test_snowflake_sql_asset.py",
-        "last_validated": "2026-11-17"
-      },
-      "dependencies": {
-        "pip": [
-          "snowflake-connector-python>=3.0.0"
-        ]
-      },
-      "vendor": "Snowflake",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "pd.DataFrame",
-        "output_type": "pd.DataFrame",
-        "outputs": "Run one or more SQL statements against Snowflake.",
-        "requires_pip": [
-          "snowflake-connector-python>=3.0.0"
-        ]
-      },
-      "consumes": [
-        "resource:snowflake"
-      ],
-      "keywords": [
-        "snowsql",
-        "sqlexecutequeryoperator",
-        "snowflakeoperator"
       ]
     },
     {
@@ -64932,7 +64732,7 @@
       "id": "snowflake_workspace",
       "name": "Snowflake Workspace",
       "category": "integration",
-      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive). assets_by_name supports per-entity partitions_def (with timezone/end_offset) and {partition_key}-substituted task config / procedure args; procedure_row_count_checks and the more general sql_checks (arbitrary SQL returning a passed boolean) verify output correctness; demo_mode (stored procedures, tasks, and dynamic tables) needs no real Snowflake account.",
+      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive). assets_by_name supports per-entity partitions_def and procedure_row_count_checks verifies a stored procedure's output table received rows; demo_mode (stored procedures, tasks, and dynamic tables) needs no real Snowflake account.",
       "version": "2.3.0",
       "author": "Dagster Community",
       "path": "integrations/snowflake_workspace",
@@ -65635,6 +65435,54 @@
       ]
     },
     {
+      "id": "sql_asset",
+      "name": "sql_asset",
+      "category": "integration",
+      "description": "Run one or more SQL statements against any registered resource exposing .get_connection() -- one component covering postgres/mysql/duckdb/databricks_sql/mssql/oracle/db2/doris/starburst/starrocks/timescaledb/trino instead of a dialect-specific asset per resource type.",
+      "path": "assets/data-warehouse/sql_asset",
+      "tags": [],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/schema.json",
+      "component_type": "dagster_community_components.SqlAssetComponent",
+      "icon": "database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/sql_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/data-warehouse/sql_asset/tests/test_sql_asset.py",
+        "last_validated": "2026-11-17"
+      },
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "outputs": "Run one or more SQL statements against any resource exposing .get_connection().",
+        "requires_resources": [
+          "any resource with .get_connection()"
+        ]
+      },
+      "consumes": [
+        "resource:sql"
+      ],
+      "keywords": [
+        "postgres",
+        "mysql",
+        "generic-sql",
+        "sqlexecutequeryoperator"
+      ]
+    },
+    {
       "id": "sql_command_job",
       "name": "sql_command_job",
       "category": "jobs",
@@ -65725,7 +65573,7 @@
       "id": "sql_monitor",
       "name": "SQL Monitor",
       "category": "sensor",
-      "description": "Component for monitoring a SQL database table for new or updated rows. partition_mode='dynamic_partition' registers each new row as a dynamic partition (Airflow .expand()-over-a-query equivalent), with pruning.",
+      "description": "Component for monitoring a SQL database table for new or updated rows.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/sql_monitor",
@@ -65765,91 +65613,6 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
-    },
-    {
-      "id": "python_sensor",
-      "name": "Python Sensor",
-      "category": "sensor",
-      "description": "Wraps an arbitrary Python callable in a Dagster sensor -- mirrors Airflow's PythonSensor (mode=trigger) and serves as the generic 'discover items via a function' dynamic-task-mapping source (mode=discover_partitions) for anything the *_monitor components don't already cover.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "sensors/python_sensor",
-      "tags": [
-        "sensor",
-        "python",
-        "airflow-migration",
-        "dynamic-partitions"
-      ],
-      "dependencies": {
-        "pip": []
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/python_sensor/requirements.txt",
-      "icon": "python",
-      "validation": {
-        "level": "unit",
-        "evidence": "sensors/python_sensor/tests/test_python_sensor.py",
-        "last_validated": "2026-11-18"
-      },
-      "produces": [
-        "sensor"
-      ],
-      "agent_hints": {
-        "outputs": "Fires a RunRequest (trigger mode) or registers dynamic partitions (discover_partitions mode) based on an arbitrary callable.",
-        "requires_resources": []
-      },
-      "keywords": [
-        "pythonsensor",
-        "dynamic-task-mapping",
-        "expand",
-        "watcher"
-      ]
-    },
-    {
-      "id": "partition_window_sensor",
-      "name": "Partition Window Sensor",
-      "category": "sensor",
-      "description": "Waits for a window of an upstream asset's partitions (categorical or time-based), then triggers a downstream job -- Airflow 3.3's RollupMapper/FanOutMapper + Day/Week/MonthWindow/SegmentWindow + WaitForAll/MinimumCount.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "sensors/partition_window_sensor",
-      "tags": [
-        "sensor",
-        "partitions",
-        "airflow-migration",
-        "rollup"
-      ],
-      "dependencies": {
-        "pip": []
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/partition_window_sensor/requirements.txt",
-      "icon": "Clock",
-      "validation": {
-        "level": "unit",
-        "evidence": "sensors/partition_window_sensor/tests/test_partition_window_sensor.py",
-        "last_validated": "2026-11-18"
-      },
-      "produces": [
-        "sensor"
-      ],
-      "agent_hints": {
-        "outputs": "Fires RunRequest(s) for a downstream job once a window of upstream partitions is (fully or partially) materialized.",
-        "requires_resources": []
-      },
-      "keywords": [
-        "rollupmapper",
-        "fanoutmapper",
-        "segmentwindow",
-        "waitforall",
-        "minimumcount"
       ]
     },
     {
@@ -66167,52 +65930,6 @@
         "amazon sqs",
         "simple queue",
         "watch",
-        "polling sensor",
-        "arrival sensor",
-        "trigger",
-        "watcher"
-      ]
-    },
-    {
-      "id": "webhook_inbox_sensor",
-      "name": "Webhook Inbox Sensor",
-      "category": "sensor",
-      "description": "Component for polling a local webhook inbox JSONL file for new callbacks.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "sensors/webhook_inbox_sensor",
-      "tags": [
-        "sensor",
-        "webhook",
-        "http",
-        "polling",
-        "generic"
-      ],
-      "dependencies": {
-        "pip": []
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/requirements.txt",
-      "icon": "Radar",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-23"
-      },
-      "produces": [
-        "sensor"
-      ],
-      "agent_hints": {
-        "outputs": "Component for polling a local webhook inbox JSONL file for new callbacks.",
-        "requires_pip": []
-      },
-      "keywords": [
-        "webhook",
-        "inbound webhook",
-        "callback",
-        "http receiver",
         "polling sensor",
         "arrival sensor",
         "trigger",
@@ -67638,9 +67355,7 @@
       "category": "ai",
       "description": "Supervisor / planner agent — reads a task, picks tools from a bounded YAML-declared set, and fans out execution across per-tool Dagster assets. Ends with a synthesizer LLM that grounds the final answer in tool outputs. The 'agent of agents' pattern with full lineage.",
       "path": "assets/ai/supervisor_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "Sparkles",
       "type": "dagster_community_components.SupervisorAgentComponent",
       "component_type": "dagster_community_components.SupervisorAgentComponent",
@@ -68508,6 +68223,46 @@
       ]
     },
     {
+      "id": "task_chain_asset",
+      "name": "task_chain_asset",
+      "category": "infrastructure",
+      "description": "Run an ordered list of command/sql/python steps as a single Dagster asset -- what a job scheduler like RunMyJobs/AutoSys/Control-M calls one job with multiple sequential steps.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/task_chain_asset",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/task_chain_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-19"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "No value -- per-step results are attached as JSON metadata (step_results).",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "multi-step",
+        "chain"
+      ],
+      "icon": "ListOrdered"
+    },
+    {
       "id": "tavily_ingestion",
       "name": "Tavily Search Ingestion",
       "category": "ingestion",
@@ -68595,12 +68350,10 @@
       "name": "teams_agent_request_sensor",
       "component_type": "dagster_community_components.TeamsAgentRequestSensorComponent",
       "path": "sensors/teams_agent_request_sensor",
-      "category": "sensors",
+      "category": "sensor",
       "icon": "si:microsoftteams",
-      "description": "Polls a Microsoft Teams channel and launches a chat-agent asset for a mention or a reply in an already-answered thread -- free-form questions, not fixed phrases (see teams_run_request_sensor for that). Identifiers only in run tags (team/channel/thread/message/user), never the message text; the agent reads the conversation live via teams_chat_tools. No owners check here -- that's dagster_workflow_tools' launch_job's job, for writes specifically.",
-      "tags": [
-        "agentic"
-      ],
+      "description": "Polls a Teams channel and launches a chat-agent asset for a mention or a reply in an already-answered thread -- identifiers only in run tags, never the message text.",
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_agent_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_agent_request_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_agent_request_sensor/README.md",
@@ -68608,6 +68361,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_agent_request_sensor/schema.json",
       "dependencies": {
         "pip": [
+          "dagster",
           "requests"
         ]
       },
@@ -68654,9 +68408,7 @@
       "category": "ai",
       "icon": "si:microsoftteams",
       "description": "Microsoft Teams HITL approval gate. Slack analog — same asset + sensor shape, same JSON token format. target: human_approval_gate (default) composes with HumanApprovalGateComponent via shared `approval_dir`; target: agentic_pipeline watches agentic_pipeline's own approve/mode:park review queue directly. Uses MS Graph API with a DELEGATED OAuth token (app-only/client-credentials does not work for sending a channel message, confirmed against Microsoft's own docs) — a one-time interactive consent captures a refresh token, which this component refreshes (and persists if Microsoft rotates it) on every poll, pure outbound HTTPS. Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/README.md",
@@ -68706,10 +68458,8 @@
       "path": "assets/ai/teams_chat_tools",
       "category": "ai",
       "icon": "si:microsoftteams",
-      "description": "MCP server exposing get_thread() -- the live Teams conversation (root message + replies, merged) a chat-triggered agent run is answering, fetched fresh every call from the team/channel/thread identifiers this run's own tags name (never a model-settable tool argument). Pairs with teams_agent_request_sensor and the agent components' {tag.<key>} substitution.",
-      "tags": [
-        "agentic"
-      ],
+      "description": "Gives a chat-triggered agent live read access to the Microsoft Teams thread it's answering, plus (optionally) which knowledge-base receipts a past bot reply in it was built from.",
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_chat_tools/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_chat_tools/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_chat_tools/README.md",
@@ -68717,6 +68467,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_chat_tools/schema.json",
       "dependencies": {
         "pip": [
+          "dagster",
           "requests"
         ]
       },
@@ -68800,12 +68551,10 @@
       "name": "teams_reply",
       "component_type": "dagster_community_components.TeamsReplyComponent",
       "path": "assets/sinks/teams_reply",
-      "category": "sinks",
+      "category": "sink",
       "icon": "si:microsoftteams",
-      "description": "Posts a chat agent's answer into the Teams thread named by the run's own tags, deterministically -- plus a run-status sensor so a crashed run (not just a wrong answer) still gets a reply instead of silence. Splits or truncates long answers; redacts secrets.",
-      "tags": [
-        "agentic"
-      ],
+      "description": "Posts a chat agent's answer into the Teams thread it's answering, with a run-failure watcher so a crashed run is never silent, plus optional receipt-linking and reaction-based rating.",
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/teams_reply/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/teams_reply/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/teams_reply/README.md",
@@ -68813,6 +68562,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/teams_reply/schema.json",
       "dependencies": {
         "pip": [
+          "dagster",
           "requests"
         ]
       },
@@ -68855,12 +68605,10 @@
       "name": "teams_run_request_sensor",
       "component_type": "dagster_community_components.TeamsRunRequestSensorComponent",
       "path": "sensors/teams_run_request_sensor",
-      "category": "sensors",
+      "category": "sensor",
       "icon": "si:microsoftteams",
-      "description": "Polls a Microsoft Teams channel for \"can you run X\" messages and launches the matching RunRequest -- but only for a requester already listed as an owner of the target. Matches plain-text phrases, not an LLM. Uses a delegated Teams OAuth token (app-only doesn't work for this); first tick seeds its cursor to now, so activating it never replays channel history.",
-      "tags": [
-        "agentic"
-      ],
+      "description": "Polls a Microsoft Teams channel for chat-requested job/asset runs and launches them -- but only for a requester already listed as an owner of the target.",
+      "tags": [],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/README.md",
@@ -68868,6 +68616,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/schema.json",
       "dependencies": {
         "pip": [
+          "dagster",
           "requests"
         ]
       },
@@ -69660,21 +69409,17 @@
     },
     {
       "id": "ticket_announcer",
-      "name": "TicketAnnouncer",
+      "name": "ticket_announcer",
       "category": "sensor",
       "description": "Post each new ticket an engineering agent filed (GitHub Issues with a given label, and/or Linear issues in a given team) to Slack with a short excerpt, once.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/ticket_announcer",
-      "tags": [
-        "sensor",
-        "slack",
-        "github",
-        "linear",
-        "issue-tracking"
-      ],
+      "tags": [],
       "dependencies": {
         "pip": [
+          "dagster",
+          "pydantic",
           "requests",
           "slack_sdk>=3.0"
         ]
@@ -70972,6 +70717,51 @@
       ]
     },
     {
+      "id": "trigger_job_asset",
+      "name": "TriggerJobAsset",
+      "category": "infrastructure",
+      "description": "An asset that synchronously launches another Dagster job with config and waits for it to finish -- the Airflow TriggerDagRunOperator equivalent, Dagster-to-Dagster.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/trigger_job_asset",
+      "tags": [
+        "infrastructure",
+        "airflow",
+        "trigger",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/trigger_job_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-17"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Metadata about the triggered run: triggered_run_id, triggered_job_name, success.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "airflow",
+        "trigger",
+        "job",
+        "migration"
+      ],
+      "icon": "Play"
+    },
+    {
       "id": "trino_io_manager",
       "name": "Trino IO Manager",
       "category": "io_manager",
@@ -72190,7 +71980,6 @@
       "author": "Dagster Community",
       "path": "assets/ai/vanta_evidence_response_agent",
       "tags": [
-        "agentic",
         "ai",
         "llm",
         "vanta",
@@ -72503,9 +72292,7 @@
       "category": "ai",
       "description": "Single-shot LLM agent via Vercel AI Gateway — OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
       "path": "assets/ai/vercel_ai_gateway_agent",
-      "tags": [
-        "agentic"
-      ],
+      "tags": [],
       "icon": "si:vercel",
       "type": "dagster_community_components.VercelAIGatewayAgentComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/README.md",
@@ -73354,6 +73141,49 @@
         "llm",
         "genai"
       ]
+    },
+    {
+      "id": "wait_until_asset",
+      "name": "wait_until_asset",
+      "category": "infrastructure",
+      "description": "Hold a single Dagster step open until a condition becomes true -- Airflow's sensor-mode operators (PythonSensor, BashSensor, FileSensor, TimeSensor, TimeDeltaSensor).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/wait_until_asset",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/wait_until_asset/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "assets/infrastructure/wait_until_asset/tests/test_wait_until_asset.py",
+        "last_validated": "2026-11-18"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Materializes once its condition is met (or on_timeout='skip' after a timeout).",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "sensor-mode",
+        "pythonsensor",
+        "bashsensor",
+        "filesensor",
+        "poll",
+        "blocking"
+      ],
+      "icon": "Clock"
     },
     {
       "id": "wandb_asset",
@@ -74296,6 +74126,52 @@
       }
     },
     {
+      "id": "webhook_inbox_sensor",
+      "name": "Webhook Inbox Sensor",
+      "category": "sensor",
+      "description": "Component for polling a local webhook inbox JSONL file for new callbacks.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/webhook_inbox_sensor",
+      "tags": [
+        "sensor",
+        "webhook",
+        "http",
+        "polling",
+        "generic"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/requirements.txt",
+      "icon": "Radar",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-23"
+      },
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Component for polling a local webhook inbox JSONL file for new callbacks.",
+        "requires_pip": []
+      },
+      "keywords": [
+        "webhook",
+        "inbound webhook",
+        "callback",
+        "http receiver",
+        "polling sensor",
+        "arrival sensor",
+        "trigger",
+        "watcher"
+      ]
+    },
+    {
       "id": "webhook_lineage_export_job",
       "name": "webhook_lineage_export_job",
       "category": "jobs",
@@ -74378,7 +74254,7 @@
       "id": "window_calculation",
       "name": "window_calculation",
       "category": "transformation",
-      "description": "Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
+      "description": "Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, ntile, cume_dist, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "transforms/window_calculation",
@@ -76215,5 +76091,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1404
+  "total": 1461
 }

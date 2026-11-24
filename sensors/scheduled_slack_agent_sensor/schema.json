@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.ScheduledSlackAgentSensorComponent",
   "description": "A scheduled agent run that announces itself in Slack: every period it posts a top-level message, then starts the agent run tagged with that message's ts so slack_reply answers in its thread.",
-  "category": "sensors",
+  "category": "sensor",
   "icon": "si:slack",
   "attributes": {
     "sensor_name": {

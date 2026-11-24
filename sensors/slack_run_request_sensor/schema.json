@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.SlackRunRequestSensorComponent",
   "description": "Polls a Slack channel for chat-requested job/asset runs and launches them -- but only for a requester already listed as an owner of the target.",
-  "category": "sensors",
+  "category": "sensor",
   "icon": "si:slack",
   "attributes": {
     "sensor_name": {

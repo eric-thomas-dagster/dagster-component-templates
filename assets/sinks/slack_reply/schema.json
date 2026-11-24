@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.SlackReplyComponent",
   "description": "Posts a chat agent's answer into the Slack thread named by the run's own tags -- deterministically, plus a run-failure sensor so a crashed run is never silent.",
-  "category": "sinks",
+  "category": "sink",
   "icon": "si:slack",
   "attributes": {
     "asset_name": {

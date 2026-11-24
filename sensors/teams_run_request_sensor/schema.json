@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.TeamsRunRequestSensorComponent",
   "description": "Polls a Microsoft Teams channel for chat-requested job/asset runs and launches them -- but only for a requester already listed as an owner of the target.",
-  "category": "sensors",
+  "category": "sensor",
   "icon": "MicrosoftTeams",
   "attributes": {
     "sensor_name": {

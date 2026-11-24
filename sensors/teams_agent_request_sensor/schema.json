@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.TeamsAgentRequestSensorComponent",
   "description": "Polls a Teams channel and launches a chat-agent asset for a mention or a reply in an already-answered thread -- identifiers only in run tags, never the message text.",
-  "category": "sensors",
+  "category": "sensor",
   "icon": "MicrosoftTeams",
   "attributes": {
     "sensor_name": {

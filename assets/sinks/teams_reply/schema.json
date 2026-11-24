@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.TeamsReplyComponent",
   "description": "Posts a chat agent's answer into the Teams thread it's answering, with a run-failure watcher so a crashed run is never silent, plus optional receipt-linking and reaction-based rating.",
-  "category": "sinks",
+  "category": "sink",
   "icon": "MicrosoftTeams",
   "attributes": {
     "asset_name": {

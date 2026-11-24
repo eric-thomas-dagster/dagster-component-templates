@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.GraphFirstAssetsComponent",
   "name": "Graph-First Assets",
-  "category": "core",
+  "category": "infrastructure",
   "icon": "Link",
   "description": "Declare a list of assets from YAML with a no-op materialization body -- lineage, checks, freshness, and automation without real compute",
   "x-dagster-io": {},

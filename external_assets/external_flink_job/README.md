@@ -92,6 +92,25 @@ Each tick: `state`, `jid` (the job's *current* run's id -- expect this to change
 
 A tracked job not found in the current `/jobs/overview` response (not yet submitted, or expired from Flink's job store retention) is skipped with a warning log, not an error -- the rest of the tracked jobs in the same tick still get observed.
 
+## Overriding `_fetch_jobs_overview` for a demo or a test
+
+The sensor's single `GET /jobs/overview` call is isolated in one method, `ExternalFlinkJobComponent._fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds)`, so a subclass can override it to return synthetic job data instead of making a real HTTP call -- no monkeypatching of `requests` or this module required:
+
+```python
+from dagster_community_components import ExternalFlinkJobComponent
+
+
+class DemoExternalFlinkJobComponent(ExternalFlinkJobComponent):
+    """Fakes /jobs/overview so this can run in a demo with no real Flink cluster."""
+
+    def _fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds):
+        return [
+            {"jid": "demo-jid-1", "name": self.job_name, "state": "RUNNING", "start-time": 1700000000000, "duration": 42000},
+        ]
+```
+
+Point your YAML at the subclass's `type:` instead of the base component, and the rest of the config (asset keys, partitioning, sensor options) works unchanged.
+
 ## Requirements
 
 ```

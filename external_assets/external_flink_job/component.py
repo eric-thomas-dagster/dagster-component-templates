@@ -185,14 +185,6 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
-def _fetch_jobs_overview(jobmanager_url: str, headers: Dict[str, str], request_timeout_seconds: int) -> List[Dict[str, Any]]:
-    import requests
-    resp = requests.get(f"{jobmanager_url}/jobs/overview", headers=headers, timeout=request_timeout_seconds)
-    if resp.status_code >= 400:
-        raise RuntimeError(f"Flink /jobs/overview failed: HTTP {resp.status_code} {resp.text[:500]!r}")
-    return resp.json().get("jobs", [])
-
-
 class ExternalFlinkJobComponent(dg.Component, dg.Model, dg.Resolvable):
     """Declare one or more Flink jobs running on a self-hosted cluster as external assets."""
 
@@ -271,6 +263,20 @@ class ExternalFlinkJobComponent(dg.Component, dg.Model, dg.Resolvable):
     @classmethod
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=(), csv=("partition_values",), tags=())
+
+    def _fetch_jobs_overview(self, jobmanager_url: str, headers: Dict[str, str], request_timeout_seconds: int) -> List[Dict[str, Any]]:
+        """Fetch the Flink cluster's job list from GET /jobs/overview.
+
+        This is an overridable seam: a subclass can override this method to
+        return synthetic job data for a demo or a test, with no monkeypatching
+        of `requests` or this module required. See the README's demo-mode
+        section for a worked example.
+        """
+        import requests
+        resp = requests.get(f"{jobmanager_url}/jobs/overview", headers=headers, timeout=request_timeout_seconds)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Flink /jobs/overview failed: HTTP {resp.status_code} {resp.text[:500]!r}")
+        return resp.json().get("jobs", [])
 
     def _resolve_job_entries(self) -> List[Dict[str, Any]]:
         has_single = bool(self.asset_key or self.job_name)
@@ -369,7 +375,7 @@ class ExternalFlinkJobComponent(dg.Component, dg.Model, dg.Resolvable):
             headers = dict(_self.request_headers or {})
 
             try:
-                jobs_overview = _fetch_jobs_overview(_self.jobmanager_url, headers, _self.request_timeout_seconds)
+                jobs_overview = _self._fetch_jobs_overview(_self.jobmanager_url, headers, _self.request_timeout_seconds)
             except Exception as ex:
                 return dg.SensorResult(skip_reason=f"Flink /jobs/overview failed: {ex}")
 

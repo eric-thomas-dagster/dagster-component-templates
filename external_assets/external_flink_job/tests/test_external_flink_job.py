@@ -89,24 +89,28 @@ def test_single_job_sensor_derives_a_default_name():
 
 
 # --- sensor behavior ---------------------------------------------------------
+#
+# `_fetch_jobs_overview` is an instance method (an overridable seam -- see
+# test_fetch_jobs_overview_is_an_overridable_seam_no_monkeypatching below), so
+# these tests fake it by subclassing and overriding the method, not by
+# monkeypatching the module-level function (there no longer is one).
 
 def _overview(jobs):
     return [dict(j) for j in jobs]
 
 
-def test_shared_sensor_observes_every_tracked_job_over_one_overview_call(monkeypatch):
+def test_shared_sensor_observes_every_tracked_job_over_one_overview_call():
     calls = []
 
-    def _fake_fetch(jobmanager_url, headers, request_timeout_seconds):
-        calls.append(jobmanager_url)
-        return _overview([
-            {"jid": "jid1", "name": "enrichment", "state": "RUNNING", "start-time": 1000, "duration": 5000},
-            {"jid": "jid2", "name": "aggregation", "state": "RUNNING", "start-time": 2000, "duration": 3000},
-        ])
+    class _FakeFlink(ExternalFlinkJobComponent):
+        def _fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds):
+            calls.append(jobmanager_url)
+            return _overview([
+                {"jid": "jid1", "name": "enrichment", "state": "RUNNING", "start-time": 1000, "duration": 5000},
+                {"jid": "jid2", "name": "aggregation", "state": "RUNNING", "start-time": 2000, "duration": 3000},
+            ])
 
-    monkeypatch.setattr(mod, "_fetch_jobs_overview", _fake_fetch)
-
-    comp = ExternalFlinkJobComponent(
+    comp = _FakeFlink(
         jobmanager_url="http://x:8081",
         jobs=[
             {"key": "streaming/enrichment", "job_name": "enrichment"},
@@ -127,15 +131,14 @@ def test_shared_sensor_observes_every_tracked_job_over_one_overview_call(monkeyp
     assert keys == {dg.AssetKey(["streaming", "enrichment"]), dg.AssetKey(["streaming", "aggregation"])}
 
 
-def test_sensor_matches_jobs_by_name_not_jid(monkeypatch):
+def test_sensor_matches_jobs_by_name_not_jid():
     """The real Flink gotcha this component exists to handle correctly: jid changes
     every resubmission, so matching must be by the job's stable configured name."""
-    def _fake_fetch(jobmanager_url, headers, request_timeout_seconds):
-        return _overview([{"jid": "a-brand-new-jid-each-run", "name": "enrichment", "state": "RUNNING", "start-time": 1000, "duration": 1}])
+    class _FakeFlink(ExternalFlinkJobComponent):
+        def _fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds):
+            return _overview([{"jid": "a-brand-new-jid-each-run", "name": "enrichment", "state": "RUNNING", "start-time": 1000, "duration": 1}])
 
-    monkeypatch.setattr(mod, "_fetch_jobs_overview", _fake_fetch)
-
-    comp = ExternalFlinkJobComponent(
+    comp = _FakeFlink(
         jobmanager_url="http://x:8081", asset_key="streaming/enrichment", job_name="enrichment",
         create_observation_sensor=True,
     )
@@ -145,13 +148,12 @@ def test_sensor_matches_jobs_by_name_not_jid(monkeypatch):
     assert result.asset_events[0].metadata["jid"].value == "a-brand-new-jid-each-run"
 
 
-def test_job_not_present_in_overview_is_skipped_not_errored(monkeypatch):
-    def _fake_fetch(jobmanager_url, headers, request_timeout_seconds):
-        return _overview([])  # job hasn't been submitted yet, or expired from the job store
+def test_job_not_present_in_overview_is_skipped_not_errored():
+    class _FakeFlink(ExternalFlinkJobComponent):
+        def _fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds):
+            return _overview([])  # job hasn't been submitted yet, or expired from the job store
 
-    monkeypatch.setattr(mod, "_fetch_jobs_overview", _fake_fetch)
-
-    comp = ExternalFlinkJobComponent(
+    comp = _FakeFlink(
         jobmanager_url="http://x:8081", asset_key="streaming/enrichment", job_name="enrichment",
         create_observation_sensor=True,
     )
@@ -162,13 +164,12 @@ def test_job_not_present_in_overview_is_skipped_not_errored(monkeypatch):
     assert result.asset_events == []
 
 
-def test_overview_fetch_failure_skips_cleanly_without_raising(monkeypatch):
-    def _fake_fetch(jobmanager_url, headers, request_timeout_seconds):
-        raise RuntimeError("connection refused")
+def test_overview_fetch_failure_skips_cleanly_without_raising():
+    class _FakeFlink(ExternalFlinkJobComponent):
+        def _fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds):
+            raise RuntimeError("connection refused")
 
-    monkeypatch.setattr(mod, "_fetch_jobs_overview", _fake_fetch)
-
-    comp = ExternalFlinkJobComponent(
+    comp = _FakeFlink(
         jobmanager_url="http://x:8081", asset_key="streaming/enrichment", job_name="enrichment",
         create_observation_sensor=True,
     )
@@ -178,15 +179,14 @@ def test_overview_fetch_failure_skips_cleanly_without_raising(monkeypatch):
     assert "connection refused" in str(result.skip_reason)
 
 
-def test_data_version_changes_when_state_changes(monkeypatch):
+def test_data_version_changes_when_state_changes():
     states = iter(["RUNNING", "FINISHED"])
 
-    def _fake_fetch(jobmanager_url, headers, request_timeout_seconds):
-        return _overview([{"jid": "j1", "name": "batch-job", "state": next(states), "start-time": 1000, "duration": 1}])
+    class _FakeFlink(ExternalFlinkJobComponent):
+        def _fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds):
+            return _overview([{"jid": "j1", "name": "batch-job", "state": next(states), "start-time": 1000, "duration": 1}])
 
-    monkeypatch.setattr(mod, "_fetch_jobs_overview", _fake_fetch)
-
-    comp = ExternalFlinkJobComponent(
+    comp = _FakeFlink(
         jobmanager_url="http://x:8081", asset_key="streaming/batch", job_name="batch-job",
         create_observation_sensor=True,
     )
@@ -199,13 +199,12 @@ def test_data_version_changes_when_state_changes(monkeypatch):
     assert first != second
 
 
-def test_emit_materialization_false_emits_observation_instead(monkeypatch):
-    def _fake_fetch(jobmanager_url, headers, request_timeout_seconds):
-        return _overview([{"jid": "j1", "name": "enrichment", "state": "RUNNING", "start-time": 1, "duration": 1}])
+def test_emit_materialization_false_emits_observation_instead():
+    class _FakeFlink(ExternalFlinkJobComponent):
+        def _fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds):
+            return _overview([{"jid": "j1", "name": "enrichment", "state": "RUNNING", "start-time": 1, "duration": 1}])
 
-    monkeypatch.setattr(mod, "_fetch_jobs_overview", _fake_fetch)
-
-    comp = ExternalFlinkJobComponent(
+    comp = _FakeFlink(
         jobmanager_url="http://x:8081", asset_key="streaming/enrichment", job_name="enrichment",
         create_observation_sensor=True, emit_materialization=False,
     )
@@ -213,6 +212,33 @@ def test_emit_materialization_false_emits_observation_instead(monkeypatch):
     sensor_def = defs.get_sensor_def("enrichment__observation_sensor")
     result = sensor_def(dg.build_sensor_context())
     assert isinstance(result.asset_events[0], dg.AssetObservation)
+
+
+def test_fetch_jobs_overview_is_an_overridable_seam_no_monkeypatching():
+    """The actual gap this fixes: `_fetch_jobs_overview` used to be a bare
+    module-level function called without `self.`, so a subclass could not
+    override it -- the only way to fake it for a demo/test was monkeypatching
+    the module. Now it's an instance method, so a subclass override works
+    with NO monkeypatching of `requests` or this module at all."""
+
+    class _DemoFlinkJobComponent(ExternalFlinkJobComponent):
+        """A demo/test subclass -- the README's demo-mode pattern."""
+
+        def _fetch_jobs_overview(self, jobmanager_url, headers, request_timeout_seconds):
+            return [{"jid": "demo-jid-1", "name": "demo-job", "state": "RUNNING", "start-time": 1700000000000, "duration": 42000}]
+
+    comp = _DemoFlinkJobComponent(
+        jobmanager_url="http://demo-cluster:8081", asset_key="streaming/demo_job", job_name="demo-job",
+        create_observation_sensor=True,
+    )
+    defs = comp.build_defs(None)
+    sensor_def = defs.get_sensor_def("demo_job__observation_sensor")
+    result = sensor_def(dg.build_sensor_context())
+
+    assert len(result.asset_events) == 1
+    event = result.asset_events[0]
+    assert event.metadata["jid"].value == "demo-jid-1"
+    assert event.metadata["state"].value == "RUNNING"
 
 
 def test_weekday_cron_partition_builds_a_real_time_window_partitions_def():

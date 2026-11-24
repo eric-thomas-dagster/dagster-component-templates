@@ -6,7 +6,7 @@ attributes:
   # github_token_env_var: GITHUB_TOKEN
   # base_branch: main
   exclude_locations: [improvement_advisor]   # never let the advisor agent review its own code location
-  # allow: [project_overview, deprecation_report, latest_dagster_release]  # default: all
+  # allow: [project_overview, deprecation_report, latest_dagster_release, check_dagster_api]  # default: all
   repo_notes: |
     This is a demo repository. The flakiness in retry_handler.py is deliberate (it's the point of the
     demo) -- do not propose fixing it.

@@ -16,6 +16,7 @@ healthy, and what changed" -- three tools:
                                   the *_agent components take -- see litellm_agent/README.md).
   deprecation_report(max_files) -- deprecated/superseded/removed Dagster API usage across the repository's
                                   Python files, via `dagster._annotations` (ast-scanned, not a guess).
+  check_dagster_api(names)    -- whether Dagster names exist in the installed Dagster + their real signatures.
   latest_dagster_release()    -- the newest published `dagster` version (PyPI) + its GitHub release notes.
 
 Same dual-mode shape as `dagster_discovery_tools`/`dagster_instance_tools`/`dagster_workflow_tools`:
@@ -583,7 +584,33 @@ query($id: ID!) {
 """
 
 
-ALL_TOOLS = ("project_overview", "deprecation_report", "latest_dagster_release")
+# Inlined verbatim from dagster_api_check_tools (self-contained-component convention); a drift test keeps the two equal.
+def _check_dagster_api(names: List[str]) -> Dict[str, Any]:
+    """Whether Dagster names exist in the installed version, with their signatures."""
+    import importlib
+    import inspect
+
+    import dagster as _dagster
+
+    result: Dict[str, Any] = {"dagster_version": _dagster.__version__, "names": {}}
+    for name in names[:12]:
+        parts = name.replace("dg.", "dagster.", 1).split(".")
+        try:
+            obj = importlib.import_module(parts[0])
+            for part in parts[1:]:
+                obj = getattr(obj, part)
+        except (ImportError, AttributeError):
+            result["names"][name] = {"exists": False}
+            continue
+        try:
+            signature = str(inspect.signature(obj))
+        except (TypeError, ValueError):
+            signature = None
+        result["names"][name] = {"exists": True, "signature": signature}
+    return result
+
+
+ALL_TOOLS = ("project_overview", "deprecation_report", "latest_dagster_release", "check_dagster_api")
 
 
 class DagsterEvidenceTools:
@@ -659,6 +686,17 @@ class DagsterEvidenceTools:
 
     def _run_url(self, run_id: str) -> str:
         return f"{self._deployment_url}/runs/{run_id}" if self._deployment_url else run_id
+
+    # -- check_dagster_api --------------------------------------------------------------------------------------
+    def t_check_dagster_api(self, names: List[str]) -> Dict[str, Any]:
+        """Whether each dotted Dagster name (`dg.load_from_defs_folder`, `dagster.Definitions`, ...) exists in the
+        Dagster installed where this server runs, and its real signature -- so an agent can check an API while it
+        reasons, not only after it has written an issue body. At most 12 names per call."""
+        if isinstance(names, str):
+            names = [names]
+        if not names or not all(isinstance(n, str) and n.strip() for n in names):
+            raise EvidenceToolError("check_dagster_api requires `names`: a non-empty list of dotted Dagster names.")
+        return _check_dagster_api([n.strip() for n in names])
 
     # -- latest_dagster_release ---------------------------------------------------------------------------------
     def t_latest_dagster_release(self) -> Dict[str, Any]:
@@ -1184,6 +1222,12 @@ def build_mcp_server(tools: DagsterEvidenceTools):
     def deprecation_report(max_files: int = None) -> dict:
         """Deprecated, superseded or removed Dagster API usage across the repository's Python files."""
         return tools.call("deprecation_report", {"max_files": max_files})
+
+    @_tool
+    def check_dagster_api(names: List[str]) -> dict:
+        """Whether Dagster names (e.g. `dg.load_from_defs_folder`) exist in the installed Dagster, with their real
+        signatures. Use it while reasoning, before relying on an API. At most 12 names."""
+        return tools.call("check_dagster_api", {"names": names})
 
     @_tool
     def latest_dagster_release() -> dict:

@@ -16,6 +16,7 @@ needs before proposing a fix, not a guess at what might be wrong.
 |---|---|
 | `project_overview(location)` | Everything about ONE code location -- see below |
 | `deprecation_report(max_files?)` | Deprecated/superseded/removed Dagster API usage across the repo's Python files |
+| `check_dagster_api(names)` | Whether Dagster names (e.g. `dg.load_from_defs_folder`) exist in the installed Dagster, with their real signatures. Check an API while reasoning; `validate_python_snippets` only checks an issue body afterwards |
 | `latest_dagster_release()` | The newest published `dagster` version + its GitHub release notes |
 
 ### `project_overview(location)`

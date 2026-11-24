@@ -77,7 +77,7 @@
         "type": "string"
       },
       "label": "Allow",
-      "description": "Hard allow-list of tools (default: all). Valid: project_overview, deprecation_report, latest_dagster_release.",
+      "description": "Hard allow-list of tools (default: all). Valid: project_overview, deprecation_report, latest_dagster_release, check_dagster_api.",
       "required": false
     },
     "max_result_chars": {

@@ -535,3 +535,36 @@ def test_asset_checks_union_members_other_than_assetchecks_count_as_no_checks():
     for typename in ("AssetCheckNeedsMigrationError", "AssetCheckNeedsUserCodeUpgrade"):
         assert mod._check_health({"assetChecksOrError": {"__typename": typename}}) == {
             "passing": 0, "failing": 0, "stale": 0, "failing_checks": []}
+
+
+# ── check_dagster_api ──────────────────────────────────────────────────────────────────────────────────────────────
+
+def test_check_dagster_api_returns_a_signature_for_a_real_name_and_not_found_for_a_fake_one():
+    tools, _ = _overview_tools(None)
+    result = tools.call("check_dagster_api", {"names": ["dg.load_from_defs_folder", "dg.not_a_real_name"]})
+    assert "error" not in result, result
+    real = result["names"]["dg.load_from_defs_folder"]
+    assert real["exists"] is True and real["signature"].startswith("(")
+    assert result["names"]["dg.not_a_real_name"] == {"exists": False}
+    assert result["dagster_version"]
+
+
+def test_check_dagster_api_rejects_bad_input_and_is_allow_listable():
+    tools, _ = _overview_tools(None)
+    assert "requires `names`" in tools.call("check_dagster_api", {"names": []})["error"]
+    assert "check_dagster_api" in tools.tool_names()
+    restricted, _ = _overview_tools(None, allow=["project_overview"])
+    assert "not enabled" in restricted.call("check_dagster_api", {"names": ["dg.Definitions"]})["error"]
+
+
+def test_check_dagster_api_is_a_verbatim_copy_of_dagster_api_check_tools():
+    import ast
+    import pathlib
+
+    def fn_source(path):
+        text = path.read_text()
+        node = next(n for n in ast.parse(text).body if isinstance(n, ast.FunctionDef) and n.name == "_check_dagster_api")
+        return ast.get_source_segment(text, node)
+
+    here = pathlib.Path(mod.__file__).resolve().parent
+    assert fn_source(here / "component.py") == fn_source(here.parent / "dagster_api_check_tools" / "component.py")

@@ -1,0 +1,8 @@
+type: dagster_community_components.FootnoteReferenceLinkerComponent
+attributes:
+  asset_name: linked_footnotes
+  upstream_asset_key: raw_pdf_files
+  group_name: ai
+  column: file_path
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY

@@ -1,0 +1,4 @@
+dagster
+pandas>=1.5.0
+pdfplumber>=0.7.0
+litellm>=1.30.0

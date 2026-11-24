@@ -29169,6 +29169,63 @@
       ]
     },
     {
+      "id": "footnote_reference_linker",
+      "name": "Footnote Reference Linker",
+      "category": "ai",
+      "description": "Detect footnotes on each page of a PDF -- a marker plus its explanatory text -- and link each one back to the exact body-text snippet its marker appears after, with a best-effort bounding box so a reviewer can jump from body text to its footnote.",
+      "path": "assets/ai/footnote_reference_linker",
+      "tags": [
+        "ai",
+        "documents",
+        "pdf",
+        "footnotes",
+        "diligence",
+        "llm"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/footnote_reference_linker/schema.json",
+      "component_type": "dagster_community_components.FootnoteReferenceLinkerComponent",
+      "icon": "Link",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/footnote_reference_linker/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/footnote_reference_linker/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/footnote_reference_linker/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/footnote_reference_linker/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-24"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "pdfplumber>=0.7.0",
+          "litellm>=1.30.0"
+        ]
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "inputs": "DataFrame with a column of PDF file paths or PDF bytes.",
+        "outputs": "DataFrame with one row PER FOOTNOTE-REFERENCE PAIR: passthrough columns + page_number, marker, footnote_text, body_reference_snippet, body_reference_bbox (JSON string of {x0,x1,top,bottom} or null when the snippet couldn't be located).",
+        "side_effects": "One litellm call PER PAGE that has extractable text (footnote detection).",
+        "anti_uses": "For plain PDF text extraction with no footnote detection use pdf_text_extractor. For document-type field extraction (invoice, receipt, resume, ...) use structured_document_extractor. Footnote detection runs off plain extracted text only -- no layout/visual signal -- so detection is not guaranteed complete or correct.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "keywords": [
+        "footnotes",
+        "footnote detection",
+        "reference linking",
+        "diligence",
+        "financial reports",
+        "legal documents",
+        "bounding box"
+      ]
+    },
+    {
       "id": "forgejo_documents",
       "name": "Forgejo Documents",
       "category": "ingestion",

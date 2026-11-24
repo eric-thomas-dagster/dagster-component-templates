@@ -588,6 +588,7 @@ _CLASS_PATHS: dict[str, str] = {
     "FivetranUsageObservationSensorComponent": "observations/fivetran_usage_observation_sensor/component.py",
     "FixMessageParserComponent": "assets/transforms/fix_message_parser/component.py",
     "FlinkJobRunAssetComponent": "assets/infrastructure/flink_job_run_asset/component.py",
+    "FootnoteReferenceLinkerComponent": "assets/ai/footnote_reference_linker/component.py",
     "ForgejoDocumentsComponent": "assets/ingestion/forgejo_documents/component.py",
     "FormulaComponent": "assets/transforms/formula/component.py",
     "FreshdeskContactUpsertComponent": "assets/reverse_etl/freshdesk_contact_upsert/component.py",

@@ -223,7 +223,7 @@
     "assets_by_name": {
       "type": "object",
       "label": "Assets by Name",
-      "description": "Override the AssetSpec for specific imported entities (Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, Stages, Materialized Views, External Tables, Alerts, OpenFlow Flows) by their Snowflake name. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape. Per-entity dict supports: key (slash-separated AssetKey), group_name, description, deps (list of upstream asset keys, merged with auto-inferred), metadata (dict-merged), tags (dict-merged), kinds (set), owners (list), partitions (declarative per-entity partitions_def -- daily/weekly/monthly/hourly/cron/static/dynamic/multi, different entities can have different shapes from the same component instance).",
+      "description": "Override the AssetSpec for specific imported entities (Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, Stages, Materialized Views, External Tables, Alerts, OpenFlow Flows) by their Snowflake name. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape. Per-entity dict supports: key (slash-separated AssetKey), group_name, description, deps (list of upstream asset keys, merged with auto-inferred), metadata (dict-merged), tags (dict-merged), kinds (set), owners (list), partitions (declarative per-entity partitions_def -- daily/weekly/monthly/hourly/cron/static/dynamic/multi, each time-window shape accepts timezone and end_offset so it can line up with a non-UTC date axis used elsewhere in the project; different entities can have different shapes from the same component instance), config (task EXECUTE TASK USING CONFIG payload) / args (stored procedure CALL arguments) -- both accept {partition_key} / {partition.<dim>} substitution so a partitioned proc/task can recompute just its own partition instead of the whole table every run.",
       "required": false,
       "default": null
     },
@@ -239,6 +239,13 @@
       "type": "array",
       "label": "Procedure Row Count Checks",
       "description": "Attach a row-count asset_check to specific stored procedures, evaluated against each procedure's output table (SELECT COUNT(*)) after it runs. One subsettable multi_asset_check. Each entry: {procedure, table, name (default row_count_nonzero), blocking (default false), description}.",
+      "required": false,
+      "default": null
+    },
+    "sql_checks": {
+      "type": "array",
+      "label": "Sql Checks",
+      "description": "Generic SQL-assertion asset_checks, beyond procedure_row_count_checks' fixed row-count shape -- run arbitrary sql against any entity's asset, expect a passed boolean column/value. One subsettable multi_asset_check. Each entry: {asset, sql, name (default sql_check), blocking (default false), description}.",
       "required": false,
       "default": null
     },

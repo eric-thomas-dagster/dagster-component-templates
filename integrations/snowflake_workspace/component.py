@@ -97,19 +97,25 @@ def _build_single_partitions_def(spec: Dict[str, Any]):
     start = spec.get("start")
     if ptype in ("daily", "weekly", "monthly", "hourly", "cron") and not start:
         raise ValueError(f"partitions: type={ptype!r} requires 'start' (ISO date, e.g. '2024-01-01').")
+    # timezone/end_offset apply to every time-window axis (daily/weekly/monthly/hourly/cron) --
+    # same fields cron_schedule-type partition dimensions elsewhere in this repo already accept
+    # (e.g. dataframe_to_csv's _build_partitions_def), so a `partitions:` axis here can be made to
+    # line up with a non-UTC-timezone date axis used elsewhere in the same project.
+    timezone = spec.get("timezone")
+    end_offset = spec.get("end_offset", 0)
     if ptype == "daily":
-        return DailyPartitionsDefinition(start_date=start)
+        return DailyPartitionsDefinition(start_date=start, timezone=timezone, end_offset=end_offset)
     if ptype == "weekly":
-        return WeeklyPartitionsDefinition(start_date=start)
+        return WeeklyPartitionsDefinition(start_date=start, timezone=timezone, end_offset=end_offset)
     if ptype == "monthly":
-        return MonthlyPartitionsDefinition(start_date=start)
+        return MonthlyPartitionsDefinition(start_date=start, timezone=timezone, end_offset=end_offset)
     if ptype == "hourly":
-        return HourlyPartitionsDefinition(start_date=start)
+        return HourlyPartitionsDefinition(start_date=start, timezone=timezone, end_offset=end_offset)
     if ptype == "cron":
         cron_schedule = spec.get("cron_schedule")
         if not cron_schedule:
             raise ValueError("partitions: type='cron' requires 'cron_schedule', e.g. '0 0 * * 1-5' for weekdays only.")
-        return TimeWindowPartitionsDefinition(start=start, fmt=spec.get("fmt", "%Y-%m-%d"), cron_schedule=cron_schedule)
+        return TimeWindowPartitionsDefinition(start=start, fmt=spec.get("fmt", "%Y-%m-%d"), cron_schedule=cron_schedule, timezone=timezone, end_offset=end_offset)
     if ptype == "static":
         values = spec.get("values")
         if not values:
@@ -131,11 +137,16 @@ def _build_partitions_def_from_dict(spec: Dict[str, Any]):
     different partition shapes from the same component instance.
 
     Shapes:
-      {type: daily|weekly|monthly|hourly, start: "2024-01-01"}
-      {type: cron, start: "2024-01-01", cron_schedule: "0 0 * * 1-5", fmt: "%Y-%m-%d"}
+      {type: daily|weekly|monthly|hourly, start: "2024-01-01", timezone: "Europe/Copenhagen", end_offset: 0}
+      {type: cron, start: "2024-01-01", cron_schedule: "0 0 * * 1-5", fmt: "%Y-%m-%d", timezone: "Europe/Copenhagen"}
       {type: static, values: [a, b, c]}
       {type: dynamic, dynamic_partition_name: my_axis}
       {type: multi, dimensions: [{name: date, type: daily, start: ...}, {name: region, type: static, values: [...]}]}
+
+    `timezone` (IANA name, defaults to UTC like Dagster's own time-window partitions) and
+    `end_offset` (defaults to 0) apply to every time-window axis (daily/weekly/monthly/hourly/
+    cron) -- set them so this per-entity axis can line up with a non-UTC date axis used
+    elsewhere in the same project.
     """
     if spec.get("type") == "multi":
         from dagster import MultiPartitionsDefinition
@@ -151,6 +162,29 @@ def _build_partitions_def_from_dict(spec: Dict[str, Any]):
             axes[name] = _build_single_partitions_def(dim)
         return MultiPartitionsDefinition(axes)
     return _build_single_partitions_def(spec)
+
+
+def _render_partition_placeholders(value: Any, context: Any) -> Any:
+    """Substitute {partition_key} / {partition.<dim>} into a CALL arg or EXECUTE TASK USING
+    CONFIG value -- recurses into dicts/lists so a partitioned proc/task can be told which
+    partition to (re)compute instead of always recomputing the whole table. No-op when the
+    asset isn't partitioned, or the run has no partition_key (e.g. a non-partitioned asset_check
+    context)."""
+    if not getattr(context, "has_partition_key", False):
+        return value
+    pk = context.partition_key
+    if isinstance(value, str):
+        rendered = value.replace("{partition_key}", pk)
+        keys_by_dimension = getattr(pk, "keys_by_dimension", None)
+        if keys_by_dimension:
+            for dim_name, dim_val in keys_by_dimension.items():
+                rendered = rendered.replace("{partition." + dim_name + "}", dim_val)
+        return rendered
+    if isinstance(value, dict):
+        return {k: _render_partition_placeholders(v, context) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_render_partition_placeholders(v, context) for v in value]
+    return value
 
 
 def _demo_extract_like_name(text: str) -> Optional[str]:
@@ -951,6 +985,62 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         return [_checks]
 
+    def _build_sql_checks(self) -> List[Any]:
+        """One subsettable multi_asset_check running arbitrary user SQL against any entity's
+        asset -- generalizes procedure_row_count_checks' fixed row-count shape to any assertion
+        expressible as a query whose result exposes a `passed` boolean."""
+        if not self.sql_checks:
+            return []
+        specs: List[AssetCheckSpec] = []
+        by_check: Dict[Any, Dict[str, Any]] = {}
+        for entry in self.sql_checks:
+            asset_key = AssetKey.from_user_string(str(entry["asset"]))
+            spec = AssetCheckSpec(
+                name=entry.get("name", "sql_check"),
+                asset=asset_key,
+                blocking=entry.get("blocking", False),
+                description=entry.get("description"),
+            )
+            specs.append(spec)
+            by_check[spec.key] = entry
+        if not specs:
+            return []
+        component = self
+
+        @multi_asset_check(specs=specs, can_subset=True, name="snowflake_sql_checks")
+        def _sql_checks(context: AssetCheckExecutionContext) -> Iterator[AssetCheckResult]:
+            for key in context.selected_asset_check_keys:
+                entry = by_check[key]
+                sql = entry["sql"]
+                if component.demo_mode:
+                    # Arbitrary SQL can't be simulated generically -- demo_mode always reports
+                    # passed=true, same transparency trade-off as the rest of this component's
+                    # demo_mode (see the field's own description).
+                    passed = True
+                    raw_value: Any = True
+                else:
+                    conn = component._create_connection()
+                    try:
+                        result = component._execute_query(conn, sql)
+                        if not result:
+                            raw_value = None
+                            passed = False
+                        else:
+                            first_row = result[0]
+                            raw_value = first_row.get("PASSED") if "PASSED" in first_row else next(iter(first_row.values()), None)
+                            passed = bool(raw_value)
+                    finally:
+                        conn.close()
+                yield AssetCheckResult(
+                    asset_key=key.asset_key,
+                    check_name=key.name,
+                    passed=passed,
+                    metadata={"sql": sql, "result": str(raw_value)},
+                    severity=AssetCheckSeverity.ERROR if entry.get("blocking", False) else AssetCheckSeverity.WARN,
+                )
+
+        return [_sql_checks]
+
     def _apply_asset_overrides(self, entity_name: str, base_kwargs: dict) -> dict:
         """Merge per-entity overrides from `assets_by_name` into @asset kwargs.
 
@@ -1086,6 +1176,27 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "  procedure_row_count_checks:\n"
             "    - procedure: LOAD_CUSTOMER_METRICS\n"
             "      table: ANALYTICS.SILVER.CUSTOMER_METRICS\n"
+            "      blocking: true\n"
+        ),
+    )
+    sql_checks: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Generic SQL-assertion asset_checks, beyond procedure_row_count_checks' fixed "
+            "row-count shape -- run arbitrary `sql` against any entity's asset (not just "
+            "procedures), expect the result to expose a `passed` boolean column/value, and fail "
+            "(or warn, per `blocking`) when it isn't truthy. One subsettable multi_asset_check, "
+            "not one job per check. demo_mode always reports passed=true (arbitrary SQL can't be "
+            "simulated generically).\n\n"
+            "Each entry: {asset: <Dagster asset key, slash-separated for nested keys>, "
+            "sql: <query whose first row exposes a PASSED column, or any single truthy/falsy "
+            "value as the first column>, name: (default 'sql_check'), blocking: (default false), "
+            "description}.\n\n"
+            "Example:\n"
+            "  sql_checks:\n"
+            "    - asset: proc_load_customer_metrics\n"
+            "      name: no_null_customer_ids\n"
+            "      sql: \"SELECT COUNT(*) = 0 AS passed FROM ANALYTICS.SILVER.CUSTOMER_METRICS WHERE customer_id IS NULL\"\n"
             "      blocking: true\n"
         ),
     )
@@ -1530,6 +1641,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                         try:
                             if config_dict:
                                 import json as _json
+                                # {partition_key} / {partition.<dim>} substitution -- lets a
+                                # partitioned task recompute just its own partition instead of
+                                # the whole table every run.
+                                config_dict = _render_partition_placeholders(config_dict, context)
                                 config_json = _json.dumps(config_dict).replace("'", "''")
                                 # NB: `USING CONFIG = '<json>'` (equals) — NOT
                                 # `WITH CONFIG => '<json>'` (arrow). The arrow
@@ -1871,6 +1986,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             conn = self_v._create_connection()
                             cursor = conn.cursor()
                             try:
+                                # {partition_key} / {partition.<dim>} substitution -- lets a
+                                # partitioned proc recompute just its own partition instead of
+                                # the whole table every run.
+                                args_list = _render_partition_placeholders(list(args_list or []), context)
                                 args_sql = ", ".join(
                                     _serialize_proc_arg(a) for a in (args_list or [])
                                 )
@@ -3892,7 +4011,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         return Definitions(
             assets=assets_list,
             sensors=sensors_list if sensors_list else None,
-            asset_checks=self._build_procedure_row_count_checks() or None,
+            asset_checks=(self._build_procedure_row_count_checks() + self._build_sql_checks()) or None,
         )
 
 

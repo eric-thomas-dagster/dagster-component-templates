@@ -64344,8 +64344,8 @@
       "id": "snowflake_workspace",
       "name": "Snowflake Workspace",
       "category": "integration",
-      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive). assets_by_name supports per-entity partitions_def and procedure_row_count_checks verifies a stored procedure's output table received rows; demo_mode (stored procedures, tasks, and dynamic tables) needs no real Snowflake account.",
-      "version": "2.2.0",
+      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive). assets_by_name supports per-entity partitions_def (with timezone/end_offset) and {partition_key}-substituted task config / procedure args; procedure_row_count_checks and the more general sql_checks (arbitrary SQL returning a passed boolean) verify output correctness; demo_mode (stored procedures, tasks, and dynamic tables) needs no real Snowflake account.",
+      "version": "2.3.0",
       "author": "Dagster Community",
       "path": "integrations/snowflake_workspace",
       "tags": [

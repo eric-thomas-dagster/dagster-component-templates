@@ -118,6 +118,7 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 | `assets_by_name` | `Dict[str, Dict[str, Any]]` | — | Override the AssetSpec for specific imported entities (Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, etc.) by their Snowflake name. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.as… _(full docs in schema.json + component README)_ |
 | `demo_mode` | `bool` | `false` | Skip the real Snowflake connection for stored procedures, tasks, and dynamic tables: discovery returns a synthetic catalog (one entry per assets_by_name key, reused across every enabled entity kind) instead of running re… _(full docs in schema.json + component README)_ |
 | `procedure_row_count_checks` | `List[Dict[str, Any]]` | — | Attach a row-count asset_check to specific stored procedures, evaluated against each procedure's output table (SELECT COUNT(*)) after it runs -- catches a CALL that 'succeeds' but writes zero rows, which nothing else her… _(full docs in schema.json + component README)_ |
+| `sql_checks` | `List[Dict[str, Any]]` | — | Generic SQL-assertion asset_checks, beyond procedure_row_count_checks' fixed row-count shape -- run arbitrary `sql` against any entity's asset (not just procedures), expect the result to expose a `passed` boolean column/… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

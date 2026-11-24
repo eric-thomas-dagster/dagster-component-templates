@@ -139,7 +139,30 @@ def _gh_branch_deployment_url(repo: str, number: int, head_sha: str, *, token: s
     return _gh_find_branch_deployment_url(texts)
 
 
-def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str, required_branch_prefix: Optional[str] = None) -> Dict[str, Any]:
+def _gh_path_matches(path: str, pattern: str) -> bool:
+    """A path-like pattern (ends with '/', one or more segments, e.g. 'src/' or
+    'assets/ai/github_pr_tools/') matches if those segments appear anywhere as a CONTIGUOUS run
+    of directory segments in the path, not just at the root -- a monorepo's projects commonly
+    live in a subfolder (e.g. 'hooli-basics/src/orders.py'), where the original
+    root-anchored-only path.startswith(pattern) matched nothing. A filename-like pattern (no
+    trailing '/') matches the file's own basename (so 'Dockerfile'/'README' match at any depth
+    too) as well as a root-level prefix (keeps 'requirements' matching 'requirements.txt' at the
+    repo root, 'pyproject.toml' matching itself)."""
+    segments = path.split("/")
+    if pattern.endswith("/"):
+        pat_segments = pattern.rstrip("/").split("/")
+        dir_segments = segments[:-1]
+        n = len(pat_segments)
+        return any(dir_segments[i:i + n] == pat_segments for i in range(len(dir_segments) - n + 1))
+    basename = segments[-1]
+    return basename.startswith(pattern) or path.startswith(pattern)
+
+
+def _gh_path_matches_any(path: str, patterns) -> bool:
+    return any(_gh_path_matches(path, p) for p in patterns)
+
+
+def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str, required_branch_prefix: Optional[str] = None, exclude_paths=()) -> Dict[str, Any]:
     pr = _gh_call("GET", repo, f"/pulls/{int(number)}", token=token, api_base_url=api_base_url)
     if required_branch_prefix and not pr["head"]["ref"].startswith(required_branch_prefix):
         raise GithubPrScopeError(f"PR #{number} is on {pr['head']['ref']!r}, not a {required_branch_prefix!r} branch; refusing.")
@@ -160,6 +183,7 @@ def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: st
                 "deletions": f["deletions"], "patch": (f.get("patch") or "")[:6000],
             }
             for f in files
+            if not _gh_path_matches_any(f["filename"], exclude_paths)
         ],
         "checks": _gh_checks(repo, pr["head"]["sha"], token=token, api_base_url=api_base_url),
         "branch_deployment_url": _gh_branch_deployment_url(repo, number, pr["head"]["sha"], token=token, api_base_url=api_base_url),
@@ -175,12 +199,10 @@ def _gh_assess_risk(pr: Dict[str, Any], *, protected_paths, low_risk_paths, low_
         reasons.append(f"changes {len(files)} files (limit {low_risk_max_files})")
     if changed > low_risk_max_lines:
         reasons.append(f"changes {changed} lines (limit {low_risk_max_lines})")
-    protected = tuple(protected_paths)
-    low_risk = tuple(low_risk_paths)
     for f in files:
-        if f["path"].startswith(protected):
+        if _gh_path_matches_any(f["path"], protected_paths):
             reasons.append(f"touches protected path {f['path']}")
-        elif not f["path"].startswith(low_risk):
+        elif not _gh_path_matches_any(f["path"], low_risk_paths):
             reasons.append(f"touches {f['path']}, outside the configured low-risk paths")
     if pr["checks"]["state"] != "passing":
         reasons.append(f"checks are {pr['checks']['state']}")
@@ -211,15 +233,17 @@ def _gh_propose_fix(
     repo: str, branch: str, title: str, body: str, files: List[Dict[str, Any]], *,
     base_branch: str, branch_prefix: str, protected_paths, max_files_per_fix: int,
     token: str, api_base_url: str, note: str = "", kind: str = "fix", practice_mode: bool = False,
+    exclude_paths=(),
 ) -> Dict[str, Any]:
     import base64
     if not files or len(files) > max_files_per_fix:
         raise GithubPrScopeError(f"A fix changes between 1 and {max_files_per_fix} files.")
-    protected = tuple(protected_paths)
     for f in files:
         p = _gh_safe_path(f["path"])
-        if p.startswith(protected):
+        if _gh_path_matches_any(p, protected_paths):
             raise GithubPrScopeError(f"{p} is protected; agents may not change it.")
+        if _gh_path_matches_any(p, exclude_paths):
+            raise GithubPrScopeError(f"{p} is excluded (exclude_paths); agents may not change it.")
     wanted = {_gh_safe_path(f["path"]) for f in files}
     for open_pr in _gh_call("GET", repo, "/pulls", token=token, api_base_url=api_base_url, params={"state": "open", "per_page": 50}):
         touched = {
@@ -263,11 +287,11 @@ def _gh_review_pull_request(
     repo: str, number: int, decision: str, body: str, *,
     token: str, reviewer_token: Optional[str], api_base_url: str,
     protected_paths, low_risk_paths, low_risk_max_files: int, low_risk_max_lines: int,
-    required_branch_prefix: Optional[str] = None,
+    required_branch_prefix: Optional[str] = None, exclude_paths=(),
 ) -> Dict[str, Any]:
     """COMMENT is always allowed. APPROVE only passes the deterministic risk rules, and is posted under the
     reviewer (second) identity -- GitHub blocks an author approving their own PR."""
-    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url, required_branch_prefix=required_branch_prefix)
+    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url, required_branch_prefix=required_branch_prefix, exclude_paths=exclude_paths)
     risk = _gh_assess_risk(pr, protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files, low_risk_max_lines=low_risk_max_lines)
     decision = decision.upper()
     if decision not in ("COMMENT", "APPROVE"):

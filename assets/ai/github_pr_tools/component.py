@@ -233,7 +233,30 @@ def _gh_branch_deployment_url(repo: str, number: int, head_sha: str, *, token: s
     return _gh_find_branch_deployment_url(texts)
 
 
-def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str, required_branch_prefix: Optional[str] = None) -> Dict[str, Any]:
+def _gh_path_matches(path: str, pattern: str) -> bool:
+    """A path-like pattern (ends with '/', one or more segments, e.g. 'src/' or
+    'assets/ai/github_pr_tools/') matches if those segments appear anywhere as a CONTIGUOUS run
+    of directory segments in the path, not just at the root -- a monorepo's projects commonly
+    live in a subfolder (e.g. 'hooli-basics/src/orders.py'), where the original
+    root-anchored-only path.startswith(pattern) matched nothing. A filename-like pattern (no
+    trailing '/') matches the file's own basename (so 'Dockerfile'/'README' match at any depth
+    too) as well as a root-level prefix (keeps 'requirements' matching 'requirements.txt' at the
+    repo root, 'pyproject.toml' matching itself)."""
+    segments = path.split("/")
+    if pattern.endswith("/"):
+        pat_segments = pattern.rstrip("/").split("/")
+        dir_segments = segments[:-1]
+        n = len(pat_segments)
+        return any(dir_segments[i:i + n] == pat_segments for i in range(len(dir_segments) - n + 1))
+    basename = segments[-1]
+    return basename.startswith(pattern) or path.startswith(pattern)
+
+
+def _gh_path_matches_any(path: str, patterns) -> bool:
+    return any(_gh_path_matches(path, p) for p in patterns)
+
+
+def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: str, required_branch_prefix: Optional[str] = None, exclude_paths=()) -> Dict[str, Any]:
     pr = _gh_call("GET", repo, f"/pulls/{int(number)}", token=token, api_base_url=api_base_url)
     if required_branch_prefix and not pr["head"]["ref"].startswith(required_branch_prefix):
         raise GithubPrScopeError(f"PR #{number} is on {pr['head']['ref']!r}, not a {required_branch_prefix!r} branch; refusing.")
@@ -254,6 +277,7 @@ def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: st
                 "deletions": f["deletions"], "patch": (f.get("patch") or "")[:6000],
             }
             for f in files
+            if not _gh_path_matches_any(f["filename"], exclude_paths)
         ],
         "checks": _gh_checks(repo, pr["head"]["sha"], token=token, api_base_url=api_base_url),
         "branch_deployment_url": _gh_branch_deployment_url(repo, number, pr["head"]["sha"], token=token, api_base_url=api_base_url),
@@ -269,12 +293,10 @@ def _gh_assess_risk(pr: Dict[str, Any], *, protected_paths, low_risk_paths, low_
         reasons.append(f"changes {len(files)} files (limit {low_risk_max_files})")
     if changed > low_risk_max_lines:
         reasons.append(f"changes {changed} lines (limit {low_risk_max_lines})")
-    protected = tuple(protected_paths)
-    low_risk = tuple(low_risk_paths)
     for f in files:
-        if f["path"].startswith(protected):
+        if _gh_path_matches_any(f["path"], protected_paths):
             reasons.append(f"touches protected path {f['path']}")
-        elif not f["path"].startswith(low_risk):
+        elif not _gh_path_matches_any(f["path"], low_risk_paths):
             reasons.append(f"touches {f['path']}, outside the configured low-risk paths")
     if pr["checks"]["state"] != "passing":
         reasons.append(f"checks are {pr['checks']['state']}")
@@ -305,15 +327,17 @@ def _gh_propose_fix(
     repo: str, branch: str, title: str, body: str, files: List[Dict[str, Any]], *,
     base_branch: str, branch_prefix: str, protected_paths, max_files_per_fix: int,
     token: str, api_base_url: str, note: str = "", kind: str = "fix", practice_mode: bool = False,
+    exclude_paths=(),
 ) -> Dict[str, Any]:
     import base64
     if not files or len(files) > max_files_per_fix:
         raise GithubPrScopeError(f"A fix changes between 1 and {max_files_per_fix} files.")
-    protected = tuple(protected_paths)
     for f in files:
         p = _gh_safe_path(f["path"])
-        if p.startswith(protected):
+        if _gh_path_matches_any(p, protected_paths):
             raise GithubPrScopeError(f"{p} is protected; agents may not change it.")
+        if _gh_path_matches_any(p, exclude_paths):
+            raise GithubPrScopeError(f"{p} is excluded (exclude_paths); agents may not change it.")
     wanted = {_gh_safe_path(f["path"]) for f in files}
     for open_pr in _gh_call("GET", repo, "/pulls", token=token, api_base_url=api_base_url, params={"state": "open", "per_page": 50}):
         touched = {
@@ -357,11 +381,11 @@ def _gh_review_pull_request(
     repo: str, number: int, decision: str, body: str, *,
     token: str, reviewer_token: Optional[str], api_base_url: str,
     protected_paths, low_risk_paths, low_risk_max_files: int, low_risk_max_lines: int,
-    required_branch_prefix: Optional[str] = None,
+    required_branch_prefix: Optional[str] = None, exclude_paths=(),
 ) -> Dict[str, Any]:
     """COMMENT is always allowed. APPROVE only passes the deterministic risk rules, and is posted under the
     reviewer (second) identity -- GitHub blocks an author approving their own PR."""
-    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url, required_branch_prefix=required_branch_prefix)
+    pr = _gh_get_pull_request(repo, number, token=token, api_base_url=api_base_url, required_branch_prefix=required_branch_prefix, exclude_paths=exclude_paths)
     risk = _gh_assess_risk(pr, protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files, low_risk_max_lines=low_risk_max_lines)
     decision = decision.upper()
     if decision not in ("COMMENT", "APPROVE"):
@@ -551,6 +575,7 @@ class GithubPrTools:
         reviewer_token: Optional[str] = None, base_branch: str = "main", branch_prefix: str = "agent/",
         restrict_to_branch_prefix: bool = False,
         protected_paths=(".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."),
+        exclude_paths=(),
         low_risk_paths=("src/", "tests/", "docs/", "README"), low_risk_max_files: int = 2, low_risk_max_lines: int = 30,
         max_files_per_fix: int = 5, allow: Optional[List[str]] = None, max_result_chars: int = 20000,
         practice_mode_env_var: Optional[str] = None, ledger_path: Optional[str] = None,
@@ -565,6 +590,7 @@ class GithubPrTools:
         self.branch_prefix = branch_prefix
         self.restrict_to_branch_prefix = restrict_to_branch_prefix
         self.protected_paths = tuple(protected_paths)
+        self.exclude_paths = tuple(exclude_paths)
         self.low_risk_paths = tuple(low_risk_paths)
         self.low_risk_max_files = low_risk_max_files
         self.low_risk_max_lines = low_risk_max_lines
@@ -624,13 +650,13 @@ class GithubPrTools:
         return self.branch_prefix if self.restrict_to_branch_prefix else None
 
     def t_get_pull_request(self, number: int) -> Dict[str, Any]:
-        return _gh_get_pull_request(self.repo, number, token=self.token, api_base_url=self.api_base_url, required_branch_prefix=self._required_branch_prefix())
+        return _gh_get_pull_request(self.repo, number, token=self.token, api_base_url=self.api_base_url, required_branch_prefix=self._required_branch_prefix(), exclude_paths=self.exclude_paths)
 
     def t_list_open_pull_requests(self) -> Dict[str, Any]:
         return {"pull_requests": _gh_open_pull_requests(self.repo, token=self.token, api_base_url=self.api_base_url, branch_prefix=self._required_branch_prefix())}
 
     def t_assess_pull_request(self, number: int) -> Dict[str, Any]:
-        pr = _gh_get_pull_request(self.repo, number, token=self.token, api_base_url=self.api_base_url, required_branch_prefix=self._required_branch_prefix())
+        pr = _gh_get_pull_request(self.repo, number, token=self.token, api_base_url=self.api_base_url, required_branch_prefix=self._required_branch_prefix(), exclude_paths=self.exclude_paths)
         return _gh_assess_risk(
             pr, protected_paths=self.protected_paths, low_risk_paths=self.low_risk_paths,
             low_risk_max_files=self.low_risk_max_files, low_risk_max_lines=self.low_risk_max_lines,
@@ -640,6 +666,7 @@ class GithubPrTools:
         return _gh_propose_fix(
             self.repo, branch, title, body, files, base_branch=self.base_branch, branch_prefix=self.branch_prefix,
             protected_paths=self.protected_paths, max_files_per_fix=self.max_files_per_fix,
+            exclude_paths=self.exclude_paths,
             token=self.token, api_base_url=self.api_base_url, note=note,
             practice_mode=_gh_is_practice_mode(self.practice_mode_env_var),
         )
@@ -665,7 +692,7 @@ class GithubPrTools:
             self.repo, number, decision, body, token=self.token, reviewer_token=self.reviewer_token,
             api_base_url=self.api_base_url, protected_paths=self.protected_paths, low_risk_paths=self.low_risk_paths,
             low_risk_max_files=self.low_risk_max_files, low_risk_max_lines=self.low_risk_max_lines,
-            required_branch_prefix=self._required_branch_prefix(),
+            required_branch_prefix=self._required_branch_prefix(), exclude_paths=self.exclude_paths,
         )
 
 
@@ -742,11 +769,36 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     protected_paths: List[str] = Field(
         default_factory=lambda: [".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."],
-        description="Path prefixes propose_fix refuses to touch (CI, dependencies, packaging).",
+        description=(
+            "Path prefixes propose_fix refuses to touch (CI, dependencies, packaging). A "
+            "directory-like entry (ends with '/', e.g. '.github/') matches that segment anywhere "
+            "in the path, not just at the repo root -- a monorepo's projects commonly live in a "
+            "subfolder (e.g. 'hooli-basics/.github/workflows/ci.yml'). A filename-like entry (no "
+            "trailing '/', e.g. 'Dockerfile'/'pyproject.toml') matches the file's own basename at "
+            "any depth, as well as a root-level prefix."
+        ),
+    )
+    exclude_paths: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Path prefixes the agent may neither READ nor change -- get_pull_request/"
+            "assess_pull_request/review_pull_request never include a matching file in the PR's "
+            "file list at all (not just refuse to approve touching it), and propose_fix refuses "
+            "to change one. For when the repository that hosts these agent components is the "
+            "SAME repository they review (e.g. 'assets/ai/github_pr_tools/' for this repo's own "
+            "copy) -- without this, a review agent spends its review on its own source instead "
+            "of the PR it's actually meant to look at. Same directory-like/filename-like "
+            "matching convention as protected_paths."
+        ),
     )
     low_risk_paths: List[str] = Field(
         default_factory=lambda: ["src/", "tests/", "docs/", "README"],
-        description="Path prefixes assess_pull_request/review_pull_request treat as low-risk when nothing else disqualifies the PR.",
+        description=(
+            "Path prefixes assess_pull_request/review_pull_request treat as low-risk when "
+            "nothing else disqualifies the PR. Same directory-like/filename-like matching "
+            "convention as protected_paths -- 'src/' matches a 'src' segment anywhere in the "
+            "path (e.g. 'hooli-basics/src/orders.py'), not only at the repo root."
+        ),
     )
     low_risk_max_files: int = Field(default=2, description="assess_pull_request: max changed files for a 'low' risk level.")
     low_risk_max_lines: int = Field(default=30, description="assess_pull_request: max changed lines (additions + deletions) for a 'low' risk level.")
@@ -797,7 +849,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=("protected_paths", "low_risk_paths", "allow", "mcp_extra_env_vars"), csv=(), tags=())
+        return coerce_field_shapes(data, lists=("protected_paths", "exclude_paths", "low_risk_paths", "allow", "mcp_extra_env_vars"), csv=(), tags=())
 
     @classmethod
     def get_form_config(cls):
@@ -813,6 +865,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         branch_prefix = self.branch_prefix
         restrict_to_branch_prefix = self.restrict_to_branch_prefix
         protected_paths = list(self.protected_paths)
+        exclude_paths = list(self.exclude_paths)
         low_risk_paths = list(self.low_risk_paths)
         low_risk_max_files = self.low_risk_max_files
         low_risk_max_lines = self.low_risk_max_lines
@@ -831,7 +884,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 repo=repo, token=os.environ.get(token_env_var, ""), reviewer_token=(os.environ.get(reviewer_token_env_var) if reviewer_token_env_var else None),
                 api_base_url=api_base_url, base_branch=base_branch, branch_prefix=branch_prefix,
                 restrict_to_branch_prefix=restrict_to_branch_prefix,
-                protected_paths=protected_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files,
+                protected_paths=protected_paths, exclude_paths=exclude_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files,
                 low_risk_max_lines=low_risk_max_lines, max_files_per_fix=max_files_per_fix, allow=allow, max_result_chars=max_chars,
                 practice_mode_env_var=practice_mode_env_var, ledger_path=ledger_path,
             )
@@ -846,6 +899,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 "GITHUB_PR_TOOLS_BRANCH_PREFIX": branch_prefix,
                 "GITHUB_PR_TOOLS_RESTRICT_TO_BRANCH_PREFIX": "1" if restrict_to_branch_prefix else "",
                 "GITHUB_PR_TOOLS_PROTECTED_PATHS": ",".join(protected_paths),
+                "GITHUB_PR_TOOLS_EXCLUDE_PATHS": ",".join(exclude_paths),
                 "GITHUB_PR_TOOLS_LOW_RISK_PATHS": ",".join(low_risk_paths),
                 "GITHUB_PR_TOOLS_LOW_RISK_MAX_FILES": str(low_risk_max_files),
                 "GITHUB_PR_TOOLS_LOW_RISK_MAX_LINES": str(low_risk_max_lines),
@@ -946,7 +1000,7 @@ def build_mcp_server(tools: GithubPrTools):
 def main(argv: Optional[List[str]] = None) -> None:
     """Env: GITHUB_PR_TOOLS_REPO (required), _TOKEN_ENV_VAR (default GITHUB_TOKEN), _REVIEWER_TOKEN_ENV_VAR,
     _API_BASE_URL, _BASE_BRANCH, _BRANCH_PREFIX, _RESTRICT_TO_BRANCH_PREFIX (any non-empty value is ON),
-    _PROTECTED_PATHS (csv), _LOW_RISK_PATHS (csv),
+    _PROTECTED_PATHS (csv), _EXCLUDE_PATHS (csv), _LOW_RISK_PATHS (csv),
     _LOW_RISK_MAX_FILES, _LOW_RISK_MAX_LINES, _MAX_FILES_PER_FIX, _ALLOW (csv), _MAX_CHARS,
     _PRACTICE_MODE_ENV_VAR (the NAME of another env var to read fresh at call time -- not a value),
     _LEDGER_PATH (directory for the per-run_id outcome-ledger JSON-lines files)."""
@@ -960,6 +1014,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     allow_env = os.environ.get("GITHUB_PR_TOOLS_ALLOW")
     allow = [t.strip() for t in allow_env.split(",") if t.strip()] if allow_env else None
     protected_env = os.environ.get("GITHUB_PR_TOOLS_PROTECTED_PATHS")
+    exclude_env = os.environ.get("GITHUB_PR_TOOLS_EXCLUDE_PATHS")
     low_risk_env = os.environ.get("GITHUB_PR_TOOLS_LOW_RISK_PATHS")
     tools = GithubPrTools(
         repo=repo, token=os.environ.get(token_env_var, ""),
@@ -969,6 +1024,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         branch_prefix=os.environ.get("GITHUB_PR_TOOLS_BRANCH_PREFIX", "agent/"),
         restrict_to_branch_prefix=bool(os.environ.get("GITHUB_PR_TOOLS_RESTRICT_TO_BRANCH_PREFIX")),
         protected_paths=[p.strip() for p in protected_env.split(",") if p.strip()] if protected_env else (".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."),
+        exclude_paths=[p.strip() for p in exclude_env.split(",") if p.strip()] if exclude_env else (),
         low_risk_paths=[p.strip() for p in low_risk_env.split(",") if p.strip()] if low_risk_env else ("src/", "tests/", "docs/", "README"),
         low_risk_max_files=int(os.environ.get("GITHUB_PR_TOOLS_LOW_RISK_MAX_FILES", "2")),
         low_risk_max_lines=int(os.environ.get("GITHUB_PR_TOOLS_LOW_RISK_MAX_LINES", "30")),

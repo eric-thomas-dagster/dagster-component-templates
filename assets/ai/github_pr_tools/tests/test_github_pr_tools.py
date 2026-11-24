@@ -202,6 +202,73 @@ def test_assess_pull_request_needs_human_when_checks_failing(mod, patched):
     assert any("checks are failing" in r for r in risk["reasons"])
 
 
+def test_assess_pull_request_protected_path_matches_inside_a_monorepo_subfolder(mod, patched):
+    """protected_paths=('.github/', ...) must match a project living in a subfolder (e.g.
+    'hooli-basics/.github/workflows/ci.yml'), not only a path rooted at the repo root -- a real
+    gap reported from a monorepo deployment."""
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "hooli-basics/.github/workflows/ci.yml", additions=2, deletions=0)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    risk = tools.t_assess_pull_request(1)
+    assert risk["level"] == "needs_human"
+    assert "protected path" in risk["reasons"][0]
+
+
+def test_assess_pull_request_low_risk_path_matches_inside_a_monorepo_subfolder(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "hooli-basics/src/orders.py", additions=1, deletions=1)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api)
+    risk = tools.t_assess_pull_request(1)
+    assert risk["level"] == "low"
+
+
+def test_assess_pull_request_filename_pattern_matches_at_any_depth(mod, patched):
+    """'Dockerfile' (no trailing '/') is filename-like -- must match the basename at any depth,
+    not only a root-level 'Dockerfile'."""
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "hooli-basics/services/worker/Dockerfile", additions=1, deletions=0)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api, protected_paths=(".github/", "pyproject.toml", "Dockerfile"))
+    risk = tools.t_assess_pull_request(1)
+    assert risk["level"] == "needs_human"
+    assert "protected path" in risk["reasons"][0]
+
+
+# ── exclude_paths: can neither read nor change (the agents' own repo, when self-hosted) ──────────
+
+def test_exclude_paths_hides_matching_files_from_get_pull_request(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "src/a.py", additions=1, deletions=1)
+    api.add_file(1, "assets/ai/github_pr_tools/component.py", additions=3, deletions=0)
+    tools = _tools(mod, api, exclude_paths=("assets/ai/github_pr_tools/",))
+    pr = tools.t_get_pull_request(1)
+    assert [f["path"] for f in pr["files"]] == ["src/a.py"]
+
+
+def test_exclude_paths_keeps_assess_pull_request_from_seeing_the_excluded_file(mod, patched):
+    api = patched
+    api.add_pull(1)
+    api.add_file(1, "assets/ai/github_pr_tools/component.py", additions=500, deletions=500)
+    api.set_checks("abc123", {"build": "success"})
+    tools = _tools(mod, api, exclude_paths=("assets/ai/github_pr_tools/",))
+    risk = tools.t_assess_pull_request(1)
+    assert risk["level"] == "low"
+    assert risk["reasons"] == []
+
+
+def test_exclude_paths_refuses_propose_fix_on_the_excluded_file(mod, patched):
+    api = patched
+    tools = _tools(mod, api, exclude_paths=("assets/ai/github_pr_tools/",))
+    result = tools.call("propose_fix", {"branch": "x", "title": "t", "body": "b", "files": [{"path": "assets/ai/github_pr_tools/component.py", "content": "x"}]})
+    assert "error" in result and "excluded" in result["error"]
+
+
 def test_review_pull_request_comment_always_allowed(mod, patched):
     api = patched
     api.add_pull(1)

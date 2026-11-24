@@ -157,6 +157,15 @@
       "label": "Restrict To Branch Prefix",
       "description": "When true, get_pull_request/list_open_pull_requests/assess_pull_request/review_pull_request all refuse (GithubPrScopeError) to operate on a PR whose head branch doesn't start with branch_prefix -- never a human's or a bot's (e.g. dependabot's) PR. Off by default, since this toolset also works as a general-purpose PR reviewer for any PR. Turn this on when pairing with sensors/github_pull_request_agent_sensor (which already only ever launches runs for branch_prefix PRs) -- a second layer of defense covering a manually-invoked chat agent or a hallucinated PR number.",
       "required": false
+    },
+    "exclude_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Paths",
+      "description": "Path prefixes the agent may neither READ nor change -- get_pull_request/assess_pull_request/review_pull_request never include a matching file in the PR's file list at all (not just refuse to approve touching it), and propose_fix refuses to change one. For when the repository that hosts these agent components is the SAME repository they review (e.g. 'assets/ai/github_pr_tools/' for this repo's own copy) -- without this, a review agent spends its review on its own source instead of the PR it's actually meant to look at. Same directory-like/filename-like matching convention as protected_paths.",
+      "required": false
     }
   }
 }

@@ -60,8 +60,12 @@ repo_notes: |
   `Run.repositoryOrigin.repositoryLocationName`, and `logsForRun` with `ExecutionStepUpForRetryEvent`/
   `ExecutionStepFailureEvent` are confirmed **real, OSS GraphQL fields** -- verified directly against the
   installed `dagster_graphql` package's own schema classes while building this component (not merely
-  assumed from the reference code, and not guessed). Dagster+ serves the same ones, plus its own
-  Dagster+-only extensions this component doesn't touch (e.g. `alertPolicies`).
+  assumed from the reference code, and not guessed). Every query is **also validated against a subset of the real
+  Dagster+ schema** (`tests/fixtures/dagster_plus_schema_subset.graphql`, generated from dagster-cloud's own
+  `schema.graphql`), because Dagster+ is stricter than OSS: it rejects `... on PythonError` under
+  `assetChecksOrError` (an earlier version sent it and every `project_overview` call got a Dagster+ HTTP 400).
+  The Dagster+-only `alertPoliciesForCodeLocation` is checked the same way. Run against a live Dagster+
+  deployment: `project_overview` on two real locations (checked by the Hooli team, asset counts matched).
 - `RunsFilter` has **no** `repositoryOrigin` filter argument in the OSS schema (confirmed absent from
   `GrapheneRunsFilter`) -- so, like the reference code, this component fetches `runsOrError(limit)`
   **unfiltered** and filters client-side on each run's own `repositoryOrigin.repositoryLocationName`,
@@ -83,8 +87,10 @@ repo_notes: |
   GraphQL schema does not expose the full installed site-packages list. A declared dependency this tool
   can't confirm is running gets `running_version: null`, never a guessed version.
 - "Incidents in the last 24h" is `runsOrError(status=FAILURE)` in the window + the failing step's error --
-  exactly what the reference code's own `incidents_last_24h` does. It is **not** alert-policy-fired events;
-  this component does not query `alertPolicies` at all (neither does the reference code's incidents tool).
+  exactly what the reference code's own `incidents_last_24h` does. It is **not** alert-policy-fired events.
+  The alert policies that apply to the location are reported separately as `alert_policies` /
+  `alert_policy_count` (`alertPoliciesForCodeLocation`; if the token can't read them the overview still
+  returns, with `alert_policies: null` and an `alert_policies_error`).
 - `deprecation_report` needs `repo` configured (reads Python files from GitHub via `repo`/`base_branch`,
   the same auth/traversal-safety conventions [`github_pr_tools`](../github_pr_tools) already established in
   this repo) and scans them with `dagster._annotations.{is_deprecated,get_deprecated_info,is_superseded,

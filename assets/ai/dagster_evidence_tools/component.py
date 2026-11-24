@@ -35,10 +35,12 @@ Honesty about what's verified vs. best-effort:
     the installed `dagster_graphql` package's own schema classes (`GrapheneAssetNode`, `GrapheneRun`,
     `GrapheneRepositoryOrigin`, `GrapheneFreshnessPolicy`, `dagster_graphql.schema.asset_checks`,
     `dagster_graphql.schema.logs.events`), not guessed and not merely assumed from the reference code.
-    `assetNodes`/`alertPolicies` are flagged Dagster+-only/unintrospectable in `dagster_discovery_tools`'s
-    own docstring -- this component's own direct schema check shows `assetNodes` (and the asset-level
-    fields this component queries) ARE present in the OSS `dagster_graphql` schema; Dagster+ layers
-    additional Dagster+-only fields (e.g. `alertPolicies`) on top, which this component does not query.
+    Every query this component sends is also validated against a subset of the real Dagster+ schema
+    (`tests/fixtures/dagster_plus_schema_subset.graphql`, generated from dagster-cloud's own schema by
+    `tests/fixtures/make_dagster_plus_schema_subset.py`), because Dagster+ is stricter than OSS: e.g. it
+    rejects `... on PythonError` under `assetChecksOrError`, whose union is only `AssetChecks |
+    AssetCheckNeedsMigrationError | AssetCheckNeedsUserCodeUpgrade`, while `dagster_graphql` accepts it.
+    `alertPoliciesForCodeLocation(codeLocationName)` is Dagster+-only and is checked the same way.
   - `RunsFilter` has NO `repositoryOrigin` filter argument in the OSS schema (confirmed: absent from
     `GrapheneRunsFilter`) -- so, like the reference code, this component fetches `runsOrError(limit)`
     UNFILTERED and filters client-side on each run's own `repositoryOrigin.repositoryLocationName`,
@@ -57,9 +59,8 @@ Honesty about what's verified vs. best-effort:
     docstring) alongside the latest published `dagster` release, matching the one time-comparison the
     reference code (and this component) can actually make.
   - "Incidents in the last 24h" is runsOrError(status=FAILURE) in the last 24h + the failing step's error,
-    exactly what the reference code's own `incidents_last_24h` does -- NOT alert-policy-fired events (this
-    component does not query `alertPolicies` at all, since the reference code's incidents tool doesn't
-    either).
+    exactly what the reference code's own `incidents_last_24h` does -- NOT alert-policy-fired events.
+    The alert policies that apply to the location are reported separately (`alert_policies`/`alert_policy_count`).
   - `deprecation_report` reads Python files from GitHub (via `repo`/`base_branch`, the same auth/traversal-
     safety conventions `github_pr_tools` already established in this repo -- `_gh_call`/`_gh_safe_path`/
     `_gh_path_matches_any`, inlined here per this repo's self-contained-component convention) and scans them
@@ -500,10 +501,16 @@ query {
     assetChecksOrError {
       __typename
       ... on AssetChecks { checks { name executionForLatestMaterialization { status timestamp } } }
-      ... on PythonError { message }
     }
     repository { location { name } }
   }
+}
+"""
+
+# Dagster+-only field (the policies that apply to one code location); the component already targets Dagster+ only.
+_ALERT_POLICIES_QUERY = """
+query($location: String!) {
+  alertPoliciesForCodeLocation(codeLocationName: $location) { id name description enabled eventTypes }
 }
 """
 
@@ -921,6 +928,16 @@ class DagsterEvidenceTools:
             ],
         }
 
+        alert_policies, alert_policies_error = None, None
+        try:
+            alert_policies = [
+                {"id": p.get("id"), "name": p.get("name"), "description": p.get("description"),
+                 "enabled": p.get("enabled"), "event_types": p.get("eventTypes") or []}
+                for p in self._client.call(_ALERT_POLICIES_QUERY, {"location": location}).get("alertPoliciesForCodeLocation") or []
+            ]
+        except EvidenceToolError as e:  # e.g. a token without alert-policy read access must not sink the whole overview
+            alert_policies_error = str(e)[:300]
+
         dependencies = self._dependency_report(libraries)
         dagster_dependency = next(
             (d["spec"] for d in dependencies.get("declared_dependencies", []) if d["name"] == "dagster"), None
@@ -940,6 +957,9 @@ class DagsterEvidenceTools:
             "runtime_changes": self._runtime_changes(runs),
             "dependencies": dependencies,
             "incidents": self._incidents(runs),
+            "alert_policies": alert_policies,
+            "alert_policy_count": None if alert_policies is None else len(alert_policies),
+            **({"alert_policies_error": alert_policies_error} if alert_policies_error else {}),
         }
 
 

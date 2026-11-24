@@ -68,7 +68,8 @@ class _FakeGraphQLClient:
     this component builds has a distinguishing, non-overlapping substring)."""
 
     def __init__(self, assets_response=None, workspace_response=None, runs_response=None,
-                 retry_events_by_run=None, failure_events_by_run=None):
+                 retry_events_by_run=None, failure_events_by_run=None, alert_policies=None):
+        self.alert_policies = [] if alert_policies is None else alert_policies  # a list, or an Exception to raise
         self.assets_response = assets_response or {}
         self.workspace_response = workspace_response or {}
         self.runs_response = runs_response or {}
@@ -83,6 +84,10 @@ class _FakeGraphQLClient:
             return {"logsForRun": self.retry_events_by_run.get(run_id, {"__typename": "EventConnection", "events": []})}
         if "ExecutionStepFailureEvent" in query:
             return {"logsForRun": self.failure_events_by_run.get(run_id, {"__typename": "EventConnection", "events": []})}
+        if "alertPoliciesForCodeLocation" in query:
+            if isinstance(self.alert_policies, Exception):
+                raise self.alert_policies
+            return {"alertPoliciesForCodeLocation": self.alert_policies}
         if "runsOrError" in query:
             return self.runs_response
         if "workspaceOrError" in query:
@@ -461,3 +466,72 @@ def test_repo_notes_passes_through_component_config_unchanged(monkeypatch):
     tools, _ = _overview_tools(github_api=None, repo=None, repo_notes="Flakiness in retry_handler.py is deliberate.")
     result = tools.call("project_overview", {"location": "ingestion"})
     assert result["repo_notes"] == "Flakiness in retry_handler.py is deliberate."
+
+
+# ── Dagster+ schema validation + alert policies ────────────────────────────────────────────────────────────────────
+
+_SCHEMA_SUBSET = __import__("pathlib").Path(__file__).parent / "fixtures" / "dagster_plus_schema_subset.graphql"
+
+
+def _component_queries():
+    return {n: v for n, v in vars(mod).items() if n.startswith("_") and n.endswith("_QUERY") and isinstance(v, str)}
+
+
+def test_every_graphql_query_validates_against_the_dagster_plus_schema():
+    # Dagster+ is stricter than OSS dagster_graphql: it rejected `... on PythonError` under assetChecksOrError with an
+    # HTTP 400 on every project_overview call. Validate every query this component sends against the real Dagster+ schema.
+    graphql = pytest.importorskip("graphql")
+    schema = graphql.build_schema(_SCHEMA_SUBSET.read_text())
+    queries = _component_queries()
+    assert {"_ASSETS_QUERY", "_WORKSPACE_QUERY", "_RUNS_QUERY", "_ALERT_POLICIES_QUERY"} <= set(queries)
+    for name, query in queries.items():
+        errors = graphql.validate(schema, graphql.parse(query))
+        assert not errors, f"{name} is not valid against the Dagster+ schema: {[e.message for e in errors]}"
+
+
+def test_the_schema_check_would_have_caught_the_pythonerror_fragment():
+    graphql = pytest.importorskip("graphql")
+    schema = graphql.build_schema(_SCHEMA_SUBSET.read_text())
+    bad = mod._ASSETS_QUERY.replace(
+        "executionForLatestMaterialization { status timestamp } } }",
+        "executionForLatestMaterialization { status timestamp } } }\n      ... on PythonError { message }")
+    assert bad != mod._ASSETS_QUERY
+    errors = graphql.validate(schema, graphql.parse(bad))
+    assert any("can never be of type 'PythonError'" in e.message for e in errors)
+
+
+def test_project_overview_reports_alert_policies_for_the_location(monkeypatch):
+    monkeypatch.setattr("requests.request", FakeGithubApi(repo="acme/widgets", tree=[], contents={}).request)
+    _pypi_github_release(monkeypatch)
+    _osv(monkeypatch)
+    tools, client = _overview_tools(None)
+    client.alert_policies = [
+        {"id": "p1", "name": "fail-alert", "description": "d", "enabled": True, "eventTypes": ["ASSET_MATERIALIZATION_FAILURE"]},
+        {"id": "p2", "name": "off", "description": "", "enabled": False, "eventTypes": None},
+    ]
+    result = tools.call("project_overview", {"location": "ingestion"})
+    assert "error" not in result, result
+    assert result["alert_policy_count"] == 2
+    assert result["alert_policies"][0] == {"id": "p1", "name": "fail-alert", "description": "d", "enabled": True,
+                                           "event_types": ["ASSET_MATERIALIZATION_FAILURE"]}
+    assert result["alert_policies"][1]["event_types"] == []
+    alert_calls = [c for c in client.calls if "alertPoliciesForCodeLocation" in c[0]]
+    assert [v for _, v in alert_calls] == [{"location": "ingestion"}]
+
+
+def test_project_overview_survives_an_unreadable_alert_policies_field(monkeypatch):
+    _pypi_github_release(monkeypatch)
+    _osv(monkeypatch)
+    tools, client = _overview_tools(None)
+    client.alert_policies = mod.EvidenceToolError("Dagster+ GraphQL errors: not authorized")
+    result = tools.call("project_overview", {"location": "ingestion"})
+    assert "error" not in result, result
+    assert result["alert_policies"] is None and result["alert_policy_count"] is None
+    assert "not authorized" in result["alert_policies_error"]
+    assert len(result["assets"]) == 1
+
+
+def test_asset_checks_union_members_other_than_assetchecks_count_as_no_checks():
+    for typename in ("AssetCheckNeedsMigrationError", "AssetCheckNeedsUserCodeUpgrade"):
+        assert mod._check_health({"assetChecksOrError": {"__typename": typename}}) == {
+            "passing": 0, "failing": 0, "stale": 0, "failing_checks": []}

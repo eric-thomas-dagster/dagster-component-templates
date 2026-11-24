@@ -319,6 +319,7 @@ def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: st
         "merged": bool(pr.get("merged")),
         "head_sha": pr["head"]["sha"],
         "head_ref": pr["head"]["ref"],
+        "base_ref": (pr.get("base") or {}).get("ref"),
         "files": [
             {
                 "path": f["filename"], "status": f["status"], "additions": f["additions"],

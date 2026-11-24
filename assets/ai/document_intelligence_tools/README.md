@@ -85,6 +85,8 @@ Studio, vLLM...), e.g. `OLLAMA_API_BASE=http://localhost:11434` with `model: oll
 | `max_result_chars` | `int` | `12000` | Upper bound on the serialized size of any tool result. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with DOCUMENT_INTELLIGENCE_TOOLS_* env vars set from this component's own config). Any mcp_servers-aware component can then… _(full docs in schema.json + component README)_ |
 | `mcp_extra_env_vars` | `List[str]` | — | mcp_server_resource_key only. Extra env var NAMES to copy into the spawned MCP server's env. |
+| `review_queue_approval_dir` | `str` | — | Approval directory used by AgentReviewQueueComponent (the SAME `approval_dir` value your review-queue asset scans). When set, `extract` writes a pending review record to `<review_queue_approval_dir>/pending/<key>.json` w… _(full docs in schema.json + component README)_ |
+| `low_confidence_null_rate_threshold` | `float` | `0.3` | Only used when `review_queue_approval_dir` is set. Fraction (0-1) of requested `output_fields` that came back null/empty above which `extract` queues the result for review. There is no real confidence score anywhere in t… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

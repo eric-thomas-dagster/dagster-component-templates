@@ -195,6 +195,226 @@ def test_parse_schema_suggestion_response_raises_on_malshaped_items(mod):
         mod.parse_schema_suggestion_response('["just_a_string"]', max_fields=12)
 
 
+# ── review-queue wiring (extract -> agent_review_queue's pending/*.json; opt-in via review_queue_approval_dir) ──
+
+def test_review_queue_off_by_default_never_writes_anything_even_on_empty_fields(mod, fake_litellm, tmp_path):
+    _, state = fake_litellm
+    state["response_text"] = '{"field_a": null}'  # 100% null_rate -- would queue if the feature were on
+    doc = tmp_path / "doc.txt"
+    doc.write_text("some content")
+
+    tools = mod.DocumentIntelligenceTools()  # review_queue_approval_dir unset
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["field_a"]})
+
+    assert "error" not in result, result
+    assert result["queued_for_review"] is False
+    assert "review_key" not in result
+    assert not (tmp_path / "pending").exists()
+
+
+def test_low_null_rate_does_not_queue(mod, fake_litellm, tmp_path):
+    _, state = fake_litellm
+    state["response_text"] = '{"a": "x", "b": "y", "c": "z"}'  # 0% null_rate
+    doc = tmp_path / "doc.txt"
+    doc.write_text("some content")
+    approval_dir = tmp_path / "reviews"
+
+    tools = mod.DocumentIntelligenceTools(review_queue_approval_dir=str(approval_dir))
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["a", "b", "c"]})
+
+    assert "error" not in result, result
+    assert result["queued_for_review"] is False
+    assert "review_key" not in result
+    assert not (approval_dir / "pending").exists()
+
+
+def test_high_null_rate_queues_and_pending_json_matches_schema_field_for_field(mod, fake_litellm, tmp_path):
+    _, state = fake_litellm
+    state["response_text"] = '{"a": null, "b": null, "c": "z"}'  # null_rate = 2/3 ≈ 0.67 > default 0.3
+    doc = tmp_path / "doc.txt"
+    doc.write_text("some content")
+    approval_dir = tmp_path / "reviews"
+
+    tools = mod.DocumentIntelligenceTools(review_queue_approval_dir=str(approval_dir))
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["a", "b", "c"], "doc_label": "invoice"})
+
+    assert "error" not in result, result
+    assert result["queued_for_review"] is True
+    assert result["review_reason"] == "null_rate"
+    key = result["review_key"]
+    assert len(key) == 16
+
+    pending_files = list((approval_dir / "pending").glob("*.json"))
+    assert len(pending_files) == 1
+    assert pending_files[0].name == f"{key}.json"
+
+    import json
+    rec = json.loads(pending_files[0].read_text())
+    assert set(rec.keys()) == {
+        "step", "key", "requested_at", "fingerprint", "state", "reason", "reuse", "max_age_hours",
+        "expires_at", "on_timeout", "summary", "preview", "approve_by_writing",
+    }
+    assert rec["step"] == "document_intelligence_tools.extract"
+    assert rec["key"] == key
+    assert rec["fingerprint"].startswith(key)
+    assert len(rec["fingerprint"]) == 64  # full sha256 hex
+    assert rec["state"] == "new"
+    assert "null_rate" in rec["reason"]
+    assert rec["reuse"] == "once"
+    assert rec["max_age_hours"] is None
+    assert rec["expires_at"] is None
+    assert rec["on_timeout"] is None
+    assert isinstance(rec["summary"], str) and rec["summary"]
+    assert isinstance(rec["preview"], str) and rec["preview"]
+    assert rec["approve_by_writing"]["path"] == f"{str(approval_dir).rstrip('/')}/{key}.json"
+    assert rec["approve_by_writing"]["json"] == {
+        "approved": True, "approver": "<you>", "reason": "<why>",
+        "fingerprint": rec["fingerprint"], "approved_at": "<iso timestamp>",
+    }
+    # requested_at parses as ISO 8601 UTC
+    from datetime import datetime
+    datetime.fromisoformat(rec["requested_at"].replace("Z", "+00:00"))
+
+
+def test_llm_error_queues_regardless_of_threshold(mod, tmp_path, monkeypatch):
+    import sys
+    import types
+
+    def raising_completion(*args, **kwargs):
+        raise RuntimeError("rate limited")
+
+    fake_module = types.ModuleType("litellm")
+    fake_module.completion = raising_completion
+    monkeypatch.setitem(sys.modules, "litellm", fake_module)
+
+    doc = tmp_path / "doc.txt"
+    doc.write_text("some content")
+    approval_dir = tmp_path / "reviews"
+
+    # threshold at 1.0 (never trip on null_rate alone) -- the error must still queue
+    tools = mod.DocumentIntelligenceTools(review_queue_approval_dir=str(approval_dir), low_confidence_null_rate_threshold=1.0)
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["a"]})
+
+    assert result["queued_for_review"] is True
+    assert result["review_reason"] == "extraction_error"
+    assert "error" in result
+
+    import json
+    pending_files = list((approval_dir / "pending").glob("*.json"))
+    assert len(pending_files) == 1
+    rec = json.loads(pending_files[0].read_text())
+    assert "extraction_error" in rec["reason"]
+    assert "rate limited" in rec["reason"]
+
+
+def test_null_rate_module_function(mod):
+    assert mod._null_rate({"a": None, "b": "", "c": "x"}, ["a", "b", "c"]) == pytest.approx(2 / 3)
+    assert mod._null_rate({"a": "x"}, ["a"]) == 0.0
+    assert mod._null_rate({}, []) == 0.0
+
+
+# ── check_review_decision (read-only; mirrors agent_review_queue's approve-by-writing token shape) ───────────────
+
+def test_check_review_decision_before_token_file_exists(mod, tmp_path):
+    tools = mod.DocumentIntelligenceTools()
+    result = tools.call("check_review_decision", {"approval_dir": str(tmp_path), "key": "abc123"})
+    assert result == {"decided": False, "approved": None, "approver": None, "reason": None, "approved_at": None}
+
+
+def test_check_review_decision_after_a_human_writes_the_token(mod, tmp_path):
+    import json
+    token = {"approved": True, "approver": "alice", "reason": "looks right", "fingerprint": "fp", "approved_at": "2026-01-01T00:00:00+00:00"}
+    (tmp_path / "abc123.json").write_text(json.dumps(token))
+
+    tools = mod.DocumentIntelligenceTools()
+    result = tools.call("check_review_decision", {"approval_dir": str(tmp_path), "key": "abc123"})
+    assert result == {
+        "decided": True, "approved": True, "approver": "alice", "reason": "looks right",
+        "approved_at": "2026-01-01T00:00:00+00:00",
+    }
+
+
+def test_check_review_decision_end_to_end_with_extract_queue_and_approve_pending_shape(mod, fake_litellm, tmp_path):
+    """Simulates the real flow: extract() queues a review, then a human writes the approve_by_writing token
+    verbatim (as agentic_pipeline's own approve_pending() does), and check_review_decision reports it."""
+    _, state = fake_litellm
+    state["response_text"] = '{"a": null}'
+    doc = tmp_path / "doc.txt"
+    doc.write_text("x")
+    approval_dir = tmp_path / "reviews"
+
+    tools = mod.DocumentIntelligenceTools(review_queue_approval_dir=str(approval_dir))
+    extract_result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["a"]})
+    key = extract_result["review_key"]
+
+    before = tools.call("check_review_decision", {"approval_dir": str(approval_dir), "key": key})
+    assert before["decided"] is False
+
+    import json
+    pending = json.loads((approval_dir / "pending" / f"{key}.json").read_text())
+    token = {**pending["approve_by_writing"]["json"], "approved": True, "approver": "bob", "reason": "fine", "approved_at": "2026-02-02T00:00:00+00:00"}
+    (approval_dir / f"{key}.json").write_text(json.dumps(token))
+
+    after = tools.call("check_review_decision", {"approval_dir": str(approval_dir), "key": key})
+    assert after == {"decided": True, "approved": True, "approver": "bob", "reason": "fine", "approved_at": "2026-02-02T00:00:00+00:00"}
+
+
+def test_check_review_decision_requires_approval_dir_and_key(mod):
+    tools = mod.DocumentIntelligenceTools()
+    assert "approval_dir" in tools.call("check_review_decision", {"approval_dir": "", "key": "k"})["error"]
+    assert "key" in tools.call("check_review_decision", {"approval_dir": "/tmp/x", "key": ""})["error"]
+
+
+def test_check_review_decision_with_fsspec_memory_uri(mod, fake_litellm, tmp_path):
+    pytest.importorskip("fsspec")
+    import uuid
+    import json
+
+    doc = tmp_path / "doc.txt"
+    doc.write_text("x")
+    _, state = fake_litellm
+    state["response_text"] = '{"a": null}'
+    approval_dir = f"memory://review-test-{uuid.uuid4().hex}"
+
+    tools = mod.DocumentIntelligenceTools(review_queue_approval_dir=approval_dir)
+    extract_result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["a"]})
+    assert extract_result["queued_for_review"] is True
+    key = extract_result["review_key"]
+
+    before = tools.call("check_review_decision", {"approval_dir": approval_dir, "key": key})
+    assert before["decided"] is False
+
+    import fsspec
+    fs, root = fsspec.core.url_to_fs(approval_dir)
+    pending_raw = fs.open(f"{root}/pending/{key}.json").read()
+    pending = json.loads(pending_raw)
+    token = {**pending["approve_by_writing"]["json"], "approved": False, "approver": "carol", "reason": "nope"}
+    with fs.open(f"{root}/{key}.json", "w") as f:
+        f.write(json.dumps(token))
+
+    after = tools.call("check_review_decision", {"approval_dir": approval_dir, "key": key})
+    assert after["decided"] is True
+    assert after["approved"] is False
+    assert after["approver"] == "carol"
+
+
+# ── ALL_TOOLS / tool_names / call() dispatch include the new tool ─────────────────────────────────────────────────
+
+def test_all_tools_includes_check_review_decision(mod):
+    assert mod.ALL_TOOLS == ("extract", "suggest_schema", "check_review_decision")
+
+
+def test_tool_names_includes_check_review_decision_by_default(mod):
+    tools = mod.DocumentIntelligenceTools()
+    assert tools.tool_names() == ["extract", "suggest_schema", "check_review_decision"]
+
+
+def test_call_dispatches_check_review_decision(mod, tmp_path):
+    tools = mod.DocumentIntelligenceTools()
+    result = tools.call("check_review_decision", {"approval_dir": str(tmp_path), "key": "nope"})
+    assert result["decided"] is False
+
+
 # ── dispatcher: allow-list + unknown tool + size cap (same conventions as dagster_evidence_tools) ────────────────
 
 def test_tool_names_respects_allow_list(mod):
@@ -290,14 +510,14 @@ def test_get_form_config_is_editable(mod):
 
 # ── MCP server tool registration ────────────────────────────────────────────────────────────────────────────────
 
-def test_build_mcp_server_exposes_exactly_the_two_tools(mod):
+def test_build_mcp_server_exposes_exactly_the_three_tools(mod):
     pytest.importorskip("mcp")
     tools = mod.DocumentIntelligenceTools()
     server = mod.build_mcp_server(tools)
     import asyncio
     listed = asyncio.run(server.list_tools())
     names = sorted(t.name for t in listed)
-    assert names == ["extract", "suggest_schema"]
+    assert names == ["check_review_decision", "extract", "suggest_schema"]
 
 
 def test_build_mcp_server_respects_the_allow_list(mod):

@@ -75,6 +75,18 @@
       "label": "Mcp Extra Env Vars",
       "description": "mcp_server_resource_key only. Extra env var NAMES to copy into the spawned MCP server's env.",
       "required": false
+    },
+    "review_queue_approval_dir": {
+      "type": "string",
+      "label": "Review Queue Approval Dir",
+      "description": "Approval directory used by AgentReviewQueueComponent (the SAME `approval_dir` value your review-queue asset scans). When set, `extract` writes a pending review record to `<review_queue_approval_dir>/pending/<key>.json` whenever the LLM call errors, or too many requested fields come back null/empty -- feeding the exact same human review queue agentic_pipeline's `approve` step feeds. Unset (default) = feature off; `extract` stays fully read-only and never writes anything.",
+      "required": false
+    },
+    "low_confidence_null_rate_threshold": {
+      "type": "number",
+      "label": "Low Confidence Null Rate Threshold",
+      "description": "Only used when `review_queue_approval_dir` is set. Fraction (0-1) of requested `output_fields` that came back null/empty above which `extract` queues the result for review. There is no real confidence score anywhere in this extraction pipeline -- this null-rate is a deliberate, honest proxy, not a fabricated model-confidence estimate. An LLM-call exception always queues regardless of this threshold.",
+      "required": false
     }
   }
 }

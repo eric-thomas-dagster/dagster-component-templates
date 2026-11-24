@@ -108,6 +108,24 @@
       "label": "Skip In Branch Deployments",
       "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-announces the same failed run in Slack and double-launches a fixer run.",
       "required": false
+    },
+    "max_runs_per_day": {
+      "type": "integer",
+      "label": "Max Runs Per Day",
+      "description": "Max failures triaged GLOBALLY (across every signature) per rolling 24 hours -- an independent ceiling on top of max_triage_per_hour, for a deployment where many distinct failure signatures could each individually stay under the hourly cap but still add up to an unreasonable number of agent runs over a day. Leave unset for no daily cap.",
+      "required": false
+    },
+    "cooldown_hours": {
+      "type": "number",
+      "label": "Cooldown Hours",
+      "description": "Same as cooldown_minutes, expressed in hours -- set this instead when the natural unit is days (e.g. 168 for a week of flapping). Takes precedence over cooldown_minutes when set.",
+      "required": false
+    },
+    "use_retry_rule": {
+      "type": "boolean",
+      "label": "Use Retry Rule",
+      "description": "A failed run that is itself a retry of an earlier run (carries Dagster's own dagster/root_run_id tag) is skipped if that retry chain's root was already triaged; an untriaged retry becomes the triage point for its whole chain instead, so later retries of the same underlying failure are suppressed too. This is a direct lineage check (not signature matching), so it still works even with cooldown set to 0.",
+      "required": false
     }
   }
 }

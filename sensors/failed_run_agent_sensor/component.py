@@ -158,7 +158,10 @@ class _RateLimiter:
     def _compact(self, evs, now: datetime, cooldown_minutes: float) -> None:
         now_ms = self._ms(now)
         for ms, kind, n in evs:
-            if kind == "triage" and ms <= now_ms - 3_600_000:
+            # Kept for 24h (not just the 1h max_per_hour needs) so max_per_day's rolling-24h
+            # count has history to look back over too -- a strict superset of what max_per_hour
+            # alone would need, at the cost of a few extra small JSON files for a day.
+            if kind == "triage" and ms <= now_ms - 86_400_000:
                 self._withdraw(n)
             elif kind == "suppressed" and ms <= now_ms - int(max(cooldown_minutes, 60.0) * 60_000):
                 self._withdraw(n)
@@ -179,8 +182,14 @@ class _RateLimiter:
                 out.append((n, d))
         return out
 
-    def admit(self, key: str, run_id: str, now: datetime, max_per_hour: int, cooldown_minutes: float) -> "tuple[str, Optional[str]]":
-        """Claim one triage slot for `run_id`. Returns ("ok", None) | ("cooldown", until_iso) | ("rate_limited", None)."""
+    def admit(
+        self, key: str, run_id: str, now: datetime, max_per_hour: int, cooldown_minutes: float,
+        max_per_day: Optional[int] = None,
+    ) -> "tuple[str, Optional[str]]":
+        """Claim one triage slot for `run_id`. Returns ("ok", None) | ("cooldown", until_iso) | ("rate_limited", None).
+
+        `max_per_hour`/`max_per_day` are both GLOBAL counts across every key (every signature),
+        not per-key -- two independent rolling-window ceilings on top of the per-key cooldown."""
         with self._lock:
             evs = self._events()
             self._compact(evs, now, cooldown_minutes)
@@ -189,8 +198,11 @@ class _RateLimiter:
             if live:
                 self._append("suppressed", run_id, now, {"key": key})
                 return "cooldown", str(live[0][1].get("until"))
-            lo = self._ms(now) - 3_600_000
-            if sum(1 for ms, kind, _ in evs if kind == "triage" and ms > lo) >= int(max_per_hour):
+            lo_hour = self._ms(now) - 3_600_000
+            lo_day = self._ms(now) - 86_400_000
+            if sum(1 for ms, kind, _ in evs if kind == "triage" and ms > lo_hour) >= int(max_per_hour):
+                return "rate_limited", None
+            if max_per_day and sum(1 for ms, kind, _ in evs if kind == "triage" and ms > lo_day) >= int(max_per_day):
                 return "rate_limited", None
             t = self._append("triage", run_id, now, {"key": key})
             c = None
@@ -202,25 +214,40 @@ class _RateLimiter:
                 self._withdraw(t, c)
                 self._append("suppressed", run_id, now, {"key": key})
                 return "cooldown", str(earlier[0][1].get("until"))
-            window = [n for ms, kind, n in evs if kind == "triage" and ms > lo]
+            window = [n for ms, kind, n in evs if kind == "triage" and ms > lo_hour]
             if window.index(t) >= int(max_per_hour):
+                self._withdraw(t, c)
+                return "rate_limited", None
+            day_window = [n for ms, kind, n in evs if kind == "triage" and ms > lo_day]
+            if max_per_day and day_window.index(t) >= int(max_per_day):
                 self._withdraw(t, c)
                 return "rate_limited", None
             return "ok", None
 
 
-def error_signature(job_name: str, error_class: str, message: str, step_keys: List[str]) -> str:
-    """Stable id for 'the same failure': job + root error class + the message with ids/numbers normalized + failed steps."""
+def _strip_dynamic_suffix(step_key: str) -> str:
+    """`process_chunk[4]` and `process_chunk[9]` are the same mapped step failing on different
+    dynamic-output indices -- strip the trailing bracketed index before hashing into the
+    signature, so N parallel failures of the same underlying step collapse to one signature
+    instead of N distinct ones that each look brand-new to the cooldown."""
+    return re.sub(r"\[[^\]]*\]$", "", step_key)
+
+
+def error_signature(location: str, job_name: str, error_class: str, message: str, step_keys: List[str]) -> str:
+    """Stable id for 'the same failure': location + job + root error class + the message with
+    ids/numbers normalized + failed steps (dynamic-mapping suffixes stripped -- see
+    _strip_dynamic_suffix)."""
     first = (message or "").strip().splitlines()[0] if (message or "").strip() else ""
     norm = re.sub(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", "<uuid>", first)
     norm = re.sub(r"0x[0-9a-fA-F]+", "<hex>", norm)
     norm = re.sub(r"\d+", "<n>", norm)[:200]
-    blob = json.dumps([job_name, error_class, norm, sorted(step_keys)], ensure_ascii=False)
+    normalized_steps = sorted({_strip_dynamic_suffix(k) for k in step_keys})
+    blob = json.dumps([location or "", job_name, error_class, norm, normalized_steps], ensure_ascii=False)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:12]
 # END failure-cooldown rate limiter
 
 
-def _extract_failure_signature(context, job_name: str) -> "tuple[str, List[str]]":
+def _extract_failure_signature(context, location: Optional[str], job_name: str) -> "tuple[str, List[str]]":
     """The failed step keys + a stable error signature, from the run's own STEP_FAILURE events (falling back to
     the generic failure_event when there are none -- e.g. a run-level failure with no step ever starting)."""
     events = context.get_step_failure_events()
@@ -237,7 +264,52 @@ def _extract_failure_signature(context, job_name: str) -> "tuple[str, List[str]]
     else:
         fe = getattr(context, "failure_event", None)
         message = (getattr(fe, "message", None) or "") if fe is not None else ""
-    return error_signature(job_name, error_class, message, step_keys), step_keys
+    return error_signature(location or "", job_name, error_class, message, step_keys), step_keys
+
+
+def _run_history_admit(
+    instance, sensor_name: str, sig: str, now: datetime, max_per_hour: Optional[int],
+    max_per_day: Optional[int], cooldown_minutes: float,
+) -> "tuple[str, Optional[str]]":
+    """Same verdict shape as _RateLimiter.admit, but reads and writes no files at all: cooldown and
+    rate-limit state are both derived purely from runs this sensor itself already launched, found by
+    querying past RunRequest tags (eng/error_signature for cooldown, eng/sensor_name for the two
+    GLOBAL rate ceilings -- mirroring _RateLimiter.admit's own global-not-per-key counting). Used
+    when evidence_dir is unset: no state directory, no shared disk requirement, survives a restart
+    for free since it's just a query against Dagster's own run storage."""
+    import dagster as dg
+
+    if cooldown_minutes > 0:
+        same_sig = instance.get_run_records(
+            filters=dg.RunsFilter(tags={"eng/error_signature": sig}, created_after=now - timedelta(minutes=cooldown_minutes)),
+        )
+        if same_sig:
+            newest = max(r.create_timestamp for r in same_sig)
+            return "cooldown", _iso(newest + timedelta(minutes=cooldown_minutes))
+    if max_per_hour:
+        cnt = len(instance.get_run_records(
+            filters=dg.RunsFilter(tags={"eng/sensor_name": sensor_name}, created_after=now - timedelta(hours=1)),
+        ))
+        if cnt >= int(max_per_hour):
+            return "rate_limited", None
+    if max_per_day:
+        cnt = len(instance.get_run_records(
+            filters=dg.RunsFilter(tags={"eng/sensor_name": sensor_name}, created_after=now - timedelta(hours=24)),
+        ))
+        if cnt >= int(max_per_day):
+            return "rate_limited", None
+    return "ok", None
+
+
+def _already_triaged_retry_chain_root(instance, root_run_id: str) -> bool:
+    """True when some earlier run in this retry chain was already triaged (tagged
+    eng/retry_chain_root=root_run_id on the launched RunRequest) -- a direct lineage check via
+    Dagster's own dagster/root_run_id tag, independent of signature matching entirely, so it still
+    works even if cooldown_minutes/cooldown_hours is 0 or the retry's error message happens to differ
+    slightly from the original's."""
+    import dagster as dg
+
+    return bool(instance.get_run_records(filters=dg.RunsFilter(tags={"eng/retry_chain_root": root_run_id}), limit=1))
 
 
 def _get_slack_client(bot_token_env_var: str):
@@ -270,9 +342,44 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     dagster_url: Optional[str] = Field(default=None, description="Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod') used to build the run link in the Slack message. Leave unset to link just the run id with no URL.")
 
-    evidence_dir: str = Field(description="Directory the cooldown rate-limiter's small per-event files live under (local or NFS-shared path -- not a cloud URI; exclusive-create needs a real filesystem).")
-    max_triage_per_hour: int = Field(default=10, description="Max failures triaged (Slack post + run launch) per (job, error signature) per rolling hour.")
-    cooldown_minutes: float = Field(default=60.0, description="After triaging one occurrence of a (job, error signature), suppress further triage of the SAME signature for this many minutes.")
+    evidence_dir: Optional[str] = Field(
+        default=None,
+        description=(
+            "Directory the cooldown rate-limiter's small per-event files live under (local or "
+            "NFS-shared path -- not a cloud URI; exclusive-create needs a real filesystem). Leave "
+            "unset to track cooldown/rate-limit state purely from past run history instead -- "
+            "queried by the eng/error_signature and eng/sensor_name tags this sensor puts on every "
+            "run it launches -- with no state file at all, no shared-disk requirement, and nothing "
+            "lost on a restart. Set this only for the more precise sliding-window counting the "
+            "file-based limiter gives (it has a finer-grained global rate ceiling than the "
+            "once-per-tick run-history query does)."
+        ),
+    )
+    max_triage_per_hour: int = Field(default=10, description="Max failures triaged (Slack post + run launch) GLOBALLY (across every signature) per rolling hour.")
+    max_runs_per_day: Optional[int] = Field(
+        default=None,
+        description=(
+            "Max failures triaged GLOBALLY (across every signature) per rolling 24 hours -- an "
+            "independent ceiling on top of max_triage_per_hour, for a deployment where many distinct "
+            "failure signatures could each individually stay under the hourly cap but still add up to "
+            "an unreasonable number of agent runs over a day. Leave unset for no daily cap."
+        ),
+    )
+    cooldown_minutes: float = Field(default=60.0, description="After triaging one occurrence of a (job, error signature), suppress further triage of the SAME signature for this many minutes. Ignored when cooldown_hours is set.")
+    cooldown_hours: Optional[float] = Field(
+        default=None,
+        description="Same as cooldown_minutes, expressed in hours -- set this instead when the natural unit is days (e.g. 168 for a week of flapping). Takes precedence over cooldown_minutes when set.",
+    )
+    use_retry_rule: bool = Field(
+        default=True,
+        description=(
+            "A failed run that is itself a retry of an earlier run (carries Dagster's own "
+            "dagster/root_run_id tag) is skipped if that retry chain's root was already triaged; an "
+            "untriaged retry becomes the triage point for its whole chain instead, so later retries of "
+            "the same underlying failure are suppressed too. This is a direct lineage check (not "
+            "signature matching), so it still works even with cooldown set to 0."
+        ),
+    )
 
     minimum_interval_seconds: int = Field(default=30, description="Minimum seconds between sensor evaluations.")
     default_status: str = Field(default="RUNNING", description="'RUNNING' or 'STOPPED'.")
@@ -309,7 +416,10 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         dagster_url = (self.dagster_url or "").rstrip("/")
         evidence_dir = self.evidence_dir
         max_triage_per_hour = self.max_triage_per_hour
-        cooldown_minutes = self.cooldown_minutes
+        max_runs_per_day = self.max_runs_per_day
+        cooldown_minutes = self.cooldown_hours * 60.0 if self.cooldown_hours is not None else self.cooldown_minutes
+        use_retry_rule = self.use_retry_rule
+        sensor_name = self.sensor_name
         skip_in_branch_deployments = self.skip_in_branch_deployments
 
         def failure_fn(context: dg.RunFailureSensorContext):
@@ -325,16 +435,30 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             if required_tags and not all((run.tags or {}).get(k) == v for k, v in required_tags.items()):
                 return dg.SkipReason(f"run {run.run_id[:8]} does not carry all required_tags.")
 
-            sig, step_keys = _extract_failure_signature(context, run.job_name)
-            ckey = f"{run.job_name}|{sig}"
-            fs = _RateLimiterFS(evidence_dir)
-            fs.mkdir()
-            limiter = _RateLimiter(fs)
-            verdict, until = limiter.admit(ckey, run.run_id, datetime.now(timezone.utc), max_triage_per_hour, cooldown_minutes)
+            root_run_id = (run.tags or {}).get("dagster/root_run_id")
+            chain_root = root_run_id or run.run_id
+            if use_retry_rule and root_run_id and _already_triaged_retry_chain_root(context.instance, chain_root):
+                return dg.SkipReason(
+                    f"retry: run {run.run_id[:8]} is a retry (dagster/root_run_id={chain_root[:8]}) "
+                    "of a run already triaged."
+                )
+
+            sig, step_keys = _extract_failure_signature(context, location, run.job_name)
+            now = datetime.now(timezone.utc)
+            if evidence_dir:
+                ckey = f"{run.job_name}|{sig}"
+                fs = _RateLimiterFS(evidence_dir)
+                fs.mkdir()
+                limiter = _RateLimiter(fs)
+                verdict, until = limiter.admit(ckey, run.run_id, now, max_triage_per_hour, cooldown_minutes, max_per_day=max_runs_per_day)
+            else:
+                verdict, until = _run_history_admit(context.instance, sensor_name, sig, now, max_triage_per_hour, max_runs_per_day, cooldown_minutes)
             if verdict == "cooldown":
-                return dg.SkipReason(f"cooldown: job {run.job_name!r} / signature {sig} was triaged recently (until {until}).")
+                cooldown_h = cooldown_minutes / 60.0
+                return dg.SkipReason(f"Same failure analyzed in the last {cooldown_h:g}h ({sig}) -- job {run.job_name!r}, suppressed until {until}.")
             if verdict == "rate_limited":
-                return dg.SkipReason(f"rate limit: max_triage_per_hour={max_triage_per_hour} reached for job {run.job_name!r} / signature {sig}.")
+                cap_desc = f"max_triage_per_hour={max_triage_per_hour}" + (f", max_runs_per_day={max_runs_per_day}" if max_runs_per_day else "")
+                return dg.SkipReason(f"rate limit reached ({cap_desc}) for job {run.job_name!r} / signature {sig}.")
 
             run_url = f"{dagster_url}/runs/{run.run_id}" if dagster_url else run.run_id
             text = message_template.format(run_id=run.run_id[:8], job_name=run.job_name, url=run_url)
@@ -344,13 +468,13 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             except Exception as e:  # noqa: BLE001
                 return dg.SkipReason(f"Slack post failed: {e}")
 
-            return dg.RunRequest(
-                run_key=run.run_id,
-                tags={
-                    "eng/failed_run_id": run.run_id, "eng/error_signature": sig,
-                    "slack/channel": posted["channel"], "slack/thread_ts": posted["ts"],
-                },
-            )
+            tags = {
+                "eng/failed_run_id": run.run_id, "eng/error_signature": sig, "eng/sensor_name": sensor_name,
+                "slack/channel": posted["channel"], "slack/thread_ts": posted["ts"],
+            }
+            if use_retry_rule:
+                tags["eng/retry_chain_root"] = chain_root
+            return dg.RunRequest(run_key=run.run_id, tags=tags)
 
         sensor_def = dg.run_failure_sensor(
             name=self.sensor_name,

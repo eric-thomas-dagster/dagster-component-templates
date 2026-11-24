@@ -4,11 +4,18 @@ On a failed run, launches `asset_keys` (a bug-fixer asset + its Slack-reply asse
 
 Built on `@dg.run_failure_sensor` (not a plain sensor) -- which only ever accepts a fixed `request_job`, never an asset selection, so this component builds its own `dg.define_asset_job(f"{sensor_name}_job", selection=asset_keys)` internally and passes that as `request_job`.
 
-## Cooldown per (job, error signature)
+## Triage, not analyze-every-failure
 
-Same append-only, one-file-per-event rate-limiter [`RunFailureRemediationComponent`](../../assets/ai/run_failure_remediation) already uses, under `<evidence_dir>/_state/ratelimit/`: an error signature is the job name + root error class + the message with ids/numbers normalized + the failed step keys, hashed. `max_triage_per_hour` bounds how many DISTINCT signatures get triaged per rolling hour; `cooldown_minutes` suppresses re-triaging the SAME signature (a flapping job failing the same way repeatedly) for that long after the first one.
+A real deployment can fail 5+ times a day from just two flaky jobs -- without triage, that's 5+ Slack posts and agent runs a day for the same two underlying problems. Four independent, all-generic controls (none of them job-specific):
 
-This is the one place in the whole engineering-agents component family that genuinely needs a file -- it bounds a rate across many never-repeating run ids, which Dagster's own `RunRequest(run_key=...)` dedup (one run per distinct key) can't express by itself.
+- **Error signature**: code location + job name + root error class + the message with ids/paths/numbers normalized + the failed step keys. A mapped step's dynamic index is stripped before hashing (`process_chunk[4]` and `process_chunk[9]` are the same step), so N parallel failures of one mapped step collapse into one signature instead of N distinct ones.
+- **Cooldown**: suppress re-triaging the SAME signature for `cooldown_minutes` (or `cooldown_hours`, e.g. 168 for a week) after the first occurrence.
+- **Retry rule** (`use_retry_rule`, on by default): a failed run that is itself a retry (Dagster's own `dagster/root_run_id` tag) is skipped if that retry chain was already triaged; an untriaged retry becomes the triage point for its whole chain instead, so later retries of the same attempt don't each get their own Slack post. This is a direct lineage check, not signature matching, so it still works with `cooldown_minutes: 0`.
+- **Daily cap** (`max_runs_per_day`, unset by default): a GLOBAL ceiling across every signature combined, independent of `max_triage_per_hour`'s own (also global, despite the name) hourly ceiling -- for a deployment where many distinct signatures could each individually stay under the hourly cap but still add up to an unreasonable number of runs over a day.
+
+A skipped failure always says why in the sensor tick, e.g. `Same failure analyzed in the last 168h (<signature>)`.
+
+**Where the state lives.** Set `evidence_dir` for the same append-only, one-file-per-event rate-limiter [`RunFailureRemediationComponent`](../../assets/ai/run_failure_remediation) uses, under `<evidence_dir>/_state/ratelimit/` -- gives the most precise sliding-window counting, but needs a real filesystem (local or NFS-shared; not a cloud URI). Leave `evidence_dir` unset and there is no state file at all: cooldown, the daily/hourly caps, and the retry rule are all read straight from past run history instead, by querying the tags this sensor puts on every run it launches (`eng/error_signature`, `eng/sensor_name`, `eng/retry_chain_root`) -- nothing to provision, nothing lost on a restart, works the same whether the sensor's pod has local, shared, or ephemeral disk.
 
 ## Tags on the launched run
 
@@ -28,7 +35,6 @@ This is the one place in the whole engineering-agents component family that genu
 |---|---|---|
 | `asset_keys` | `List[str]` | Agent asset(s) to launch on a failure (e.g. a bug-fixer asset + its Slack-reply asset). |
 | `slack_channel` | `str` | Channel to announce a failed run in (either `C123ABC456` id or `#channel-name`). |
-| `evidence_dir` | `str` | Directory the cooldown rate-limiter's small per-event files live under (local or NFS-shared path -- not a cloud URI; exclusive-create needs a real filesystem). |
 
 ### Sensor configuration
 
@@ -48,8 +54,12 @@ This is the one place in the whole engineering-agents component family that genu
 | `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's `xoxb-...` token. Needs `chat:write`. |
 | `message_template` | `str` | — | Optional custom message template. Placeholders: {run_id} (short, 8 chars), {job_name}, {url}. Default: ':beetle: Run <{url}\|{run_id}> of `{job_name}` failed. Looking into the cause.' |
 | `dagster_url` | `str` | — | Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod') used to build the run link in the Slack message. Leave unset to link just the run id with no URL. |
-| `max_triage_per_hour` | `int` | `10` | Max failures triaged (Slack post + run launch) per (job, error signature) per rolling hour. |
-| `cooldown_minutes` | `float` | `60.0` | After triaging one occurrence of a (job, error signature), suppress further triage of the SAME signature for this many minutes. |
+| `evidence_dir` | `str` | — | Directory the cooldown rate-limiter's small per-event files live under (local or NFS-shared path -- not a cloud URI; exclusive-create needs a real filesystem). Leave unset to track cooldown/rate-limit state purely from p… _(full docs in schema.json + component README)_ |
+| `max_triage_per_hour` | `int` | `10` | Max failures triaged (Slack post + run launch) GLOBALLY (across every signature) per rolling hour. |
+| `max_runs_per_day` | `int` | — | Max failures triaged GLOBALLY (across every signature) per rolling 24 hours -- an independent ceiling on top of max_triage_per_hour, for a deployment where many distinct failure signatures could each individually stay un… _(full docs in schema.json + component README)_ |
+| `cooldown_minutes` | `float` | `60.0` | After triaging one occurrence of a (job, error signature), suppress further triage of the SAME signature for this many minutes. Ignored when cooldown_hours is set. |
+| `cooldown_hours` | `float` | — | Same as cooldown_minutes, expressed in hours -- set this instead when the natural unit is days (e.g. 168 for a week of flapping). Takes precedence over cooldown_minutes when set. |
+| `use_retry_rule` | `bool` | `true` | A failed run that is itself a retry of an earlier run (carries Dagster's own dagster/root_run_id tag) is skipped if that retry chain's root was already triaged; an untriaged retry becomes the triage point for its whole c… _(full docs in schema.json + component README)_ |
 | `skip_in_branch_deployments` | `bool` | `true` | Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch de… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

@@ -534,3 +534,176 @@ def test_this_module_name_raises_a_clear_error_without_a_module_spec(mod, monkey
     monkeypatch.setattr(mod, "__spec__", None)
     with pytest.raises(RuntimeError, match="python -m"):
         mod._this_module_name()
+
+
+# ── additional_prompt / detect_selections / refine (toolset-level config, applied to every extract() call) ───────
+
+def test_additional_prompt_reaches_the_text_prompt(mod, fake_litellm, tmp_path):
+    calls, _ = fake_litellm
+    doc = tmp_path / "invoice.txt"
+    doc.write_text("Invoice #INV-42, total due $110.00")
+
+    tools = mod.DocumentIntelligenceTools(additional_prompt="preserve signed amounts")
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["invoice_number"]})
+
+    assert "error" not in result, result
+    prompt_text = calls[0]["messages"][0]["content"]
+    assert isinstance(prompt_text, str)
+    assert "Additional context: preserve signed amounts" in prompt_text
+    assert prompt_text.index("Additional context:") < prompt_text.index("Return only a JSON object")
+
+
+def test_additional_prompt_reaches_the_image_prompt(mod, fake_litellm, tmp_path):
+    from PIL import Image
+
+    calls, _ = fake_litellm
+    img_path = tmp_path / "form.png"
+    Image.new("RGB", (10, 10), color=(1, 2, 3)).save(img_path)
+
+    tools = mod.DocumentIntelligenceTools(additional_prompt="this is a redacted filing")
+    result = tools.call("extract", {"file_ref": str(img_path), "output_fields": ["field_a"]})
+
+    assert "error" not in result, result
+    text_block = next(c for c in calls[0]["messages"][0]["content"] if isinstance(c, dict) and c.get("type") == "text")
+    assert "Additional context: this is a redacted filing" in text_block["text"]
+    assert text_block["text"].index("Additional context:") < text_block["text"].index("Return only a JSON object")
+
+
+def test_detect_selections_with_image_input_parses_selection_marks(mod, fake_litellm, tmp_path):
+    from PIL import Image
+
+    calls, state = fake_litellm
+    state["response_text"] = (
+        '{"field_a": "value_a", "selection_marks": [{"label": "Yes", "checked": true}]}'
+    )
+    img_path = tmp_path / "form.png"
+    Image.new("RGB", (10, 10), color=(4, 5, 6)).save(img_path)
+
+    tools = mod.DocumentIntelligenceTools(detect_selections=True)
+    result = tools.call("extract", {"file_ref": str(img_path), "output_fields": ["field_a"]})
+
+    assert "error" not in result, result
+    text_block = next(c for c in calls[0]["messages"][0]["content"] if isinstance(c, dict) and c.get("type") == "text")
+    assert "selection_marks" in text_block["text"]
+    assert result["fields"]["selection_marks"] == [{"label": "Yes", "checked": True}]
+
+
+def test_detect_selections_with_text_input_warns_and_returns_none_without_a_second_call(mod, fake_litellm, tmp_path, caplog):
+    calls, _ = fake_litellm
+    doc = tmp_path / "doc.txt"
+    doc.write_text("just plain text, no image here")
+
+    tools = mod.DocumentIntelligenceTools(detect_selections=True)
+    with caplog.at_level("WARNING"):
+        result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["field_a"]})
+
+    assert "error" not in result, result
+    assert len(calls) == 1  # no extra call just because detect_selections was requested
+    assert result["fields"]["selection_marks"] is None
+    assert any("detect_selections=True requires image input" in r.message for r in caplog.records)
+
+
+def test_detect_selections_false_never_touches_selection_marks(mod, fake_litellm, tmp_path):
+    doc = tmp_path / "doc.txt"
+    doc.write_text("hello")
+    tools = mod.DocumentIntelligenceTools()  # detect_selections defaults to False
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["field_a"]})
+    assert "error" not in result, result
+    assert "selection_marks" not in result["fields"]
+
+
+def test_refine_true_makes_two_calls_and_returns_the_refined_result(mod, fake_litellm, tmp_path):
+    calls, state = fake_litellm
+    doc = tmp_path / "doc.txt"
+    doc.write_text("Invoice #INV-1, total due $42.00 (OCR garbled: $4Z.OO)")
+
+    responses = iter(['{"total": 420.0}', '{"total": 42.0}'])
+
+    def fake_completion(model, messages, api_key=None, **kwargs):
+        calls.append({"model": model, "messages": messages, "api_key": api_key, "kwargs": kwargs})
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=next(responses)))]
+        )
+
+    sys.modules["litellm"].completion = fake_completion
+
+    tools = mod.DocumentIntelligenceTools(refine=True)
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["total"]})
+
+    assert "error" not in result, result
+    assert len(calls) == 2
+    second_messages = calls[1]["messages"][0]["content"]
+    assert "420.0" in second_messages
+    assert "OCR garbled" in second_messages
+    assert result["fields"]["total"] == 42.0
+
+
+def test_refine_false_makes_exactly_one_call(mod, fake_litellm, tmp_path):
+    calls, _ = fake_litellm
+    doc = tmp_path / "doc.txt"
+    doc.write_text("hello")
+    tools = mod.DocumentIntelligenceTools()  # refine defaults to False
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["field_a"]})
+    assert "error" not in result, result
+    assert len(calls) == 1
+
+
+def test_refine_model_override_used_for_the_second_call_only(mod, fake_litellm, tmp_path):
+    calls, state = fake_litellm
+    state["response_text"] = '{"field_a": "x"}'
+    doc = tmp_path / "doc.txt"
+    doc.write_text("hello")
+    tools = mod.DocumentIntelligenceTools(default_model="gpt-4o", refine=True, refine_model="gpt-4o-mini")
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["field_a"]})
+    assert "error" not in result, result
+    assert calls[0]["model"] == "gpt-4o"
+    assert calls[1]["model"] == "gpt-4o-mini"
+
+
+def test_refine_with_a_malformed_reply_raises_clearly_at_the_extract_one_level(mod, fake_litellm, tmp_path):
+    doc = tmp_path / "doc.txt"
+    doc.write_text("Total due: 12.50")
+    responses = iter(['{"total": 12.5}', "not json at all"])
+
+    def fake_completion(model, messages, api_key=None, **kwargs):
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=next(responses)))]
+        )
+
+    sys.modules["litellm"].completion = fake_completion
+    with pytest.raises(Exception):
+        mod.extract_one(str(doc), output_fields=["total"], model="m", refine=True)
+
+
+def test_refine_with_a_malformed_reply_surfaces_as_a_tool_error(mod, fake_litellm, tmp_path):
+    doc = tmp_path / "doc.txt"
+    doc.write_text("Total due: 12.50")
+    responses = iter(['{"total": 12.5}', "not json at all"])
+
+    def fake_completion(model, messages, api_key=None, **kwargs):
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=next(responses)))]
+        )
+
+    sys.modules["litellm"].completion = fake_completion
+    tools = mod.DocumentIntelligenceTools(refine=True)
+    result = tools.call("extract", {"file_ref": str(doc), "output_fields": ["total"]})
+    assert "error" in result
+    assert "extract failed" in result["error"]
+
+
+def test_component_additional_prompt_detect_selections_refine_fields_reach_the_toolset(mod, fake_litellm, tmp_path):
+    doc = tmp_path / "doc.txt"
+    doc.write_text("hello")
+    component = mod.DocumentIntelligenceToolsComponent(
+        additional_prompt="be precise", detect_selections=True, refine=True, refine_model="gpt-4o-mini",
+    )
+    defs = component.build_defs(context=None)
+
+    @dg.asset(required_resource_keys={"document_intelligence_tools"})
+    def _consumer(context):
+        tools = context.resources.document_intelligence_tools
+        return tools.call("extract", {"file_ref": str(doc), "output_fields": ["field_a"]})
+
+    result = dg.materialize([_consumer], resources=dict(defs.resources))
+    assert result.success

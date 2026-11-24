@@ -32,3 +32,9 @@ attributes:
   #   that produces this directly; hand-writing it is the fallback. —
   # field_regions:
   #   invoice_number: {x: 0.6, y: 0.05, width: 0.3, height: 0.08}
+
+  # — extraction-quality controls (all opt-in, off by default) —
+  # additional_prompt: "preserve signed amounts exactly as written"
+  # detect_selections: true    # checkbox/radio/handwritten-mark detection -- image input only
+  # refine: true               # one corrective second pass
+  # refine_model: gpt-4o       # optional -- defaults to `model` for both passes

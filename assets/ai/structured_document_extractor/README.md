@@ -124,6 +124,50 @@ document_type: invoice
 output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own list, not the invoice preset
 ```
 
+## Extraction-quality controls
+
+Three controls, all opt-in and off by default:
+
+### `additional_prompt` -- domain/document steering
+
+```yaml
+additional_prompt: "preserve signed amounts exactly as written (do not drop minus signs)"
+```
+
+Appended to every document's prompt as extra context -- steering, not a hard constraint; the model can still
+omit a field it genuinely can't find.
+
+### `detect_selections` -- checkbox / radio / handwritten mark detection
+
+```yaml
+detect_selections: true
+```
+
+Also asks the model to identify checkboxes, radio buttons, and handwritten selection marks, returned as an
+extra `selection_marks` output column: `[{"label": "...", "checked": true/false}]`.
+
+Selection-mark detection is a **visual** signal -- it only runs for rows that actually resolve to an image
+(`input_type: file` with an image extension). A text-layer PDF or raw-text row has nothing to detect against,
+so that row gets `selection_marks: None` -- not attempted -- with a logged warning, rather than an empty list
+(which would mean "attempted, found none"). Rendering PDF pages to images so this can run against them is not
+done here.
+
+### `refine` -- one corrective second pass
+
+```yaml
+refine: true
+refine_model: gpt-4o          # optional -- defaults to `model` for both passes
+```
+
+After a document's first-pass extraction succeeds, makes ONE additional LLM call: shown the SAME original
+content (reused, not re-read from disk) plus the first pass's own JSON, asked to correct OCR/text-reading
+mistakes, wrong table structure, and number/currency formatting, and returns the corrected result in place of
+the first pass's.
+
+This is a single corrective pass, not a multi-mode (tables/text/formatting/layout) review pipeline -- a
+deliberate, honestly-scoped improvement, not a stand-in for a bigger one. It doubles the LLM calls (and
+cost/latency) for every document, so it's off by default.
+
 ## Pairs with
 
 `file_lister` — when you want a SHARED, reusable listing asset multiple extractors read from: install it, then point `upstream_asset_key` at it and `input_column: local_path`. For a one-off extraction over a bucket/folder, `path` mode above skips the separate asset entirely.
@@ -176,6 +220,8 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -214,6 +260,10 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 | `llm_max_retries` | `int` | `2` | Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries. |
 | `max_content_chars` | `int` | `20000` | Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to imag… _(full docs in schema.json + component README)_ |
 | `field_regions` | `Dict[str, Dict[str, float]]` | — | Optional per-field bounding boxes (fractional 0-1 coordinates: x, y, width, height) marking approximately where each field appears on the document, e.g. {'invoice_number': {'x': 0.6, 'y': 0.05, 'width': 0.3, 'height': 0… _(full docs in schema.json + component README)_ |
+| `additional_prompt` | `str` | — | Extra domain/document context appended to every document's prompt, e.g. 'preserve signed amounts' or 'this is a redacted legal filing'. Steering, not a hard constraint -- the model can still omit a field it genuinely can't find. |
+| `detect_selections` | `bool` | `false` | Also ask the model to identify checkboxes, radio buttons, and handwritten selection marks, returned as an extra 'selection_marks' output column: [{'label': str, 'checked': bool}]. Selection-mark detection is a VISUAL sig… _(full docs in schema.json + component README)_ |
+| `refine` | `bool` | `false` | After a document's first-pass extraction succeeds, make ONE additional LLM call that reviews the first pass against the SAME original content (reused, not re-read) for OCR/text-reading mistakes, wrong table structure, an… _(full docs in schema.json + component README)_ |
+| `refine_model` | `str` | — | Model used for the refine pass only (litellm format). Unset = reuse `model` for both passes. Only used when refine=true. |
 | `post_process` | `str` | `"none"` | What to do with each SOURCE file (not the LLM output) once it's been successfully extracted: 'none' (leave in place -- the same files get reprocessed on every materialize, so `path` mode with 'none' is only really safe f… _(full docs in schema.json + component README)_ |
 | `post_process_dir` | `str` | — | Destination directory when post_process='move'. Same fsspec scheme as the source file (local, s3://, gs://, ...). Required when post_process='move'. |
 | `validation` | `Dict[str, Any]` | — | Flag documents that need a person to look at them, and emit one asset check (`extraction_quality`) on the share that passed. `{required_fields: [...], reconcile: {total_field, items_field, item_amount_key: amount, add_fi… _(full docs in schema.json + component README)_ |

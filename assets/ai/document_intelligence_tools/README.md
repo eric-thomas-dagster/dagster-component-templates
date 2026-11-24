@@ -50,6 +50,36 @@ from documents like the one sample given. It reuses the same file-reading and
 ```json ...``` fence-stripping convention `extract`'s own `parse_extraction_response` already established. An
 unparseable or wrongly-shaped reply raises a clear `ValueError` -- it never silently returns garbage.
 
+## Extraction-quality controls (toolset-level, opt-in)
+
+`additional_prompt`, `detect_selections`, and `refine` configure `extract`'s shared extraction core (same
+behavior as the matching fields on `structured_document_extractor`), set once on the component/toolset and
+applied to every `extract` call it serves. All default off/unset, so `extract` behaves exactly as before
+unless you turn one on.
+
+```yaml
+type: dagster_community_components.DocumentIntelligenceToolsComponent
+attributes:
+  default_model: gpt-4o
+  api_key_env_var: OPENAI_API_KEY
+  additional_prompt: "this is a redacted legal filing"
+  detect_selections: true   # checkbox/radio/handwritten-mark detection -- image input only
+  refine: true               # one corrective second pass
+  refine_model: gpt-4o       # optional -- defaults to the call's own model for both passes
+```
+
+- **`additional_prompt`** -- extra domain/document context appended to the prompt. Steering, not a hard
+  constraint.
+- **`detect_selections`** -- adds an extra `selection_marks` key to `extract`'s `fields` result:
+  `[{"label": "...", "checked": true/false}]`. A VISUAL signal -- only runs when `file_ref` resolves to an
+  image; a text-layer PDF or raw text gets `selection_marks: None` (not attempted, logged as a warning), not
+  a faked empty list.
+- **`refine`** -- after the first-pass extraction succeeds, makes ONE additional LLM call that reviews it
+  against the SAME original content (reused, not re-read) for OCR/table-structure/number-formatting errors
+  and returns the corrected result instead. A single corrective pass, not a multi-mode (tables/text/
+  formatting/layout) review pipeline -- `refine_model` can pick a different model for just this second call.
+  Doubles the LLM calls (and cost/latency) per `extract` call.
+
 ## Deliberately NOT built here
 
 Each of these is its own recipe gap, tracked separately -- do not expect them from this component:
@@ -90,6 +120,10 @@ Studio, vLLM...), e.g. `OLLAMA_API_BASE=http://localhost:11434` with `model: oll
 | `mcp_extra_env_vars` | `List[str]` | — | mcp_server_resource_key only. Extra env var NAMES to copy into the spawned MCP server's env. |
 | `review_queue_approval_dir` | `str` | — | Approval directory used by AgentReviewQueueComponent (the SAME `approval_dir` value your review-queue asset scans). When set, `extract` writes a pending review record to `<review_queue_approval_dir>/pending/<key>.json` w… _(full docs in schema.json + component README)_ |
 | `low_confidence_null_rate_threshold` | `float` | `0.3` | Only used when `review_queue_approval_dir` is set. Fraction (0-1) of requested `output_fields` that came back null/empty above which `extract` queues the result for review. There is no real confidence score anywhere in t… _(full docs in schema.json + component README)_ |
+| `additional_prompt` | `str` | — | Extra domain/document context appended to every `extract` call's prompt, e.g. 'preserve signed amounts' or 'this is a redacted legal filing'. Steering, not a hard constraint -- the model can still omit a field it genuine… _(full docs in schema.json + component README)_ |
+| `detect_selections` | `bool` | `false` | `extract` also asks the model to identify checkboxes, radio buttons, and handwritten selection marks, returned as an extra `selection_marks` key on the result's `fields`: [{'label': str, 'checked': bool}]. Selection-mark… _(full docs in schema.json + component README)_ |
+| `refine` | `bool` | `false` | After `extract`'s first-pass extraction succeeds, make ONE additional LLM call that reviews the first pass against the SAME original content (reused, not re-read) for OCR/text-reading mistakes, wrong table structure, and… _(full docs in schema.json + component README)_ |
+| `refine_model` | `str` | — | Model used for the refine pass only (litellm format). Unset = reuse the call's own model for both passes. Only used when refine=true. |
 
 [//]: # (FIELDS:END)
 

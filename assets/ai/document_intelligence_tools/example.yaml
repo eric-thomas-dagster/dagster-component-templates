@@ -8,3 +8,9 @@ attributes:
   # allow: [extract, suggest_schema]        # default: both
   max_result_chars: 12000
   # mcp_server_resource_key: document_intelligence_tools_mcp   # share this toolset via server_resource_key
+
+  # — extraction-quality controls (all opt-in, off by default; applied to every extract() call) —
+  # additional_prompt: "preserve signed amounts exactly as written"
+  # detect_selections: true    # checkbox/radio/handwritten-mark detection -- image input only
+  # refine: true               # one corrective second pass
+  # refine_model: gpt-4o       # optional -- defaults to the call's own model for both passes

@@ -455,3 +455,176 @@ def test_bad_validation_fails_at_build_time_not_at_run_time(mod):
 ])
 def test_money_parsing(mod, value, expected):
     assert mod._to_number(value) == expected
+
+
+# --- additional_prompt / detect_selections / refine ------------------------------------------------------------------
+
+def test_additional_prompt_reaches_the_image_prompt(mod, fake_litellm, tmp_path):
+    from PIL import Image
+
+    calls, _ = fake_litellm
+    img_path = tmp_path / "receipt.png"
+    Image.new("RGB", (20, 20), color=(255, 0, 0)).save(img_path)
+
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["field_a"], additional_prompt="preserve signed amounts",
+    )
+    assert _materialize_one_row(mod, component, str(img_path)).success
+
+    message_content = calls[0]["messages"][0]["content"]
+    text_block = next(c for c in message_content if isinstance(c, dict) and c.get("type") == "text")
+    assert "Additional context: preserve signed amounts" in text_block["text"]
+    assert text_block["text"].index("Additional context:") < text_block["text"].index("Return only a JSON object")
+
+
+def test_additional_prompt_reaches_the_text_prompt(mod, fake_litellm, tmp_path):
+    calls, _ = fake_litellm
+    doc = tmp_path / "a.txt"
+    doc.write_text("Invoice #1, total due $42.00")
+
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["field_a"], additional_prompt="this is a redacted filing",
+    )
+    assert _materialize_one_row(mod, component, str(doc)).success
+
+    prompt_text = calls[0]["messages"][0]["content"]
+    assert isinstance(prompt_text, str)
+    assert "Additional context: this is a redacted filing" in prompt_text
+    assert prompt_text.index("Additional context:") < prompt_text.index("Return only a JSON object")
+
+
+def test_detect_selections_with_image_input_parses_selection_marks(mod, fake_litellm, tmp_path):
+    from PIL import Image
+
+    calls, state = fake_litellm
+    state["response_text"] = (
+        '{"field_a": "value_a", "selection_marks": [{"label": "Yes", "checked": true}, '
+        '{"label": "No", "checked": false}]}'
+    )
+    img_path = tmp_path / "form.png"
+    Image.new("RGB", (20, 20), color=(0, 255, 0)).save(img_path)
+
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["field_a"], detect_selections=True,
+    )
+    result = _materialize_one_row(mod, component, str(img_path))
+    assert result.success
+
+    text_block = next(c for c in calls[0]["messages"][0]["content"] if isinstance(c, dict) and c.get("type") == "text")
+    assert "selection_marks" in text_block["text"]
+
+    df = result.output_for_node("extracted")
+    assert df.loc[0, "selection_marks"] == [{"label": "Yes", "checked": True}, {"label": "No", "checked": False}]
+
+
+def test_detect_selections_with_text_input_warns_and_returns_none(mod, fake_litellm, tmp_path, capsys):
+    calls, _ = fake_litellm
+    doc = tmp_path / "a.txt"
+    doc.write_text("just plain text, no image here")
+
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["field_a"], detect_selections=True,
+    )
+    result = _materialize_one_row(mod, component, str(doc))
+    assert result.success
+    assert len(calls) == 1  # no extra call made just because detect_selections was requested
+
+    df = result.output_for_node("extracted")
+    assert df.loc[0, "selection_marks"] is None
+    captured = capsys.readouterr()
+    assert "detect_selections=True requires image input" in captured.err
+
+
+def test_detect_selections_false_never_touches_selection_marks(mod, fake_litellm, tmp_path):
+    doc = tmp_path / "a.txt"
+    doc.write_text("hello")
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["field_a"],
+    )
+    result = _materialize_one_row(mod, component, str(doc))
+    assert result.success
+    assert "selection_marks" not in result.output_for_node("extracted").columns
+
+
+def test_refine_true_makes_two_calls_and_returns_the_refined_result(mod, fake_litellm, tmp_path):
+    calls, state = fake_litellm
+    doc = tmp_path / "a.txt"
+    doc.write_text("Invoice #INV-1, total due $42.00 (OCR garbled: $4Z.OO)")
+
+    responses = iter(['{"total": 420.0}', '{"total": 42.0}'])  # first pass wrong, refine corrects it
+
+    def fake_completion(model, messages, api_key=None, **kwargs):
+        calls.append({"model": model, "messages": messages, "kwargs": kwargs})
+        import types as _types
+        return _types.SimpleNamespace(
+            choices=[_types.SimpleNamespace(message=_types.SimpleNamespace(content=next(responses)))]
+        )
+
+    import sys
+    sys.modules["litellm"].completion = fake_completion
+
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["total"], refine=True,
+    )
+    result = _materialize_one_row(mod, component, str(doc))
+    assert result.success
+    assert len(calls) == 2
+
+    second_messages = calls[1]["messages"][0]["content"]
+    assert "420.0" in second_messages  # first-pass result shown back to the model
+    assert "OCR garbled" in second_messages  # original content reused, not re-read
+
+    df = result.output_for_node("extracted")
+    assert df.loc[0, "total"] == 42.0  # the refined value, not the first pass's
+
+
+def test_refine_false_makes_exactly_one_call(mod, fake_litellm, tmp_path):
+    calls, _ = fake_litellm
+    doc = tmp_path / "a.txt"
+    doc.write_text("hello")
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["field_a"],
+    )
+    assert _materialize_one_row(mod, component, str(doc)).success
+    assert len(calls) == 1
+
+
+def test_refine_model_override_is_used_for_the_second_call_only(mod, fake_litellm, tmp_path):
+    calls, state = fake_litellm
+    state["response_text"] = '{"field_a": "x"}'
+    doc = tmp_path / "a.txt"
+    doc.write_text("hello")
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["field_a"], model="gpt-4o", refine=True, refine_model="gpt-4o-mini",
+    )
+    assert _materialize_one_row(mod, component, str(doc)).success
+    assert calls[0]["model"] == "gpt-4o"
+    assert calls[1]["model"] == "gpt-4o-mini"
+
+
+def test_refine_with_a_malformed_reply_raises_clearly(mod, fake_litellm, tmp_path):
+    calls, state = fake_litellm
+    doc = tmp_path / "a.txt"
+    doc.write_text("Total due: 12.50")
+
+    responses = iter(['{"total": 12.5}', "not json at all"])
+
+    def fake_completion(model, messages, api_key=None, **kwargs):
+        import types as _types
+        return _types.SimpleNamespace(
+            choices=[_types.SimpleNamespace(message=_types.SimpleNamespace(content=next(responses)))]
+        )
+
+    import sys
+    sys.modules["litellm"].completion = fake_completion
+
+    with pytest.raises(Exception):
+        mod.extract_one(str(doc), output_fields=["total"], model="m", refine=True)

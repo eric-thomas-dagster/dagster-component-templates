@@ -17,6 +17,15 @@ Those components are kept for backward compatibility (existing YAML
 referencing them keeps working) but new usage should prefer this one --
 same mechanism, `document_type` picks the preset instead of picking a
 whole separate component.
+
+Three extraction-quality controls, all opt-in and off by default:
+`additional_prompt` (extra domain/document context appended to the prompt,
+e.g. "preserve signed amounts"), `detect_selections` (checkbox/radio/
+handwritten-mark detection -- a VISUAL signal, so it only runs for rows
+that resolve to an image; see `detect_selections`'s own field docs for the
+honest None-vs-[] distinction on text/PDF rows), and `refine` (one
+additional, corrective LLM pass per document -- a single review, not a
+multi-mode tables/text/formatting/layout taxonomy).
 """
 
 from typing import Any, Dict, List, Optional, Union
@@ -264,18 +273,29 @@ def build_extraction_messages(
     doc_label: str = "document",
     max_content_chars: Optional[int] = None,
     field_regions: Optional[Dict[str, Dict[str, float]]] = None,
+    additional_prompt: Optional[str] = None,
+    detect_selections: bool = False,
+    resolved_content: Optional["tuple[Optional[str], Optional[dict]]"] = None,
     warn: Any = None,
 ) -> List[dict]:
     """The exact chat messages sent to the model for one document.
 
     Module-level (not buried in the asset) so anything that wants to preview an extraction, such as a builder UI's "try it on
     these samples", sends the SAME prompt production will -- a preview that differs from the real run is worse than none.
+
+    `resolved_content`, when given, is an already-resolved `(text, image_block)` pair (exactly `_extract_file_content`'s
+    return shape) to use INSTEAD of re-reading `file_ref` -- lets a caller that already read the file once (e.g. `extract_one`
+    building a second, "refine" pass) reuse that read rather than opening/parsing the file again. Unset (the default)
+    preserves the original behavior: read `file_ref` here when `input_type == "file"`.
     """
-    image_block = None
-    if input_type == "file":
+    if resolved_content is not None:
+        text_content, image_block = resolved_content
+        content = text_content if text_content is not None else file_ref
+    elif input_type == "file":
         text_content, image_block = _extract_file_content(file_ref)
         content = text_content if text_content is not None else file_ref
     else:
+        image_block = None
         content = file_ref
 
     if image_block is None and max_content_chars is not None and len(content) > max_content_chars:
@@ -284,8 +304,16 @@ def build_extraction_messages(
     if image_block is not None:
         prompt_text = (
             f"Extract the following fields from this {doc_label} image as JSON: {output_fields}\n\n"
-            "Return only a JSON object with the requested fields. Use null for missing fields."
         )
+        if detect_selections:
+            prompt_text += (
+                "Also detect any checkboxes, radio buttons, or handwritten selection marks visible in the "
+                "image. Return them as a \"selection_marks\" array alongside the requested fields, each "
+                "entry shaped {\"label\": str, \"checked\": bool}.\n\n"
+            )
+        if additional_prompt:
+            prompt_text += f"Additional context: {additional_prompt}\n\n"
+        prompt_text += "Return only a JSON object with the requested fields. Use null for missing fields."
         message_content: Any = [{"type": "text", "text": prompt_text}, image_block]
         if field_regions:
             try:
@@ -294,16 +322,81 @@ def build_extraction_messages(
                 if warn:
                     warn(f"Could not build field-location crops for {file_ref!r}: {e}")
     else:
-        message_content = (
+        if detect_selections and warn:
+            warn(
+                f"detect_selections=True requires image input (selection-mark detection is a visual "
+                f"signal) -- skipped for {file_ref!r}; this document resolved to text content."
+            )
+        prompt_text = (
             f"Extract the following fields from this {doc_label} as JSON: {output_fields}\n\n"
             f"Document content:\n{content}\n\n"
-            "Return only a JSON object with the requested fields. Use null for missing fields."
         )
+        if additional_prompt:
+            prompt_text += f"Additional context: {additional_prompt}\n\n"
+        prompt_text += "Return only a JSON object with the requested fields. Use null for missing fields."
+        message_content = prompt_text
     return [{"role": "user", "content": message_content}]
 
 
-def parse_extraction_response(raw: str, output_fields: List[str]) -> Dict[str, Any]:
-    """Parse the model's reply into exactly `output_fields` (anything it omitted becomes None, anything extra is dropped)."""
+def build_refine_messages(
+    file_ref: str,
+    *,
+    input_type: str,
+    output_fields: List[str],
+    first_pass_fields: Dict[str, Any],
+    doc_label: str = "document",
+    max_content_chars: Optional[int] = None,
+    resolved_content: Optional["tuple[Optional[str], Optional[dict]]"] = None,
+) -> List[dict]:
+    """The exact chat messages sent for the (optional) second, "refine" pass: shows the model the SAME
+    original content (reused via `resolved_content` -- never re-read from disk) plus the first pass's own
+    extracted JSON, and asks for ONE corrective review -- OCR/text-reading mistakes, wrong table structure,
+    and number/currency formatting -- returned as a corrected JSON object in the same shape. Deliberately a
+    single pass, not a multi-mode (tables/text/formatting/layout) taxonomy: a second honest look is a real,
+    buildable improvement; a 4-mode review pipeline is not something this LLM-call shape can honestly claim.
+    """
+    import json
+
+    if resolved_content is not None:
+        text_content, image_block = resolved_content
+        content = text_content if text_content is not None else file_ref
+    elif input_type == "file":
+        text_content, image_block = _extract_file_content(file_ref)
+        content = text_content if text_content is not None else file_ref
+    else:
+        image_block = None
+        content = file_ref
+
+    if image_block is None and max_content_chars is not None and len(content) > max_content_chars:
+        content = content[:max_content_chars]
+
+    first_pass_json = json.dumps(first_pass_fields, default=str)
+    instructions = (
+        f"Here is a first-pass extraction of {output_fields} from this {doc_label}:\n{first_pass_json}\n\n"
+        "Review it against the original document for errors -- OCR/text-reading mistakes, wrong table "
+        "structure, and number/currency formatting -- and return a CORRECTED JSON object in the same "
+        "shape (one key per requested field). If nothing needs correcting, return the same values. "
+        "Return only a JSON object with the requested fields. Use null for missing fields."
+    )
+    if image_block is not None:
+        message_content: Any = [{"type": "text", "text": instructions}, image_block]
+    else:
+        message_content = f"{instructions}\n\nDocument content:\n{content}"
+    return [{"role": "user", "content": message_content}]
+
+
+def parse_extraction_response(
+    raw: str, output_fields: List[str], *, detect_selections: bool = False, has_image: bool = False
+) -> Dict[str, Any]:
+    """Parse the model's reply into exactly `output_fields` (anything it omitted becomes None, anything extra is dropped).
+
+    When `detect_selections=True`, the returned dict ALSO carries a `"selection_marks"` key alongside the requested
+    fields: a `[{"label": str, "checked": bool}]` list when `has_image` is True (the model was actually asked for
+    selection marks -- defaults to `[]` if it omitted the key; an optional array being missing never raises, only a
+    malformed `output_fields` JSON body does), or `None` when `has_image` is False (selection-mark detection is a
+    visual signal with nothing to detect against text content, so this means "not attempted", not "found none").
+    When `detect_selections=False` (the default), the return shape is unchanged from before: just `{field: value}`.
+    """
     import json
 
     raw = raw.strip()
@@ -315,7 +408,14 @@ def parse_extraction_response(raw: str, output_fields: List[str]) -> Dict[str, A
     if not isinstance(extracted, dict):
         raise ValueError(f"LLM returned {type(extracted).__name__}, expected a JSON object")
     # Keeps every row's dict shape identical regardless of what the model chose to include.
-    return {f: extracted.get(f) for f in output_fields}
+    result = {f: extracted.get(f) for f in output_fields}
+    if detect_selections:
+        if has_image:
+            marks = extracted.get("selection_marks")
+            result["selection_marks"] = marks if isinstance(marks, list) else []
+        else:
+            result["selection_marks"] = None
+    return result
 
 
 def extract_one(
@@ -330,17 +430,39 @@ def extract_one(
     llm_max_retries: int = 2,
     max_content_chars: Optional[int] = 20000,
     field_regions: Optional[Dict[str, Dict[str, float]]] = None,
+    additional_prompt: Optional[str] = None,
+    detect_selections: bool = False,
+    refine: bool = False,
+    refine_model: Optional[str] = None,
     warn: Any = None,
 ) -> "tuple[Dict[str, Any], str]":
     """Extract `output_fields` from ONE document. Returns (fields, raw model reply); raises on any failure.
 
     The asset calls this per row and turns an exception into an all-None row; a builder UI calls it directly to show a
     sample's result (and the raw reply when it goes wrong).
+
+    `additional_prompt`, when set, is appended to the prompt as extra domain/document context (e.g. "preserve signed
+    amounts" or "this is a redacted legal filing") -- steering, not a hard constraint.
+
+    `detect_selections`, when True, also asks for a `selection_marks` checkbox/radio/handwritten-mark array -- but
+    only when the document resolves to an image (see `parse_extraction_response`'s docstring for the honest
+    None-vs-[] distinction when it doesn't).
+
+    `refine`, when True, makes ONE additional LLM call after the first pass succeeds: shown the SAME original content
+    (reused, not re-read) plus the first pass's own JSON, asked to correct OCR/table-structure/number-formatting
+    errors, and returns the corrected result instead of the first pass's. This is a single corrective pass, not a
+    multi-mode (tables/text/formatting/layout) review pipeline -- a deliberate, honest scope limit, not a stand-in
+    for one. `refine_model` picks a different model for just this second call (falls back to `model`).
     """
     try:
         from litellm import completion
     except ImportError:
         raise ImportError("litellm required: pip install litellm")
+
+    # Read the file (if any) exactly once -- reused for both the first-pass prompt below and, when `refine=True`,
+    # the second, corrective-pass prompt, instead of re-reading/re-parsing the file a second time.
+    resolved_content = _extract_file_content(file_ref) if input_type == "file" else None
+    has_image = resolved_content is not None and resolved_content[1] is not None
 
     messages = build_extraction_messages(
         file_ref,
@@ -349,6 +471,9 @@ def extract_one(
         doc_label=doc_label,
         max_content_chars=max_content_chars,
         field_regions=field_regions,
+        additional_prompt=additional_prompt,
+        detect_selections=detect_selections,
+        resolved_content=resolved_content,
         warn=warn,
     )
     extra: Dict[str, Any] = {}
@@ -362,7 +487,32 @@ def extract_one(
         **extra,
     )
     raw = resp.choices[0].message.content
-    return parse_extraction_response(raw, output_fields), raw
+    fields = parse_extraction_response(raw, output_fields, detect_selections=detect_selections, has_image=has_image)
+
+    if not refine:
+        return fields, raw
+
+    refine_messages = build_refine_messages(
+        file_ref,
+        input_type=input_type,
+        output_fields=output_fields,
+        first_pass_fields=fields,
+        doc_label=doc_label,
+        max_content_chars=max_content_chars,
+        resolved_content=resolved_content,
+    )
+    refine_resp = completion(
+        model=refine_model or model,
+        messages=refine_messages,
+        api_key=api_key,
+        num_retries=llm_max_retries,
+        **extra,
+    )
+    refine_raw = refine_resp.choices[0].message.content
+    refined_fields = parse_extraction_response(
+        refine_raw, output_fields, detect_selections=detect_selections, has_image=has_image
+    )
+    return refined_fields, refine_raw
 
 
 def _list_files_direct(path: str, max_files: Optional[int], download: bool, download_dir: Optional[str]) -> "pd.DataFrame":
@@ -624,6 +774,22 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
     - Null-safe: missing fields become None rather than raising errors
     - Supports raw text or file path inputs (pairs with file_lister's
       `local_path` column for a file-based source)
+    - `additional_prompt`: extra domain/document context appended to every
+      document's prompt (e.g. "preserve signed amounts", "this is a
+      redacted legal filing") -- steering, not a hard constraint.
+    - `detect_selections`: also identify checkboxes/radio buttons/
+      handwritten marks, returned as a `selection_marks` output column.
+      This is a VISUAL signal -- only runs for rows that resolve to an
+      image; a text-layer PDF/raw-text row gets `None` (not attempted,
+      logged as a warning) rather than a faked empty result. Rendering
+      PDF pages to images so this can run against them isn't done here.
+    - `refine`: one additional, corrective LLM pass per document that
+      reviews the first pass's own result against the same content for
+      OCR/table-structure/number-formatting errors and returns the
+      corrected JSON. Deliberately a single pass, not a multi-mode
+      (tables/text/formatting/layout) review pipeline -- `refine_model`
+      can pick a different (e.g. stronger, or cheaper) model for just
+      this second call.
     """
 
     model_config = ConfigDict(populate_by_name=True)
@@ -721,6 +887,41 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
             "slightly from whatever single sample document this was drawn "
             "against)."
         ),
+    )
+    additional_prompt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Extra domain/document context appended to every document's prompt, e.g. 'preserve signed "
+            "amounts' or 'this is a redacted legal filing'. Steering, not a hard constraint -- the model can "
+            "still omit a field it genuinely can't find."
+        ),
+    )
+    detect_selections: bool = Field(
+        default=False,
+        description=(
+            "Also ask the model to identify checkboxes, radio buttons, and handwritten selection marks, "
+            "returned as an extra 'selection_marks' output column: [{'label': str, 'checked': bool}]. "
+            "Selection-mark detection is a VISUAL signal -- it only runs for rows that resolve to an image "
+            "(input_type='file' with an image extension); a text-layer PDF or raw-text row has nothing to "
+            "detect against, so that row gets 'selection_marks': None (not attempted) with a logged warning, "
+            "not an empty list (which would mean 'attempted, found none'). Rendering PDF pages to images so "
+            "this can run against them is not done here."
+        ),
+    )
+    refine: bool = Field(
+        default=False,
+        description=(
+            "After a document's first-pass extraction succeeds, make ONE additional LLM call that reviews "
+            "the first pass against the SAME original content (reused, not re-read) for OCR/text-reading "
+            "mistakes, wrong table structure, and number/currency formatting, and returns a corrected result "
+            "in place of the first pass's. This is a single corrective pass -- not a multi-mode "
+            "(tables/text/formatting/layout) review pipeline -- a deliberate, honestly-scoped improvement, "
+            "not a stand-in for one. Doubles the LLM calls (and cost/latency) for every document."
+        ),
+    )
+    refine_model: Optional[str] = Field(
+        default=None,
+        description="Model used for the refine pass only (litellm format). Unset = reuse `model` for both passes. Only used when refine=true.",
     )
     post_process: str = Field(
         default="none",
@@ -886,6 +1087,10 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         llm_max_retries = self.llm_max_retries
         max_content_chars = self.max_content_chars
         field_regions = self.field_regions
+        additional_prompt = self.additional_prompt
+        detect_selections = self.detect_selections
+        refine = self.refine
+        refine_model = self.refine_model
         post_process = self.post_process
         post_process_dir = self.post_process_dir
 
@@ -1009,6 +1214,10 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                             llm_max_retries=llm_max_retries,
                             max_content_chars=max_content_chars,
                             field_regions=field_regions,
+                            additional_prompt=additional_prompt,
+                            detect_selections=detect_selections,
+                            refine=refine,
+                            refine_model=refine_model,
                             warn=context.log.warning,
                         )
                         success = True

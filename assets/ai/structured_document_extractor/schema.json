@@ -379,6 +379,30 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "additional_prompt": {
+      "type": "string",
+      "label": "Additional Prompt",
+      "description": "Extra domain/document context appended to every document's prompt, e.g. 'preserve signed amounts' or 'this is a redacted legal filing'. Steering, not a hard constraint -- the model can still omit a field it genuinely can't find.",
+      "required": false
+    },
+    "detect_selections": {
+      "type": "boolean",
+      "label": "Detect Selections",
+      "description": "Also ask the model to identify checkboxes, radio buttons, and handwritten selection marks, returned as an extra 'selection_marks' output column: [{'label': str, 'checked': bool}]. Selection-mark detection is a VISUAL signal -- it only runs for rows that resolve to an image (input_type='file' with an image extension); a text-layer PDF or raw-text row has nothing to detect against, so that row gets 'selection_marks': None (not attempted) with a logged warning, not an empty list (which would mean 'attempted, found none'). Rendering PDF pages to images so this can run against them is not done here.",
+      "required": false
+    },
+    "refine": {
+      "type": "boolean",
+      "label": "Refine",
+      "description": "After a document's first-pass extraction succeeds, make ONE additional LLM call that reviews the first pass against the SAME original content (reused, not re-read) for OCR/text-reading mistakes, wrong table structure, and number/currency formatting, and returns a corrected result in place of the first pass's. This is a single corrective pass -- not a multi-mode (tables/text/formatting/layout) review pipeline -- a deliberate, honestly-scoped improvement, not a stand-in for one. Doubles the LLM calls (and cost/latency) for every document.",
+      "required": false
+    },
+    "refine_model": {
+      "type": "string",
+      "label": "Refine Model",
+      "description": "Model used for the refine pass only (litellm format). Unset = reuse `model` for both passes. Only used when refine=true.",
+      "required": false
     }
   }
 }

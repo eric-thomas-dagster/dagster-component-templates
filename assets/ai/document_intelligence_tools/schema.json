@@ -87,6 +87,30 @@
       "label": "Low Confidence Null Rate Threshold",
       "description": "Only used when `review_queue_approval_dir` is set. Fraction (0-1) of requested `output_fields` that came back null/empty above which `extract` queues the result for review. There is no real confidence score anywhere in this extraction pipeline -- this null-rate is a deliberate, honest proxy, not a fabricated model-confidence estimate. An LLM-call exception always queues regardless of this threshold.",
       "required": false
+    },
+    "additional_prompt": {
+      "type": "string",
+      "label": "Additional Prompt",
+      "description": "Extra domain/document context appended to every `extract` call's prompt, e.g. 'preserve signed amounts' or 'this is a redacted legal filing'. Steering, not a hard constraint -- the model can still omit a field it genuinely can't find. Applies to every `extract` call this toolset serves.",
+      "required": false
+    },
+    "detect_selections": {
+      "type": "boolean",
+      "label": "Detect Selections",
+      "description": "`extract` also asks the model to identify checkboxes, radio buttons, and handwritten selection marks, returned as an extra `selection_marks` key on the result's `fields`: [{'label': str, 'checked': bool}]. Selection-mark detection is a VISUAL signal -- it only runs when `file_ref` resolves to an image; a text-layer PDF or raw text has nothing to detect against, so that call gets `selection_marks: None` (not attempted, logged as a warning) rather than an empty list (which would mean 'attempted, found none'). Rendering PDF pages to images so this can run against them is not done here.",
+      "required": false
+    },
+    "refine": {
+      "type": "boolean",
+      "label": "Refine",
+      "description": "After `extract`'s first-pass extraction succeeds, make ONE additional LLM call that reviews the first pass against the SAME original content (reused, not re-read) for OCR/text-reading mistakes, wrong table structure, and number/currency formatting, and returns a corrected result in place of the first pass's. This is a single corrective pass -- not a multi-mode (tables/text/formatting/layout) review pipeline -- a deliberate, honestly-scoped improvement, not a stand-in for one. Doubles the LLM calls (and cost/latency) for every `extract` call.",
+      "required": false
+    },
+    "refine_model": {
+      "type": "string",
+      "label": "Refine Model",
+      "description": "Model used for the refine pass only (litellm format). Unset = reuse the call's own model for both passes. Only used when refine=true.",
+      "required": false
     }
   }
 }

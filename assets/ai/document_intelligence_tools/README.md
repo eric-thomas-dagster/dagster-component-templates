@@ -6,13 +6,16 @@ batch-pipeline assets available.
 
 ## Why this exists
 
-Of the 13 Pulse-style document-intelligence recipes this registry covers (bank statement -> JSON, annual
-report split->schema, financial tables, spreadsheet financial review, footnote citation review, word-level
-review overlays, chunking for RAG, LangChain RAG ingestion, vector metadata contract, S3 storage pipeline,
-batch document intake, production webhooks), an earlier gap audit found "Agent Diligence Review" had no
-concrete building block: [`structured_document_extractor`](../structured_document_extractor) only runs as a
-batch asset over a whole upstream DataFrame -- there was no single-document, callable entry point an agent
-could reach for interactively (deciding what to look at next, one document at a time).
+Of a 13-item document-intelligence recipe set, most (bank statement -> JSON, annual report split->schema,
+financial tables, chunking for RAG, LangChain RAG ingestion, vector metadata contract, S3 storage pipeline,
+batch document intake, production webhooks) have a concrete building block already in this registry, but an
+earlier gap audit found "Agent Diligence Review" had none: [`structured_document_extractor`](../structured_document_extractor)
+only runs as a batch asset over a whole upstream DataFrame -- there was no single-document, callable entry
+point an agent could reach for interactively (deciding what to look at next, one document at a time). A
+follow-up re-check found two other items on that same list -- "spreadsheet financial review" and "footnote
+citation review" -- had also been marked covered incorrectly; both remain open gaps (xlsx support elsewhere
+in this repo is a generic flatten-to-markdown conversion with no cell-level fidelity, and no component does
+footnote detection or reference-linking).
 
 | Tool | What it answers |
 |---|---|

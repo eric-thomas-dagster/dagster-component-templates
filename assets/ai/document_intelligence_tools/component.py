@@ -2,13 +2,17 @@
 an MCP tool server an agent can call to extract fields from ONE document, or ask for a schema suggestion,
 rather than only having full batch-pipeline assets available.
 
-An earlier gap audit of the 13 Pulse-style document-intelligence recipes found that every other recipe
-(bank statement -> JSON, annual report split->schema, financial tables, spreadsheet financial review,
-footnote citation review, word-level review overlays, chunking for RAG, LangChain RAG ingestion, vector
-metadata contract, S3 storage pipeline, batch document intake, production webhooks) has a concrete asset or
-component already in this repo -- but "agent diligence review" (an agent that inspects documents
-interactively, one at a time, deciding what to look at next) had nothing: `structured_document_extractor`
-only runs as a batch asset over a whole upstream DataFrame, with no single-document, callable entry point.
+An earlier gap audit of a 13-item document-intelligence recipe set found that most of those recipes
+(bank statement -> JSON, annual report split->schema, financial tables, chunking for RAG, LangChain RAG
+ingestion, vector metadata contract, S3 storage pipeline, batch document intake, production webhooks)
+have a concrete asset or component already in this repo -- but "agent diligence review" (an agent that
+inspects documents interactively, one at a time, deciding what to look at next) had nothing:
+`structured_document_extractor` only runs as a batch asset over a whole upstream DataFrame, with no
+single-document, callable entry point. A follow-up re-check found two other items on that same list
+("spreadsheet financial review" and "footnote citation review") had also been marked covered incorrectly --
+no component in this repo does cell-level spreadsheet processing (hidden rows/cols/sheets, raw vs.
+display values, formulas) or footnote detection/reference-linking; xlsx support elsewhere in this repo is a
+generic flatten-to-markdown conversion only. Both remain open gaps, tracked separately from this component.
 
 Three tools:
   extract(file_ref, output_fields, doc_label=None, model=None)   -- extract named fields from ONE document.

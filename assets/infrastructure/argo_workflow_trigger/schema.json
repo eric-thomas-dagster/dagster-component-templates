@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.ArgoWorkflowTriggerComponent",
-  "description": "Trigger an Argo Workflow run via the Argo Server REST API.\n\nExample — submit from a WorkflowTemplate with parameters:\n\n    ```yaml\n    type: dagster_community_components.ArgoWorkflowTriggerComponent\n    attributes:\n      asset_key: argo/etl/nightly_aggregation\n      workflow_template: nightly-aggregation\n      namespace: argo\n      parameters:\n        INPUT_DATE: \"2026-05-27\"\n        REGION: us-east-1\n      host_env_var: ARGO_SERVER_URL\n      token_env_var: ARGO_TOKEN\n    ```\n\nThe returned workflow name (Argo generates it server-side, often\nwith a 5-char suffix like `nightly-aggregation-xyz12`) lands in\nasset metadata so a paired ``argo_workflow_sensor`` can pick it up.\n\n**Do NOT pair on the same asset_key as ``external_argo_workflow``** —\nthose represent the same workflow with different schedule ownership.\nPick the Case (A or B) that matches your setup; the components are\nalternatives, not complements.",
+  "description": "Trigger an Argo Workflow run via the Argo Server REST API. Supports partitions_def (daily/weekly/monthly/hourly/cron/static/dynamic/multi-axis) with {partition_key}/{date}/{partition.<dim>} substitution in parameters values. wait_for_completion polls GET /api/v1/workflows/{namespace}/{name} to a terminal phase, fails on Failed/Error/Omitted, and surfaces status.outputs.parameters as materialization metadata. demo_mode=true (default) simulates the whole submit/poll lifecycle on stdout with zero external dependencies.",
   "category": "infrastructure",
   "x-dagster-io": {
     "outputs": {
@@ -118,6 +118,101 @@
       },
       "label": "Deps",
       "required": false
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Simulate the Argo Server submit/poll lifecycle on stdout -- no cluster, no `requests` call, no env vars required. Flip to False and set host_env_var / token_env_var to hit a real Argo Server.",
+      "required": false
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "Poll GET /api/v1/workflows/{namespace}/{name} until the workflow reaches a terminal phase. Fails the asset on Failed/Error/Omitted; surfaces status.outputs.parameters as materialization metadata on success. When False (default) the asset returns as soon as Argo accepts the submission -- pair with argo_workflow_sensor (asset_event_type=observation) to record terminal status.",
+      "required": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls (wait_for_completion only).",
+      "required": false
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout Seconds",
+      "description": "Seconds to wait for a terminal phase before failing (wait_for_completion only).",
+      "required": false
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required for partition_type='cron', e.g. '0 0 * * 1-5'.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition_type='cron' keys.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying time-window partitions definition.",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the partitions definition (defaults to UTC).",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
     }
   }
 }

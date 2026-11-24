@@ -20,7 +20,7 @@ Use this for **Case B** — Dagster owns the schedule, fires the workflow, optio
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `host_env_var` | `str` | `"ARGO_SERVER_URL"` | Env var with the Argo Server URL. |
+| `host_env_var` | `str` | `"ARGO_SERVER_URL"` | Env var with the Argo Server URL (used when demo_mode=false). |
 | `token_env_var` | `str` | `"ARGO_TOKEN"` | Env var with the bearer token. Leave empty for anonymous-read clusters. |
 
 ### Execution
@@ -28,6 +28,8 @@ Use this for **Case B** — Dagster owns the schedule, fires the workflow, optio
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `parameters` | `Dict[str, str]` | — | Workflow parameters (key=value). Passed via submitOptions.parameters as `name=value` strings. |
+| `wait_for_completion` | `bool` | `false` | Poll GET /api/v1/workflows/{namespace}/{name} until the workflow reaches a terminal phase. Fails the asset on Failed/Error/Omitted; surfaces status.outputs.parameters as materialization metadata on success. When False (d… _(full docs in schema.json + component README)_ |
+| `poll_interval_seconds` | `int` | `15` | Seconds between status polls (wait_for_completion only). |
 
 ### Catalog metadata
 
@@ -40,6 +42,19 @@ Use this for **Case B** — Dagster owns the schedule, fires the workflow, optio
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'argo', 'workflow'). |
 | `deps` | `List[str]` | — | Upstream Dagster asset keys. |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'cron' \| 'static' \| 'dynamic'. |
+| `partition_start` | `str` | — | Required for daily/weekly/monthly/hourly/cron -- ISO start date. |
+| `partition_values` | `str` | — | Comma-separated values for partition_type='static'. |
+| `partition_cron_schedule` | `str` | — | Required for partition_type='cron', e.g. '0 0 * * 1-5'. |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition_type='cron' keys. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying time-window partitions definition. |
+| `partition_timezone` | `str` | — | IANA timezone for the partitions definition (defaults to UTC). |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partitions -- set instead of partition_type. |
+
 ### Other
 
 | Field | Type | Default | Description |
@@ -47,8 +62,11 @@ Use this for **Case B** — Dagster owns the schedule, fires the workflow, optio
 | `workflow_template` | `str` | — | Argo WorkflowTemplate name to instantiate. Set this OR workflow_manifest, not both. |
 | `workflow_manifest` | `Dict[str, Any]` | — | Full Argo Workflow manifest as a dict (apiVersion / kind / metadata / spec). Use this for one-off workflows that aren't pre-registered as templates. Set this OR workflow_template, not both. |
 | `namespace` | `str` | `"argo"` | Kubernetes namespace. |
+| `demo_mode` | `bool` | `true` | Simulate the Argo Server submit/poll lifecycle on stdout -- no cluster, no `requests` call, no env vars required. Flip to False and set host_env_var / token_env_var to hit a real Argo Server. |
 | `verify_ssl` | `bool` | `true` | Verify TLS certs. |
 | `request_timeout_seconds` | `int` | `60` | — |
+| `poll_timeout_seconds` | `int` | `3600` | Seconds to wait for a terminal phase before failing (wait_for_completion only). |
+| `dynamic_partition_name` | `str` | — | Required for partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)
 

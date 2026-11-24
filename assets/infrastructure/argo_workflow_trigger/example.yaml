@@ -1,11 +1,30 @@
 type: dagster_community_components.ArgoWorkflowTriggerComponent
 attributes:
+  # demo_mode simulates the submit/poll lifecycle on stdout -- flip to false
+  # to hit a real Argo Server (requires ARGO_SERVER_URL / ARGO_TOKEN).
+  demo_mode: true
+
   asset_key: argo/etl/nightly_aggregation
   workflow_template: nightly-aggregation
   namespace: argo
+
+  # {partition_key} / {date} are substituted with the current partition key;
+  # {partition.<dim>} for a multi-axis partitions_def.
   parameters:
-    INPUT_DATE: "2026-05-27"
+    INPUT_DATE: "{partition_key}"
     REGION: us-east-1
+
+  partition_type: daily
+  partition_start: "2024-01-01"
+
+  # Poll GET /api/v1/workflows/{namespace}/{name} to a terminal phase, fail
+  # the asset on Failed/Error/Omitted, and surface status.outputs.parameters
+  # as materialization metadata. False (default): fire-and-forget -- pair
+  # with argo_workflow_sensor (asset_event_type=observation) instead.
+  wait_for_completion: true
+  poll_interval_seconds: 15
+  poll_timeout_seconds: 3600
+
   host_env_var: ARGO_SERVER_URL
   token_env_var: ARGO_TOKEN
   group_name: argo

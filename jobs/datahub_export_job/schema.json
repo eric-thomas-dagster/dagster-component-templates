@@ -11,6 +11,13 @@
     "catalog_url": {"type": "string", "label": "DataHub GMS URL", "description": "DataHub GMS base URL (e.g. https://datahub.acme.com/api/gms). /aspects?action=ingestProposal is appended.", "required": false, "default": "https://datahub.example.com/api/gms"},
     "api_token_env": {"type": "string", "label": "API Token Env Var", "description": "Env var with the DataHub bearer token.", "required": false, "default": "DATAHUB_API_TOKEN"},
     "only_export_on_change": {"type": "boolean", "label": "Only Export on Change", "description": "Hash the structural payload and skip push when unchanged from the previous successful run.", "required": false, "default": true},
-    "fail_on_catalog_error": {"type": "boolean", "label": "Fail on Catalog Error", "description": "If true, fail the run when the catalog is unreachable or PUTs error. Default true.", "required": false, "default": true}
+    "fail_on_catalog_error": {"type": "boolean", "label": "Fail on Catalog Error", "description": "If true, fail the run when the catalog is unreachable or PUTs error. Default true.", "required": false, "default": true},
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "When True, logs the aspect proposals that WOULD be pushed to DataHub and skips the real HTTP call entirely -- useful for validating the export shape with zero egress. The run's payload hash is not persisted as a run tag in this mode, so a dry run never causes a later real push to be skipped by only_export_on_change.",
+      "required": false,
+      "default": false
+    }
   }
 }

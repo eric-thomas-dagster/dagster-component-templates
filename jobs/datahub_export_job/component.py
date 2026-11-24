@@ -124,22 +124,6 @@ def _transform(payload):
     return proposals
 
 
-def _push(log, transformed, base_url, token_env):
-    import requests
-    token = os.environ.get(token_env)
-    if not token:
-        raise RuntimeError(f"Missing {token_env} environment variable")
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "X-RestLi-Protocol-Version": "2.0.0",
-    }
-    for proposal in transformed:
-        resp = requests.post(f"{base_url}/aspects?action=ingestProposal", json=proposal, headers=headers, timeout=30)
-        resp.raise_for_status()
-    log.info(f"DataHub: ingested {len(transformed)} aspect proposals")
-
-
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
 from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
@@ -190,6 +174,15 @@ class DataHubExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
     only_export_on_change: bool = Field(default=True)
     fail_on_catalog_error: bool = Field(default=True)
+    dry_run: bool = Field(
+        default=False,
+        description=(
+            "When True, logs the aspect proposals that WOULD be pushed to DataHub and skips "
+            "the real HTTP call entirely -- useful for validating the export shape with zero "
+            "egress. The run's payload hash is not persisted as a run tag in this mode, so a "
+            "dry run never causes a later real push to be skipped by only_export_on_change."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -200,6 +193,27 @@ class DataHubExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
         return ComponentFormConfig(label='Data Hub Export Job', editable=True)
+
+    def _push(self, log, transformed, base_url, token_env):
+        """POST every aspect proposal to DataHub's Rest.li ingestProposal endpoint.
+
+        Instance method (not a bare module function) so a demo/test subclass
+        can override it entirely -- no monkeypatching of `requests` or this
+        module required. See the README's demo-mode section.
+        """
+        import requests
+        token = os.environ.get(token_env)
+        if not token:
+            raise RuntimeError(f"Missing {token_env} environment variable")
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "X-RestLi-Protocol-Version": "2.0.0",
+        }
+        for proposal in transformed:
+            resp = requests.post(f"{base_url}/aspects?action=ingestProposal", json=proposal, headers=headers, timeout=30)
+            resp.raise_for_status()
+        log.info(f"DataHub: ingested {len(transformed)} aspect proposals")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -233,8 +247,24 @@ class DataHubExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
                     return {"pushed": False, "skipped_unchanged": True, "payload_hash": payload_hash}
 
             transformed = _transform(payload)
+
+            if _self.dry_run:
+                context.log.info(
+                    f"[DRY RUN] Would push {len(transformed)} aspect proposals to "
+                    f"DataHub at {_self.catalog_url} (no HTTP call made):"
+                )
+                context.log.info(json.dumps(transformed, indent=2))
+                return {
+                    "pushed": False,
+                    "dry_run": True,
+                    "aspects_would_push": len(transformed),
+                    "payload_hash": payload_hash,
+                    "total_nodes": payload["sync_metadata"]["total_nodes"],
+                    "total_edges": payload["sync_metadata"]["total_edges"],
+                }
+
             try:
-                _push(context.log, transformed, _self.catalog_url, _self.api_token_env)
+                _self._push(context.log, transformed, _self.catalog_url, _self.api_token_env)
             except Exception as exc:
                 if _self.fail_on_catalog_error:
                     raise

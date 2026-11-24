@@ -20332,7 +20332,7 @@
       "name": "datahub_export_job",
       "category": "jobs",
       "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to DataHub via the Rest.li ingestProposal endpoint.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "jobs/datahub_export_job",
       "tags": [],

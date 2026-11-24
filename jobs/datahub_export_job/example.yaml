@@ -8,5 +8,8 @@ attributes:
   api_token_env: DATAHUB_API_TOKEN
   only_export_on_change: true
   fail_on_catalog_error: true
+  # Set to true to log the aspect proposals that would be pushed, with no
+  # real HTTP call -- useful for validating the export shape with zero egress.
+  dry_run: false
   tags:
     team: platform

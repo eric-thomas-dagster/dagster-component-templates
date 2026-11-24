@@ -28076,6 +28076,62 @@
       ]
     },
     {
+      "id": "financial_table_extractor",
+      "name": "Financial Table Extractor",
+      "category": "ai",
+      "description": "Extract real table structure (rows, columns, cell values) from a column of PDF file paths or PDF bytes using pdfplumber -- not a bounding-box detector.",
+      "path": "assets/ai/financial_table_extractor",
+      "tags": [
+        "ai",
+        "documents",
+        "pdf",
+        "tables",
+        "finance"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/financial_table_extractor/schema.json",
+      "component_type": "dagster_community_components.FinancialTableExtractorComponent",
+      "icon": "Table",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/financial_table_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/financial_table_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/financial_table_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/financial_table_extractor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-24"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "pdfplumber>=0.7.0",
+          "tabulate>=0.9.0",
+          "litellm"
+        ]
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "agent_hints": {
+        "inputs": "DataFrame with a column of PDF file paths or PDF bytes.",
+        "outputs": "DataFrame with one row PER DETECTED TABLE: page_number, row_count, col_count, table_data (JSON list of lists), header_row_json, table_markdown, plus passthrough columns.",
+        "side_effects": "No LLM call by default. With classify_tables=True, one litellm call per detected table.",
+        "anti_uses": "For a bounding-box region detector (no cell structure) use document_layout_analyzer instead. For plain text extraction use pdf_text_extractor.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "keywords": [
+        "financial tables",
+        "table extraction",
+        "pdfplumber",
+        "bank statement",
+        "balance sheet",
+        "sec filing"
+      ]
+    },
+    {
       "id": "find_replace",
       "name": "Find Replace",
       "category": "transformation",

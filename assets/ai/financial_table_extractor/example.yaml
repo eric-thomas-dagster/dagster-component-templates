@@ -1,0 +1,11 @@
+type: dagster_community_components.FinancialTableExtractorComponent
+attributes:
+  asset_name: extracted_financial_tables
+  upstream_asset_key: raw_pdf_files
+  group_name: ai
+  column: file_path
+  vertical_strategy: lines
+  horizontal_strategy: lines
+  min_rows: 2
+  min_cols: 2
+  classify_tables: false

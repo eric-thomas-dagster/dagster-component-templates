@@ -1,0 +1,362 @@
+{
+  "component_type": "dagster_community_components.FinancialTableExtractorComponent",
+  "description": "Extract real table structure (rows, columns, cell values) from a column of PDF file paths or PDF bytes using pdfplumber -- not a bounding-box detector.",
+  "category": "ai",
+  "icon": "Table",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with a column of PDF paths or bytes"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with one row per detected table (page_number, row_count, col_count, table_data, header_row_json, table_markdown, plus passthrough columns)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "column": {
+      "type": "string",
+      "label": "Column",
+      "description": "Column containing PDF file paths or bytes",
+      "required": true
+    },
+    "passthrough_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Passthrough Columns",
+      "description": "Upstream columns to carry through to each output table row (one copy per detected table). Defaults to every upstream column except `column`.",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "vertical_strategy": {
+      "type": "string",
+      "label": "Vertical Strategy",
+      "description": "pdfplumber's own table-detection knob for vertical lines (passed straight through to page.find_tables(table_settings=...), pdfplumber's own literal values, pdfplumber's own default). 'lines'/'lines_strict' detect edges from actual drawn rules -- works well for tables with visible borders (bank statements, SEC filings, ruled balance sheets). 'text' detects edges from text alignment/whitespace instead -- works better for borderless/whitespace-aligned tables, but is a fuzzier heuristic and less reliable. 'explicit' expects you to supply exact coordinates yourself.",
+      "required": false,
+      "default": "lines",
+      "enum": [
+        "lines",
+        "lines_strict",
+        "text",
+        "explicit"
+      ],
+      "ui:widget": "select"
+    },
+    "horizontal_strategy": {
+      "type": "string",
+      "label": "Horizontal Strategy",
+      "description": "Same tradeoff as vertical_strategy, for horizontal lines. pdfplumber's own literal values, pdfplumber's own default.",
+      "required": false,
+      "default": "lines",
+      "enum": [
+        "lines",
+        "lines_strict",
+        "text",
+        "explicit"
+      ],
+      "ui:widget": "select"
+    },
+    "min_rows": {
+      "type": "integer",
+      "label": "Min Rows",
+      "description": "Drop any detected table with fewer than this many rows. pdfplumber's table detector is a known source of single-cell/near-empty false-positive 'tables' (e.g. decorative rules, boxed callouts) -- this filters them out before they reach the output.",
+      "required": false,
+      "default": 2
+    },
+    "min_cols": {
+      "type": "integer",
+      "label": "Min Cols",
+      "description": "Drop any detected table with fewer than this many columns. Same false-positive-filtering rationale as min_rows.",
+      "required": false,
+      "default": 2
+    },
+    "classify_tables": {
+      "type": "boolean",
+      "label": "Classify Tables",
+      "description": "Off by default (the default path is fully free/local/zero-LLM-cost). When True, makes ONE litellm call PER DETECTED TABLE asking the model to label it from `table_labels`, attaching the result as `table_label`.",
+      "required": false,
+      "default": false
+    },
+    "table_labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Table Labels",
+      "description": "Labels the model may choose from when classify_tables=True. Default is ['balance_sheet', 'income_statement', 'cash_flow_statement', 'other']; supply your own list to use different categories.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "classification_model": {
+      "type": "string",
+      "label": "Classification Model",
+      "description": "LLM model name (litellm format) used when classify_tables=True.",
+      "required": false,
+      "default": "gpt-4o-mini"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Environment variable name holding the API key, used when classify_tables=True.",
+      "required": false,
+      "default": "OPENAI_API_KEY"
+    },
+    "llm_max_retries": {
+      "type": "integer",
+      "label": "Llm Max Retries",
+      "description": "Retry a table's classification call up to this many times on transient errors (rate limits, timeouts) before giving up on that table's label -- forwarded to litellm's own num_retries. Only used when classify_tables=True.",
+      "required": false,
+      "default": 2
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the upstream DataFrame is filtered once per partition key in the range and the matching rows are combined). 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "cron"
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "description": "Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access.",
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "description": {
+      "description": "Asset description shown in the Dagster catalog.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on failure. Defines a RetryPolicy when set.",
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ai",
+    "documents",
+    "pdf",
+    "tables",
+    "finance"
+  ],
+  "name": "Financial Table Extractor"
+}

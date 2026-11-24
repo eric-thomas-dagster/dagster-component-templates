@@ -565,6 +565,7 @@ _CLASS_PATHS: dict[str, str] = {
     "FileTransformerComponent": "assets/transforms/file_transformer/component.py",
     "FilesystemMonitorSensorComponent": "sensors/filesystem_monitor/component.py",
     "FilterComponent": "assets/transforms/filter/component.py",
+    "FinancialTableExtractorComponent": "assets/ai/financial_table_extractor/component.py",
     "FindReplace": "assets/transforms/find_replace/component.py",
     "FirebaseFcmSendComponent": "assets/reverse_etl/firebase_fcm_send/component.py",
     "FirebaseResource": "resources/firebase_resource/component.py",

@@ -73,6 +73,87 @@ def _make_databrew_client(
     return boto3.Session(**session_kwargs).client("databrew")
 
 
+def _make_s3_client(
+    region_name: str,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
+):
+    """Used only for `use_pipes: true`'s PipesS3ContextInjector/PipesS3MessageReader --
+    Glue jobs read their Pipes bootstrap context from an S3 object (there's no
+    env-var or tag mechanism Glue exposes the way ECS/Batch do), confirmed via
+    the real installed `dagster_aws.pipes.clients.glue.PipesGlueClient`, which
+    requires an explicit `context_injector` (no default, unlike PipesECSClient)."""
+    session_kwargs: Dict[str, Any] = {"region_name": region_name}
+    if aws_access_key_id and aws_secret_access_key:
+        session_kwargs["aws_access_key_id"] = aws_access_key_id
+        session_kwargs["aws_secret_access_key"] = aws_secret_access_key
+    if aws_session_token:
+        session_kwargs["aws_session_token"] = aws_session_token
+    return boto3.Session(**session_kwargs).client("s3")
+
+
+def _build_partitions_def(
+    partition_type, partition_start, partition_values, dynamic_partition_name,
+    cron_schedule=None, cron_fmt="%Y-%m-%d", end_offset=0, timezone=None,
+):
+    """Construct a Dagster partitions_def from the canonical flat partition fields.
+    Same shape as ecs_pipes_asset/ssis_workspace/step_functions_asset's own
+    `_build_partitions_def` -- inlined here per this registry's no-shared-
+    helper-files convention."""
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, DynamicPartitionsDefinition,
+    )
+
+    if not partition_type:
+        return None
+    if partition_type in ("daily", "weekly", "monthly", "hourly", "cron") and not partition_start:
+        raise ValueError(f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01').")
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not cron_schedule:
+            raise ValueError("partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only.")
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone)
+    if partition_type == "static":
+        if isinstance(partition_values, (list, tuple)):
+            values = [str(v).strip() for v in partition_values if str(v).strip()]
+        else:
+            values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+        if not values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+def _render_arguments(template: Optional[Dict[str, str]], context) -> Dict[str, str]:
+    """Render a Glue `Arguments` dict (StartJobRun's real boto3 parameter name,
+    confirmed via the installed botocore Glue service model), substituting
+    {partition_key} in each value when the run is partitioned."""
+    if not template:
+        return {}
+    partition_key = context.partition_key if getattr(context, "has_partition_key", False) else None
+    rendered = {}
+    for k, v in template.items():
+        if isinstance(v, str) and "{partition_key}" in v and partition_key is not None:
+            v = v.replace("{partition_key}", partition_key)
+        rendered[k] = v
+    return rendered
+
+
 def _should_include(
     name: str,
     tags: Optional[Dict[str, str]],
@@ -116,10 +197,38 @@ def _extract_table_refs(job: Dict[str, Any], catalog_keys: set) -> List[str]:
 
 # ── AssetSpec override helpers ─────────────────────────────────────────────────
 
+def _automation_condition_from_string(expr: str):
+    """Eval a short AutomationCondition expression, e.g. "eager()" or
+    "on_cron('0 2 * * *')". Same config-driven eval convention already used by
+    http_external_asset's own `automation_condition` field in this registry."""
+    from dagster import AutomationCondition
+    return eval(expr, {"__builtins__": {}}, {"AutomationCondition": AutomationCondition})  # noqa: S307
+
+
+def _freshness_policy_from_dict(d: dict):
+    """Build a dg.FreshnessPolicy from a small override dict:
+      {type: time_window, fail_window_minutes: N, warn_window_minutes: N}
+      {type: cron, deadline_cron: "...", lower_bound_delta_minutes: N, timezone: "..."}
+    """
+    from datetime import timedelta
+    import dagster as _dg
+    ptype = d.get("type", "time_window")
+    if ptype == "cron":
+        return _dg.FreshnessPolicy.cron(
+            deadline_cron=d["deadline_cron"],
+            lower_bound_delta=timedelta(minutes=d.get("lower_bound_delta_minutes", 60)),
+            timezone=d.get("timezone", "UTC"),
+        )
+    return _dg.FreshnessPolicy.time_window(
+        fail_window=timedelta(minutes=d["fail_window_minutes"]),
+        warn_window=timedelta(minutes=d["warn_window_minutes"]) if d.get("warn_window_minutes") else None,
+    )
+
+
 def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
     """Merge an override dict into a base AssetSpec."""
     extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
-    return dg.AssetSpec(
+    kwargs: Dict[str, Any] = dict(
         key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
         description=ov.get("description", base.description),
         group_name=ov.get("group_name", base.group_name),
@@ -127,7 +236,18 @@ def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
         tags={**(base.tags or {}), **(ov.get("tags") or {})},
         kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
         deps=list(base.deps or []) + extra_deps,
+        owners=list(ov["owners"]) if "owners" in ov else (list(base.owners) if base.owners else None),
+        partitions_def=base.partitions_def,
     )
+    if "automation_condition" in ov:
+        kwargs["automation_condition"] = _automation_condition_from_string(ov["automation_condition"])
+    elif base.automation_condition is not None:
+        kwargs["automation_condition"] = base.automation_condition
+    if "freshness_policy" in ov:
+        kwargs["freshness_policy"] = _freshness_policy_from_dict(ov["freshness_policy"])
+    elif base.freshness_policy is not None:
+        kwargs["freshness_policy"] = base.freshness_policy
+    return dg.AssetSpec(**kwargs)
 
 
 def _apply_job_overrides(
@@ -145,6 +265,133 @@ def _apply_job_overrides(
 
 
 # ── Core defs builder (no network calls) ──────────────────────────────────────
+
+def _make_glue_job_asset(spec, job_name, creds, poll_interval_seconds, arguments_template, use_pipes, pipes_bucket):
+    """Factory function, not a default-argument trick: Dagster's asset machinery
+    treats any non-`context` parameter on an `@dg.asset` function as a real
+    input to resolve against upstream deps, even with a default value (same gap
+    documented -- and fixed -- in ssis_workspace/step_functions_asset). One
+    asset per job (not a shared @multi_asset over every job) so re-executing a
+    single failed job doesn't rerun every selected job."""
+    import dagster as _dg
+
+    @_dg.asset(
+        key=spec.key, group_name=spec.group_name, description=spec.description,
+        metadata=dict(spec.metadata or {}), tags=dict(spec.tags or {}),
+        kinds=spec.kinds or {"aws", "glue"}, deps=list(spec.deps or []),
+        owners=list(spec.owners or []), partitions_def=spec.partitions_def,
+        automation_condition=spec.automation_condition, freshness_policy=spec.freshness_policy,
+    )
+    def _glue_job_asset(context: _dg.AssetExecutionContext) -> _dg.MaterializeResult:
+        client = _make_glue_client(**creds)
+        rendered_args = _render_arguments(arguments_template, context)
+
+        if use_pipes:
+            from dagster_aws.pipes import PipesGlueClient, PipesS3ContextInjector, PipesS3MessageReader
+            s3_client = _make_s3_client(**creds)
+            pipes_client = PipesGlueClient(
+                client=client,
+                context_injector=PipesS3ContextInjector(bucket=pipes_bucket, client=s3_client),
+                message_reader=PipesS3MessageReader(bucket=pipes_bucket, client=s3_client),
+            )
+            invocation = pipes_client.run(
+                context=context,
+                start_job_run_params={"JobName": job_name, "Arguments": rendered_args},
+            )
+            return invocation.get_materialize_result()
+
+        response = client.start_job_run(JobName=job_name, Arguments=rendered_args)
+        run_id: str = response["JobRunId"]
+        context.log.info(f"Started Glue job '{job_name}', run ID: {run_id}")
+
+        terminal = {"SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT", "ERROR"}
+        while True:
+            time.sleep(poll_interval_seconds)
+            run_info = client.get_job_run(JobName=job_name, RunId=run_id)
+            job_run = run_info["JobRun"]
+            state_val: str = job_run.get("JobRunState", "")
+            context.log.info(f"Glue job '{job_name}' run {run_id} state: {state_val}")
+            if state_val in terminal:
+                break
+
+        execution_time = job_run.get("ExecutionTime")
+        if state_val != "SUCCEEDED":
+            raise Exception(f"Glue job '{job_name}' run {run_id} ended with state: {state_val}")
+
+        return _dg.MaterializeResult(
+            metadata={
+                "run_id": _dg.MetadataValue.text(run_id),
+                "job_run_state": _dg.MetadataValue.text(state_val),
+                "execution_time_seconds": _dg.MetadataValue.int(int(execution_time or 0)),
+                "started_on": _dg.MetadataValue.text(str(job_run.get("StartedOn")) if job_run.get("StartedOn") else ""),
+                "completed_on": _dg.MetadataValue.text(str(job_run.get("CompletedOn")) if job_run.get("CompletedOn") else ""),
+                "arguments": _dg.MetadataValue.json(rendered_args) if rendered_args else _dg.MetadataValue.text(""),
+            }
+        )
+
+    return _glue_job_asset
+
+
+def _make_glue_job_multi_asset(specs, job_name, safe_name, creds, poll_interval_seconds, arguments_template, use_pipes, pipes_bucket):
+    """Same per-job (not all-jobs-shared) executable as `_make_glue_job_asset`,
+    for the case where one Glue job expands to MULTIPLE Dagster assets via
+    `assets_by_job_name`."""
+    import dagster as _dg
+
+    @_dg.multi_asset(specs=specs, name=f"glue_job_{safe_name}_multi")
+    def _glue_job_multi_asset(context: _dg.AssetExecutionContext):
+        client = _make_glue_client(**creds)
+        rendered_args = _render_arguments(arguments_template, context)
+
+        if use_pipes:
+            from dagster_aws.pipes import PipesGlueClient, PipesS3ContextInjector, PipesS3MessageReader
+            s3_client = _make_s3_client(**creds)
+            pipes_client = PipesGlueClient(
+                client=client,
+                context_injector=PipesS3ContextInjector(bucket=pipes_bucket, client=s3_client),
+                message_reader=PipesS3MessageReader(bucket=pipes_bucket, client=s3_client),
+            )
+            invocation = pipes_client.run(
+                context=context,
+                start_job_run_params={"JobName": job_name, "Arguments": rendered_args},
+            )
+            result = invocation.get_materialize_result()
+            for spec in specs:
+                yield _dg.MaterializeResult(asset_key=spec.key, metadata=dict(result.metadata or {}))
+            return
+
+        response = client.start_job_run(JobName=job_name, Arguments=rendered_args)
+        run_id: str = response["JobRunId"]
+        context.log.info(f"Started Glue job '{job_name}', run ID: {run_id}")
+
+        terminal = {"SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT", "ERROR"}
+        while True:
+            time.sleep(poll_interval_seconds)
+            run_info = client.get_job_run(JobName=job_name, RunId=run_id)
+            job_run = run_info["JobRun"]
+            state_val: str = job_run.get("JobRunState", "")
+            context.log.info(f"Glue job '{job_name}' run {run_id} state: {state_val}")
+            if state_val in terminal:
+                break
+
+        execution_time = job_run.get("ExecutionTime")
+        if state_val != "SUCCEEDED":
+            raise Exception(f"Glue job '{job_name}' run {run_id} ended with state: {state_val}")
+
+        for spec in specs:
+            yield _dg.MaterializeResult(
+                asset_key=spec.key,
+                metadata={
+                    "run_id": _dg.MetadataValue.text(run_id),
+                    "job_run_state": _dg.MetadataValue.text(state_val),
+                    "execution_time_seconds": _dg.MetadataValue.int(int(execution_time or 0)),
+                    "started_on": _dg.MetadataValue.text(str(job_run.get("StartedOn")) if job_run.get("StartedOn") else ""),
+                    "completed_on": _dg.MetadataValue.text(str(job_run.get("CompletedOn")) if job_run.get("CompletedOn") else ""),
+                },
+            )
+
+    return _glue_job_multi_asset
+
 
 def _build_glue_defs(
     state: Dict[str, Any],
@@ -165,6 +412,10 @@ def _build_glue_defs(
     retry_policy_max_retries: Optional[int] = None,
     retry_policy_delay_seconds: Optional[int] = None,
     retry_policy_backoff: str = "exponential",
+    partitions_def=None,
+    arguments: Optional[Dict[str, str]] = None,
+    use_pipes: bool = False,
+    pipes_bucket: Optional[str] = None,
 ) -> dg.Definitions:
     """Build Definitions from cached state dict with zero network calls."""
 
@@ -224,14 +475,19 @@ def _build_glue_defs(
             assets_list.append(_catalog_asset)
 
     # ── Glue Jobs (materializable) ─────────────────────────────────────────────
-    # Build all job specs first, tracking spec_key_to_job_name for execution routing
-    job_specs: list = []
-    spec_key_to_job_name: Dict[tuple, str] = {}
-    job_metadata: Dict[str, Dict[str, Any]] = {}
+    # job_metadata is keyed by the FINAL (post-override) AssetKey, not the raw
+    # glue_job_<name> key -- previously the observation sensor below rebuilt
+    # observations under the pre-override key, so renaming an asset via
+    # assets_by_job_name (its documented purpose) made the sensor report
+    # materializations for an asset key nothing in the graph has. Same bug
+    # class already fixed in snowflake_workspace/azure_data_factory/
+    # ssis_workspace -- see component-feedback/2026-11-23-aws-batch-pipes.md.
+    job_metadata: Dict[dg.AssetKey, Dict[str, Any]] = {}
 
     for job in state.get("jobs", []):
         job_name: str = job["name"]
-        asset_key_str = f"glue_job_{_sanitize(job_name)}"
+        safe_name = _sanitize(job_name)
+        asset_key_str = f"glue_job_{safe_name}"
         if key_prefix:
             asset_key_str = f"{_sanitize(key_prefix)}_{asset_key_str}"
 
@@ -255,76 +511,32 @@ def _build_glue_defs(
             },
             tags=job.get("tags") or {},
             deps=[dg.AssetKey([d]) for d in table_deps] if table_deps else [],
+            partitions_def=partitions_def,
         )
 
         expanded = _apply_job_overrides(default_spec, job_name, assets_by_job_name)
+        job_override = (assets_by_job_name or {}).get(job_name) or {}
+        job_arguments = dict(arguments or {})
+        if isinstance(job_override, dict) and job_override.get("arguments"):
+            job_arguments.update(job_override["arguments"])
+
         for spec in expanded:
-            job_specs.append(spec)
-            spec_key_to_job_name[tuple(spec.key.path)] = job_name
+            job_metadata[spec.key] = {"job_name": job_name}
 
-        # Track for sensor (use original asset_key_str as sensor key)
-        job_metadata[asset_key_str] = {"job_name": job_name}
-
-    if job_specs:
-        @dg.multi_asset(
-            specs=job_specs,
-            name=f"{_sanitize(group_name)}_glue_jobs",
-        )
-        def _glue_jobs_multi_asset(
-            context: dg.AssetExecutionContext,
-            _spec_key_to_job_name=spec_key_to_job_name,
-            _creds=creds,
-            _poll=poll_interval_seconds,
-        ):
-            # Group selected keys by job name
-            job_to_selected_keys: Dict[str, list] = {}
-            for key in context.selected_asset_keys:
-                jname = _spec_key_to_job_name.get(tuple(key.path))
-                if jname:
-                    job_to_selected_keys.setdefault(jname, []).append(key)
-
-            client = _make_glue_client(**_creds)
-
-            for job_name, keys in job_to_selected_keys.items():
-                # Start job run
-                response = client.start_job_run(JobName=job_name)
-                run_id: str = response["JobRunId"]
-                context.log.info(f"Started Glue job '{job_name}', run ID: {run_id}")
-
-                # Poll until terminal state
-                terminal = {"SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT", "ERROR"}
-                while True:
-                    time.sleep(_poll)
-                    run_info = client.get_job_run(JobName=job_name, RunId=run_id)
-                    job_run = run_info["JobRun"]
-                    state_val: str = job_run.get("JobRunState", "")
-                    context.log.info(f"Glue job '{job_name}' run {run_id} state: {state_val}")
-                    if state_val in terminal:
-                        break
-
-                execution_time = job_run.get("ExecutionTime")
-                if state_val != "SUCCEEDED":
-                    raise Exception(
-                        f"Glue job '{job_name}' run {run_id} ended with state: {state_val}"
-                    )
-
-                for key in keys:
-                    yield dg.MaterializeResult(
-                        asset_key=key,
-                        metadata={
-                            "run_id": dg.MetadataValue.text(run_id),
-                            "job_run_state": dg.MetadataValue.text(state_val),
-                            "execution_time_seconds": dg.MetadataValue.int(int(execution_time or 0)),
-                            "started_on": dg.MetadataValue.text(
-                                str(job_run.get("StartedOn")) if job_run.get("StartedOn") else ""
-                            ),
-                            "completed_on": dg.MetadataValue.text(
-                                str(job_run.get("CompletedOn")) if job_run.get("CompletedOn") else ""
-                            ),
-                        },
-                    )
-
-        assets_list.append(_glue_jobs_multi_asset)
+        # Per-job (not one shared @multi_asset over every job): re-executing
+        # ONE failed job must not rerun every selected job.
+        if len(expanded) == 1:
+            assets_list.append(_make_glue_job_asset(
+                spec=expanded[0], job_name=job_name, creds=creds,
+                poll_interval_seconds=poll_interval_seconds, arguments_template=job_arguments,
+                use_pipes=use_pipes, pipes_bucket=pipes_bucket,
+            ))
+        else:
+            assets_list.append(_make_glue_job_multi_asset(
+                specs=expanded, job_name=job_name, safe_name=safe_name, creds=creds,
+                poll_interval_seconds=poll_interval_seconds, arguments_template=job_arguments,
+                use_pipes=use_pipes, pipes_bucket=pipes_bucket,
+            ))
 
     # ── Glue Crawlers (materializable) ─────────────────────────────────────────
     crawler_metadata: Dict[str, Dict[str, Any]] = {}
@@ -673,6 +885,21 @@ if _HAS_STATE_BACKED:
         # ── Per-job AssetSpec overrides ────────────────────────────────────────
         assets_by_job_name: Optional[dict] = None
 
+        # ── Partitioning (same canonical shape as ecs_pipes_asset/ssis_workspace) ──
+        partition_type: Optional[str] = None
+        partition_start: Optional[str] = None
+        partition_values: Optional[Any] = None
+        dynamic_partition_name: Optional[str] = None
+        partition_cron_schedule: Optional[str] = None
+        partition_cron_fmt: str = "%Y-%m-%d"
+        partition_end_offset: int = 0
+        partition_timezone: Optional[str] = None
+
+        # ── Job run arguments + Pipes ───────────────────────────────────────────
+        arguments: Optional[Dict[str, str]] = None
+        use_pipes: bool = False
+        pipes_bucket: Optional[str] = None
+
         # ── State backing ─────────────────────────────────────────────────────
         retry_policy_max_retries: Optional[int] = None
         retry_policy_delay_seconds: Optional[int] = None
@@ -682,6 +909,14 @@ if _HAS_STATE_BACKED:
         )
 
         # ── StateBackedComponent interface ────────────────────────────────────
+
+        @property
+        def _partitions_def(self):
+            return _build_partitions_def(
+                self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name,
+                cron_schedule=self.partition_cron_schedule, cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+                end_offset=self.partition_end_offset, timezone=self.partition_timezone,
+            )
 
         @property
         def defs_state_config(self) -> DefsStateConfig:
@@ -949,6 +1184,10 @@ if _HAS_STATE_BACKED:
                 retry_policy_max_retries=self.retry_policy_max_retries,
                 retry_policy_delay_seconds=self.retry_policy_delay_seconds,
                 retry_policy_backoff=self.retry_policy_backoff,
+                partitions_def=self._partitions_def,
+                arguments=self.arguments,
+                use_pipes=self.use_pipes,
+                pipes_bucket=self.pipes_bucket,
             )
 
 else:
@@ -1017,6 +1256,34 @@ else:
 
         )
 
+        partition_type: Optional[str] = dg.Field(default=None)
+        partition_start: Optional[str] = dg.Field(default=None)
+        partition_values: Optional[Any] = dg.Field(default=None)
+        dynamic_partition_name: Optional[str] = dg.Field(default=None)
+        partition_cron_schedule: Optional[str] = dg.Field(default=None)
+        partition_cron_fmt: str = dg.Field(default="%Y-%m-%d")
+        partition_end_offset: int = dg.Field(default=0)
+        partition_timezone: Optional[str] = dg.Field(default=None)
+
+        arguments: Optional[Dict[str, str]] = Field(
+            default=None,
+            description="StartJobRun Arguments template ({--key: value}); values support {partition_key} substitution.",
+        )
+        use_pipes: bool = Field(
+            default=False,
+            description="Run jobs through dagster_aws.pipes.PipesGlueClient for Pipes-protocol metadata/logs. Requires pipes_bucket.",
+        )
+        pipes_bucket: Optional[str] = Field(
+            default=None, description="S3 bucket for Pipes context injection/message reading. Required when use_pipes=true.",
+        )
+
+        @property
+        def _partitions_def(self):
+            return _build_partitions_def(
+                self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name,
+                cron_schedule=self.partition_cron_schedule, cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+                end_offset=self.partition_end_offset, timezone=self.partition_timezone,
+            )
 
         @classmethod
         def get_form_config(cls):
@@ -1181,4 +1448,8 @@ else:
                 retry_policy_max_retries=self.retry_policy_max_retries,
                 retry_policy_delay_seconds=self.retry_policy_delay_seconds,
                 retry_policy_backoff=self.retry_policy_backoff,
+                partitions_def=self._partitions_def,
+                arguments=self.arguments,
+                use_pipes=self.use_pipes,
+                pipes_bucket=self.pipes_bucket,
             )

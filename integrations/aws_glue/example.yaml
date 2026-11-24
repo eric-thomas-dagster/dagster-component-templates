@@ -53,8 +53,30 @@ attributes:
         sla_hours: "4"
       tags:
         dagster/storage_kind: s3
+      owners: ["team:data-engineering"]
+      arguments:
+        --mode: incremental
     customer-export-job:
       - key: exports/customers_us
         description: "US customer export"
       - key: exports/customers_eu
         description: "EU customer export"
+
+  # Partition every job with the same daily schedule and pass the business
+  # date into StartJobRun's Arguments.
+  partition_type: daily
+  partition_start: "2024-01-01"
+  arguments:
+    --business_date: "{partition_key}"
+
+---
+# Pipes-enabled configuration — jobs run through dagster_aws.pipes.PipesGlueClient
+# instead of the raw start_job_run/get_job_run polling loop.
+type: dagster_community_components.AWSGlueComponent
+attributes:
+  region_name: us-east-1
+  import_jobs: true
+  import_catalog_tables: false
+  group_name: aws_glue_pipes
+  use_pipes: true
+  pipes_bucket: my-dagster-pipes-bucket

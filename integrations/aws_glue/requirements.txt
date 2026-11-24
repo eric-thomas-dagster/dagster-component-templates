@@ -1,2 +1,7 @@
 boto3>=1.28.0
 dagster>=1.8.0
+
+# Only needed when use_pipes: true (PipesGlueClient / PipesS3ContextInjector /
+# PipesS3MessageReader) -- the default start_job_run/get_job_run polling path
+# needs only boto3.
+dagster-aws>=0.29

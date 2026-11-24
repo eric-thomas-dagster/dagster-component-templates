@@ -41,6 +41,18 @@ On first load (before the cache is populated), the component returns an empty
 | `group_name` | `str` | `"aws_glue"` | — |
 | `key_prefix` | `str` | — | — |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | — |
+| `partition_start` | `str` | — | — |
+| `partition_values` | `Any` | — | — |
+| `partition_cron_schedule` | `str` | — | — |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | — |
+| `partition_end_offset` | `int` | `0` | — |
+| `partition_timezone` | `str` | — | — |
+
 ### Retry policy
 
 | Field | Type | Default | Description |
@@ -75,6 +87,10 @@ On first load (before the cache is populated), the component returns an empty
 | `exclude_name_pattern` | `str` | — | — |
 | `generate_sensor` | `bool` | `true` | — |
 | `assets_by_job_name` | `dict` | — | — |
+| `dynamic_partition_name` | `str` | — | — |
+| `arguments` | `Dict[str, str]` | — | StartJobRun Arguments template ({--key: value}); values support {partition_key} substitution. |
+| `use_pipes` | `bool` | `false` | Run jobs through dagster_aws.pipes.PipesGlueClient for Pipes-protocol metadata/logs. Requires pipes_bucket. |
+| `pipes_bucket` | `str` | — | S3 bucket for Pipes context injection/message reading. Required when use_pipes=true. |
 
 [//]: # (FIELDS:END)
 
@@ -152,6 +168,10 @@ attributes:
 - Returns `MaterializeResult` with `run_id`, `execution_time_seconds`, timestamps.
 - Asset key format: `glue_job_{sanitized_name}` (optionally prefixed with `key_prefix`).
 - Automatic `deps` on any Data Catalog table assets extracted from `DefaultArguments`.
+- **One executable node per job**, not one shared `@multi_asset` over every discovered job -- re-executing a single failed job no longer reruns every selected job.
+- `arguments` renders `StartJobRun`'s real `Arguments` parameter (a `{--key: value}` map), with `{partition_key}` substitution when the run is partitioned. A per-job override is available via `assets_by_job_name.<job_name>.arguments`, merged on top of the global template.
+- `use_pipes: true` + `pipes_bucket` runs the job through the real, already-upstream `dagster_aws.pipes.PipesGlueClient` (context injection + message reading over the given S3 bucket) instead of the raw `start_job_run`/`get_job_run` polling loop, surfacing Pipes-protocol logs/metadata.
+- Every job can share a single `partitions_def` via the standard `partition_type`/`partition_start`/... fields (same shape as `ecs_pipes_asset`/`ssis_workspace`).
 
 ### Data Catalog Tables (Observable)
 - Asset key format: `glue_table_{database}_{table}`.
@@ -177,6 +197,7 @@ attributes:
 - Polls `get_job_runs`, `get_crawler_metrics`, and `get_workflow_runs`.
 - Yields `AssetMaterialization` events for externally-triggered successful runs.
 - Enabled when `generate_sensor: true` (the default).
+- Jobs are resolved under the SAME final (post-`assets_by_job_name`-override) asset key the executable job assets use -- previously the sensor independently rebuilt the pre-override `glue_job_<name>` key, so renaming a job's asset (the override's whole purpose) made the sensor report materializations for an asset key nothing in the graph has.
 
 ## Filtering
 
@@ -215,6 +236,8 @@ Three options (listed in order of preference for production):
 }
 ```
 
+`use_pipes: true` additionally needs `s3:PutObject`/`s3:GetObject` on `pipes_bucket` (for `PipesS3ContextInjector`/`PipesS3MessageReader`) and the Glue job's own execution role needs read access to the same bucket.
+
 ## Configuration Options
 
 | Option | Type | Default | Description |
@@ -239,3 +262,9 @@ Three options (listed in order of preference for production):
 | `key_prefix` | string | `null` | Optional prefix prepended to all asset keys |
 | `poll_interval_seconds` | number | `30` | Job run poll interval in seconds |
 | `generate_sensor` | boolean | `true` | Generate observation sensor |
+| `assets_by_job_name` | dict | `null` | Per-job AssetSpec overrides (key/description/deps/metadata/tags/kinds/owners/automation_condition/freshness_policy/arguments), keyed by job name |
+| `arguments` | dict | `null` | `StartJobRun` Arguments template (`{--key: value}`), with `{partition_key}` substitution |
+| `use_pipes` | boolean | `false` | Run jobs through `dagster_aws.pipes.PipesGlueClient` instead of raw polling |
+| `pipes_bucket` | string | `null` | S3 bucket for Pipes context injection/message reading. Required when `use_pipes: true` |
+| `partition_type` | string | `null` | `daily`\|`weekly`\|`monthly`\|`hourly`\|`cron`\|`static`\|`dynamic`, applied to every job |
+| `partition_start` / `partition_values` / `dynamic_partition_name` / `partition_cron_schedule` / `partition_cron_fmt` / `partition_end_offset` / `partition_timezone` | — | — | Same shape as `ecs_pipes_asset`'s partition fields |

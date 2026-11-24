@@ -141,6 +141,75 @@
       "required": false,
       "default": null
     },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "required": false,
+      "default": "%Y-%m-%d"
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "required": false,
+      "default": null
+    },
+    "arguments": {
+      "type": "object",
+      "label": "Arguments",
+      "required": false,
+      "default": null,
+      "description": "StartJobRun Arguments template ({--key: value}); values support {partition_key} substitution."
+    },
+    "use_pipes": {
+      "type": "boolean",
+      "label": "Use Pipes",
+      "required": false,
+      "default": false,
+      "description": "Run jobs through dagster_aws.pipes.PipesGlueClient for Pipes-protocol metadata/logs. Requires pipes_bucket."
+    },
+    "pipes_bucket": {
+      "type": "string",
+      "label": "Pipes Bucket",
+      "required": false,
+      "default": null,
+      "description": "S3 bucket for Pipes context injection/message reading. Required when use_pipes=true."
+    },
     "defs_state": {
       "type": "string",
       "label": "Defs State",

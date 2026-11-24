@@ -142,6 +142,7 @@ _CLASS_PATHS: dict[str, str] = {
     "AutoSysAssetComponent": "assets/infrastructure/autosys_asset/component.py",
     "AutomationAnywhereIntegrationComponent": "integrations/automation_anywhere_integration/component.py",
     "AutomationConditionApplicatorComponent": "assets/infrastructure/automation_condition_applicator/component.py",
+    "AwsBatchWorkspaceComponent": "integrations/aws_batch_workspace/component.py",
     "AwsCloudTrailIngestionComponent": "ingestion/aws_cloudtrail_ingestion/component.py",
     "AwsCloudwatchLogsInsightsQueryComponent": "assets/sources/aws_cloudwatch_logs_insights_query/component.py",
     "AwsCloudwatchMetricsQueryComponent": "assets/sources/aws_cloudwatch_metrics_query/component.py",

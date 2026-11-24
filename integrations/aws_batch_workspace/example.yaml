@@ -1,0 +1,43 @@
+# Minimal configuration — demo mode, no real AWS Batch account needed.
+type: dagster_community_components.AwsBatchWorkspaceComponent
+attributes:
+  region_name: us-east-1
+  job_queue: my-job-queue
+  group_name: batch_workspace
+  demo_mode: true
+  local_script_path: batch_task/run_batch.py
+
+---
+# Production configuration — real AWS Batch, per-job overrides, daily
+# partitions, and an observation sensor for jobs submitted outside Dagster.
+type: dagster_community_components.AwsBatchWorkspaceComponent
+attributes:
+  region_name: us-east-1
+  aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
+  aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
+  job_queue: production-job-queue
+  log_group: /batch/production-jobs
+  group_name: batch_workspace_prod
+  demo_mode: false
+
+  job_definition_name_prefix: prod-
+  exclude_name_pattern: test|dev
+
+  partition_type: daily
+  partition_start: "2024-01-01"
+  backfill_policy: single_run
+
+  retry_attempts: 2
+  timeout_seconds: 3600
+
+  assets_by_job_definition:
+    prod-nightly-etl:
+      key: raw/nightly_etl
+      owners: ["team:data-engineering"]
+      job_queue: priority-queue
+      container_environment:
+        MODE: incremental
+
+  generate_sensor: true
+  observation_interval_seconds: 300
+  job_queues_to_poll: [production-job-queue, priority-queue]

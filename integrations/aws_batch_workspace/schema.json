@@ -1,0 +1,330 @@
+{
+  "component_type": "dagster_community_components.AwsBatchWorkspaceComponent",
+  "description": "Discover AWS Batch job definitions and materialize one asset per job definition by submitting a real AWS Batch job through Dagster Pipes (this component's own PipesBatchClient, modeled on dagster_aws.pipes.PipesECSClient), polling DescribeJobs to completion.",
+  "category": "integration",
+  "icon": "si:amazonwebservices",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "One asset per AWS Batch job definition, materialized via the job's own PipesContext.report_asset_materialization()."
+    }
+  },
+  "attributes": {
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "required": true,
+      "description": "AWS region for the batch/logs clients."
+    },
+    "job_queue": {
+      "type": "string",
+      "label": "Job Queue",
+      "required": true,
+      "description": "Default AWS Batch job queue jobs submit to. Per-entry override via assets_by_job_definition.<name>.job_queue."
+    },
+    "aws_access_key_id": {
+      "type": "string",
+      "label": "AWS Access Key Id",
+      "required": false,
+      "default": null
+    },
+    "aws_secret_access_key": {
+      "type": "string",
+      "label": "AWS Secret Access Key",
+      "required": false,
+      "default": null,
+      "ui:widget": "secret"
+    },
+    "aws_session_token": {
+      "type": "string",
+      "label": "AWS Session Token",
+      "required": false,
+      "default": null,
+      "ui:widget": "secret"
+    },
+    "job_definition_name_prefix": {
+      "type": "string",
+      "label": "Job Definition Name Prefix",
+      "required": false,
+      "default": null,
+      "description": "Only include job definitions whose name starts with this prefix."
+    },
+    "exclude_job_definitions": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Exclude Job Definitions",
+      "required": false,
+      "default": null,
+      "ui:widget": "list",
+      "description": "Explicit list of job definition names to skip."
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "label": "Filter By Name Pattern",
+      "required": false,
+      "default": null,
+      "description": "Regex -- only include job definitions whose name matches."
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "label": "Exclude Name Pattern",
+      "required": false,
+      "default": null,
+      "description": "Regex -- exclude job definitions whose name matches."
+    },
+    "status_filter": {
+      "type": "string",
+      "label": "Status Filter",
+      "required": false,
+      "default": "ACTIVE",
+      "description": "DescribeJobDefinitions status filter (e.g. 'ACTIVE')."
+    },
+    "container_command": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Container Command",
+      "required": false,
+      "default": null,
+      "ui:widget": "list",
+      "description": "Command override for the container."
+    },
+    "container_environment": {
+      "type": "object",
+      "label": "Container Environment",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value",
+      "description": "Environment variable overrides for the container, as a plain {name: value} dict -- converted internally to Batch's [{name, value}] list shape."
+    },
+    "vcpus_override": {
+      "type": "number",
+      "label": "Vcpus Override",
+      "required": false,
+      "default": null,
+      "description": "containerOverrides.vcpus."
+    },
+    "memory_override": {
+      "type": "integer",
+      "label": "Memory Override",
+      "required": false,
+      "default": null,
+      "description": "containerOverrides.memory (MiB)."
+    },
+    "retry_attempts": {
+      "type": "integer",
+      "label": "Retry Attempts",
+      "required": false,
+      "default": null,
+      "description": "retryStrategy.attempts -- number of times Batch itself retries a failed job."
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": false,
+      "default": null,
+      "description": "timeout.attemptDurationSeconds."
+    },
+    "submit_job_params_overrides": {
+      "type": "object",
+      "label": "Submit Job Params Overrides",
+      "required": false,
+      "default": null,
+      "description": "Raw overrides deep-merged on top of the submit_job params this component builds, for anything not covered by an explicit field above."
+    },
+    "log_group": {
+      "type": "string",
+      "label": "Log Group",
+      "required": false,
+      "default": null,
+      "description": "Fallback CloudWatch log group when a job definition's own logConfiguration doesn't specify one. Batch's real default is 'aws/batch/job' (used when this is unset)."
+    },
+    "extras": {
+      "type": "object",
+      "label": "Extras",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value",
+      "description": "Arbitrary extra data passed to PipesBatchClient.run(extras=...)."
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 6.0,
+      "description": "Seconds between DescribeJobs polls (Batch's boto3 client ships no completion waiter)."
+    },
+    "assets_by_job_definition": {
+      "type": "object",
+      "label": "Assets By Job Definition",
+      "required": false,
+      "default": null,
+      "description": "Override the asset spec (and job_queue/container_environment) for specific job definitions, keyed by job definition name."
+    },
+    "translation": {
+      "type": "string",
+      "label": "Translation",
+      "required": false,
+      "default": null,
+      "description": "Optional per-asset translation callable. Receives a BatchJobDefinitionProps and returns a dict of AssetSpec kwargs."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "aws_batch",
+      "description": "Dagster asset group name."
+    },
+    "key_prefix": {
+      "type": "string",
+      "label": "Key Prefix",
+      "required": false,
+      "default": null,
+      "description": "Prefix for every emitted asset key. Default: ['aws_batch']."
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "required": false,
+      "default": null,
+      "ui:widget": "list",
+      "description": "Asset kinds. Default always includes ['batch', 'aws', 'pipes']."
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value",
+      "description": "Additional asset tags."
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "required": false,
+      "default": null,
+      "ui:widget": "list",
+      "description": "Asset owners."
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "Run jobs as a real local subprocess against fake Batch/CloudWatch clients instead of a real AWS Batch job queue. The real PipesBatchClient/PipesCloudWatchMessageReader code runs unmodified in both modes -- only the boto3 API calls are faked. Set false for real AWS Batch."
+    },
+    "local_script_path": {
+      "type": "string",
+      "label": "Local Script Path",
+      "required": false,
+      "default": null,
+      "description": "Script demo mode launches locally (via sys.executable) in place of a real Batch job. Required when demo_mode=true."
+    },
+    "generate_sensor": {
+      "type": "boolean",
+      "label": "Generate Sensor",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox",
+      "description": "Opt-in sensor polling ListJobs for jobs Dagster did not itself submit (no dagster/run-id tag)."
+    },
+    "observation_interval_seconds": {
+      "type": "integer",
+      "label": "Observation Interval Seconds",
+      "required": false,
+      "default": 300,
+      "description": "Sensor tick interval. Only used when generate_sensor=true."
+    },
+    "job_queues_to_poll": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Job Queues To Poll",
+      "required": false,
+      "default": null,
+      "ui:widget": "list",
+      "description": "Job queues the observation sensor polls via ListJobs. Default: [job_queue]."
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "cron", "static", "dynamic"],
+      "description": "Applied to every job definition's asset."
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null,
+      "description": "Comma-separated for static."
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "required": false,
+      "default": "%Y-%m-%d"
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "required": false,
+      "default": null,
+      "enum": ["single_run", "multi_run"],
+      "ui:widget": "select",
+      "description": "Only honored when the asset is actually partitioned."
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Policy Max Partitions Per Run",
+      "required": false,
+      "default": null
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "integration",
+    "aws",
+    "batch",
+    "pipes",
+    "containers"
+  ],
+  "name": "AWS Batch Workspace"
+}

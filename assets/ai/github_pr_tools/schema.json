@@ -172,6 +172,12 @@
       "label": "Duplicate Check Lookback Days",
       "description": "find_issues includes an issue closed within this many days, not just still-open ones. A person closing a bad finding (wontfix, already handled) is a signal not to re-file it -- without this, that signal is lost the moment the issue drops out of an open-only search, and an advisor agent re-files the same thing it was already told no about.",
       "required": false
+    },
+    "validate_python_snippets": {
+      "type": "boolean",
+      "label": "Validate Python Snippets",
+      "description": "open_issue parses every Python/diff code block in the body and refuses to file (with the specific reason) if a Dagster import, attribute, or call doesn't match the INSTALLED dagster -- e.g. a renamed/removed function, or a call whose arguments don't match the real signature. Catches a wrong suggestion before it's filed, not after a person tries it and it fails. Best-effort: a snippet that doesn't parse as Python at all is checked line by line instead of being skipped.",
+      "required": false
     }
   }
 }

@@ -606,6 +606,78 @@ def test_open_issue_practice_mode_files_nothing(mod, patched):
     assert result["would_open"] == "github_issue"
 
 
+# -- validate_python_snippets (Hooli feedback: refuse a code suggestion that calls a renamed/ -----
+# removed Dagster API, before it's ever filed, not after a person tries it) ------------------------
+def test_validate_python_snippets_refuses_a_call_to_a_nonexistent_function(mod, patched):
+    tools = _tools(mod, patched, validate_python_snippets=True)
+    body = (
+        "Suggested fix:\n\n```python\n"
+        "from dagster import load_from_defs_folder\n"
+        "defs = load_from_defs_folder(__file__)\n"
+        "```\n"
+    )
+    result = tools.call("open_issue", {"title": "Use the new loader", "body": body})
+    assert "error" in result
+    assert "load_from_defs_folder" in result["error"]
+
+
+def test_validate_python_snippets_allows_correct_code(mod, patched):
+    api = patched
+
+    def _issues_handler(method, url, headers=None, timeout=None, **kwargs):
+        path = url.split(f"/repos/{api.repo}", 1)[-1]
+        if method == "POST" and path == "/labels":
+            return _FakeResp(201, {"name": "engineering-agent"})
+        if method == "POST" and path == "/issues":
+            return _FakeResp(201, {"number": 100, "html_url": f"https://github.com/{api.repo}/issues/100"})
+        return api.request(method, url, headers=headers, timeout=timeout, **kwargs)
+
+    import unittest.mock
+    body = "Suggested fix:\n\n```python\nimport dagster as dg\n\n@dg.asset\ndef my_asset():\n    return 1\n```\n"
+    with unittest.mock.patch("requests.request", _issues_handler):
+        tools = _tools(mod, api, validate_python_snippets=True)
+        result = tools.call("open_issue", {"title": "Add an asset", "body": body})
+    assert result == {"number": 100, "url": f"https://github.com/{api.repo}/issues/100"}
+
+
+def test_validate_python_snippets_off_by_default_does_not_check_anything(mod, patched):
+    api = patched
+
+    def _issues_handler(method, url, headers=None, timeout=None, **kwargs):
+        path = url.split(f"/repos/{api.repo}", 1)[-1]
+        if method == "POST" and path == "/labels":
+            return _FakeResp(201, {"name": "engineering-agent"})
+        if method == "POST" and path == "/issues":
+            return _FakeResp(201, {"number": 101, "html_url": f"https://github.com/{api.repo}/issues/101"})
+        return api.request(method, url, headers=headers, timeout=timeout, **kwargs)
+
+    import unittest.mock
+    body = "```python\nfrom dagster import this_does_not_exist_at_all\n```\n"
+    with unittest.mock.patch("requests.request", _issues_handler):
+        tools = _tools(mod, api)  # validate_python_snippets not set -- default False
+        result = tools.call("open_issue", {"title": "x", "body": body})
+    assert result == {"number": 101, "url": f"https://github.com/{api.repo}/issues/101"}
+
+
+def test_validate_python_snippets_ignores_non_python_code_blocks(mod, patched):
+    api = patched
+
+    def _issues_handler(method, url, headers=None, timeout=None, **kwargs):
+        path = url.split(f"/repos/{api.repo}", 1)[-1]
+        if method == "POST" and path == "/labels":
+            return _FakeResp(201, {"name": "engineering-agent"})
+        if method == "POST" and path == "/issues":
+            return _FakeResp(201, {"number": 102, "html_url": f"https://github.com/{api.repo}/issues/102"})
+        return api.request(method, url, headers=headers, timeout=timeout, **kwargs)
+
+    import unittest.mock
+    body = "```yaml\nthis_is_not_python: load_from_defs_folder\n```\n"
+    with unittest.mock.patch("requests.request", _issues_handler):
+        tools = _tools(mod, api, validate_python_snippets=True)
+        result = tools.call("open_issue", {"title": "x", "body": body})
+    assert result == {"number": 102, "url": f"https://github.com/{api.repo}/issues/102"}
+
+
 # -- restrict_to_branch_prefix (off by default: this toolset also works as a general-purpose PR reviewer) -------
 def test_restrict_to_branch_prefix_off_by_default_reads_any_pr(mod, patched):
     api = patched

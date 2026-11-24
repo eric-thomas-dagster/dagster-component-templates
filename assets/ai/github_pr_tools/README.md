@@ -108,6 +108,19 @@ the difference. A person closing a bad finding is a signal not to re-file it, no
 forget the moment the issue drops out of an open-only search -- a real deployment reported an
 advisor agent re-filing a finding someone had already closed as a non-issue.
 
+## Catching a wrong suggestion before it's filed (`validate_python_snippets`)
+
+An agent suggesting a fix can get the fix itself wrong -- calling a function that was renamed,
+an attribute that doesn't exist, or passing arguments a real function doesn't accept. Set
+`validate_python_snippets: true` and `open_issue` parses every Python and diff code block in the
+body (via `ast`) and checks each `dagster.*` import, attribute access, and call against the
+INSTALLED `dagster` package -- `inspect.signature(...).bind(...)` confirms a call's arguments
+actually match the real signature, not just that the name exists. A problem refuses the whole
+`open_issue` call with the specific reason (e.g. `"line 3: dagster has no load_from_defs_folder"`),
+before a person ever tries the snippet and finds out it doesn't work. A block that doesn't parse
+as whole Python (a bare diff hunk, a partial snippet) is checked line by line instead of skipped.
+Off by default -- existing behavior is unchanged unless you opt in.
+
 ## Practice mode (`practice_mode_env_var`)
 
 Set `practice_mode_env_var` to the NAME of an env var (not a value templated into this field) that your deployment can scope per-environment -- e.g. set it in a Dagster+ **branch deployment** and leave it unset in the full deployment, so the same component YAML practices in a PR's own branch deployment and acts for real once merged. When that named env var holds anything other than `''`/`'0'`/`'false'`/`'no'`/`'off'` (case-insensitive -- same vocabulary as the engineering-agents reference's `settings.shadow()`), `propose_fix` runs every validation (protected paths, duplicate-PR-file check, file count) but returns `{"practice_mode": true, "would_open": "pull_request", "title": ..., "files": [...]}` instead of actually creating a branch/commit/PR.
@@ -161,6 +174,7 @@ Every GitHub call is pinned to the configured `repo` -- a prompt cannot point th
 | `practice_mode_env_var` | `str` | — | Env var NAME (not a value templated into this field) whose value, read fresh at call time, switches propose_fix into practice mode: every validation (protected paths, duplicate-PR-file check, file count) still runs, but… _(full docs in schema.json + component README)_ |
 | `ledger_path` | `str` | — | Directory this tool writes one JSON-lines file per Dagster run_id into, recording every consequential action (propose_fix, open_issue, an APPROVE review) as it happens -- filed, would_file (practice mode), refused (a gua… _(full docs in schema.json + component README)_ |
 | `duplicate_check_lookback_days` | `int` | `30` | find_issues includes an issue closed within this many days, not just still-open ones. A person closing a bad finding (wontfix, already handled) is a signal not to re-file it -- without this, that signal is lost the momen… _(full docs in schema.json + component README)_ |
+| `validate_python_snippets` | `bool` | `false` | open_issue parses every Python/diff code block in the body and refuses to file (with the specific reason) if a Dagster import, attribute, or call doesn't match the INSTALLED dagster -- e.g. a renamed/removed function, or… _(full docs in schema.json + component README)_ |
 | `allow` | `List[str]` | — | `f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}."` |
 | `max_result_chars` | `int` | `20000` | Upper bound on the serialized size of any tool result. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with GITHUB_PR_TOOLS_* env vars set from this component's own settings, and the real token(s) passed through via live env p… _(full docs in schema.json + component README)_ |

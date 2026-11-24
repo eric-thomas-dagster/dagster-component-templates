@@ -554,10 +554,135 @@ def _gh_find_issues(
     return list(found.values())
 
 
+# BEGIN python snippet check (ported from the engineering-agents reference's snippet_check.py;
+# checks Python/diff code blocks in an issue body against the INSTALLED dagster, catching a
+# suggestion that calls a renamed/removed API, an attribute that doesn't exist, or a call whose
+# arguments don't match the real signature -- before it's ever filed, not after a person tries
+# the snippet and it fails.)
+import re as _gh_snippet_re
+_GH_SNIPPET_FENCE = _gh_snippet_re.compile(r"```([a-zA-Z]*)\n(.*?)```", _gh_snippet_re.DOTALL)
+_GH_SNIPPET_IMPORT_LINE = _gh_snippet_re.compile(r"^\s*(from\s+dagster[\w.]*\s+import\s+.+|import\s+dagster[\w.]*(\s+as\s+\w+)?)\s*$")
+
+
+def _gh_snippet_new_code(block: str) -> str:
+    """A unified-diff block's added/context lines, with the +/- prefix stripped -- a plain
+    (non-diff) Python block passes through unchanged (no line starts with + or -)."""
+    lines = block.splitlines()
+    if not any(line.startswith(("+", "-")) for line in lines):
+        return block
+    return "\n".join(line[1:] for line in lines if line.startswith(("+", " ")) and not line.startswith("+++"))
+
+
+def _gh_snippet_resolve(root: str, chain: List[str]):
+    import importlib
+    obj = importlib.import_module(root.split(".")[0])
+    for part in [*root.split(".")[1:], *chain]:
+        if hasattr(obj, part):
+            obj = getattr(obj, part)
+        else:
+            try:
+                obj = importlib.import_module(f"{obj.__name__}.{part}")
+            except (ImportError, AttributeError):
+                return None
+    return obj
+
+
+def _gh_snippet_chain(node) -> Optional[List[str]]:
+    import ast
+    parts: List[str] = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    return [node.id, *reversed(parts)] if isinstance(node, ast.Name) else None
+
+
+def _gh_snippet_check_tree(tree, problems: List[str], aliases: Optional[Dict[str, str]] = None) -> None:
+    import ast
+    import importlib
+    import inspect
+    aliases = {} if aliases is None else aliases
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name.split(".")[0] == "dagster":
+                    aliases[a.asname or a.name.split(".")[0]] = a.name
+        elif isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] == "dagster":
+            try:
+                module = importlib.import_module(node.module)
+            except ImportError:
+                problems.append(f"line {node.lineno}: module {node.module} does not exist")
+                continue
+            for a in node.names:
+                if a.name != "*" and not hasattr(module, a.name):
+                    problems.append(f"line {node.lineno}: {node.module} has no {a.name}")
+                aliases[a.asname or a.name] = f"{node.module}.{a.name}"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute):
+            chain = _gh_snippet_chain(node)
+            if chain and chain[0] in aliases and aliases[chain[0]] == "dagster" and len(chain) == 2:
+                if _gh_snippet_resolve("dagster", chain[1:]) is None:
+                    problems.append(f"line {node.lineno}: dagster has no {chain[1]}")
+        if not isinstance(node, ast.Call):
+            continue
+        chain = _gh_snippet_chain(node.func)
+        if not chain or chain[0] not in aliases:
+            continue
+        obj = _gh_snippet_resolve(aliases[chain[0]], chain[1:])
+        if obj is None or any(isinstance(a, ast.Starred) for a in node.args) or any(k.arg is None for k in node.keywords):
+            continue
+        try:
+            signature = inspect.signature(obj)
+        except (TypeError, ValueError):
+            continue
+        try:
+            signature.bind(*[object()] * len(node.args), **{k.arg: object() for k in node.keywords})
+        except TypeError as e:
+            problems.append(f"line {node.lineno}: {'.'.join(chain)}{signature} does not accept this call ({e})")
+
+
+def _gh_snippet_check_by_line(code: str, problems: List[str]) -> None:
+    """For a fragment that doesn't parse as a whole (a bare diff hunk, a partial snippet): check
+    its imports first, then each remaining line on its own, rather than giving up entirely."""
+    import ast
+    import contextlib
+    aliases: Dict[str, str] = {}
+    lines = [line.strip() for line in code.splitlines() if line.strip()]
+    for line in lines:
+        if _GH_SNIPPET_IMPORT_LINE.match(line):
+            with contextlib.suppress(SyntaxError):
+                _gh_snippet_check_tree(ast.parse(line), problems, aliases)
+    for line in lines:
+        if not _GH_SNIPPET_IMPORT_LINE.match(line):
+            with contextlib.suppress(SyntaxError):
+                _gh_snippet_check_tree(ast.parse(line), problems, aliases)
+
+
+def _gh_snippet_problems(body: str) -> List[str]:
+    """Problems found in the Python and diff code blocks of an issue body against the INSTALLED
+    dagster; empty when every block is sound (or there are no Python/diff blocks at all)."""
+    import ast
+    problems: List[str] = []
+    for lang, block in _GH_SNIPPET_FENCE.findall(body or ""):
+        if lang.lower() not in ("", "python", "py", "diff"):
+            continue
+        code = _gh_snippet_new_code(block)
+        try:
+            _gh_snippet_check_tree(ast.parse(code), problems)
+        except SyntaxError:
+            _gh_snippet_check_by_line(code, problems)
+    return problems
+# END python snippet check
+
+
 def _gh_open_issue(
     repo: str, title: str, body: str, labels: Optional[List[str]], *,
     label: str, token: str, api_base_url: str, practice_mode: bool = False,
+    validate_python_snippets: bool = False,
 ) -> Dict[str, Any]:
+    if validate_python_snippets:
+        problems = _gh_snippet_problems(body)
+        if problems:
+            raise GithubPrScopeError("Python snippet(s) in the body don't match the installed dagster: " + "; ".join(problems))
     if practice_mode:
         return {"practice_mode": True, "would_open": "github_issue", "title": title, "url": None}
     try:
@@ -657,7 +782,7 @@ class GithubPrTools:
         low_risk_paths=("src/", "tests/", "docs/", "README"), low_risk_max_files: int = 2, low_risk_max_lines: int = 30,
         max_files_per_fix: int = 5, allow: Optional[List[str]] = None, max_result_chars: int = 20000,
         practice_mode_env_var: Optional[str] = None, ledger_path: Optional[str] = None,
-        duplicate_check_lookback_days: int = 30,
+        duplicate_check_lookback_days: int = 30, validate_python_snippets: bool = False,
         audit: Optional[Callable[[str], None]] = None,
     ):
         import logging
@@ -677,6 +802,7 @@ class GithubPrTools:
         self.practice_mode_env_var = practice_mode_env_var
         self.ledger_path = ledger_path
         self.duplicate_check_lookback_days = duplicate_check_lookback_days
+        self.validate_python_snippets = validate_python_snippets
         if allow is None:
             allow = list(ALL_TOOLS)
         unknown = sorted(set(allow) - set(ALL_TOOLS))
@@ -770,6 +896,7 @@ class GithubPrTools:
         return _gh_open_issue(
             self.repo, title, body, labels, label=_GH_ISSUE_LABEL, token=self.token, api_base_url=self.api_base_url,
             practice_mode=_gh_is_practice_mode(self.practice_mode_env_var),
+            validate_python_snippets=self.validate_python_snippets,
         )
 
     def t_list_files(self, path: str = "") -> Dict[str, Any]:
@@ -944,6 +1071,17 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             "told no about."
         ),
     )
+    validate_python_snippets: bool = Field(
+        default=False,
+        description=(
+            "open_issue parses every Python/diff code block in the body and refuses to file (with "
+            "the specific reason) if a Dagster import, attribute, or call doesn't match the "
+            "INSTALLED dagster -- e.g. a renamed/removed function, or a call whose arguments don't "
+            "match the real signature. Catches a wrong suggestion before it's filed, not after a "
+            "person tries it and it fails. Best-effort: a snippet that doesn't parse as Python at "
+            "all is checked line by line instead of being skipped."
+        ),
+    )
 
     allow: Optional[List[str]] = Field(default=None, description=f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}.")
     max_result_chars: int = Field(default=20000, description="Upper bound on the serialized size of any tool result.")
@@ -987,6 +1125,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         practice_mode_env_var = self.practice_mode_env_var
         ledger_path = self.ledger_path
         duplicate_check_lookback_days = self.duplicate_check_lookback_days
+        validate_python_snippets = self.validate_python_snippets
         allow = list(self.allow) if self.allow else None
         if allow is not None:
             bad = sorted(set(allow) - set(ALL_TOOLS))
@@ -1003,6 +1142,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 low_risk_max_lines=low_risk_max_lines, max_files_per_fix=max_files_per_fix, allow=allow, max_result_chars=max_chars,
                 practice_mode_env_var=practice_mode_env_var, ledger_path=ledger_path,
                 duplicate_check_lookback_days=duplicate_check_lookback_days,
+                validate_python_snippets=validate_python_snippets,
             )
 
         res = dg.ResourceDefinition(resource_fn=_init, description=f"Repo-scoped GitHub PR tools for {repo}.")
@@ -1022,6 +1162,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 "GITHUB_PR_TOOLS_MAX_FILES_PER_FIX": str(max_files_per_fix),
                 "GITHUB_PR_TOOLS_MAX_CHARS": str(max_chars),
                 "GITHUB_PR_TOOLS_DUPLICATE_CHECK_LOOKBACK_DAYS": str(duplicate_check_lookback_days),
+                "GITHUB_PR_TOOLS_VALIDATE_PYTHON_SNIPPETS": "1" if validate_python_snippets else "",
             }
             if reviewer_token_env_var:
                 mcp_env["GITHUB_PR_TOOLS_REVIEWER_TOKEN_ENV_VAR"] = reviewer_token_env_var
@@ -1162,6 +1303,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         practice_mode_env_var=os.environ.get("GITHUB_PR_TOOLS_PRACTICE_MODE_ENV_VAR"),
         ledger_path=os.environ.get("GITHUB_PR_TOOLS_LEDGER_PATH"),
         duplicate_check_lookback_days=int(os.environ.get("GITHUB_PR_TOOLS_DUPLICATE_CHECK_LOOKBACK_DAYS", "30")),
+        validate_python_snippets=bool(os.environ.get("GITHUB_PR_TOOLS_VALIDATE_PYTHON_SNIPPETS")),
     )
     build_mcp_server(tools).run(transport="stdio")
 

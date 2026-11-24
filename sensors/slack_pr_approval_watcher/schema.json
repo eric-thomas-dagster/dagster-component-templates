@@ -70,6 +70,58 @@
       "description": "How far back (hours) to scan the channel for still-open PR-review threads.",
       "required": false
     },
+    "post_branch_deployment_link": {
+      "type": "boolean",
+      "default": true,
+      "label": "Post Branch Deployment Link",
+      "description": "Post ':test_tube: A branch deployment of this change is ready to test: <link>' once in a PR's Slack thread, when the PR has a Dagster+ branch deployment link and is NOT low risk (per protected_paths / low_risk_paths / low_risk_max_files / low_risk_max_lines), so a person approving in Slack can try the change first.",
+      "required": false
+    },
+    "protected_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        ".github/",
+        "pyproject.toml",
+        "requirements",
+        "Dockerfile",
+        "setup."
+      ],
+      "label": "Protected Paths",
+      "description": "Risk assessment for post_branch_deployment_link: a PR touching one of these paths is not low risk. Same matching convention and defaults as github_pr_tools' protected_paths.",
+      "required": false
+    },
+    "low_risk_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "src/",
+        "tests/",
+        "docs/",
+        "README"
+      ],
+      "label": "Low Risk Paths",
+      "description": "Risk assessment for post_branch_deployment_link: a PR changing only these paths (within the size limits, checks passing) is low risk and gets no link. Same convention and defaults as github_pr_tools' low_risk_paths.",
+      "required": false
+    },
+    "low_risk_max_files": {
+      "type": "integer",
+      "default": 2,
+      "label": "Low Risk Max Files",
+      "description": "Risk assessment for post_branch_deployment_link: max changed files for a low-risk PR.",
+      "required": false
+    },
+    "low_risk_max_lines": {
+      "type": "integer",
+      "default": 30,
+      "label": "Low Risk Max Lines",
+      "description": "Risk assessment for post_branch_deployment_link: max changed lines (additions + deletions) for a low-risk PR.",
+      "required": false
+    },
     "auto_merge": {
       "type": "boolean",
       "default": false,

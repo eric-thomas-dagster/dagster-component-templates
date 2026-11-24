@@ -43,9 +43,10 @@ class FakeGithubApi:
         self.reviews = {}
         self.refs = set()
         self.updated_branches = []
+        self.comments = {}
 
-    def add_pull(self, number, *, head_sha="sha1", head_ref="agent/fix-1", state="open", merged=False):
-        self.pulls[number] = {"number": number, "html_url": "u", "title": "t", "body": "", "user": {"login": "bot"}, "state": state, "merged": merged, "head": {"sha": head_sha, "ref": head_ref}}
+    def add_pull(self, number, *, head_sha="sha1", head_ref="agent/fix-1", state="open", merged=False, base_ref="main"):
+        self.pulls[number] = {"number": number, "html_url": "u", "title": "t", "body": "", "user": {"login": "bot"}, "state": state, "merged": merged, "head": {"sha": head_sha, "ref": head_ref}, "base": {"ref": base_ref}}
         self.files.setdefault(number, [{"filename": "src/a.py", "status": "modified", "additions": 1, "deletions": 1, "patch": ""}])
         self.checks.setdefault(head_sha, [])
         self.reviews.setdefault(number, [])
@@ -90,7 +91,7 @@ class FakeGithubApi:
             return _FakeResp(200, [])
         m = re.match(r"^/issues/(\d+)/comments$", path)
         if method == "GET" and m:
-            return _FakeResp(200, [])
+            return _FakeResp(200, self.comments.get(int(m.group(1)), []))
         m = re.match(r"^/pulls/(\d+)/update-branch$", path)
         if method == "PUT" and m:
             self.updated_branches.append(int(m.group(1)))
@@ -438,3 +439,80 @@ def test_skip_in_branch_deployments_false_still_runs(mod, monkeypatch):
     monkeypatch.setenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "1")
     result = _run(mod, monkeypatch, comp, github, slack)
     assert "1.0" in json.loads(result.cursor)["resolved_ts"]
+
+
+# ── branch deployment link in the thread + the merge confirmation ───────────────────────────────────────────────────
+
+BRANCH_URL = "https://acme.dagster.cloud/pr-42--agent-fix"
+
+
+def _with_branch_deployment(github, number=42, files=None):
+    github.comments[number] = [{"body": f"Your branch deployment is ready: {BRANCH_URL}"}]
+    if files is not None:
+        github.files[number] = files
+
+
+def _links(slack):
+    return [r for r in slack.posted_replies if "branch deployment of this change" in r["text"]]
+
+
+def test_branch_deployment_link_is_posted_once_for_a_not_low_risk_pr(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    github.add_pull(42)
+    github.set_checks("sha1", {"build": "success"})
+    _with_branch_deployment(github, files=[{"filename": ".github/workflows/ci.yml", "status": "modified", "additions": 1, "deletions": 0, "patch": ""}])
+    slack.add_message("1.0", {"pr_number": 42})
+    comp = _component(mod)
+    first = _run(mod, monkeypatch, comp, github, slack)
+    links = _links(slack)
+    assert len(links) == 1 and links[0]["thread_ts"] == "1.0"
+    assert links[0]["text"] == f":test_tube: A branch deployment of this change is ready to test: <{BRANCH_URL}>"
+    assert "1.0" in json.loads(first.cursor)["branch_links"]
+    # a later tick (cursor carried forward) does not repeat it
+    _run(mod, monkeypatch, comp, github, slack, cursor=first.cursor)
+    assert len(_links(slack)) == 1
+
+
+def test_no_branch_deployment_link_for_a_low_risk_pr_or_when_there_is_no_deployment(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    github.add_pull(42)
+    github.set_checks("sha1", {"build": "success"})
+    _with_branch_deployment(github)  # default fake file src/a.py, 2 lines, checks passing: low risk
+    slack.add_message("1.0", {"pr_number": 42})
+    _run(mod, monkeypatch, _component(mod), github, slack)
+    assert _links(slack) == []
+    # not low risk but no branch deployment comment: nothing to post
+    risky, slack2 = FakeGithubApi(), FakeSlackClient()
+    risky.add_pull(42)
+    risky.files[42] = [{"filename": "Dockerfile", "status": "modified", "additions": 1, "deletions": 0, "patch": ""}]
+    slack2.add_message("1.0", {"pr_number": 42})
+    _run(mod, monkeypatch, _component(mod), risky, slack2)
+    assert _links(slack2) == []
+
+
+def test_branch_deployment_link_can_be_turned_off_and_retries_after_a_slack_failure(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    github.add_pull(42)
+    _with_branch_deployment(github, files=[{"filename": "Dockerfile", "status": "modified", "additions": 1, "deletions": 0, "patch": ""}])
+    slack.add_message("1.0", {"pr_number": 42})
+    _run(mod, monkeypatch, _component(mod, post_branch_deployment_link=False), github, slack)
+    assert _links(slack) == []
+    real_post = slack.chat_postMessage
+    slack.chat_postMessage = lambda **k: (_ for _ in ()).throw(RuntimeError("slack down"))
+    failed = _run(mod, monkeypatch, _component(mod), github, slack)
+    assert "1.0" not in json.loads(failed.cursor)["branch_links"]
+    slack.chat_postMessage = real_post
+    _run(mod, monkeypatch, _component(mod), github, slack, cursor=failed.cursor)
+    assert len(_links(slack)) == 1
+
+
+def test_merge_confirmation_names_the_pr_and_its_real_base_branch(mod, monkeypatch):
+    github, slack = FakeGithubApi(), FakeSlackClient()
+    github.add_pull(42, head_ref="agent/fix-1", base_ref="release/2.0")
+    github.set_checks("sha1", {"build": "success"})
+    github.reviews[42] = [{"user": {"login": "reviewer-bot"}, "state": "APPROVED"}]
+    slack.add_message("1.0", {"pr_number": 42})
+    _run(mod, monkeypatch, _component(mod, auto_merge=True), github, slack)
+    merged = [r for r in slack.posted_replies if "Merged" in r["text"]]
+    assert [r["text"] for r in merged] == [":rocket: Merged #42 into release/2.0."]
+    assert merged[0]["thread_ts"] == "1.0"

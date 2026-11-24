@@ -146,6 +146,7 @@ def _gh_get_pull_request(repo: str, number: int, *, token: str, api_base_url: st
         "merged": bool(pr.get("merged")),
         "head_sha": pr["head"]["sha"],
         "head_ref": pr["head"]["ref"],
+        "base_ref": (pr.get("base") or {}).get("ref"),
         "files": [
             {
                 "path": f["filename"], "status": f["status"], "additions": f["additions"],
@@ -538,6 +539,24 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
     slack_channel: str = Field(description="The SAME channel sensors/github_pull_request_agent_sensor posts to.")
     slack_bot_token_env_var: str = Field(default="SLACK_BOT_TOKEN", description="Env var holding the bot's `xoxb-...` token. Needs `reactions:read` + `chat:write` + `channels:history`/`groups:history`.")
     history_lookback_hours: float = Field(default=168.0, description="How far back (hours) to scan the channel for still-open PR-review threads.")
+    post_branch_deployment_link: bool = Field(
+        default=True,
+        description=(
+            "Post ':test_tube: A branch deployment of this change is ready to test: <link>' once in a PR's Slack thread, "
+            "when the PR has a Dagster+ branch deployment link and is NOT low risk (per protected_paths / low_risk_paths / "
+            "low_risk_max_files / low_risk_max_lines below), so a person approving in Slack can try the change first."
+        ),
+    )
+    protected_paths: List[str] = Field(
+        default_factory=lambda: [".github/", "pyproject.toml", "requirements", "Dockerfile", "setup."],
+        description="Risk assessment for post_branch_deployment_link: a PR touching one of these paths is not low risk. Same matching convention and defaults as github_pr_tools' protected_paths.",
+    )
+    low_risk_paths: List[str] = Field(
+        default_factory=lambda: ["src/", "tests/", "docs/", "README"],
+        description="Risk assessment for post_branch_deployment_link: a PR changing only these paths (within the size limits, checks passing) is low risk and gets no link. Same convention and defaults as github_pr_tools' low_risk_paths.",
+    )
+    low_risk_max_files: int = Field(default=2, description="Risk assessment for post_branch_deployment_link: max changed files for a low-risk PR.")
+    low_risk_max_lines: int = Field(default=30, description="Risk assessment for post_branch_deployment_link: max changed lines (additions + deletions) for a low-risk PR.")
     auto_merge: bool = Field(default=False, description="When True, squash-merge automatically once the reviewer identity has approved and checks pass (still gated by branch_prefix).")
     refresh_other_agent_prs_after_merge: bool = Field(
         default=True,
@@ -619,6 +638,11 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
         dagster_url = self.dagster_url
         dagster_cloud_api_token_env_var = self.dagster_cloud_api_token_env_var
         verify_timeout_minutes = self.verify_timeout_minutes
+        post_branch_deployment_link = self.post_branch_deployment_link
+        risk_config = dict(
+            protected_paths=list(self.protected_paths), low_risk_paths=list(self.low_risk_paths),
+            low_risk_max_files=self.low_risk_max_files, low_risk_max_lines=self.low_risk_max_lines,
+        )
 
         def sensor_fn(context: dg.SensorEvaluationContext, **_resources):
             if skip_in_branch_deployments and os.environ.get("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT") == "1":
@@ -635,15 +659,17 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
             resolved_ts = set(cur.get("resolved_ts") or [])
             last_error = dict(cur.get("last_error") or {})
             verifying = dict(cur.get("verifying") or {})
+            branch_links = list(cur.get("branch_links") or [])  # thread ts values whose branch-deployment link was already posted
 
             client = _get_slack_client(slack_bot_token_env_var)
             actions: List[str] = []
 
-            def say(ts: str, text: str) -> None:
+            def say(ts: str, text: str) -> bool:
                 try:
                     client.chat_postMessage(channel=slack_channel, thread_ts=ts, text=text)
+                    return True
                 except Exception:  # noqa: BLE001
-                    pass
+                    return False
 
             # Poll every in-flight post-merge verification FIRST, regardless of whether this tick
             # finds any new pending PR-review threads -- a verification re-run can easily outlive
@@ -676,6 +702,7 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
                     "resolved_ts": sorted(resolved_ts)[-500:],
                     "last_error": {k: v for k, v in last_error.items() if k not in resolved_ts},
                     "verifying": verifying,
+                    "branch_links": branch_links[-500:],
                 })
                 return dg.SensorResult(
                     skip_reason="; ".join(actions) if actions else "no open PR-review threads in the scanned window",
@@ -700,6 +727,13 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
                     newly_resolved.append(ts)
                     actions.append(f"PR #{number}: {'merged' if pr.get('merged') else 'closed'}")
                     continue
+
+                if post_branch_deployment_link and pr.get("branch_deployment_url") and ts not in branch_links:
+                    if _gh_assess_risk(pr, **risk_config)["level"] != "low":
+                        # recorded only once the post actually landed, so a Slack hiccup retries next tick
+                        if say(ts, f":test_tube: A branch deployment of this change is ready to test: <{pr['branch_deployment_url']}>"):
+                            branch_links.append(ts)
+                            actions.append(f"PR #{number}: posted the branch deployment link")
 
                 approved_by_reviewer = bool(reviewer_login) and reviewer_login in _gh_approvals(repo, number, token=token, api_base_url=api_base_url)
 
@@ -741,7 +775,7 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
                             say(ts, f":warning: Not merged: {e}")
                     else:
                         actions.append(f"PR #{number}: merged")
-                        say(ts, f":rocket: Merged #{number} into main.")
+                        say(ts, f":rocket: Merged #{number} into {pr.get('base_ref') or 'the base branch'}.")
                         if refresh_other_agent_prs_after_merge:
                             try:
                                 _gh_refresh_open_agent_prs(repo, branch_prefix=branch_prefix, token=token, api_base_url=api_base_url)
@@ -774,6 +808,7 @@ class SlackPrApprovalWatcherComponent(dg.Component, dg.Model, dg.Resolvable):
                 "resolved_ts": sorted(resolved_ts)[-500:],
                 "last_error": {k: v for k, v in last_error.items() if k not in resolved_ts},
                 "verifying": verifying,
+                "branch_links": branch_links[-500:],
             })
             if not actions:
                 return dg.SensorResult(skip_reason=f"scanned {len(pending)} open PR-review thread(s); no changes", cursor=new_cursor)

@@ -27,6 +27,7 @@ env:
     assets/ai/dagster_instance_tools/tests
     assets/ai/dagster_evidence_tools/tests
     assets/ai/dagster_discovery_tools/tests
+    sensors/slack_pr_approval_watcher/tests
     assets/ai/insights_custom_metrics_sync/tests
     assets/ai/run_failure_remediation/tests
     assets/ai/mcp_tool_picker/tests

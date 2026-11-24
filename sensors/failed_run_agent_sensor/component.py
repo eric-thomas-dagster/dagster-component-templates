@@ -330,7 +330,17 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     sensor_name: str = Field(default="failed_run_agent_sensor", description="Unique sensor name.")
     asset_keys: List[str] = Field(description="Agent asset(s) to launch on a failure (e.g. a bug-fixer asset + its Slack-reply asset).")
 
-    code_location_names: Optional[List[str]] = Field(default=None, description="Only trigger for runs from one of these code locations. Leave unset to monitor every code location.")
+    code_location_names: Optional[List[str]] = Field(default=None, description="Only trigger for runs from one of these code locations. Leave unset to monitor every code location. Mutually exclusive in effect with exclude_code_location_names -- set one or the other, not both.")
+    exclude_code_location_names: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Trigger for every code location EXCEPT these -- same naming convention as "
+            "dagster_discovery_tools' own exclude_locations. The usual case is excluding the "
+            "agents' own code location, so a fixer run's own failures don't trigger more fixer "
+            "runs. Checked independently of code_location_names (an allow-list); set whichever "
+            "shape fits -- an 'allow only these' list, or a 'watch everything except these' one."
+        ),
+    )
     job_names: Optional[List[str]] = Field(default=None, description="Only trigger for these job names. Leave unset to monitor every job.")
     required_tags: Optional[Dict[str, Any]] = Field(default=None, description="Only trigger when the failed run carries ALL of these tags (key=value).")
 
@@ -396,7 +406,7 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=("asset_keys", "code_location_names", "job_names"), csv=(), tags=("required_tags",))
+        return coerce_field_shapes(data, lists=("asset_keys", "code_location_names", "exclude_code_location_names", "job_names"), csv=(), tags=("required_tags",))
 
     @classmethod
     def get_form_config(cls):
@@ -408,6 +418,7 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         job = dg.define_asset_job(f"{self.sensor_name}_job", selection=targets)
 
         code_location_names = set(self.code_location_names) if self.code_location_names else None
+        exclude_code_location_names = set(self.exclude_code_location_names) if self.exclude_code_location_names else None
         job_names = set(self.job_names) if self.job_names else None
         required_tags = dict(self.required_tags or {})
         slack_channel = self.slack_channel
@@ -430,11 +441,19 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             location = origin.location_name if origin else None
             if code_location_names and location not in code_location_names:
                 return dg.SkipReason(f"run {run.run_id[:8]} is not in a monitored code location ({location!r}).")
+            if exclude_code_location_names and location in exclude_code_location_names:
+                return dg.SkipReason(f"run {run.run_id[:8]}'s code location ({location!r}) is excluded (exclude_code_location_names).")
             if job_names and run.job_name not in job_names:
                 return dg.SkipReason(f"run {run.run_id[:8]}'s job {run.job_name!r} is not monitored.")
             if required_tags and not all((run.tags or {}).get(k) == v for k, v in required_tags.items()):
                 return dg.SkipReason(f"run {run.run_id[:8]} does not carry all required_tags.")
 
+            # run.root_run_id is a namedtuple field set only via Dagster's own re-execution
+            # creation path (instance.create_reexecuted_run), not derived from tags at access
+            # time -- reading the dagster/root_run_id TAG instead is confirmed to mirror the
+            # same value on every real re-executed run, and is what this sensor's own tests
+            # (and any run tagged by hand, e.g. a manual re-run with tags copied over) can
+            # actually exercise.
             root_run_id = (run.tags or {}).get("dagster/root_run_id")
             chain_root = root_run_id or run.run_id
             if use_retry_rule and root_run_id and _already_triaged_retry_chain_root(context.instance, chain_root):

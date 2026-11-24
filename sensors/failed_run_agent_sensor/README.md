@@ -15,6 +15,8 @@ A real deployment can fail 5+ times a day from just two flaky jobs -- without tr
 
 A skipped failure always says why in the sensor tick, e.g. `Same failure analyzed in the last 168h (<signature>)`.
 
+**Watching every location except a few.** `code_location_names` is an allow-list (only these); `exclude_code_location_names` is the opposite -- watch every code location except these, the usual case being the agents' own code location, so a fixer run's own failures don't trigger more fixer runs.
+
 **Where the state lives.** Set `evidence_dir` for the same append-only, one-file-per-event rate-limiter [`RunFailureRemediationComponent`](../../assets/ai/run_failure_remediation) uses, under `<evidence_dir>/_state/ratelimit/` -- gives the most precise sliding-window counting, but needs a real filesystem (local or NFS-shared; not a cloud URI). Leave `evidence_dir` unset and there is no state file at all: cooldown, the daily/hourly caps, and the retry rule are all read straight from past run history instead, by querying the tags this sensor puts on every run it launches (`eng/error_signature`, `eng/sensor_name`, `eng/retry_chain_root`) -- nothing to provision, nothing lost on a restart, works the same whether the sensor's pod has local, shared, or ephemeral disk.
 
 ## Tags on the launched run
@@ -48,7 +50,8 @@ A skipped failure always says why in the sensor tick, e.g. `Same failure analyze
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `code_location_names` | `List[str]` | — | Only trigger for runs from one of these code locations. Leave unset to monitor every code location. |
+| `code_location_names` | `List[str]` | — | Only trigger for runs from one of these code locations. Leave unset to monitor every code location. Mutually exclusive in effect with exclude_code_location_names -- set one or the other, not both. |
+| `exclude_code_location_names` | `List[str]` | — | Trigger for every code location EXCEPT these -- same naming convention as dagster_discovery_tools' own exclude_locations. The usual case is excluding the agents' own code location, so a fixer run's own failures don't tri… _(full docs in schema.json + component README)_ |
 | `job_names` | `List[str]` | — | Only trigger for these job names. Leave unset to monitor every job. |
 | `required_tags` | `Dict[str, Any]` | — | Only trigger when the failed run carries ALL of these tags (key=value). |
 | `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's `xoxb-...` token. Needs `chat:write`. |

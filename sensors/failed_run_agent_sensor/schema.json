@@ -126,6 +126,15 @@
       "label": "Use Retry Rule",
       "description": "A failed run that is itself a retry of an earlier run (carries Dagster's own dagster/root_run_id tag) is skipped if that retry chain's root was already triaged; an untriaged retry becomes the triage point for its whole chain instead, so later retries of the same underlying failure are suppressed too. This is a direct lineage check (not signature matching), so it still works even with cooldown set to 0.",
       "required": false
+    },
+    "exclude_code_location_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Code Location Names",
+      "description": "Trigger for every code location EXCEPT these -- same naming convention as dagster_discovery_tools' own exclude_locations. The usual case is excluding the agents' own code location, so a fixer run's own failures don't trigger more fixer runs. Checked independently of code_location_names (an allow-list); set whichever shape fits -- an 'allow only these' list, or a 'watch everything except these' one.",
+      "required": false
     }
   }
 }

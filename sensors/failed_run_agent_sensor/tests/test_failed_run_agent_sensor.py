@@ -149,6 +149,17 @@ def test_code_location_names_filter_skips_a_run_with_no_matching_origin(mod, tmp
     assert res.run_requests == []
 
 
+def test_exclude_code_location_names_still_processes_a_run_whose_location_is_not_excluded(mod, tmp_path, monkeypatch, inst):
+    """Hooli feedback: 'every code location except these' (e.g. excluding the agents' own
+    location, so a fixer run's own failures don't trigger more fixer runs) -- a run whose
+    location is NOT in exclude_code_location_names is processed normally."""
+    slack = FakeSlackClient()
+    sensor_def, defs, cursor = _primed(mod, tmp_path, monkeypatch, inst, slack, exclude_code_location_names=["hooli_agents"])
+    _fail(inst, defs)
+    res = _tick(sensor_def, inst, defs, cursor=cursor)
+    assert len(res.run_requests) == 1
+
+
 def test_message_template_and_dagster_url_build_the_run_link(mod, tmp_path, monkeypatch, inst):
     slack = FakeSlackClient()
     sensor_def, defs, cursor = _primed(mod, tmp_path, monkeypatch, inst, slack, dagster_url="https://acme.dagster.cloud/prod")

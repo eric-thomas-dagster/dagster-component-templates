@@ -27262,7 +27262,7 @@
       "name": "FailedRunAgentSensor",
       "category": "sensor",
       "description": "On a failed run (optionally filtered by code location, job or tag), launch an agent asset selection with the failed run id on the run's tags, post an announcement to Slack, and put the run's Slack thread in the run's tags so slack_reply answers in it. Cooldown per (job, error signature).",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "author": "Dagster Community",
       "path": "sensors/failed_run_agent_sensor",
       "tags": [

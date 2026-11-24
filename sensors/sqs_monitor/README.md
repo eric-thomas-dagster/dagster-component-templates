@@ -119,6 +119,26 @@ def process_sqs_message(context: AssetExecutionContext, config: SQSMessageConfig
     return payload
 ```
 
+## Alternative: receiving inbound webhooks
+
+This sensor only ever polls SQS -- it never receives anything pushed directly. If you need to
+turn a vendor's inbound webhook callback (e.g. a document-processing API that POSTs when a job
+finishes) into a Dagster run, and you're already on AWS, the standard zero-new-code pattern is:
+
+```
+vendor webhook (POST) -> API Gateway -> SQS (or API Gateway -> Lambda -> SQS, if you need to
+transform/validate the payload first) -> this sensor
+```
+
+API Gateway can integrate directly with SQS (`SendMessage`) without a Lambda in between for a
+simple pass-through, or route through Lambda first if you need request validation/transformation.
+Either way, no new component is required -- `sqs_monitor` already is the consumer half of this.
+
+If you're NOT on AWS, or don't want to stand up API Gateway/Lambda/SQS for this, see
+`sensors/webhook_inbox_sensor` + `resources/webhook_inbox_receiver` instead -- a self-hosted,
+stdlib-only two-piece pattern (a small standalone HTTP receiver process + a sensor that polls
+the local file it writes) that needs no AWS services at all.
+
 ## Notes
 
 - **SQS max batch size is 10** — for higher throughput, decrease `minimum_interval_seconds`

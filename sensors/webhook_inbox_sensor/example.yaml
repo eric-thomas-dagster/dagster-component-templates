@@ -1,0 +1,11 @@
+type: dagster_community_components.WebhookInboxSensorComponent
+attributes:
+  sensor_name: ocr_vendor_callback_sensor
+  # Same path the webhook_inbox_receiver process (resources/webhook_inbox_receiver) was
+  # started with --inbox-path pointing at.
+  inbox_path: /var/lib/webhooks/inbox.jsonl
+  job_name: process_ocr_callback_job
+  op_name: handle_ocr_callback
+  minimum_interval_seconds: 15
+  max_events_per_tick: 50
+  event_id_field: job_id

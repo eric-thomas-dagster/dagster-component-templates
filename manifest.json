@@ -21927,6 +21927,61 @@
       "vertical": "productivity"
     },
     {
+      "id": "document_intake_status_ledger",
+      "name": "document_intake_status_ledger",
+      "category": "ai",
+      "description": "A durable, queryable per-file status ledger for batch document intake: a local JSONL store (append-only on disk, latest-write-per-key on read) tracking each file through discovered/processing/extracted/failed/reviewed, keyed by a content hash (e.g. an S3 etag). Registers a DocumentIntakeStatusLedger resource other asset/sensor code reads and writes, plus a summary asset with per-status counts and an optional stuck-processing check. Composes with sensors/s3_monitor without modifying it.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/document_intake_status_ledger",
+      "tags": [
+        "document intelligence",
+        "batch intake",
+        "status ledger",
+        "s3",
+        "ingestion"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intake_status_ledger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intake_status_ledger/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intake_status_ledger/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intake_status_ledger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_intake_status_ledger/requirements.txt",
+      "icon": "FileCheck",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-23",
+        "evidence": "tests/ in the component dir: record/get round trip, latest-write-wins collapsing, list_by_status filtering, stuck_after_minutes filter (backdated entry written directly to the ledger file), summary() counts + failed-list capping, invalid-status error, and a real dg.materialize() round trip through the summary asset and its stuck-processing check. Pure local file I/O -- nothing mocked."
+      },
+      "agent_hints": {
+        "inputs": "None (root resource) -- your own asset/sensor code calls record_status(content_hash, status, source=, identifier=, detail=) as it processes each file, e.g. keyed by the etag sensors/s3_monitor already carries in run_config.",
+        "outputs": "summary() dict: {counts: {discovered, processing, extracted, failed, reviewed}, total, recent_failed}. Materialization metadata: count_<status>, total_count, recent_failed.",
+        "side_effects": "Appends one JSON line per record_status() call to a local JSONL file (created on first write). No network calls.",
+        "anti_uses": "Not an orchestrator -- it doesn't wire itself into any sensor or pipeline, and it doesn't modify sensors/s3_monitor. Not a state machine -- transitions between the five statuses aren't validated.",
+        "requires_resources": [],
+        "output_type": "dict",
+        "requires_pip": []
+      },
+      "produces": [
+        "asset",
+        "resource"
+      ],
+      "keywords": [
+        "status ledger",
+        "batch intake",
+        "document intelligence",
+        "s3_monitor",
+        "content hash",
+        "stuck detection",
+        "per-file tracking"
+      ],
+      "vertical": "productivity"
+    },
+    {
       "id": "document_intelligence_tools",
       "name": "document_intelligence_tools",
       "category": "ai",
@@ -65704,6 +65759,52 @@
         "amazon sqs",
         "simple queue",
         "watch",
+        "polling sensor",
+        "arrival sensor",
+        "trigger",
+        "watcher"
+      ]
+    },
+    {
+      "id": "webhook_inbox_sensor",
+      "name": "Webhook Inbox Sensor",
+      "category": "sensor",
+      "description": "Component for polling a local webhook inbox JSONL file for new callbacks.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/webhook_inbox_sensor",
+      "tags": [
+        "sensor",
+        "webhook",
+        "http",
+        "polling",
+        "generic"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/webhook_inbox_sensor/requirements.txt",
+      "icon": "Radar",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-23"
+      },
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Component for polling a local webhook inbox JSONL file for new callbacks.",
+        "requires_pip": []
+      },
+      "keywords": [
+        "webhook",
+        "inbound webhook",
+        "callback",
+        "http receiver",
         "polling sensor",
         "arrival sensor",
         "trigger",

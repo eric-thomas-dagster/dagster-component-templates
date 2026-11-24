@@ -1,0 +1,99 @@
+{
+  "component_type": "dagster_community_components.WebhookInboxSensorComponent",
+  "description": "Component for polling a local webhook inbox JSONL file for new callbacks.",
+  "category": "sensor",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "required": true
+    },
+    "inbox_path": {
+      "type": "string",
+      "label": "Inbox Path",
+      "description": "Path to the JSONL inbox file written by webhook_inbox_receiver. Must be the same path/filesystem the receiver's --inbox-path points at.",
+      "required": true
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Name of the job to trigger when a webhook callback arrives",
+      "required": true
+    },
+    "op_name": {
+      "type": "string",
+      "label": "Op Name",
+      "description": "Op name the webhook payload is delivered to via run_config: {'ops': {op_name: {'config': {...}}}}. Defaults to 'config'.",
+      "required": false,
+      "default": null
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
+      "required": false,
+      "default": 30
+    },
+    "max_events_per_tick": {
+      "type": "integer",
+      "label": "Max Events Per Tick",
+      "description": "Maximum number of new inbox lines to turn into RunRequests in a single evaluation. Caps how much work one tick does after a large backlog; the remainder is picked up on the next tick.",
+      "required": false,
+      "default": 100
+    },
+    "partition_mode": {
+      "type": "string",
+      "label": "Partition Mode",
+      "description": "How a new webhook event is surfaced to downstream assets: 'run_config' (default) yields RunRequest with the event in run_config; 'dynamic_partition' registers event_id_field's value (or a content hash fallback) as a dynamic partition. Requires dynamic_partitions_name.",
+      "required": false,
+      "default": "run_config",
+      "enum": [
+        "run_config",
+        "dynamic_partition"
+      ],
+      "ui:widget": "select"
+    },
+    "dynamic_partitions_name": {
+      "type": "string",
+      "label": "Dynamic Partitions Name",
+      "description": "Required when partition_mode is 'dynamic_partition'. Must match the downstream asset's dynamic partition definition name.",
+      "required": false,
+      "default": null
+    },
+    "event_id_field": {
+      "type": "string",
+      "label": "Event Id Field",
+      "description": "Dotted-path key (e.g. 'job.id') looked up in each webhook payload to use as a dedupe/partition key. Falls back to a stable hash of the full payload when absent from a given payload.",
+      "required": false,
+      "default": "id"
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
+      "required": false,
+      "default": "running",
+      "enum": [
+        "stopped",
+        "running"
+      ],
+      "ui:widget": "select"
+    }
+  },
+  "tags": [
+    "sensor",
+    "webhook",
+    "http",
+    "polling",
+    "generic"
+  ],
+  "name": "Webhook Inbox Sensor"
+}

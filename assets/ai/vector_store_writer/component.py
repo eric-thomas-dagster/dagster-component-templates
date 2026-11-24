@@ -324,6 +324,27 @@ def _build_s3vectors_client(region_name: str) -> Any:
     return boto3.client("s3vectors", region_name=region_name)
 
 
+# The vector-metadata contract document_chunker/text_chunker's stamp_chunk_contract (and
+# context_engineering_pipeline's stamp_provenance) stamp onto every chunk upstream. Auto-carried
+# into this vector's own metadata (same mechanism as the existing `enabled` auto-include below) so
+# the contract survives end-to-end without requiring every caller to repeat these names in
+# metadata_columns -- the exact last-mile gap a vector-metadata-contract audit found.
+_CONTRACT_METADATA_COLUMNS = (
+    "document_id", "source_uri", "page_start", "page_end", "section",
+    "chunk_index", "chunk_id", "content_hash", "extractor_version", "embedding_model",
+)
+
+
+def _drop_null_metadata(d: Dict[str, Any]) -> Dict[str, Any]:
+    """Strip None/NaN values from a per-vector metadata dict before writing. Several contract
+    fields are null by design when their source column is unset (page_start/page_end/source_uri/
+    section) -- metadata values outside str/int/float/bool are outside every vector store's
+    documented contract (chromadb 1.5.9 happens to silently drop a None value rather than reject
+    it, confirmed live, but that's an implementation detail, not a guarantee), so this omits the
+    key entirely instead, the same choice context_engineering_pipeline's own stamp already makes."""
+    return {k: v for k, v in d.items() if v is not None and not (isinstance(v, float) and v != v)}
+
+
 def _qdrant_point_id(value: Any):
     """Qdrant point ids must be an unsigned integer or a UUID -- an arbitrary id_column string (a
     document id, a hash) is neither, so it is mapped to a deterministic UUID5 (same input -> same
@@ -457,6 +478,32 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             "upserts are idempotent across runs (today's default, positional 'doc_{i}' ids silently "
             "collide with whatever content happened to land at that position in an earlier run, if row "
             "order ever changes). Required when prune_missing_sources is true."
+        ),
+    )
+    embedding_model: Optional[str] = Field(
+        default=None,
+        description=(
+            "Model name stamped as `embedding_model` metadata on every vector (e.g. "
+            "'text-embedding-3-small', 'all-MiniLM-L6-v2'), and promoted to this asset's own run "
+            "metadata -- completing the vector-metadata contract that document_chunker/"
+            "text_chunker start (their stamp_chunk_contract) and context_engineering_pipeline's own "
+            "stamp_provenance also stamps. Those two chunker components run BEFORE embedding and "
+            "have no model name to stamp themselves; this is the first point in the pipeline where "
+            "one exists, so it belongs here. Also the key vector_store_query's knowledge_asset_key "
+            "reads back via `_infer_embed_model_from_asset` -- previously a real gap: this component "
+            "never actually wrote that key despite vector_store_query's own docs describing it as "
+            "already promoted. When embedding_model_column is also set, a per-row column value wins "
+            "over this static default for per-vector metadata (this field still becomes the "
+            "run-level 'embedding_model' metadata)."
+        ),
+    )
+    embedding_model_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column already holding a per-row embedding model name (e.g. when different rows were "
+            "embedded by different models/providers), stamped as `embedding_model` metadata per "
+            "vector instead of the static `embedding_model` field. Falls back to `embedding_model` "
+            "for any row where this column is missing/null."
         ),
     )
     prune_missing_sources: bool = Field(
@@ -717,6 +764,8 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         batch_size = self.batch_size
         upsert = self.upsert
         id_column = self.id_column
+        embedding_model = self.embedding_model
+        embedding_model_column = self.embedding_model_column
         prune_missing_sources = self.prune_missing_sources
         vector_bucket_name = self.vector_bucket_name
         aws_region = self.aws_region
@@ -888,6 +937,35 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             if "enabled" in df.columns and "enabled" not in _effective_metadata_columns:
                 _effective_metadata_columns = _effective_metadata_columns + ["enabled"]
 
+            # embedding_model: stamp it onto the DataFrame itself (from the static field and/or a
+            # per-row column) so it flows through the same metadata-column mechanism as every other
+            # contract field below, instead of a third, separately-maintained code path.
+            if embedding_model or embedding_model_column:
+                df = df.copy()
+                if embedding_model_column and embedding_model_column in df.columns:
+                    df["embedding_model"] = df[embedding_model_column]
+                    if embedding_model is not None:
+                        df["embedding_model"] = df["embedding_model"].fillna(embedding_model)
+                else:
+                    df["embedding_model"] = embedding_model
+
+            # Vector-metadata contract: auto-carry any contract fields a chunker upstream already
+            # stamped (document_chunker/text_chunker's stamp_chunk_contract, or
+            # context_engineering_pipeline's stamp_provenance) into this vector's own metadata --
+            # the same auto-include pattern as 'enabled' above. Without this, a caller who forgets
+            # to list these columns in metadata_columns silently loses the contract at the exact
+            # last mile where it matters most.
+            for _col in _CONTRACT_METADATA_COLUMNS:
+                if _col in df.columns and _col not in _effective_metadata_columns:
+                    _effective_metadata_columns = _effective_metadata_columns + [_col]
+
+            # id_column unset: fall back to 'chunk_id' when the upstream already stamped one (the
+            # usual case once stamp_chunk_contract/stamp_provenance is on) for idempotent vector ids
+            # with nothing to configure. Does NOT satisfy prune_missing_sources's own, stricter,
+            # build-time requirement that id_column be set explicitly (that check runs before this
+            # DataFrame -- and this fallback -- exist).
+            _effective_id_column = id_column or ("chunk_id" if "chunk_id" in df.columns else None)
+
             # Expand environment variables in API key (supports ${VAR_NAME} pattern)
             expanded_api_key = None
             if api_key:
@@ -910,8 +988,11 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
 
                     embeddings = df[embedding_column].tolist()
                     texts = df[text_column].tolist() if text_column in df.columns else None
-                    ids = df[id_column].astype(str).tolist() if id_column else [f"doc_{i}" for i in range(len(df))]
-                    metadatas = df[_effective_metadata_columns].to_dict('records') if _effective_metadata_columns else None
+                    ids = df[_effective_id_column].astype(str).tolist() if _effective_id_column else [f"doc_{i}" for i in range(len(df))]
+                    metadatas = (
+                        [_drop_null_metadata(rec) for rec in df[_effective_metadata_columns].to_dict('records')]
+                        if _effective_metadata_columns else None
+                    )
 
                     for i in range(0, len(df), batch_size):
                         batch_end = min(i + batch_size, len(df))
@@ -941,9 +1022,9 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                         if col in df.columns:
                             metadata[col] = row[col]
                     vectors.append({
-                        "id": str(row[id_column]) if id_column else f"doc_{idx}",
+                        "id": str(row[_effective_id_column]) if _effective_id_column else f"doc_{idx}",
                         "values": row[embedding_column],
-                        "metadata": metadata
+                        "metadata": _drop_null_metadata(metadata)
                     })
 
                 for i in range(0, len(vectors), batch_size):
@@ -982,9 +1063,9 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                         for col in _effective_metadata_columns:
                             if col in df.columns:
                                 payload[col] = row[col]
-                        point_id = _qdrant_point_id(row[id_column]) if id_column else idx
+                        point_id = _qdrant_point_id(row[_effective_id_column]) if _effective_id_column else idx
                         this_run_point_ids.add(point_id)
-                        points.append(PointStruct(id=point_id, vector=row[embedding_column], payload=payload))
+                        points.append(PointStruct(id=point_id, vector=row[embedding_column], payload=_drop_null_metadata(payload)))
 
                     for i in range(0, len(points), batch_size):
                         client.upsert(collection_name=collection_name, points=points[i:i + batch_size])
@@ -1057,9 +1138,9 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                         if col in df.columns:
                             metadata[col] = row[col]
                     vectors.append({
-                        "key": str(row[id_column]) if id_column else f"doc_{idx}",
+                        "key": str(row[_effective_id_column]) if _effective_id_column else f"doc_{idx}",
                         "data": {"float32": [float(x) for x in row[embedding_column]]},
-                        "metadata": metadata,
+                        "metadata": _drop_null_metadata(metadata),
                     })
 
                 # PutVectors is capped at 500 vectors per call -- a real, confirmed AWS limit.
@@ -1090,6 +1171,13 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 _first_emb = df[embedding_column].iloc[0]
                 if hasattr(_first_emb, "__len__"):
                     _metadata["embedding_dimension"] = MetadataValue.int(len(_first_emb))
+            # Promote embedding_model to top-level run metadata -- the key vector_store_query's
+            # knowledge_asset_key reads back via `_infer_embed_model_from_asset` (its own field
+            # description already claimed this component writes it; it didn't, until now). Only
+            # the static field is promoted -- a per-row embedding_model_column can vary across the
+            # DataFrame, and there's no single "the" model name to report for the whole asset then.
+            if embedding_model is not None:
+                _metadata["embedding_model"] = MetadataValue.text(embedding_model)
             if include_preview and len(df) > 0:
                 try:
                     _prev_cols = [c for c in df.columns if c != embedding_column]

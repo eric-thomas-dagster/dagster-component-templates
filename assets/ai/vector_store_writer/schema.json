@@ -383,6 +383,18 @@
       "label": "Nonfilterable Metadata Keys",
       "description": "Only affects provider='s3vectors', and only takes effect the first time an index is created (manage_bucket_and_index=true) -- AWS's CreateIndex does not allow changing an index's non-filterable metadata keys afterward. Filterable metadata is capped at 2 KB per vector (40 KB total per vector), and chunk text commonly exceeds that, so `text_column` is excluded from filterable metadata by default (this field left as None). Set to `[]` to keep text_column filterable instead (only safe if your chunks are reliably short), or list your own keys (1-10 max, AWS's own CreateIndex limit).",
       "required": false
+    },
+    "embedding_model": {
+      "type": "string",
+      "label": "Embedding Model",
+      "description": "Model name stamped as `embedding_model` metadata on every vector (e.g. 'text-embedding-3-small', 'all-MiniLM-L6-v2'), and promoted to this asset's own run metadata -- completing the vector-metadata contract that document_chunker/text_chunker start (their stamp_chunk_contract) and context_engineering_pipeline's own stamp_provenance also stamps. Those two chunker components run BEFORE embedding and have no model name to stamp themselves; this is the first point in the pipeline where one exists, so it belongs here. Also the key vector_store_query's knowledge_asset_key reads back via `_infer_embed_model_from_asset` -- previously a real gap: this component never actually wrote that key despite vector_store_query's own docs describing it as already promoted. When embedding_model_column is also set, a per-row column value wins over this static default for per-vector metadata (this field still becomes the run-level 'embedding_model' metadata).",
+      "required": false
+    },
+    "embedding_model_column": {
+      "type": "string",
+      "label": "Embedding Model Column",
+      "description": "Column already holding a per-row embedding model name (e.g. when different rows were embedded by different models/providers), stamped as `embedding_model` metadata per vector instead of the static `embedding_model` field. Falls back to `embedding_model` for any row where this column is missing/null.",
+      "required": false
     }
   },
   "tags": [

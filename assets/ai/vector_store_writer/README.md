@@ -61,6 +61,33 @@ raises a clear error at component-construction time rather than silently no-opin
 point ids to be an unsigned integer or a UUID, so a non-numeric, non-UUID `id_column` value is
 mapped to a deterministic UUID5 (same input always maps to the same id).
 
+## Vector-Metadata Contract (`embedding_model` / `embedding_model_column`)
+
+[`document_chunker`](../document_chunker#vector-metadata-contract) and
+[`text_chunker`](../text_chunker#vector-metadata-contract)'s own `stamp_chunk_contract` (and
+[`context_engineering_pipeline`'s `stamp_provenance`](../context_engineering_pipeline#receipt-ready-context))
+stamp `document_id`/`source_uri`/`page_start`/`page_end`/`section`/`chunk_index`/`chunk_id`/
+`content_hash`/`extractor_version` onto every chunk upstream of this component. This component
+completes that contract end-to-end:
+
+- Any of those columns present on the upstream DataFrame are carried into every vector's own
+  metadata automatically -- the same auto-include mechanism `enabled_column` already uses below --
+  so you don't have to repeat every field's name in `metadata_columns` to keep the contract alive
+  through this last step.
+- `id_column`, left unset, falls back to an upstream `chunk_id` column when present (instead of the
+  positional `doc_{i}` default) for idempotent vector ids with nothing to configure. This fallback
+  does **not** satisfy `prune_missing_sources`'s own stricter requirement that `id_column` be set
+  explicitly.
+- Fields that are `null` by design (`page_start`/`page_end`/`source_uri`/`section`, when their
+  source column was never set upstream) are dropped from a vector's metadata rather than written as
+  `None` -- some providers don't accept non-str/int/float/bool metadata values.
+- `embedding_model` (and the per-row `embedding_model_column` override) stamps the one contract
+  field a chunker can't: `document_chunker`/`text_chunker` run *before* embedding, so they have no
+  model name to stamp themselves. Set here, it's also promoted to this asset's own run metadata --
+  the exact `embedding_model` key `vector_store_query`'s `knowledge_asset_key` already reads back
+  via `_infer_embed_model_from_asset` (previously a real gap: this component never actually wrote
+  that key, despite `vector_store_query`'s own docs describing it as already promoted).
+
 ## Ingestion
 
 Two ways to get embeddings in, set exactly one:
@@ -191,6 +218,8 @@ Returns a dictionary with status information:
 | `chroma_resource_key` | `str` | — | Optional key of a registered ChromaResourceComponent (resources/chroma_resource). Only used when provider='chromadb'. When set, the client comes from that resource's get_client() instead of building a fresh chromadb.Pers… _(full docs in schema.json + component README)_ |
 | `qdrant_resource_key` | `str` | — | Optional key of a registered QdrantResourceComponent (resources/qdrant_resource). Only used when provider='qdrant'. When set, the client comes from that resource's get_client() instead of building a fresh QdrantClient fr… _(full docs in schema.json + component README)_ |
 | `id_column` | `str` | — | Column with a stable per-row source id (e.g. a document or chunk id). When set, vector ids are derived from this column's value instead of the row's position in the DataFrame, so upserts are idempotent across runs (today… _(full docs in schema.json + component README)_ |
+| `embedding_model` | `str` | — | Model name stamped as `embedding_model` metadata on every vector (e.g. 'text-embedding-3-small', 'all-MiniLM-L6-v2'), and promoted to this asset's own run metadata -- completing the vector-metadata contract that document… _(full docs in schema.json + component README)_ |
+| `embedding_model_column` | `str` | — | Column already holding a per-row embedding model name (e.g. when different rows were embedded by different models/providers), stamped as `embedding_model` metadata per vector instead of the static `embedding_model` field… _(full docs in schema.json + component README)_ |
 | `prune_missing_sources` | `bool` | `false` | After writing, delete every vector in the collection whose id_column value is not present in this run's data -- treats this run as the FULL current source catalog, not an incremental batch (the same contract as knowledge… _(full docs in schema.json + component README)_ |
 | `upsert` | `bool` | `true` | Upsert if exists |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

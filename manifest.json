@@ -71869,7 +71869,7 @@
       "name": "Vector Store Writer",
       "category": "ai",
       "description": "Component for writing embeddings to vector stores.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/vector_store_writer",
       "tags": [

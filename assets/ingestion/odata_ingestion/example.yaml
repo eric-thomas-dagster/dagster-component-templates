@@ -20,5 +20,21 @@ attributes:
   partition_type: daily
   partition_start: '2024-01-01'
 
+  # Optional: route this asset to a project-registered IO manager (e.g. a
+  # warehouse-table IO manager) instead of returning a DataFrame through the
+  # default IO manager.
+  # io_manager_key: warehouse_io_manager
+
   group_name: sap
   kinds: [odata, sap]
+
+  # One component instance, N entity-set assets -- set `extracts:` instead of
+  # the single-instance asset_name/entity_set above (mutually exclusive).
+  # Each entry can override any field, including filter/select/partition_type.
+  # extracts:
+  #   - asset_name: business_partners
+  #     entity_set: A_BusinessPartner
+  #     select: BusinessPartner,BusinessPartnerName,Country
+  #   - asset_name: sales_orders
+  #     entity_set: A_SalesOrder
+  #     select: SalesOrder,SalesOrganization,SoldToParty

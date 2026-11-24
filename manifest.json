@@ -47339,7 +47339,7 @@
       "id": "odata_ingestion",
       "name": "OData Ingestion",
       "category": "source",
-      "description": "Generic OData v2/v4 client. Covers SAP S/4HANA, SuccessFactors, Datasphere, Microsoft Dynamics 365 / Dataverse, MS Graph, SharePoint, Business Central, Oracle Fusion, Epicor, IFS, and any other OData-exposing system.",
+      "description": "Generic OData v2/v4 client. Covers SAP S/4HANA, SuccessFactors, Datasphere, Microsoft Dynamics 365 / Dataverse, MS Graph, SharePoint, Business Central, Oracle Fusion, Epicor, IFS, and any other OData-exposing system. One component instance, N entity-set assets: set extracts: instead of the single-instance asset_name/entity_set fields. io_manager_key routes the DataFrame to a project-registered IO manager (e.g. a warehouse table) instead of the default. $expand-nested list results are JSON-stringified instead of left as raw Python objects.",
       "path": "assets/ingestion/odata_ingestion",
       "tags": [
         "ingestion",
@@ -47368,12 +47368,12 @@
       },
       "agent_hints": {
         "inputs": "None (root source) — hits an OData endpoint (SAP, Microsoft Graph, Dynamics 365, etc.).",
-        "outputs": "DataFrame with columns from the OData entity set.",
+        "outputs": "DataFrame with columns from the OData entity set; extracts: builds one asset per entity set; io_manager_key routes output to a non-default IO manager.",
         "side_effects": "None on local data. Requires OData endpoint URL + auth.",
         "anti_uses": "For generic REST APIs use rest_api_ingestion. For SharePoint file lists use msgraph-specific patterns.",
         "output_type": "pd.DataFrame"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [

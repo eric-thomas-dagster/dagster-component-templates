@@ -185,19 +185,34 @@ class ODataIngestionComponent(Component, Model, Resolvable):
         ```
     """
 
-    asset_name: str = Field(description="Dagster asset name")
+    asset_name: Optional[str] = Field(default=None, description="Dagster asset name. Required unless `extracts:` is set (mutually exclusive with it).")
+
+    extracts: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "One component instance, N OData entity-set assets: a list of per-entity-set "
+            "overrides, each applied on top of this instance's own field values (service_url, "
+            "auth_type, odata_version, etc. are shared defaults unless an entry overrides them). "
+            "Each entry requires at least `asset_name` and `entity_set`; any other field on this "
+            "component (filter, select, partition_type, io_manager_key, ...) can be set "
+            "per-entry too. Mutually exclusive with the top-level asset_name/entity_set "
+            "(single-instance mode)."
+        ),
+    )
 
     # --- Endpoint -------------------------------------------------------------
 
-    service_url: str = Field(
+    service_url: Optional[str] = Field(
+        default=None,
         description=(
             "Base service URL, e.g. "
             "'https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER' or "
-            "'https://api.successfactors.com/odata/v2'."
+            "'https://api.successfactors.com/odata/v2'. Required unless `extracts:` is set."
         ),
     )
-    entity_set: str = Field(
-        description="Entity set / collection name appended to service_url, e.g. 'A_BusinessPartner', 'User', 'PerPerson'."
+    entity_set: Optional[str] = Field(
+        default=None,
+        description="Entity set / collection name appended to service_url, e.g. 'A_BusinessPartner', 'User', 'PerPerson'. Required unless `extracts:` is set.",
     )
     odata_version: str = Field(
         default="v2",
@@ -255,6 +270,16 @@ class ODataIngestionComponent(Component, Model, Resolvable):
 
     # --- Standard fields ------------------------------------------------------
 
+    io_manager_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Resource key of an IO manager registered in your Definitions' `resources:` dict. "
+            "When set, the asset uses that IO manager (e.g. a warehouse-table IO manager) "
+            "instead of the component's own default DataFrame-to-default-IO-manager behavior -- "
+            "lets this asset land in a warehouse table without a project-wide IO manager "
+            "override that would also catch every other asset's return value."
+        ),
+    )
     description: Optional[str] = Field(default=None)
     group_name: Optional[str] = Field(default="odata")
     owners: Optional[List[str]] = Field(default=None)
@@ -398,12 +423,60 @@ class ODataIngestionComponent(Component, Model, Resolvable):
             return list(d["results"]), d.get("__next")
         return ([d] if isinstance(d, dict) else []), None
 
+    def _http_get(self, url: str, **kwargs):
+        """HTTP GET seam -- a demo/test can override this instance method (e.g. a subclass or
+        monkeypatch of this bound method) instead of monkeypatching the module-level
+        `requests.get`, which would also intercept every other component's calls in the same
+        process."""
+        return requests.get(url, **kwargs)
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
         return ComponentFormConfig(label='O Data Ingestion', editable=True)
 
+    def _missing_single_fields(self) -> List[str]:
+        return [f for f in ("asset_name", "service_url", "entity_set") if not getattr(self, f)]
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Dispatch to single-extract or collection mode -- mutually exclusive, same convention
+        as sql_transform's asset_name/sql vs transforms: / snowflake_copy_into_asset's
+        asset_key/.../stage vs loads:."""
+        has_single = bool(self.asset_name or self.entity_set)
+        has_collection = bool(self.extracts)
+        if has_single and has_collection:
+            raise ValueError(
+                "ODataIngestionComponent: set either the single-instance fields "
+                "(asset_name/service_url/entity_set) or extracts: (several entity sets), not both."
+            )
+        if not has_single and not has_collection:
+            raise ValueError(
+                "ODataIngestionComponent: set either the single-instance fields "
+                "(asset_name/service_url/entity_set) or extracts:."
+            )
+
+        if not has_collection:
+            missing = self._missing_single_fields()
+            if missing:
+                raise ValueError(f"ODataIngestionComponent: missing required field(s) {missing} for a single extract.")
+            return self._build_single_defs(context)
+
+        defs_list = []
+        for i, entry in enumerate(self.extracts):
+            if not isinstance(entry, dict):
+                raise ValueError(f"extracts[{i}] must be a mapping, got {type(entry).__name__}")
+            merged = {**self.model_dump(), **entry, "extracts": None}
+            try:
+                instance = type(self)(**merged)
+            except Exception as e:
+                raise ValueError(f"extracts[{i}] ({entry.get('asset_name', '<no asset_name>')!r}): {e}") from e
+            missing = instance._missing_single_fields()
+            if missing:
+                raise ValueError(f"extracts[{i}]: missing required field(s) {missing}.")
+            defs_list.append(instance._build_single_defs(context))
+        return Definitions.merge(*defs_list)
+
+    def _build_single_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         description = self.description or f"OData ingestion ({self.entity_set})"
         component = self
@@ -458,6 +531,7 @@ class ODataIngestionComponent(Component, Model, Resolvable):
             partitions_def=partitions_def,
             backfill_policy=backfill_policy_obj,
             retry_policy=retry_policy,
+            io_manager_key=self.io_manager_key,
         )
         def odata_ingestion_asset(context: AssetExecutionContext):
             # Partition key(s) this call must process: a normal tick gives
@@ -478,7 +552,7 @@ class ODataIngestionComponent(Component, Model, Resolvable):
                 pages = 0
                 while url and pages < component.max_pages:
                     context.log.info(f"OData GET page {pages + 1}: {url[:200]}")
-                    resp = requests.get(
+                    resp = component._http_get(
                         url,
                         auth=auth,
                         headers=headers,
@@ -504,6 +578,16 @@ class ODataIngestionComponent(Component, Model, Resolvable):
             total_pages = sum(pages for _, pages in fetched)
 
             df = pd.json_normalize(all_records, sep="_") if all_records else pd.DataFrame()
+            # `$expand`-nested results (e.g. a `to_Description` field expanded to a nested
+            # OData collection/object) survive json_normalize as raw Python list/dict values,
+            # not flattened columns -- most destinations (SQL warehouse tables, CSV, parquet
+            # with strict typing) can't write a list/dict cell. Stringify them sensibly (JSON)
+            # instead of leaving a column of raw Python objects.
+            if not df.empty:
+                import json as _json
+                for col in df.columns:
+                    if df[col].map(lambda v: isinstance(v, (list, dict))).any():
+                        df[col] = df[col].map(lambda v: _json.dumps(v) if isinstance(v, (list, dict)) else v)
             context.log.info(f"OData ingestion: {len(df)} rows × {len(df.columns)} cols in {total_pages} pages")
 
             metadata: Dict[str, Any] = {

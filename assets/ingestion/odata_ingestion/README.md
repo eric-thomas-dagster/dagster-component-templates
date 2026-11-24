@@ -26,14 +26,6 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name |
-| `service_url` | `str` | Base service URL, e.g. 'https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER' or 'https://api.successfactors.com/odata/v2'. |
-| `entity_set` | `str` | Entity set / collection name appended to service_url, e.g. 'A_BusinessPartner', 'User', 'PerPerson'. |
-
 ### Execution
 
 | Field | Type | Default | Description |
@@ -44,6 +36,8 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required unless `extracts:` is set (mutually exclusive with it). |
+| `io_manager_key` | `str` | — | Resource key of an IO manager registered in your Definitions' `resources:` dict. When set, the asset uses that IO manager (e.g. a warehouse-table IO manager) instead of the component's own default DataFrame-to-default-IO… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"odata"` | — |
 | `owners` | `List[str]` | — | — |
@@ -66,6 +60,8 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 | `partition_type` | `str` | — | — |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `Union[str, List[str]]` | — | — |
 
@@ -88,6 +84,9 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `extracts` | `List[Dict[str, Any]]` | — | One component instance, N OData entity-set assets: a list of per-entity-set overrides, each applied on top of this instance's own field values (service_url, auth_type, odata_version, etc. are shared defaults unless an en… _(full docs in schema.json + component README)_ |
+| `service_url` | `str` | — | Base service URL, e.g. 'https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER' or 'https://api.successfactors.com/odata/v2'. Required unless `extracts:` is set. |
+| `entity_set` | `str` | — | Entity set / collection name appended to service_url, e.g. 'A_BusinessPartner', 'User', 'PerPerson'. Required unless `extracts:` is set. |
 | `odata_version` | `str` | `"v2"` | 'v2' (default — most SAP products) or 'v4' (S/4HANA newer APIs, Microsoft Dynamics). |
 | `expand` | `str` | — | `$expand` — comma-separated nested collections. |
 | `orderby` | `str` | — | `$orderby` expression. |

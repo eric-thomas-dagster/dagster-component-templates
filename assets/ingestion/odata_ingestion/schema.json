@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.ODataIngestionComponent",
-  "description": "Generic OData v2/v4 client. Covers SAP S/4HANA, SuccessFactors, Datasphere, Microsoft Dynamics 365 / Dataverse, MS Graph, SharePoint, Business Central, Oracle Fusion, Epicor, IFS, and any other OData-exposing system.",
+  "description": "Generic OData v2/v4 client. Covers SAP S/4HANA, SuccessFactors, Datasphere, Microsoft Dynamics 365 / Dataverse, MS Graph, SharePoint, Business Central, Oracle Fusion, Epicor, IFS, and any other OData-exposing system. One component instance, N entity-set assets: set extracts: instead of the single-instance asset_name/entity_set fields. io_manager_key routes the DataFrame to a project-registered IO manager (e.g. a warehouse table) instead of the default. $expand-nested list results are JSON-stringified instead of left as raw Python objects.",
   "summary": "Ingest data from any OData-exposing system, such as SAP S/4HANA, Dynamics 365, or SharePoint.",
   "category": "source",
 
@@ -14,22 +14,28 @@
   },
   "attributes": {
     "asset_name": {
-      "description": "Dagster asset name",
+      "description": "Dagster asset name. Required unless `extracts:` is set (mutually exclusive with it).",
       "type": "string",
       "label": "Asset Name",
-      "required": true
+      "required": false
+    },
+    "extracts": {
+      "type": "array",
+      "label": "Extracts",
+      "description": "One component instance, N OData entity-set assets: a list of per-entity-set overrides, each applied on top of this instance's own field values. Each item: {asset_name, entity_set, service_url?, filter?, select?, partition_type?, io_manager_key?, ...}. Mutually exclusive with the top-level asset_name/entity_set (single-instance mode).",
+      "required": false
     },
     "service_url": {
       "type": "string",
       "label": "Service URL",
-      "description": "Base service URL (no entity set).",
-      "required": true
+      "description": "Base service URL (no entity set). Required unless `extracts:` is set.",
+      "required": false
     },
     "entity_set": {
       "type": "string",
       "label": "Entity Set",
-      "description": "Entity collection name appended to service_url.",
-      "required": true
+      "description": "Entity collection name appended to service_url. Required unless `extracts:` is set.",
+      "required": false
     },
     "odata_version": {
       "type": "string",
@@ -340,6 +346,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "io_manager_key": {
+      "type": "string",
+      "label": "Io Manager Key",
+      "description": "Resource key of an IO manager registered in your Definitions' `resources:` dict. When set, the asset uses that IO manager (e.g. a warehouse-table IO manager) instead of the component's own default DataFrame-to-default-IO-manager behavior -- lets this asset land in a warehouse table without a project-wide IO manager override that would also catch every other asset's return value.",
+      "required": false
     }
   },
   "tags": [

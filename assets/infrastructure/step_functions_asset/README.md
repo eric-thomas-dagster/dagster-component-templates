@@ -29,8 +29,16 @@ The IAM identity (or assumed role) needs these permissions:
 | `states:ListStateMachines` | Discover state machines at prepare time |
 | `states:StartExecution` | Trigger an execution during materialization |
 | `states:DescribeExecution` | Poll execution status when `wait_for_completion: true` |
+| `states:ListExecutions` | Poll for externally-started executions when `generate_sensor: true` |
 
 For cross-account access via `role_arn`, the calling identity also needs `sts:AssumeRole` on that role.
+
+## Templated input, execution output, and observation
+
+- **`input_template`** renders the `StartExecution` `input` JSON payload. `{partition_key}` is substituted when the run is partitioned (e.g. `input_template: '{"business_date": "{partition_key}"}'`). Defaults to `"{}"` when unset — identical to the previous hardcoded behavior.
+- **Execution output** (`DescribeExecution`'s `output` field) is surfaced as `step_functions/output` materialization metadata once a `wait_for_completion: true` run reaches `SUCCEEDED`, instead of being discarded.
+- **`generate_sensor: true`** adds an observation sensor that polls `ListExecutions` per state machine and emits an `AssetObservation` for every `SUCCEEDED` execution Dagster did NOT itself start (Step Functions has no per-execution `tags` parameter on `StartExecution`, so executions this component launches are named with a `dagster-` prefix, and the sensor skips any execution whose name carries it). The sensor resolves asset keys through the SAME `assets_by_state_machine_name` override path the executable assets use, so a renamed asset's observations land on the renamed key, not a reconstructed one.
+- Every imported state machine can also share a single `partitions_def` via the standard `partition_type`/`partition_start`/... fields (same shape as `ecs_pipes_asset`/`ssis_workspace`).
 
 ## Fields
 
@@ -46,6 +54,12 @@ For cross-account access via `role_arn`, the calling identity also needs `sts:As
 | `wait_for_completion` | No | `true` | Poll until execution reaches SUCCEEDED/FAILED/TIMED_OUT/ABORTED |
 | `poll_interval_seconds` | No | `10` | Seconds between `describe_execution` polls |
 | `execution_timeout_seconds` | No | `3600` | Max seconds to wait before raising a timeout error |
+| `input_template` | No | `null` (= `"{}"`) | `StartExecution` input JSON, with `{partition_key}` substitution |
+| `assets_by_state_machine_name` | No | `null` | Per-state-machine AssetSpec overrides (key/description/deps/metadata/tags/kinds/owners), keyed by state machine name |
+| `generate_sensor` | No | `false` | Add an observation sensor over `ListExecutions`, skipping Dagster-started executions |
+| `observation_interval_seconds` | No | `300` | Sensor tick interval. Only used when `generate_sensor: true` |
+| `partition_type` | No | `null` | `daily`\|`weekly`\|`monthly`\|`hourly`\|`cron`\|`static`\|`dynamic`, applied to every state machine |
+| `partition_start` / `partition_values` / `dynamic_partition_name` / `partition_cron_schedule` / `partition_cron_fmt` / `partition_end_offset` / `partition_timezone` | No | — | Same shape as `ecs_pipes_asset`'s partition fields |
 
 ## Example YAML
 

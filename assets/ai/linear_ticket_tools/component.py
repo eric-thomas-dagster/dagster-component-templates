@@ -190,19 +190,40 @@ def _linear_label_id(team_id: str, *, api_key: str, api_base_url: str) -> Option
     return made["issueLabelCreate"]["issueLabel"]["id"]
 
 
-def _linear_find_issues(team_id: str, query: str, *, api_key: str, api_base_url: str) -> List[Dict[str, Any]]:
-    """Open tickets the agents already filed (identified by the description footer marker, not a
+def _linear_find_issues(
+    team_id: str, query: str, *, api_key: str, api_base_url: str, lookback_days: int = 30,
+) -> List[Dict[str, Any]]:
+    """Tickets the agents already filed (identified by the description footer marker, not a
     label) in `team_id` whose title matches `query`'s main words -- a duplicate-check before
-    filing a new one. Generic project words are dropped first."""
+    filing a new one. Generic project words are dropped first.
+
+    Includes every still-open ticket PLUS one closed within the last `lookback_days` (checked
+    against both `completedAt` and `canceledAt` -- a duplicate-marked issue sets `canceledAt`,
+    not `completedAt`, confirmed against Linear's own schema reference). A person closing a
+    bad finding is a signal not to re-file it, not something to ignore once the ticket drops
+    out of the open-issues list -- without this, that signal only lasted until the next poll
+    moved it out of the unfiltered 'open' set. `state`/`completedAt`/`canceledAt` are returned
+    on every match so the caller can tell a still-open duplicate from a recently-closed one."""
     import re
+    from datetime import datetime, timedelta, timezone
+
     words = [w for w in dict.fromkeys(re.findall(r"[A-Za-z0-9]{5,}", query.lower())) if w not in _LINEAR_GENERIC_WORDS][:6]
     if not words:
         return []
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).isoformat()
     data = _linear_gql(
-        """query($t:ID!,$f:[IssueFilter!]!){ issues(first:20, filter:{ team:{id:{eq:$t}},
-        description:{contains:"%s"}, state:{type:{nin:["completed","canceled"]}},
-        or:$f }){ nodes{ identifier title url } } }""" % _LINEAR_MARKER,
-        {"t": team_id, "f": [{"title": {"containsIgnoreCase": w}} for w in words]},
+        """query($t:ID!,$f:[IssueFilter!]!,$cutoff:DateTimeOrDuration!){ issues(first:20, filter:{
+        team:{id:{eq:$t}}, description:{contains:"%s"},
+        and:[
+          { or:$f },
+          { or:[
+              { state:{ type:{ nin:["completed","canceled"] } } },
+              { completedAt:{ gt:$cutoff } },
+              { canceledAt:{ gt:$cutoff } }
+          ]}
+        ]
+        }){ nodes{ identifier title url state{ type } completedAt canceledAt } } }""" % _LINEAR_MARKER,
+        {"t": team_id, "f": [{"title": {"containsIgnoreCase": w}} for w in words], "cutoff": cutoff},
         api_key=api_key, api_base_url=api_base_url,
     )
     return data["issues"]["nodes"]
@@ -270,6 +291,7 @@ class LinearTicketTools:
         self, *, team_id: str, api_key: str, api_base_url: str = "https://api.linear.app/graphql",
         practice_mode_env_var: Optional[str] = None, allow: Optional[List[str]] = None,
         max_result_chars: int = 20000, ledger_path: Optional[str] = None,
+        duplicate_check_lookback_days: int = 30,
         audit: Optional[Callable[[str], None]] = None,
     ):
         import logging
@@ -278,6 +300,7 @@ class LinearTicketTools:
         self.api_base_url = api_base_url
         self.practice_mode_env_var = practice_mode_env_var
         self.ledger_path = ledger_path
+        self.duplicate_check_lookback_days = duplicate_check_lookback_days
         if allow is None:
             allow = list(ALL_TOOLS)
         unknown = sorted(set(allow) - set(ALL_TOOLS))
@@ -328,7 +351,10 @@ class LinearTicketTools:
 
     # -- tools ---------------------------------------------------------------------------------------------------
     def t_find_issues(self, query: str) -> Dict[str, Any]:
-        return {"issues": _linear_find_issues(self.team_id, query, api_key=self.api_key, api_base_url=self.api_base_url)}
+        return {"issues": _linear_find_issues(
+            self.team_id, query, api_key=self.api_key, api_base_url=self.api_base_url,
+            lookback_days=self.duplicate_check_lookback_days,
+        )}
 
     def t_create_issue(self, title: str, body: str) -> Dict[str, Any]:
         return _linear_create_issue(
@@ -422,6 +448,16 @@ class LinearTicketToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             "outcome_ledger_path at this SAME directory to read it back. Unset: no ledger is written."
         ),
     )
+    duplicate_check_lookback_days: int = Field(
+        default=30,
+        description=(
+            "find_issues includes an issue closed within this many days, not just still-open "
+            "ones. A person closing a bad finding (wontfix, already handled) is a signal not to "
+            "re-file it -- without this, that signal is lost the moment the issue leaves Linear's "
+            "active states, and an advisor agent re-files the same thing it was already told no "
+            "about."
+        ),
+    )
 
     allow: Optional[List[str]] = Field(default=None, description=f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}.")
     max_result_chars: int = Field(default=20000, description="Upper bound on the serialized size of any tool result.")
@@ -455,6 +491,7 @@ class LinearTicketToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         api_base_url = self.api_base_url
         practice_mode_env_var = self.practice_mode_env_var
         ledger_path = self.ledger_path
+        duplicate_check_lookback_days = self.duplicate_check_lookback_days
         allow = list(self.allow) if self.allow else None
         if allow is not None:
             bad = sorted(set(allow) - set(ALL_TOOLS))
@@ -466,7 +503,7 @@ class LinearTicketToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             return LinearTicketTools(
                 team_id=team_id, api_key=os.environ.get(api_key_env_var, ""), api_base_url=api_base_url,
                 practice_mode_env_var=practice_mode_env_var, allow=allow, max_result_chars=max_chars,
-                ledger_path=ledger_path,
+                ledger_path=ledger_path, duplicate_check_lookback_days=duplicate_check_lookback_days,
             )
 
         res = dg.ResourceDefinition(resource_fn=_init, description=f"Team-scoped Linear ticket tools for team {team_id}.")
@@ -476,6 +513,7 @@ class LinearTicketToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             mcp_env: Dict[str, str] = {
                 "LINEAR_TICKET_TOOLS_TEAM_ID": team_id, "LINEAR_TICKET_TOOLS_API_KEY_ENV_VAR": api_key_env_var,
                 "LINEAR_TICKET_TOOLS_API_BASE_URL": api_base_url, "LINEAR_TICKET_TOOLS_MAX_CHARS": str(max_chars),
+                "LINEAR_TICKET_TOOLS_DUPLICATE_CHECK_LOOKBACK_DAYS": str(duplicate_check_lookback_days),
             }
             if allow:
                 mcp_env["LINEAR_TICKET_TOOLS_ALLOW"] = ",".join(allow)
@@ -541,7 +579,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     """Env: LINEAR_TICKET_TOOLS_TEAM_ID (required), _API_KEY_ENV_VAR (default LINEAR_API_KEY),
     _API_BASE_URL, _ALLOW (csv), _MAX_CHARS, _PRACTICE_MODE_ENV_VAR (the NAME of another env var
     to read fresh at call time -- not a value), _LEDGER_PATH (directory for the per-run_id
-    outcome-ledger JSON-lines files)."""
+    outcome-ledger JSON-lines files), _DUPLICATE_CHECK_LOOKBACK_DAYS (default 30)."""
     import logging
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")  # stdout is the MCP channel
     team_id = os.environ.get("LINEAR_TICKET_TOOLS_TEAM_ID")
@@ -556,6 +594,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         practice_mode_env_var=os.environ.get("LINEAR_TICKET_TOOLS_PRACTICE_MODE_ENV_VAR"),
         allow=allow, max_result_chars=int(os.environ.get("LINEAR_TICKET_TOOLS_MAX_CHARS", "20000")),
         ledger_path=os.environ.get("LINEAR_TICKET_TOOLS_LEDGER_PATH"),
+        duplicate_check_lookback_days=int(os.environ.get("LINEAR_TICKET_TOOLS_DUPLICATE_CHECK_LOOKBACK_DAYS", "30")),
     )
     build_mcp_server(tools).run(transport="stdio")
 

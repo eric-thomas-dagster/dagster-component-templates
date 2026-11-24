@@ -7,7 +7,7 @@ titles only."
 
 | Tool | Answers / does |
 |---|---|
-| `find_issues(query)` | open tickets the agents already filed whose title matches `query`'s main words (generic project words dropped first) -- a duplicate-check, call before `create_issue` |
+| `find_issues(query)` | open (or recently-closed, within `duplicate_check_lookback_days`) tickets the agents already filed whose title matches `query`'s main words (generic project words dropped first) -- a duplicate-check, call before `create_issue` |
 | `create_issue(title, body)` | files a ticket in the one configured team |
 | `list_agent_issues()` | open agent-filed tickets with their bodies -- for announcing elsewhere (e.g. Slack) |
 
@@ -27,6 +27,14 @@ instead -- this works even when the key can't create or read labels at all. When
 `improve`, `improvements`, `reliability`) before searching, so a query full of common vocabulary
 doesn't "match" nearly every prior ticket by coincidence. If every word in a query is generic (or
 too short), `find_issues` returns no results without even sending a search -- not an error.
+
+## A recently-closed ticket still counts as a duplicate
+
+`duplicate_check_lookback_days` (default 30) makes `find_issues` include a ticket closed within
+that window, not just still-open ones -- a person closing a bad finding (wontfix, already handled)
+is a signal not to re-file it, which is lost the moment the ticket leaves Linear's active states if
+only open tickets are checked. Each matched ticket's `state`/`completedAt`/`canceledAt` come back
+too, so the caller can tell a still-open duplicate from a recently-closed one.
 
 ## Auth
 
@@ -70,6 +78,7 @@ the real bug this design avoids).
 | `api_base_url` | `str` | `"https://api.linear.app/graphql"` | Linear GraphQL endpoint. |
 | `practice_mode_env_var` | `str` | — | Env var NAME (not a value templated into this field) whose value, read fresh at call time, switches create_issue into practice mode: returns {'practice_mode': True, 'would_open': 'linear_ticket', ...} instead of actually… _(full docs in schema.json + component README)_ |
 | `ledger_path` | `str` | — | Directory this tool writes one JSON-lines file per Dagster run_id into, recording every create_issue call as it happens -- filed, would_file (practice mode), or refused. Same shape/rationale as github_pr_tools' own ledge… _(full docs in schema.json + component README)_ |
+| `duplicate_check_lookback_days` | `int` | `30` | find_issues includes an issue closed within this many days, not just still-open ones. A person closing a bad finding (wontfix, already handled) is a signal not to re-file it -- without this, that signal is lost the momen… _(full docs in schema.json + component README)_ |
 | `allow` | `List[str]` | — | `f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}."` |
 | `max_result_chars` | `int` | `20000` | Upper bound on the serialized size of any tool result. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with LINEAR_TICKET_TOOLS_* env vars set from this component's own settings, and the real API key passed through via live en… _(full docs in schema.json + component README)_ |

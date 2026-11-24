@@ -505,16 +505,18 @@ def test_find_issues_filters_generic_words_and_searches_by_remaining_words(mod, 
     def _fake_get(url, params=None, headers=None, timeout=None):
         captured_queries.append(params["q"])
         if "flaky_retry_bug" in params["q"]:
-            return _FakeSearchResp(200, {"items": [{"number": 7, "title": "flaky_retry_bug in orders", "html_url": "https://github.com/acme/widgets/issues/7"}]})
+            return _FakeSearchResp(200, {"items": [{"number": 7, "title": "flaky_retry_bug in orders", "html_url": "https://github.com/acme/widgets/issues/7", "state": "open", "closed_at": None}]})
         return _FakeSearchResp(200, {"items": []})
 
     monkeypatch.setattr("requests.get", _fake_get)
     tools = _tools(mod, api)
     result = tools.call("find_issues", {"query": "improve this dagster asset's flaky_retry_bug reliability"})
-    assert result["issues"] == [{"number": 7, "title": "flaky_retry_bug in orders", "url": "https://github.com/acme/widgets/issues/7"}]
+    assert result["issues"] == [{"number": 7, "title": "flaky_retry_bug in orders", "url": "https://github.com/acme/widgets/issues/7", "state": "open", "closed_at": None}]
     assert all("label:engineering-agent" in q for q in captured_queries)
-    # generic words (dagster/asset/improve/reliability) are dropped -- only the specific word is searched
-    assert captured_queries == ["repo:acme/widgets is:issue is:open label:engineering-agent flaky_retry_bug in:title"]
+    # generic words (dagster/asset/improve/reliability) are dropped -- only the specific word is searched.
+    # is:open is no longer in the query -- a recently-closed match is now filtered client-side instead
+    # (see test_find_issues_includes_a_recently_closed_duplicate_but_not_an_old_one below), not server-side.
+    assert captured_queries == ["repo:acme/widgets is:issue label:engineering-agent flaky_retry_bug in:title"]
 
 
 def test_find_issues_returns_empty_when_nothing_matches(mod, patched, monkeypatch):
@@ -522,6 +524,41 @@ def test_find_issues_returns_empty_when_nothing_matches(mod, patched, monkeypatc
     tools = _tools(mod, patched)
     result = tools.call("find_issues", {"query": "something_specific_enough"})
     assert result["issues"] == []
+
+
+def test_find_issues_includes_a_recently_closed_duplicate_but_not_an_old_one(mod, patched, monkeypatch):
+    """Hooli feedback: a person closing a bad finding (wontfix, already handled) is a signal not
+    to re-file it -- find_issues must still surface that closed issue within the lookback window,
+    not just still-open ones."""
+    import datetime as _dt
+
+    recent_closed_at = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    old_closed_at = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=90)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def _fake_get(url, params=None, headers=None, timeout=None):
+        return _FakeSearchResp(200, {"items": [
+            {"number": 1, "title": "flaky_retry_bug open one", "html_url": "https://github.com/acme/widgets/issues/1", "state": "open", "closed_at": None},
+            {"number": 2, "title": "flaky_retry_bug closed recently", "html_url": "https://github.com/acme/widgets/issues/2", "state": "closed", "closed_at": recent_closed_at},
+            {"number": 3, "title": "flaky_retry_bug closed long ago", "html_url": "https://github.com/acme/widgets/issues/3", "state": "closed", "closed_at": old_closed_at},
+        ]})
+
+    monkeypatch.setattr("requests.get", _fake_get)
+    tools = _tools(mod, patched, duplicate_check_lookback_days=30)
+    result = tools.call("find_issues", {"query": "flaky_retry_bug"})
+    numbers = {i["number"] for i in result["issues"]}
+    assert numbers == {1, 2}  # the 90-day-old closed issue is excluded, the 5-day-old one is not
+
+
+def test_find_issues_duplicate_check_lookback_days_is_configurable(mod, patched, monkeypatch):
+    import datetime as _dt
+
+    closed_at = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    monkeypatch.setattr("requests.get", lambda *a, **k: _FakeSearchResp(200, {"items": [
+        {"number": 1, "title": "flaky_retry_bug", "html_url": "https://github.com/acme/widgets/issues/1", "state": "closed", "closed_at": closed_at},
+    ]}))
+    tools = _tools(mod, patched, duplicate_check_lookback_days=3)
+    result = tools.call("find_issues", {"query": "flaky_retry_bug"})
+    assert result["issues"] == []  # 10 days ago is outside a 3-day lookback
 
 
 def test_open_issue_creates_a_labeled_issue(mod, patched):

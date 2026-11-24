@@ -59,14 +59,37 @@ class FakeLinearApi:
             self.issues.append(issue)
             return _FakeResp(200, {"data": {"issueCreate": {"success": True, "issue": {k: issue[k] for k in ("identifier", "title", "url")}}}})
         if "issues(first:20" in query:
-            # find_issues: OR of per-word title-contains filters, over issues carrying the marker
+            # find_issues: title-word OR filter, AND (still open OR closed within the cutoff) --
+            # mirrors the real GraphQL query's own and:[{or:$f},{or:[state,completedAt,canceledAt]}]
+            # semantics, since this fake evaluates the filter itself rather than a real server.
+            import datetime as _dt
+
             words = [f["title"]["containsIgnoreCase"].lower() for f in variables["f"]]
+            cutoff = _dt.datetime.fromisoformat(variables["cutoff"])
+
+            def _within_cutoff(i):
+                if i.get("state", "unstarted") not in ("completed", "canceled"):
+                    return True
+                for key in ("completedAt", "canceledAt"):
+                    ts = i.get(key)
+                    if ts and _dt.datetime.fromisoformat(ts) > cutoff:
+                        return True
+                return False
+
             matches = [
                 i for i in self.issues
                 if "Filed by an engineering agent." in i["description"]
                 and any(w in i["title"].lower() for w in words)
+                and _within_cutoff(i)
             ]
-            return _FakeResp(200, {"data": {"issues": {"nodes": [{"identifier": i["identifier"], "title": i["title"], "url": i["url"]} for i in matches]}}})
+            return _FakeResp(200, {"data": {"issues": {"nodes": [
+                {
+                    "identifier": i["identifier"], "title": i["title"], "url": i["url"],
+                    "state": {"type": i.get("state", "unstarted")},
+                    "completedAt": i.get("completedAt"), "canceledAt": i.get("canceledAt"),
+                }
+                for i in matches
+            ]}}})
         if "issues(first:50" in query:
             matches = [i for i in self.issues if "Filed by an engineering agent." in i["description"]]
             return _FakeResp(200, {"data": {"issues": {"nodes": list(matches)}}})
@@ -138,6 +161,48 @@ def test_find_issues_returns_empty_for_only_generic_words(mod, patched):
     result = tools.call("find_issues", {"query": "improve reliability"})
     assert result["issues"] == []
     assert api.calls == []
+
+
+def test_find_issues_includes_a_recently_closed_duplicate_but_not_an_old_one(mod, patched):
+    """Hooli feedback: a person closing a bad finding (wontfix, already handled) is a signal not
+    to re-file it -- find_issues must still surface that closed issue within
+    duplicate_check_lookback_days, not just still-open ones."""
+    import datetime as _dt
+
+    api = patched
+    now = _dt.datetime.now(_dt.timezone.utc)
+    api.issues.append({
+        "identifier": "ENG-1", "title": "flaky_retry_bug open one", "url": "u1",
+        "description": "Filed by an engineering agent.",
+    })
+    api.issues.append({
+        "identifier": "ENG-2", "title": "flaky_retry_bug closed recently", "url": "u2",
+        "description": "Filed by an engineering agent.", "state": "canceled",
+        "canceledAt": (now - _dt.timedelta(days=5)).isoformat(),
+    })
+    api.issues.append({
+        "identifier": "ENG-3", "title": "flaky_retry_bug closed long ago", "url": "u3",
+        "description": "Filed by an engineering agent.", "state": "completed",
+        "completedAt": (now - _dt.timedelta(days=90)).isoformat(),
+    })
+    tools = _tools(mod, api, duplicate_check_lookback_days=30)
+    result = tools.call("find_issues", {"query": "flaky_retry_bug"})
+    identifiers = {i["identifier"] for i in result["issues"]}
+    assert identifiers == {"ENG-1", "ENG-2"}  # the 90-day-old one is excluded
+
+
+def test_find_issues_duplicate_check_lookback_days_is_configurable(mod, patched):
+    import datetime as _dt
+
+    api = patched
+    api.issues.append({
+        "identifier": "ENG-1", "title": "flaky_retry_bug", "url": "u1",
+        "description": "Filed by an engineering agent.", "state": "canceled",
+        "canceledAt": (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=10)).isoformat(),
+    })
+    tools = _tools(mod, api, duplicate_check_lookback_days=3)
+    result = tools.call("find_issues", {"query": "flaky_retry_bug"})
+    assert result["issues"] == []  # 10 days ago is outside a 3-day lookback
 
 
 def test_list_agent_issues_only_returns_marker_tagged_issues(mod, patched):

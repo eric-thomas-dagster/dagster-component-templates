@@ -501,17 +501,29 @@ _GH_ISSUE_LABEL = "engineering-agent"
 _GH_ISSUE_GENERIC_WORDS = frozenset({"dagster", "assets", "asset", "project", "improve", "improvements", "reliability", "update"})
 
 
-def _gh_find_issues(repo: str, query: str, *, label: str, token: str, api_base_url: str) -> List[Dict[str, Any]]:
-    """Open issues the agents already filed (carrying `label`) whose title has any of `query`'s
-    main words -- a duplicate-check before filing a new one. Generic words are dropped first so a
+def _gh_find_issues(
+    repo: str, query: str, *, label: str, token: str, api_base_url: str, lookback_days: int = 30,
+) -> List[Dict[str, Any]]:
+    """Issues the agents already filed (carrying `label`) whose title has any of `query`'s main
+    words -- a duplicate-check before filing a new one. Generic words are dropped first so a
     query full of common project vocabulary ('improve this Dagster asset's reliability') doesn't
-    "match" nearly every prior issue by coincidence."""
+    "match" nearly every prior issue by coincidence.
+
+    Includes every still-open issue PLUS one closed within the last `lookback_days`. A person
+    closing a bad finding is a signal not to re-file it, not something to ignore once the issue
+    drops out of an open-only search -- client-side-filtered on `state`/`closed_at` rather than
+    an `is:open OR closed:>date` search qualifier, since that compound-boolean search syntax is
+    confirmed for GitHub's website search but not confirmed to parse identically through this
+    REST `/search/issues` endpoint."""
     import re
     import requests
+    from datetime import datetime, timedelta, timezone
+
     words = [w for w in dict.fromkeys(re.findall(r"[A-Za-z0-9_]{5,}", query.lower())) if w not in _GH_ISSUE_GENERIC_WORDS][:5]
+    cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
     found: Dict[int, Dict[str, Any]] = {}
     for word in words:
-        q = f"repo:{repo} is:issue is:open label:{label} {word} in:title"
+        q = f"repo:{repo} is:issue label:{label} {word} in:title"
         resp = requests.get(
             f"{api_base_url}/search/issues", params={"q": q, "per_page": 10},
             headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}, timeout=30,
@@ -519,7 +531,15 @@ def _gh_find_issues(repo: str, query: str, *, label: str, token: str, api_base_u
         if resp.status_code >= 400:
             raise GithubPrScopeError(f"Issue search failed ({resp.status_code}): {resp.text[:200]}")
         for i in resp.json()["items"]:
-            found[i["number"]] = {"number": i["number"], "title": i["title"], "url": i["html_url"]}
+            state = i.get("state", "open")
+            if state == "closed":
+                closed_at = i.get("closed_at")
+                if not closed_at or datetime.fromisoformat(closed_at.replace("Z", "+00:00")) < cutoff:
+                    continue
+            found[i["number"]] = {
+                "number": i["number"], "title": i["title"], "url": i["html_url"],
+                "state": state, "closed_at": i.get("closed_at"),
+            }
     return list(found.values())
 
 
@@ -579,6 +599,7 @@ class GithubPrTools:
         low_risk_paths=("src/", "tests/", "docs/", "README"), low_risk_max_files: int = 2, low_risk_max_lines: int = 30,
         max_files_per_fix: int = 5, allow: Optional[List[str]] = None, max_result_chars: int = 20000,
         practice_mode_env_var: Optional[str] = None, ledger_path: Optional[str] = None,
+        duplicate_check_lookback_days: int = 30,
         audit: Optional[Callable[[str], None]] = None,
     ):
         import logging
@@ -597,6 +618,7 @@ class GithubPrTools:
         self.max_files_per_fix = max_files_per_fix
         self.practice_mode_env_var = practice_mode_env_var
         self.ledger_path = ledger_path
+        self.duplicate_check_lookback_days = duplicate_check_lookback_days
         if allow is None:
             allow = list(ALL_TOOLS)
         unknown = sorted(set(allow) - set(ALL_TOOLS))
@@ -677,9 +699,14 @@ class GithubPrTools:
         return {"updated": _gh_refresh_open_agent_prs(self.repo, branch_prefix=self.branch_prefix, token=self.token, api_base_url=self.api_base_url)}
 
     def t_find_issues(self, query: str) -> Dict[str, Any]:
-        """Open issues the agents already filed whose title matches query's main words -- call this
-        BEFORE open_issue to avoid filing the same problem twice."""
-        return {"issues": _gh_find_issues(self.repo, query, label=_GH_ISSUE_LABEL, token=self.token, api_base_url=self.api_base_url)}
+        """Open (or recently-closed, within duplicate_check_lookback_days) issues the agents
+        already filed whose title matches query's main words -- call this BEFORE open_issue to
+        avoid filing the same problem twice. A recently-closed match is still returned (with
+        state/closed_at) since a person closing a bad finding is a signal not to re-file it."""
+        return {"issues": _gh_find_issues(
+            self.repo, query, label=_GH_ISSUE_LABEL, token=self.token, api_base_url=self.api_base_url,
+            lookback_days=self.duplicate_check_lookback_days,
+        )}
 
     def t_open_issue(self, title: str, body: str, labels: Optional[List[str]] = None) -> Dict[str, Any]:
         return _gh_open_issue(
@@ -830,6 +857,16 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
             "ledger is written (zero behavior change)."
         ),
     )
+    duplicate_check_lookback_days: int = Field(
+        default=30,
+        description=(
+            "find_issues includes an issue closed within this many days, not just still-open "
+            "ones. A person closing a bad finding (wontfix, already handled) is a signal not to "
+            "re-file it -- without this, that signal is lost the moment the issue drops out of "
+            "an open-only search, and an advisor agent re-files the same thing it was already "
+            "told no about."
+        ),
+    )
 
     allow: Optional[List[str]] = Field(default=None, description=f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}.")
     max_result_chars: int = Field(default=20000, description="Upper bound on the serialized size of any tool result.")
@@ -872,6 +909,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
         max_files_per_fix = self.max_files_per_fix
         practice_mode_env_var = self.practice_mode_env_var
         ledger_path = self.ledger_path
+        duplicate_check_lookback_days = self.duplicate_check_lookback_days
         allow = list(self.allow) if self.allow else None
         if allow is not None:
             bad = sorted(set(allow) - set(ALL_TOOLS))
@@ -887,6 +925,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 protected_paths=protected_paths, exclude_paths=exclude_paths, low_risk_paths=low_risk_paths, low_risk_max_files=low_risk_max_files,
                 low_risk_max_lines=low_risk_max_lines, max_files_per_fix=max_files_per_fix, allow=allow, max_result_chars=max_chars,
                 practice_mode_env_var=practice_mode_env_var, ledger_path=ledger_path,
+                duplicate_check_lookback_days=duplicate_check_lookback_days,
             )
 
         res = dg.ResourceDefinition(resource_fn=_init, description=f"Repo-scoped GitHub PR tools for {repo}.")
@@ -905,6 +944,7 @@ class GithubPrToolsComponent(dg.Component, dg.Model, dg.Resolvable):
                 "GITHUB_PR_TOOLS_LOW_RISK_MAX_LINES": str(low_risk_max_lines),
                 "GITHUB_PR_TOOLS_MAX_FILES_PER_FIX": str(max_files_per_fix),
                 "GITHUB_PR_TOOLS_MAX_CHARS": str(max_chars),
+                "GITHUB_PR_TOOLS_DUPLICATE_CHECK_LOOKBACK_DAYS": str(duplicate_check_lookback_days),
             }
             if reviewer_token_env_var:
                 mcp_env["GITHUB_PR_TOOLS_REVIEWER_TOKEN_ENV_VAR"] = reviewer_token_env_var
@@ -1032,6 +1072,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         allow=allow, max_result_chars=int(os.environ.get("GITHUB_PR_TOOLS_MAX_CHARS", "20000")),
         practice_mode_env_var=os.environ.get("GITHUB_PR_TOOLS_PRACTICE_MODE_ENV_VAR"),
         ledger_path=os.environ.get("GITHUB_PR_TOOLS_LEDGER_PATH"),
+        duplicate_check_lookback_days=int(os.environ.get("GITHUB_PR_TOOLS_DUPLICATE_CHECK_LOOKBACK_DAYS", "30")),
     )
     build_mcp_server(tools).run(transport="stdio")
 

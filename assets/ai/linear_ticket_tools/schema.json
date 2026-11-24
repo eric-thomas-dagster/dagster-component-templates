@@ -73,6 +73,12 @@
       "label": "Ledger Path",
       "description": "Directory this tool writes one JSON-lines file per Dagster run_id into, recording every create_issue call as it happens -- filed, would_file (practice mode), or refused. Same shape/rationale as github_pr_tools' own ledger_path (the run_id comes from MCP's out-of-band request _meta, not a tool argument). Point an agent component's own outcome_ledger_path at this SAME directory to read it back. Unset: no ledger is written.",
       "required": false
+    },
+    "duplicate_check_lookback_days": {
+      "type": "integer",
+      "label": "Duplicate Check Lookback Days",
+      "description": "find_issues includes an issue closed within this many days, not just still-open ones. A person closing a bad finding (wontfix, already handled) is a signal not to re-file it -- without this, that signal is lost the moment the issue leaves Linear's active states, and an advisor agent re-files the same thing it was already told no about.",
+      "required": false
     }
   }
 }

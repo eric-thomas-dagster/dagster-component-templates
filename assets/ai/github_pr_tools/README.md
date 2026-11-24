@@ -10,7 +10,7 @@ Repo-scoped GitHub pull-request tools for engineering agents (a bug fixer, a PR 
 | `propose_fix(branch, title, body, files, note="")` | opens a pull request. `files` items are `{path, old, new}` (replaces one exact piece of text -- it must appear once -- leaving the rest of the file untouched) or `{path, content}` (new files only). Refuses files under a protected path, or a fix touching more than `max_files_per_fix` files, or a file an already-open PR already touches |
 | `review_pull_request(number, decision, body)` | `decision` is `COMMENT` or `APPROVE`. `COMMENT` always works. `APPROVE` is refused unless `assess_pull_request` says `'low'`, and is posted under a SECOND GitHub identity -- GitHub blocks a PR's own author approving it |
 | `refresh_open_agent_prs()` | brings every open agent-branch PR up to date with `base_branch` -- call after a merge so CI on the other open agent PRs runs against the just-merged code |
-| `find_issues(query)` | open issues the agents already filed whose title matches `query`'s main words (generic project words dropped first) -- a duplicate-check, call before `open_issue` |
+| `find_issues(query)` | open (or recently-closed, within `duplicate_check_lookback_days`) issues the agents already filed whose title matches `query`'s main words (generic project words dropped first) -- a duplicate-check, call before `open_issue` |
 | `open_issue(title, body, labels=None)` | files a GitHub issue labeled `engineering-agent` |
 
 `get_pull_request`'s result also includes `branch_deployment_url` -- the Dagster+ branch deployment link, read from the PR's comments/checks/statuses (see below).
@@ -91,12 +91,18 @@ Brings every open agent-branch PR (one whose head ref starts with `branch_prefix
 
 ## Issue filing with a duplicate-check
 
-`find_issues(query)` searches open `engineering-agent`-labeled issues for `query`'s main words (5+
+`find_issues(query)` searches `engineering-agent`-labeled issues for `query`'s main words (5+
 character tokens, a handful of generic project words like `dagster`/`asset`/`improve`/`reliability`
 dropped first) via GitHub's search API -- call it before `open_issue` so the same problem isn't
 filed twice. `open_issue` labels every issue it creates `engineering-agent` (creating the label on
 first use if it doesn't exist) and appends a `Filed by an engineering agent.` footer. Also governed
 by `practice_mode_env_var`.
+
+A match doesn't have to still be open: `duplicate_check_lookback_days` (default 30) also includes
+an issue closed within that window, with `state`/`closed_at` on the result so the caller can tell
+the difference. A person closing a bad finding is a signal not to re-file it, not something to
+forget the moment the issue drops out of an open-only search -- a real deployment reported an
+advisor agent re-filing a finding someone had already closed as a non-issue.
 
 ## Practice mode (`practice_mode_env_var`)
 
@@ -150,6 +156,7 @@ Every GitHub call is pinned to the configured `repo` -- a prompt cannot point th
 | `max_files_per_fix` | `int` | `5` | propose_fix: max files a single fix may change. |
 | `practice_mode_env_var` | `str` | — | Env var NAME (not a value templated into this field) whose value, read fresh at call time, switches propose_fix into practice mode: every validation (protected paths, duplicate-PR-file check, file count) still runs, but… _(full docs in schema.json + component README)_ |
 | `ledger_path` | `str` | — | Directory this tool writes one JSON-lines file per Dagster run_id into, recording every consequential action (propose_fix, open_issue, an APPROVE review) as it happens -- filed, would_file (practice mode), refused (a gua… _(full docs in schema.json + component README)_ |
+| `duplicate_check_lookback_days` | `int` | `30` | find_issues includes an issue closed within this many days, not just still-open ones. A person closing a bad finding (wontfix, already handled) is a signal not to re-file it -- without this, that signal is lost the momen… _(full docs in schema.json + component README)_ |
 | `allow` | `List[str]` | — | `f"Hard allow-list of tools (default: all). Valid: {', '.join(ALL_TOOLS)}."` |
 | `max_result_chars` | `int` | `20000` | Upper bound on the serialized size of any tool result. |
 | `mcp_server_resource_key` | `str` | — | If set, ALSO registers a stdio MCP-server-shaped resource under this key (python -m this module, with GITHUB_PR_TOOLS_* env vars set from this component's own settings, and the real token(s) passed through via live env p… _(full docs in schema.json + component README)_ |

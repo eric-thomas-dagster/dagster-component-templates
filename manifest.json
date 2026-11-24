@@ -30689,7 +30689,7 @@
       "name": "github_pr_tools",
       "category": "ai",
       "description": "Repo-scoped GitHub pull-request tools for engineering agents: read a PR, assess its deterministic risk level, propose a targeted-edit fix, and review (COMMENT or risk-gated APPROVE under a second identity). Registers a resource and ships a stdio MCP server.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/github_pr_tools",
       "tags": [
@@ -40171,7 +40171,7 @@
       "name": "linear_ticket_tools",
       "category": "ai",
       "description": "Team-scoped Linear ticket tools for engineering agents (find_issues/create_issue/list_agent_issues), with a duplicate-check before filing and an optional practice mode. Registers a resource and ships a stdio MCP server.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/linear_ticket_tools",
       "tags": [

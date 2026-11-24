@@ -76,7 +76,10 @@ import os
 import re
 import sys
 import time
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python < 3.11
+    import tomli as tomllib  # type: ignore[no-redef]
 import urllib.error
 import urllib.request
 from collections import defaultdict

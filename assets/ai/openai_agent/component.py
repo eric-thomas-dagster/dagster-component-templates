@@ -28,7 +28,7 @@ Output is a Python dict (loaded by IO manager) carrying the final answer,
 full transcript, tool-call/iteration counts, and (when `hosted_code_execution`
 generated any) the files the model's code produced.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 import dagster as dg
 from dagster import (
     AssetExecutionContext,
@@ -386,6 +386,33 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
             "['dagster_plus__list_*', 'dagster_plus__get_*']."
         ),
     )
+    required_tool_calls: Optional[List[Union[str, List[str]]]] = Field(
+        default=None,
+        description=(
+            "Tool name(s)/fnmatch patterns the model MUST call at least once before it's allowed "
+            "to finish -- a model that writes findings and then answers 'to be filed' without "
+            "actually calling the filing tool is a real, repeatedly observed failure mode that "
+            "prompt wording alone doesn't reliably prevent. Each entry is either a single "
+            "pattern (that exact tool is required) or a list of patterns (an 'any of' group -- "
+            "satisfied by calling any one of them). When the model tries to stop without having "
+            "called every required entry, it gets ONE reminder message (consuming one of "
+            "max_iterations' own rounds, not extra budget) and a chance to call them before "
+            "finishing; whether a call itself succeeded or errored doesn't matter here, only "
+            "whether it was attempted. See on_required_tool_calls_missing for what happens if "
+            "it still hasn't after that."
+        ),
+    )
+    on_required_tool_calls_missing: Literal["fail", "warn"] = Field(
+        default="fail",
+        description=(
+            "What happens when required_tool_calls is set and still unsatisfied after the one "
+            "reminder. 'fail' (default) raises, so the run fails and the reason is in the run's "
+            "own failure message -- turns 'did it act' into a guarantee instead of a hope. "
+            "'warn' never raises; the result (and the materialization's own metadata) instead "
+            "carries required_tools_missing, the list of entries that were never satisfied "
+            "(empty list when everything required was called)."
+        ),
+    )
     skill_keys: Optional[List[str]] = Field(
         default=None,
         description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
@@ -532,6 +559,8 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
         allowed_tools = self.allowed_tools
+        required_tool_calls = self.required_tool_calls
+        on_required_tool_calls_missing = self.on_required_tool_calls_missing
         skill_keys = self.skill_keys
         hosted_code_execution = self.hosted_code_execution
         hosted_code_execution_files_dir = self.hosted_code_execution_files_dir
@@ -714,12 +743,17 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                     reasoning_effort=reasoning_effort,
                     skill_resources=usable_skill_resources,
                     allowed_tools=allowed_tools,
+                    required_tool_calls=required_tool_calls,
                     hosted_code_execution=hosted_code_execution,
                     code_execution_skill_resources=code_execution_skill_resources,
                     hosted_code_execution_files_dir=hosted_code_execution_files_dir,
                     run_id=context.run_id,
                 )
             )
+            if result.get("required_tools_missing") and on_required_tool_calls_missing == "fail":
+                raise RuntimeError(
+                    "required_tool_calls not satisfied: " + _required_tools_reminder_text(result["required_tools_missing"])
+                )
 
             md = {
                 "final_answer": MetadataValue.md(result["final_answer"] or "_(empty)_"),
@@ -732,6 +766,8 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                 md["tool_calls"] = MetadataValue.json(result["tool_call_details"])
             if result.get("combined_server_instructions"):
                 md["mcp_server_instructions"] = MetadataValue.md(result["combined_server_instructions"])
+            if "required_tools_missing" in result:
+                md["required_tools_missing"] = MetadataValue.json(result["required_tools_missing"])
             if skill_keys:
                 md["skills_available"] = MetadataValue.json(
                     [res.describe() for res in skill_resources.values()]
@@ -765,13 +801,18 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
                 entries = read_outcome_ledger_entries(outcome_ledger_path, context.run_id)
                 outcome = summarize_outcome_ledger(entries)
                 outcome["text"] = agent_result.get("final_answer", "")
-                context.add_output_metadata({
+                if "required_tools_missing" in agent_result:
+                    outcome["required_tools_missing"] = agent_result["required_tools_missing"]
+                md = {
                     "status": MetadataValue.text(outcome["status"]),
                     "filed_count": MetadataValue.int(len(outcome["filed"])),
                     "would_file_count": MetadataValue.int(len(outcome["would_file"])),
                     "refused_count": MetadataValue.int(len(outcome["refused"])),
                     "decisions_for_you_count": MetadataValue.int(len(outcome["decisions_for_you"])),
-                })
+                }
+                if "required_tools_missing" in outcome:
+                    md["required_tools_missing"] = MetadataValue.json(outcome["required_tools_missing"])
+                context.add_output_metadata(md)
                 return outcome
 
             assets_list.append(_agent_outcome_asset)
@@ -935,6 +976,26 @@ def _tool_name_allowed(name: str, allowed: Optional[List[str]]) -> bool:
     return any(fnmatch.fnmatch(name, pattern) for pattern in allowed)
 
 
+def _missing_required_tool_groups(called_names: List[str], required_tool_calls: List[Any]) -> List[Any]:
+    """required_tool_calls: each entry is a single pattern (required) or a list of patterns (an
+    'any of' group). Returns the entries never satisfied by any name in called_names -- whether a
+    matched call itself errored doesn't matter, only whether it was attempted."""
+    missing = []
+    for entry in required_tool_calls:
+        patterns = entry if isinstance(entry, list) else [entry]
+        if not any(_tool_name_allowed(name, patterns) for name in called_names):
+            missing.append(entry)
+    return missing
+
+
+def _required_tools_reminder_text(missing: List[Any]) -> str:
+    parts = [("one of: " + ", ".join(g)) if isinstance(g, list) else g for g in missing]
+    return (
+        "Before finishing, you still need to call: " + "; ".join(parts) + ". "
+        "Call the required tool(s) now, then give your final answer."
+    )
+
+
 async def _run_agent(
     log,
     prompt: str,
@@ -950,6 +1011,7 @@ async def _run_agent(
     reasoning_effort: Optional[str] = None,
     skill_resources: Optional[Dict[str, Any]] = None,
     allowed_tools: Optional[List[str]] = None,
+    required_tool_calls: Optional[List[Any]] = None,
     hosted_code_execution: bool = False,
     code_execution_skill_resources: Optional[Dict[str, Any]] = None,
     hosted_code_execution_files_dir: Optional[str] = None,
@@ -1175,6 +1237,7 @@ async def _run_agent(
         tool_call_details: List[Dict[str, Any]] = []
         iterations = 0
         stopped_reason = "max_iterations"
+        required_tools_reminder_sent = False
         last_assistant_content: Optional[str] = None
 
         for i in range(max_iterations):
@@ -1212,6 +1275,12 @@ async def _run_agent(
 
             function_calls = [d for d in output_items if d.get("type") == "function_call"]
             if not function_calls:
+                if required_tool_calls and not required_tools_reminder_sent:
+                    _missing = _missing_required_tool_groups([d["tool"] for d in tool_call_details], required_tool_calls)
+                    if _missing:
+                        required_tools_reminder_sent = True
+                        input_list.append({"role": "user", "content": _required_tools_reminder_text(_missing)})
+                        continue
                 stopped_reason = "final_answer"
                 break
 
@@ -1366,7 +1435,13 @@ async def _run_agent(
                     _entry["bytes"] = _data
                 downloaded_files.append(_entry)
 
-        return {
+        # Reported here as data; _run_agent never raises for this on its own. The caller (the
+        # asset body in build_defs, well outside this `async with` block) decides whether
+        # on_required_tool_calls_missing="fail" raises -- raising from inside this function's own
+        # `async with` block gets wrapped in an anyio/mcp BaseExceptionGroup by the stdio client's
+        # own TaskGroup teardown, which a plain `except RuntimeError` / `pytest.raises` upstream
+        # wouldn't match.
+        _result = {
             "final_answer": last_assistant_content or "",
             "iterations": iterations,
             "tool_calls_made": len(tool_call_details),
@@ -1380,6 +1455,9 @@ async def _run_agent(
             "skill_load_count": skill_load_count,
             "files": downloaded_files,
         }
+        if required_tool_calls:
+            _result["required_tools_missing"] = _missing_required_tool_groups([d["tool"] for d in tool_call_details], required_tool_calls)
+        return _result
 
 
 # --- mcp-compat-helpers:begin (identical in every MCP-using component; kept in sync by tests/test_mcp_compat_helpers_drift.py) ---

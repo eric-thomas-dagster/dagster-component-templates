@@ -163,6 +163,33 @@ The asset is also tagged `dagster-community/skill` (comma-joined `skill_keys`, w
 
 ---
 
+## Making sure the model actually acts (`required_tool_calls`)
+
+A model that writes up findings and then answers "to be filed" without ever calling the filing
+tool is a real, repeatedly observed failure mode -- prompt wording alone doesn't reliably prevent
+it. `required_tool_calls` turns "did it act" from a hope into a guarantee:
+
+```yaml
+required_tool_calls:
+  - dagster_plus__open_issue          # must be called at least once
+  - [dagster_plus__propose_fix, dagster_plus__open_issue]  # "any of" group -- either satisfies it
+on_required_tool_calls_missing: fail   # default; "warn" never raises, just reports it instead
+```
+
+Each entry is a namespaced tool name or fnmatch pattern (required), or a list of them (an "any
+of" group, satisfied by calling any one). When the model tries to stop without having called
+every required entry, it gets exactly ONE reminder message -- consuming one of `max_iterations`'
+own rounds, not extra budget -- and a chance to call them before finishing. Whether a matched
+call itself succeeded or errored doesn't matter, only whether it was attempted.
+
+If it still hasn't called them after that: `on_required_tool_calls_missing: fail` (the default)
+raises, so the run fails and the reason is in the run's own failure message. `warn` never raises;
+instead the result -- and the `_outcome` companion asset, when `emit_outcome_asset` is on --
+carries `required_tools_missing`, the list of entries still unsatisfied (empty when everything
+required was called).
+
+---
+
 ## When to use this vs. other components
 
 | Use case | Component |
@@ -252,6 +279,8 @@ The asset is also tagged `dagster-community/skill` (comma-joined `skill_keys`, w
 | `max_iterations` | `int` | `10` | Max tool-call rounds before bailing. |
 | `mcp_servers` | `List[MCPServerSpec]` | `list()` | List of MCP servers to expose as tools. Empty list = no tools (chat-only). |
 | `allowed_tools` | `List[str]` | — | Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), '*' wildcards supported (fnmatch), applied across every mcp_servers entry. Default: all discovered tools. A server can expose many tools the a… _(full docs in schema.json + component README)_ |
+| `required_tool_calls` | `List[Union[str, List[str]]]` | — | Tool name(s)/fnmatch patterns the model MUST call at least once before it's allowed to finish -- a model that writes findings and then answers 'to be filed' without actually calling the filing tool is a real, repeatedly… _(full docs in schema.json + component README)_ |
+| `on_required_tool_calls_missing` | `Literal['fail', 'warn']` | `"fail"` | What happens when required_tool_calls is set and still unsatisfied after the one reminder. 'fail' (default) raises, so the run fails and the reason is in the run's own failure message -- turns 'did it act' into a guarant… _(full docs in schema.json + component README)_ |
 | `skill_keys` | `List[str]` | — | SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill. |
 | `include_reasoning` | `bool` | `false` | Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the transcript and final_answer; when true it is also returned as a 'reasoning' key in the result dict (all itera… _(full docs in schema.json + component README)_ |
 | `outcome_ledger_path` | `str` | — | Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own ledger_path field pointed at this SAME directory) writes this run's consequential actions into, keyed by run_id -- read by the companion… _(full docs in schema.json + component README)_ |

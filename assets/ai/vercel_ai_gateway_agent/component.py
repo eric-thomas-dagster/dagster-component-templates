@@ -28,7 +28,7 @@ against your Vercel account.
 
 Docs: https://vercel.com/docs/ai-gateway
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 import dagster as dg
 from dagster import (
     AssetExecutionContext,
@@ -226,6 +226,33 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
             "['dagster_plus__list_*', 'dagster_plus__get_*']."
         ),
     )
+    required_tool_calls: Optional[List[Union[str, List[str]]]] = Field(
+        default=None,
+        description=(
+            "Tool name(s)/fnmatch patterns the model MUST call at least once before it's allowed "
+            "to finish -- a model that writes findings and then answers 'to be filed' without "
+            "actually calling the filing tool is a real, repeatedly observed failure mode that "
+            "prompt wording alone doesn't reliably prevent. Each entry is either a single "
+            "pattern (that exact tool is required) or a list of patterns (an 'any of' group -- "
+            "satisfied by calling any one of them). When the model tries to stop without having "
+            "called every required entry, it gets ONE reminder message (consuming one of "
+            "max_iterations' own rounds, not extra budget) and a chance to call them before "
+            "finishing; whether a call itself succeeded or errored doesn't matter here, only "
+            "whether it was attempted. See on_required_tool_calls_missing for what happens if "
+            "it still hasn't after that."
+        ),
+    )
+    on_required_tool_calls_missing: Literal["fail", "warn"] = Field(
+        default="fail",
+        description=(
+            "What happens when required_tool_calls is set and still unsatisfied after the one "
+            "reminder. 'fail' (default) raises, so the run fails and the reason is in the run's "
+            "own failure message -- turns 'did it act' into a guarantee instead of a hope. "
+            "'warn' never raises; the result (and the materialization's own metadata) instead "
+            "carries required_tools_missing, the list of entries that were never satisfied "
+            "(empty list when everything required was called)."
+        ),
+    )
     skill_keys: Optional[List[str]] = Field(
         default=None,
         description="SkillResource resource_keys (from SkillResourceComponent) to make available to this agent. Each listed skill's name/description go into the agent's context up front; the full SKILL.md only loads if the agent actually calls load_skill.",
@@ -392,6 +419,7 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                             prompt_caching=_self.prompt_caching,
                             skill_resources=usable_skill_resources,
                             allowed_tools=_self.allowed_tools,
+                            required_tool_calls=_self.required_tool_calls,
                         )
                     )
                     result["model_used"] = m
@@ -415,6 +443,14 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                     f"Every model in fallback chain {models_to_try} failed. Last error: {last_error}"
                 )
 
+            # Checked OUTSIDE the fallback try/except above -- that except is model/provider
+            # failures only; a required_tool_calls policy violation must propagate, not trigger a
+            # fallback retry with a different model.
+            if result.get("required_tools_missing") and _self.on_required_tool_calls_missing == "fail":
+                raise RuntimeError(
+                    "required_tool_calls not satisfied: " + _required_tools_reminder_text(result["required_tools_missing"])
+                )
+
             md = {
                 "final_answer": MetadataValue.md(result["final_answer"] or "_(empty)_"),
                 "iterations": MetadataValue.int(result["iterations"]),
@@ -426,6 +462,8 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
             }
             if result["tool_call_details"]:
                 md["tool_calls"] = MetadataValue.json(result["tool_call_details"])
+            if "required_tools_missing" in result:
+                md["required_tools_missing"] = MetadataValue.json(result["required_tools_missing"])
             if len(models_to_try) > 1:
                 md["fallback_chain"] = MetadataValue.json(models_to_try)
             if _self.skill_keys:
@@ -458,6 +496,26 @@ def _tool_name_allowed(name: str, allowed: Optional[List[str]]) -> bool:
         return True
     import fnmatch
     return any(fnmatch.fnmatch(name, pattern) for pattern in allowed)
+
+
+def _missing_required_tool_groups(called_names: List[str], required_tool_calls: List[Any]) -> List[Any]:
+    """required_tool_calls: each entry is a single pattern (required) or a list of patterns (an
+    'any of' group). Returns the entries never satisfied by any name in called_names -- whether a
+    matched call itself errored doesn't matter, only whether it was attempted."""
+    missing = []
+    for entry in required_tool_calls:
+        patterns = entry if isinstance(entry, list) else [entry]
+        if not any(_tool_name_allowed(name, patterns) for name in called_names):
+            missing.append(entry)
+    return missing
+
+
+def _required_tools_reminder_text(missing: List[Any]) -> str:
+    parts = [("one of: " + ", ".join(g)) if isinstance(g, list) else g for g in missing]
+    return (
+        "Before finishing, you still need to call: " + "; ".join(parts) + ". "
+        "Call the required tool(s) now, then give your final answer."
+    )
 
 
 async def _connect_mcp(stack, log, mcp_servers, allowed_tools=None):
@@ -560,6 +618,7 @@ async def _run_agent(
     prompt_caching: bool = False,
     skill_resources: Optional[Dict[str, Any]] = None,
     allowed_tools: Optional[List[str]] = None,
+    required_tool_calls: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
     import os
     import json
@@ -671,6 +730,7 @@ async def _run_agent(
         tool_call_details: List[Dict[str, Any]] = []
         iterations = 0
         stopped_reason = "max_iterations"
+        required_tools_reminder_sent = False
         last_text_answer = ""
 
         for i in range(max_iterations):
@@ -713,6 +773,12 @@ async def _run_agent(
 
             finish_reason = response.choices[0].finish_reason
             if finish_reason != "tool_calls" or not getattr(msg, "tool_calls", None):
+                if required_tool_calls and not required_tools_reminder_sent:
+                    _missing = _missing_required_tool_groups([d["tool"] for d in tool_call_details], required_tool_calls)
+                    if _missing:
+                        required_tools_reminder_sent = True
+                        messages.append({"role": "user", "content": _required_tools_reminder_text(_missing)})
+                        continue
                 stopped_reason = "final_answer"
                 break
 
@@ -808,7 +874,10 @@ async def _run_agent(
                     "is_error": is_error,
                 })
 
-        return {
+        # Reported here as data; _run_agent never raises for this on its own. The caller (the
+        # asset body in build_defs, well outside this `async with` block AND outside the
+        # fallback-model try/except) decides whether on_required_tool_calls_missing="fail" raises.
+        _result = {
             "final_answer": last_text_answer,
             "iterations": iterations,
             "tool_calls_made": len(tool_call_details),
@@ -820,6 +889,9 @@ async def _run_agent(
             "loaded_skill_names": sorted(loaded_skill_names),
             "skill_load_count": skill_load_count,
         }
+        if required_tool_calls:
+            _result["required_tools_missing"] = _missing_required_tool_groups([d["tool"] for d in tool_call_details], required_tool_calls)
+        return _result
 
 
 # --- mcp-compat-helpers:begin (identical in every MCP-using component; kept in sync by tests/test_mcp_compat_helpers_drift.py) ---

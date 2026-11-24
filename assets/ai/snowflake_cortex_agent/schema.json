@@ -270,6 +270,16 @@
       "label": "Allowed Tools",
       "description": "Optional allowlist of namespaced tool names (e.g. 'dagster_plus__list_runs'), '*' wildcards supported (fnmatch), applied across every mcp_servers entry. Default: all discovered tools. A server can expose many tools the agent shouldn't be able to call (e.g. a hosted Dagster+ MCP server's terminate_run/rerun_run/delete_alert_policy alongside read-only ones) -- this is the lever to restrict an agent to a safe subset, e.g. ['dagster_plus__list_*', 'dagster_plus__get_*'].",
       "required": false
+    },
+    "on_required_tool_calls_missing": {
+      "type": "string",
+      "enum": [
+        "fail",
+        "warn"
+      ],
+      "label": "On Required Tool Calls Missing",
+      "description": "What happens when required_tool_calls is set and still unsatisfied after the one reminder. 'fail' (default) raises, so the run fails and the reason is in the run's own failure message -- turns 'did it act' into a guarantee instead of a hope. 'warn' never raises; the result (and the materialization's own metadata) instead carries required_tools_missing, the list of entries that were never satisfied (empty list when everything required was called).",
+      "required": false
     }
   }
 }

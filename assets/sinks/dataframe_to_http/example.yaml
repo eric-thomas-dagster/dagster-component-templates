@@ -1,0 +1,12 @@
+type: dagster_community_components.DataframeToHttpComponent
+attributes:
+  asset_name: orders_posted
+  upstream_asset_key: transformed_orders
+  url: https://api.example.com/v1/orders
+  method: POST
+  batch_mode: per_record
+  auth_type: bearer
+  auth_token_env_var: ORDERS_API_TOKEN
+  max_retries: 5
+  retry_on_status_codes: [429, 500, 502, 503, 504]
+  group_name: reverse_etl

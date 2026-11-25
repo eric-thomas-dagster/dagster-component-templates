@@ -1,0 +1,381 @@
+{
+  "component_type": "dagster_community_components.DataframeToHttpComponent",
+  "description": "Sink — write a pandas DataFrame to an HTTP/REST endpoint via POST / PUT, per-record or batched.",
+  "category": "sink",
+  "icon": "Globe",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame to write"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata (or the enriched DataFrame when write_response_to_record=true)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset name",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "description": "Upstream asset producing the DataFrame to write",
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "url": {
+      "description": "Target URL. In per_record mode, may template row values via {column_name}.",
+      "type": "string",
+      "label": "URL",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "enum": [
+        "POST",
+        "PUT"
+      ],
+      "label": "Method",
+      "description": "HTTP method.",
+      "required": false
+    },
+    "batch_mode": {
+      "type": "string",
+      "enum": [
+        "per_record",
+        "batch_array",
+        "ndjson"
+      ],
+      "label": "Batch Mode",
+      "description": "'per_record' — one request per row, body = that row as a JSON object. 'batch_array' — chunks of `batch_size` rows, body = a JSON array of row objects. 'ndjson' — chunks of `batch_size` rows, body = newline-delimited JSON (Content-Type: application/x-ndjson).",
+      "required": false
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Rows per request for `batch_array` / `ndjson` modes. Ignored for `per_record`.",
+      "required": false
+    },
+    "auth_type": {
+      "type": "string",
+      "enum": [
+        "none",
+        "basic",
+        "bearer",
+        "oauth2_client_credentials"
+      ],
+      "label": "Auth Type",
+      "description": "'none' | 'basic' | 'bearer' | 'oauth2_client_credentials'.",
+      "required": false,
+      "default": "none",
+      "ui:widget": "select"
+    },
+    "auth_username_env_var": {
+      "type": "string",
+      "label": "Auth Username Env Var",
+      "description": "Required for auth_type='basic'.",
+      "required": false
+    },
+    "auth_password_env_var": {
+      "type": "string",
+      "label": "Auth Password Env Var",
+      "description": "Required for auth_type='basic'.",
+      "required": false
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "Auth Token Env Var",
+      "description": "Required for auth_type='bearer'.",
+      "required": false
+    },
+    "oauth2_token_url": {
+      "type": "string",
+      "label": "Oauth2 Token Url",
+      "description": "Token endpoint. Required for auth_type='oauth2_client_credentials'.",
+      "required": false
+    },
+    "oauth2_client_id_env_var": {
+      "type": "string",
+      "label": "Oauth2 Client Id Env Var",
+      "description": "Env var holding the OAuth2 client ID. Required for auth_type='oauth2_client_credentials'.",
+      "required": false
+    },
+    "oauth2_client_secret_env_var": {
+      "type": "string",
+      "label": "Oauth2 Client Secret Env Var",
+      "description": "Env var holding the OAuth2 client secret. Required for auth_type='oauth2_client_credentials'.",
+      "required": false
+    },
+    "oauth2_scope": {
+      "type": "string",
+      "label": "Oauth2 Scope",
+      "description": "Optional OAuth2 scope to request.",
+      "required": false
+    },
+    "oauth2_audience": {
+      "type": "string",
+      "label": "Oauth2 Audience",
+      "description": "Optional OAuth2 audience parameter.",
+      "required": false
+    },
+    "headers": {
+      "type": "object",
+      "label": "Headers",
+      "description": "Extra static HTTP headers sent with every request.",
+      "required": false
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "description": "Verify Ssl",
+      "required": false
+    },
+    "skip_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Skip Columns",
+      "description": "Columns to drop before serializing the row body (e.g. internal pandas columns).",
+      "required": false
+    },
+    "write_response_to_record": {
+      "type": "boolean",
+      "label": "Write Response To Record",
+      "description": "When true, append `http_response_status` / `http_response_body` / `http_response_json` columns to each row and materialize the enriched DataFrame as this asset's output, instead of a plain sink with no output value. In batch modes (`batch_array`/`ndjson`), every row in a chunk gets that chunk's single response recorded (requests aren't per-row, so the response can't be attributed more granularly than its batch).",
+      "required": false
+    },
+    "response_json_path": {
+      "type": "string",
+      "label": "Response Json Path",
+      "description": "Only used with write_response_to_record. Dotted path into the parsed JSON response to extract into `http_response_value` (e.g. 'data.id' for {'data': {'id': 123}}). Leave unset to only get the raw body/status/full JSON.",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retries per request before giving up on it.",
+      "required": false
+    },
+    "retry_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Backoff Seconds",
+      "description": "Base delay for exponential backoff between retries (delay = base * 2**attempt).",
+      "required": false
+    },
+    "retry_on_status_codes": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      },
+      "label": "Retry On Status Codes",
+      "description": "Response status codes that trigger a retry (in addition to connection/timeout errors, which always retry).",
+      "required": false,
+      "default": [429, 500, 502, 503, 504],
+      "ui:widget": "list"
+    },
+    "fail_after_n_failures": {
+      "type": "integer",
+      "label": "Fail After N Failures",
+      "description": "Abort the whole materialization after this many failed requests (sampled in `failures_sample` metadata).",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter upstream rows to the current date partition (time partitions).",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter upstream rows to the current static/dynamic partition key.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "description": "Name of the static axis in a multi-partition, e.g. 'customer' or 'region'.",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "backfill_policy": {
+      "type": "string",
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run. 'multi_run' launches one run per partition (optionally capped via backfill_policy_max_partitions_per_run). Leave unset for Dagster's default (one run per partition, uncapped). Ignored when partition_type is not set.",
+      "required": false
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Policy Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    }
+  }
+}

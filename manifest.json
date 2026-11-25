@@ -19091,7 +19091,7 @@
       "id": "dataframe_to_databricks",
       "name": "DataFrame to Databricks",
       "category": "sink",
-      "description": "Write a DataFrame to a Databricks Delta Lake table.",
+      "description": "Write a DataFrame to a Databricks Delta Lake table, with delete_column support for true CDC apply (insert + update + delete by key).",
       "path": "assets/sinks/dataframe_to_databricks",
       "tags": [
         "sink",
@@ -19142,14 +19142,17 @@
         "spark databricks",
         "databricks sql",
         "write to",
-        "output"
+        "output",
+        "cdc",
+        "delete",
+        "merge"
       ]
     },
     {
       "id": "dataframe_to_delta_table",
       "name": "Dataframe → Delta Table",
       "category": "sink",
-      "description": "Write a pandas DataFrame to an EXISTING Delta Lake table (append / overwrite / merge). Uses delta-rs — no Spark / JVM. For cross-engine Delta scenarios on S3 / ADLS / GCS / Unity Catalog.",
+      "description": "Write a pandas DataFrame to a Delta Lake table — append / overwrite / merge (auto-creates the table on first write), with delete_column support for true CDC apply (insert + update + delete by key). Uses delta-rs — no Spark / JVM. For cross-engine Delta scenarios on S3 / ADLS / GCS / Unity Catalog.",
       "path": "assets/sinks/dataframe_to_delta_table",
       "tags": [
         "sink",
@@ -19201,7 +19204,10 @@
         "deltalake",
         "databricks delta",
         "write to",
-        "output"
+        "output",
+        "cdc",
+        "delete",
+        "merge"
       ]
     },
     {
@@ -19512,6 +19518,57 @@
         "output"
       ],
       "vendor": "Google"
+    },
+    {
+      "id": "dataframe_to_http",
+      "name": "Dataframe → HTTP",
+      "category": "sink",
+      "description": "Sink — write a pandas DataFrame to an HTTP/REST endpoint via POST / PUT, per-record or batched (array / ndjson), with basic/bearer/OAuth2 client_credentials auth, retry with backoff, and optional response-written-back-to-record.",
+      "path": "assets/sinks/dataframe_to_http",
+      "tags": [
+        "sink",
+        "http",
+        "rest",
+        "api",
+        "webhook"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_http/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_http/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_http/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_http/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_http/requirements.txt",
+      "icon": "Globe",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-25"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns matching the target endpoint's expected JSON body.",
+        "outputs": "None (sink), or the enriched DataFrame with http_response_* columns when write_response_to_record=true.",
+        "side_effects": "One or more HTTP POST/PUT requests per materialization. Requires the target endpoint + auth.",
+        "anti_uses": "For reading FROM an HTTP/REST API use rest_api_ingestion or per_row_http_fetcher.",
+        "input_type": "pd.DataFrame",
+        "output_type": "None | pd.DataFrame"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "write to",
+        "output",
+        "post",
+        "put",
+        "webhook destination"
+      ]
     },
     {
       "id": "dataframe_to_iceberg_table",
@@ -28073,6 +28130,55 @@
         "reshape"
       ],
       "icon": "Shuffle"
+    },
+    {
+      "id": "field_encryption",
+      "name": "Field Encryption",
+      "category": "transformation",
+      "description": "Field-level encrypt/decrypt using the real AWS Encryption SDK — raw-key or KMS-backed, type-preserving, per-field encryption-context binding.",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "path": "transforms/field_encryption",
+      "tags": [
+        "encryption",
+        "security",
+        "pii",
+        "transform"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "aws-encryption-sdk"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/field_encryption/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/field_encryption/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/field_encryption/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/field_encryption/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/field_encryption/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "transforms/field_encryption/tests/test_field_encryption.py",
+        "last_validated": "2026-11-25"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns to encrypt or decrypt.",
+        "outputs": "Same columns; encrypted (base64 AWS ESDK ciphertext) or decrypted (original type-restored value) per `mode`.",
+        "side_effects": "Modifies values IN PLACE. Not reversible without the same key_id/raw_key_env_var or kms_key_ids used to encrypt.",
+        "anti_uses": "StreamSets 'Encrypt and Decrypt Fields' ciphertext interop is UNVERIFIED — see README. Not a replacement for data_masking's irreversible redact/hash/pseudonymize methods when the goal is permanent anonymization rather than reversible encryption."
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "encryption",
+        "decryption",
+        "kms",
+        "aws-encryption-sdk",
+        "security",
+        "pii"
+      ],
+      "icon": "Lock"
     },
     {
       "id": "field_mapper",
@@ -59602,7 +59708,7 @@
       ],
       "dependencies": {
         "pip": [
-          "dlt[salesforce]>=0.4.0",
+          "dlt>=0.4.0",
           "pandas>=1.5.0",
           "simple-salesforce>=1.12.0"
         ]
@@ -66466,7 +66572,7 @@
       "id": "sql_to_database_asset",
       "name": "SQL to Database",
       "category": "ingestion",
-      "description": "Read from a source database and write to a destination database table.",
+      "description": "Read from a source database and write to a destination database table, with delete_column support for true CDC apply (insert + update + delete by key) in upsert mode.",
       "path": "assets/ingestion/sql_to_database_asset",
       "tags": [
         "ingestion",
@@ -66510,7 +66616,10 @@
       "keywords": [
         "ingest",
         "read from",
-        "upsert"
+        "upsert",
+        "cdc",
+        "delete",
+        "merge"
       ],
       "vertical": "database"
     },
@@ -76902,5 +77011,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1464
+  "total": 1466
 }

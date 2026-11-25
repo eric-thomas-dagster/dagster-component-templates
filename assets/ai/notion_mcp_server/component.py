@@ -432,6 +432,11 @@ def build_mcp_server(tools: "NotionMcpProxyTools"):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("notion-mcp-proxy")
     allowed = set(tools.tool_names())
 
@@ -440,12 +445,29 @@ def build_mcp_server(tools: "NotionMcpProxyTools"):
             mcp.tool(name=fn.__name__.replace("_", "-"))(fn)
         return fn
 
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see NotionMcpProxyTools.call) -- a bad-arguments or failure comes back as a
+        plain {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL (isError=False)
+        tool result indistinguishable from success. Re-raising here lets the `mcp` package's own exception
+        handling (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a registered tool
+        function and turn it into a real isError=True CallToolResult) make the failure visible to whatever's
+        counting failed calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError), not a local
+        one: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a raised
+        exception's own message when it recognizes the exception as ITS OWN ToolError/ResourceError -- anything
+        else (including a same-named ToolError class defined elsewhere) is treated as an unexpected crash and
+        replaced with a generic 'Error executing tool <name>' before it reaches the client, throwing away the
+        reason the agent needs to act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def notion_search(query: str) -> dict:
         """Search the signed-in person's Notion workspace (everything they can see -- this is
         NOT scoped to a service account). Returns Notion's own MCP result as {"text": ...}, or
         {"error": ...}."""
-        return tools.call("notion-search", {"query": query})
+        return _mcp_call("notion-search", {"query": query})
 
     @_tool
     def notion_fetch(id: str) -> dict:
@@ -453,7 +475,7 @@ def build_mcp_server(tools: "NotionMcpProxyTools"):
         page body in <content>, child pages as <page url="...">, links as <mention url="...">) or
         {"error": ...}. NEVER returns Notion's own rate-limit message as if it were content --
         that is detected and retried internally (see module docstring)."""
-        return tools.call("notion-fetch", {"id": id})
+        return _mcp_call("notion-fetch", {"id": id})
 
     return mcp
 

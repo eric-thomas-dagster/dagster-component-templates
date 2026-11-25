@@ -89,6 +89,69 @@ required* `output_field`. That variant's exact mechanics couldn't be
 confirmed from source (same closed-source gap as MURMUR3_128) — only the
 clearly-documented `record` (whole-record) shape is implemented.
 
+**A type-native hashing mode was requested but NOT implemented, because the
+premise doesn't hold against the one real source available.** The ask was:
+hash a numeric/boolean field's native binary representation (e.g. an int as
+4 little-endian bytes) rather than its text form, so non-string-column
+hashes match StreamSets' own output. Reading StreamSets' actual open-source
+`FieldHasherProcessor.java` directly (not inferred) shows the opposite:
+`generateHashForField` always converts the value to its **string**
+representation first (`getValueAsString()` — `String.valueOf(...)` for
+every type including `INTEGER`/`LONG`/`DOUBLE`/`BOOLEAN`), then hashes the
+UTF-8 bytes of that string — exactly what this component already does for
+every algorithm, with no native-byte path anywhere in the file. Either the
+request is describing a newer, closed-source behavior change this public
+snapshot predates (same gap as MURMUR3_128, above), or the premise is
+mistaken — either way, implementing a guessed byte-packing scheme here
+would produce hashes that *look* StreamSets-compatible but aren't verified
+to be, which is worse than not having the feature. If a real StreamSets
+instance's hash of a known int/double/boolean value becomes available,
+that would settle it either way.
+
+## StreamSets Field Masker parity
+
+For `method: mask` rules — reproduced directly from StreamSets' own
+open-source `FieldMaskProcessor.java`, read directly rather than inferred
+(github.com/kiritbasu/datacollector, commit `9a475fd6a`, basic-lib's
+`fieldmask` package):
+
+- `mask_mode: fixed_length` — always outputs the literal 10-character string
+  `xxxxxxxxxx` (StreamSets' own `FIXED_LENGTH_MASK` constant), regardless of
+  the input value or length.
+- `mask_mode: variable_length` — one `x` per character of the input.
+- `mask_mode: custom` (requires `mask`) — a pattern string: `#` copies the
+  next input character through unmasked, `x` emits a literal mask
+  character, and any other character is emitted literally — consuming an
+  input character only if the input already has that exact same character
+  at the current position. This lets one pattern both format AND mask: the
+  same `mask: "xxx-xx-####"` pattern produces `xxx-xx-6789` whether the
+  input is the already-formatted `123-45-6789` (the `-`s line up and are
+  consumed, not duplicated) or the raw `123456789` (the `-`s are inserted
+  for free). The loop stops at the end of whichever of `mask`/the input
+  value runs out first.
+- `mask_mode: regex` (requires `regex` and `groups_to_show`, a list of
+  1-based capture-group numbers) — the regex must match the **entire**
+  value (Python `re.fullmatch`, matching Java's `Matcher.matches()` — not a
+  partial/substring match). A value that doesn't fully match is returned
+  **completely unmasked**, not an error. On a match, every character
+  becomes `x` except the listed groups' original characters, placed back at
+  their **original positions** in the full-length masked string (not
+  concatenated separately) — e.g. `regex: "(.*)([0-9]{4})"`,
+  `groups_to_show: [2]` against `"1234567890"` → `"xxxxxx7890"`.
+
+```yaml
+rules:
+  - column: ssn
+    method: mask
+    mask_mode: custom
+    mask: "xxx-xx-####"
+  - column: credit_card
+    method: mask
+    mask_mode: regex
+    regex: "(.*)([0-9]{4})"
+    groups_to_show: [2]
+```
+
 ## Dependencies
 - `pandas`
 - `mmh3` — optional, only needed for `algorithm: murmur3_128`
@@ -102,7 +165,7 @@ clearly-documented `record` (whole-record) shape is implemented.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `rules` | `list` | List of {column, method, ...} dicts. method: 'hash' \| 'partial' \| 'redact' \| 'substitute' \| 'pseudonymize'. For method='hash', optional StreamSets-Field-Hasher-parity fields: `algorithm` ('sha256' default \| 'md5' \|… _(full docs in schema.json + component README)_ |
+| `rules` | `list` | List of {column, method, ...} dicts. method: 'hash' \| 'partial' \| 'redact' \| 'substitute' \| 'pseudonymize' \| 'mask'. For method='hash', optional StreamSets-Field-Hasher-parity fields: `algorithm` ('sha256' default \… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 

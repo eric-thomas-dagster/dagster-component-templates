@@ -168,7 +168,7 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
     rules: list = Field(
         description=(
             "List of {column, method, ...} dicts. method: 'hash' | 'partial' | 'redact' | "
-            "'substitute' | 'pseudonymize'. For method='hash', optional StreamSets-Field-Hasher-"
+            "'substitute' | 'pseudonymize' | 'mask'. For method='hash', optional StreamSets-Field-Hasher-"
             "parity fields: `algorithm` ('sha256' default | 'md5' | 'sha1' | 'sha512' | "
             "'murmur3_128'; 'sha256' truncates+salts ONLY when `hash_mode` is also the default "
             "'in_place' -- the original, unchanged behavior -- every other algorithm/hash_mode "
@@ -177,7 +177,22 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
             "(required for target_field/record), `columns` (list, required for 'record' -- "
             "fields concatenated together before hashing), `field_separator` (appended after "
             "each field's value in 'record' mode, including the last -- matches StreamSets' own "
-            "Hash Record behavior). See README for exact parity semantics and caveats."
+            "Hash Record behavior). For method='mask' (StreamSets Field Masker parity), "
+            "`mask_mode`: 'fixed_length' (always outputs the literal 10-char string 'xxxxxxxxxx', "
+            "regardless of input), 'variable_length' (one 'x' per input character), 'custom' "
+            "(requires `mask`: a pattern string where '#' copies the next input character through, "
+            "'x' outputs a literal mask char, and any other character is literal output -- consuming "
+            "an input character only if the input already has that same literal character at that "
+            "position, so pre-formatted input like '123-45-6789' against mask '###-##-####' both "
+            "shows digits and preserves the dashes without doubling them), or 'regex' (requires "
+            "`regex` and `groups_to_show`: a list of 1-based capture-group numbers -- the regex must "
+            "match the ENTIRE value, Python `re.fullmatch` semantics matching StreamSets' own "
+            "`Matcher.matches()`; a non-matching value is returned completely unmasked, not an error; "
+            "on a match, every character becomes 'x' except the listed groups' original characters at "
+            "their original positions). All four mask_mode behaviors are reproduced from "
+            "StreamSets' own open-source FieldMaskProcessor.java (verified by reading that file "
+            "directly, not inferred) -- see README for the exact source commit referenced. "
+            "See README for exact parity semantics and caveats."
         )
     )
     salt_env: Optional[str] = Field(default="MASKING_SALT", description="Env var with hash salt (improves resistance to rainbow attacks)")
@@ -421,6 +436,77 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
                 elif method == "pseudonymize":
                     # consistent random-looking value per input — useful for analytics where uniqueness matters but identity doesn't
                     df[col] = df[col].astype(str).apply(lambda v: f"p_{hashlib.md5((salt + v).encode()).hexdigest()[:12]}")
+                elif method == "mask":
+                    mask_mode = rule.get("mask_mode")
+                    if not mask_mode:
+                        raise ValueError("method='mask' requires 'mask_mode'")
+
+                    if mask_mode == "fixed_length":
+                        # StreamSets' own FIXED_LENGTH_MASK constant -- always exactly this
+                        # 10-char string, independent of input length or value.
+                        df[col] = "xxxxxxxxxx"
+                    elif mask_mode == "variable_length":
+                        df[col] = df[col].astype(str).apply(lambda v: "x" * len(v))
+                    elif mask_mode == "custom":
+                        pattern = rule.get("mask")
+                        if not pattern:
+                            raise ValueError("mask_mode='custom' requires 'mask'")
+
+                        def _custom_mask(value: str, _pattern=pattern) -> str:
+                            # Ported directly from StreamSets' own FieldMaskProcessor.mask():
+                            # '#' copies the next input char through; 'x' emits a literal mask
+                            # char; any other pattern char is emitted literally, and ALSO
+                            # consumes an input char only if the input already has that exact
+                            # same character at the current position (so pre-formatted input
+                            # isn't double-punctuated, but unformatted input gets the
+                            # formatting inserted for free). Stops at the end of whichever of
+                            # pattern/value runs out first -- matching the Java loop's
+                            # `i < mask.length() && index < toMask.length()` bound exactly.
+                            masked = []
+                            index = 0
+                            for ch in _pattern:
+                                if index >= len(value):
+                                    break
+                                if ch == "#":
+                                    masked.append(value[index])
+                                    index += 1
+                                elif ch == "x":
+                                    masked.append("x")
+                                    index += 1
+                                else:
+                                    masked.append(ch)
+                                    if value[index] == ch:
+                                        index += 1
+                            return "".join(masked)
+
+                        df[col] = df[col].astype(str).apply(_custom_mask)
+                    elif mask_mode == "regex":
+                        regex = rule.get("regex")
+                        groups_to_show = rule.get("groups_to_show")
+                        if not regex or not groups_to_show:
+                            raise ValueError("mask_mode='regex' requires 'regex' and 'groups_to_show'")
+                        compiled = re.compile(regex)
+
+                        def _regex_mask(value: str, _compiled=compiled, _groups=groups_to_show) -> str:
+                            # Ported from StreamSets' own FieldMaskProcessor.regExMask(): the
+                            # WHOLE value must match (Java's Matcher.matches(), i.e. Python's
+                            # re.fullmatch -- NOT re.search/re.match, which only anchor the
+                            # start). A non-matching value is returned completely unmasked, not
+                            # an error. On a match, every character becomes 'x' except the
+                            # listed groups' original characters, placed back at their
+                            # original positions in the full-length masked buffer.
+                            m = _compiled.fullmatch(value)
+                            if not m:
+                                return value
+                            result = list("x" * len(value))
+                            for g in _groups:
+                                start, end = m.start(g), m.end(g)
+                                result[start:end] = list(m.group(g))
+                            return "".join(result)
+
+                        df[col] = df[col].astype(str).apply(_regex_mask)
+                    else:
+                        raise ValueError(f"unknown mask_mode: {mask_mode!r}")
                 else:
                     raise ValueError(f"unknown masking method: {method}")
             context.add_output_metadata({

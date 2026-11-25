@@ -3289,21 +3289,33 @@ class _McpConn:
             seen.add(cursor)
         raise MCPServerError(f"tools/list returned more than {_MCP_MAX_LIST_PAGES} pages")
 
-    async def call_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> Dict[str, Any]:
-        """-> {text, parts, structured, is_error} for every transport."""
+    async def call_tool(self, tool_name: str, tool_args: Dict[str, Any], meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """-> {text, parts, structured, is_error} for every transport.
+
+        meta (MCP's own out-of-band request metadata, NOT a tool argument -- a server reads it
+        via Context.request_context.meta) carries dagster_run_id, same as litellm_agent already
+        sends on every call, so a ledger-aware tool server can record which Dagster run a write
+        action belongs to. Defensively dropped (TypeError fallback) against an installed
+        mcp/fastmcp version too old to accept it."""
         if self.kind == "fastmcp":
             try:
                 try:
-                    res = await self.obj.call_tool(tool_name, tool_args, raise_on_error=False)
-                except TypeError:  # fastmcp without raise_on_error: it raises ToolError instead
-                    res = await self.obj.call_tool(tool_name, tool_args)
+                    res = await self.obj.call_tool(tool_name, tool_args, raise_on_error=False, meta=meta)
+                except TypeError:  # old fastmcp missing raise_on_error and/or meta
+                    try:
+                        res = await self.obj.call_tool(tool_name, tool_args, meta=meta)
+                    except TypeError:
+                        res = await self.obj.call_tool(tool_name, tool_args)
             except Exception as e:  # noqa: BLE001
                 if type(e).__name__ == "ToolError":
                     return {"text": str(e), "parts": [{"type": "text", "chars": len(str(e)), "omitted": False}],
                             "structured": None, "is_error": True}
                 raise
         else:
-            res = await self.obj.call_tool(tool_name, tool_args)
+            try:
+                res = await self.obj.call_tool(tool_name, tool_args, meta=meta)
+            except TypeError:  # old mcp SDK missing meta
+                res = await self.obj.call_tool(tool_name, tool_args)
         content = _mcp_field(res, "content", None)
         if content is None and not isinstance(res, dict) and not hasattr(res, "content"):
             raise MCPServerError(f"tool {tool_name!r} returned {type(res).__name__}, not a tool result (server asked for input / task claim?)")
@@ -3430,6 +3442,7 @@ async def _call_mcp_tool_async(
     tool_args: Dict[str, Any],
     parse_as: str,
     validate_input_schema: bool = False,
+    run_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Async MCP tool call over stdio / http / sse / fastmcp (see the client-core note above for the contract).
 
@@ -3439,6 +3452,12 @@ async def _call_mcp_tool_async(
     `tool_args` against it before calling. Only set True by `delegate` (a dynamically-picked agent might have a
     tool_args_template that doesn't actually match the real tool) -- `mcp_call` passes hand-authored, already-tested
     tool_args, so it keeps the prior behavior (False) by default.
+
+    run_id: the Dagster run's id, sent as request _meta {dagster_run_id: run_id} -- same mechanism
+    litellm_agent already uses so a ledger-aware tool server (github_pr_tools, linear_ticket_tools)
+    can key a practice-mode/outcome ledger entry on the real run. Without this, mcp_call and
+    tool_use_loop steps call tools "anonymously": the server has no run id to key a ledger entry
+    on, so it silently writes nothing (or writes under no run at all).
     """
     import anyio
     from contextlib import AsyncExitStack
@@ -3457,7 +3476,8 @@ async def _call_mcp_tool_async(
                             f"MCP server {server_cfg.get('name') or 'server'!r} has no tool named {tool_name!r} -- available: {available}"
                         )
                     _validate_tool_args_against_schema(tool_args, _mcp_field(matching, "inputSchema", None), tool_name)
-                res = await conn.call_tool(tool_name, tool_args)
+                meta = {"dagster_run_id": run_id} if run_id else None
+                res = await conn.call_tool(tool_name, tool_args, meta=meta)
     except (Exception, _BaseExceptionGroup) as e:  # noqa: BLE001
         wrapped = _mcp_wrap_errors(server_cfg, f"tool {tool_name!r}", e)
         if wrapped is e:
@@ -3499,7 +3519,7 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             exactly one of the two is required.
     mcp_tool_name: <tool name as the MCP server exposes it>
     tool_args: {arg_name: value}      (string values are `{text}`-templated against source,
-               plus `{item}` per-item below)
+               plus `{item}` / `{item.field}` per-item below)
     parse_as: 'auto' | 'json' | 'text'  (default 'auto')
 
     Use for the "fetch grounding data before the LLM specialists fan out"
@@ -3513,7 +3533,9 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     per_item (default false): source's text is parsed as a list (same rule map/route/
     invoke_component use: a JSON array, a dict with a data/items/results/values list, else
     non-empty lines) and this calls the tool once PER ITEM instead of once for the whole
-    batch, substituting `{item}` into tool_args for each. max_concurrent thread-pools the
+    batch, substituting `{item}` (whole item) / `{item.field}` (one key, when the item is a
+    JSON object -- a missing field is that item's own isolated error, not a step-wide failure)
+    into tool_args for each. max_concurrent thread-pools the
     per-item calls (default 1, sequential); output_join ('newlines' default | 'jsonl' |
     'none' | 'records') shapes the joined `text`, same meaning as map's/route's. A single
     item's call raising doesn't abort the rest -- that item's entry carries is_error: true +
@@ -3541,14 +3563,30 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     # {partition_key} + {partition.<name>} were already substituted deep in
     # `step` at dispatch time (see _run_step). {text} + {port_name} (+ {item}
-    # for per_item) are per-op.
-    def _resolve_args(item_str: Optional[str]) -> Dict[str, Any]:
+    # / {item.field} for per_item) are per-op.
+    def _resolve_args(item: Any = None, has_item: bool = False) -> Dict[str, Any]:
         raw_args = step.get("tool_args") or {}
         resolved: Dict[str, Any] = {}
+        item_str = (json.dumps(item) if not isinstance(item, str) else item) if has_item else None
+
+        def _item_field(m: "re.Match") -> str:
+            path = m.group(1)
+            cur = item
+            for part in path.split("."):
+                if isinstance(cur, dict) and part in cur:
+                    cur = cur[part]
+                else:
+                    raise ValueError(
+                        f"mcp_call per_item: tool_args references '{{item.{path}}}' but this item "
+                        f"has no field {part!r} (item={item!r})"
+                    )
+            return cur if isinstance(cur, str) else json.dumps(cur, default=str)
+
         for k, v in raw_args.items():
             if isinstance(v, str):
                 v = v.replace("{text}", src_text)
-                if item_str is not None:
+                if has_item:
+                    v = re.sub(r"\{item\.([a-zA-Z0-9_.]+)\}", _item_field, v)
                     v = v.replace("{item}", item_str)
                 v = _substitute_ports(v, inputs)
                 resolved[k] = v
@@ -3571,6 +3609,7 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                 tool_name=tool_name,
                 tool_args=tool_args,
                 parse_as=parse_as,
+                run_id=getattr(context, "run_id", None),
             )
         )
         latency_ms = int((time.time() - t0) * 1000)
@@ -3593,7 +3632,7 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         }
 
     if not per_item:
-        resolved_args = _resolve_args(None)
+        resolved_args = _resolve_args()
         context.log.info(
             f"[mcp_call:{step.get('id')}] tool={tool_name} args={resolved_args}"
         )
@@ -3630,9 +3669,8 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     def _process_item(index_and_item):
         i, item = index_and_item
-        item_str = json.dumps(item) if not isinstance(item, str) else item
-        resolved_args = _resolve_args(item_str)
         try:
+            resolved_args = _resolve_args(item=item, has_item=True)
             out = _call_once(resolved_args)
             return i, {
                 "item": item,
@@ -3645,10 +3683,10 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         except _BaseExceptionGroup as eg:
             inner = _mcp_call_first_leaf(eg)
             context.log.error(f"[mcp_call:{step.get('id', '?')}] item {item!r} failed: {type(inner).__name__}: {inner}")
-            return i, {"item": item, "text": "", "is_error": True, "error": f"{type(inner).__name__}: {inner}", "tool_args_resolved": resolved_args}
+            return i, {"item": item, "text": "", "is_error": True, "error": f"{type(inner).__name__}: {inner}", "tool_args_resolved": None}
         except Exception as e:
             context.log.error(f"[mcp_call:{step.get('id', '?')}] item {item!r} failed: {type(e).__name__}: {e}")
-            return i, {"item": item, "text": "", "is_error": True, "error": f"{type(e).__name__}: {e}", "tool_args_resolved": resolved_args}
+            return i, {"item": item, "text": "", "is_error": True, "error": f"{type(e).__name__}: {e}", "tool_args_resolved": None}
 
     results: List[Any] = [None] * len(items)
     context.log.info(f"[mcp_call:{step.get('id', '?')}] per_item: {len(items)} item(s) × max_concurrent={max_concurrent} tool={tool_name}")
@@ -3758,6 +3796,26 @@ async def _discover_mcp_tools_async(
     return tools
 
 
+def _tool_matches_allowed(bare_name: str, namespaced_name: str, patterns: List[str]) -> bool:
+    """allowed_tools matching: accepts EITHER the bare tool name (`read_file`) or the
+    server-namespaced name (`repo_tools_gh__read_file`) the model actually sees and
+    required_tool_calls already matches against, with fnmatch '*' globs on either form --
+    so allowed_tools can be written the same way litellm_agent's own allowed_tools already
+    is (namespaced, with globs) without silently matching nothing."""
+    return any(fnmatch.fnmatch(bare_name, p) or fnmatch.fnmatch(namespaced_name, p) for p in patterns)
+
+
+def _unmatched_allowed_tool_patterns(mcp_tools: List[Dict[str, Any]], allowed: List[str]) -> List[str]:
+    """allowed_tools entries that match zero discovered tools (by either bare or namespaced
+    name) -- a typo'd or wrong-form entry should be a loud, debuggable error, not a silently
+    empty effective tool list."""
+    all_names = []
+    for t in mcp_tools:
+        all_names.append(t["name"])
+        all_names.append(f"{t['server']}__{t['name']}")
+    return [p for p in allowed if not any(fnmatch.fnmatch(n, p) for n in all_names)]
+
+
 def _mcp_tools_to_openai_schema(
     mcp_tools: List[Dict[str, Any]], allowed: Optional[List[str]]
 ) -> List[Dict[str, Any]]:
@@ -3766,9 +3824,9 @@ def _mcp_tools_to_openai_schema(
     without ambiguity when two servers expose tools of the same name."""
     schemas = []
     for t in mcp_tools:
-        if allowed and t["name"] not in allowed:
-            continue
         namespaced = f"{t['server']}__{t['name']}"
+        if allowed and not _tool_matches_allowed(t["name"], namespaced, allowed):
+            continue
         schemas.append({
             "type": "function",
             "function": {
@@ -3822,7 +3880,10 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                    (inline, or {server_resource_key: <key>} to share a registered server)
       max_iterations: hard cap on loop iterations (default 10)
       system_prompt: agent instructions
-      allowed_tools: optional allowlist (defaults to all discovered tools)
+      allowed_tools: optional allowlist (defaults to all discovered tools) -- entries may be
+          the bare tool name or the server-namespaced name (fnmatch globs work on either);
+          an entry matching zero discovered tools fails loudly by default
+          (on_allowed_tools_unmatched)
       finalize_tool_name: synthetic tool name the LLM calls when done
                          (default "finalize")
     """
@@ -3856,6 +3917,18 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     max_result_chars = int(max_result_chars) if max_result_chars else 0
     required_tool_calls = step.get("required_tool_calls")
     on_required_tool_calls_missing = step.get("on_required_tool_calls_missing", "fail")
+    required_tool_calls_unless_empty = bool(step.get("required_tool_calls_unless_empty", False))
+    required_tool_calls_skipped_empty_source = False
+    if required_tool_calls and required_tool_calls_unless_empty and not _parse_items(src_text):
+        # The step's driving input (e.g. an upstream per-item step's 0-item findings list) is
+        # empty -- there is nothing for the model to call a required tool ABOUT, so don't force
+        # a reminder/failure over a tool call that couldn't possibly apply this run.
+        context.log.info(
+            f"[tool_use_loop:{step.get('id', '?')}] required_tool_calls skipped: source is empty "
+            f"and required_tool_calls_unless_empty is set."
+        )
+        required_tool_calls_skipped_empty_source = True
+        required_tool_calls = None
 
     system_prompt = step.get("system_prompt") or (
         "You are a tool-using agent. You have access to MCP tools. "
@@ -3925,6 +3998,21 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     )
     mcp_tools = asyncio.run(_discover_mcp_tools_async(context.log, mcp_servers))
     allowed = step.get("allowed_tools")
+    on_allowed_tools_unmatched = step.get("on_allowed_tools_unmatched", "fail")
+    if allowed:
+        _unmatched_allowed = _unmatched_allowed_tool_patterns(mcp_tools, allowed)
+        if _unmatched_allowed:
+            _discovered_names = sorted(
+                {t["name"] for t in mcp_tools} | {f"{t['server']}__{t['name']}" for t in mcp_tools}
+            )
+            _msg = (
+                f"[tool_use_loop:{step.get('id', '?')}] allowed_tools "
+                f"{_unmatched_allowed} matched zero discovered tools (bare or namespaced name). "
+                f"Discovered tools: {_discovered_names}"
+            )
+            if on_allowed_tools_unmatched == "fail":
+                raise ValueError(_msg)
+            context.log.warning(_msg)
     tool_schemas = _mcp_tools_to_openai_schema(mcp_tools, allowed)
     # Synthetic finalize tool — LLM calls this when done.
     tool_schemas.append({
@@ -3978,7 +4066,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     # Index tools by their namespaced name for O(1) lookup during the loop.
     tool_index = {f"{t['server']}__{t['name']}": t for t in mcp_tools}
     if allowed:
-        tool_index = {k: v for k, v in tool_index.items() if v["name"] in allowed}
+        tool_index = {k: v for k, v in tool_index.items() if _tool_matches_allowed(v["name"], k, allowed)}
 
     _p = _pol()
     if _p is not None:
@@ -4332,6 +4420,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                     tool_name=tool_meta["name"],  # un-namespaced real name
                     tool_args=tool_args,
                     parse_as="auto",
+                    run_id=getattr(context, "run_id", None),
                 ))
                 tool_ms = int((_time.time() - t_tool) * 1000)
                 total_tool_latency_ms += tool_ms
@@ -4420,6 +4509,8 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         "tools_available": sorted(tool_index.keys()),
         "materialized_at": materialized_at,
     }
+    if required_tool_calls_unless_empty:
+        result["required_tool_calls_skipped_empty_source"] = required_tool_calls_skipped_empty_source
     # Only surfaced when skill_keys was actually configured for this step --
     # an unconfigured step emits none of these three keys at all.
     if skill_resources:
@@ -4590,19 +4681,48 @@ def _do_handoff(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
 def _parse_items(text: str) -> List[Any]:
     """Best-effort parse of a source text into a list of items.
-    Accepts a JSON array OR falls back to non-empty newlines."""
-    try:
-        parsed = json.loads(text)
+    Accepts a JSON array OR falls back to non-empty newlines.
+
+    A free-text `llm_call` step (no output_schema / forced tool-calling the way
+    map/extract have) commonly wraps its JSON in a ```json ... ``` fence, or adds a
+    sentence of preamble/trailing prose around it -- so before falling back to a
+    newline split, also try: the text with a surrounding ``` fence stripped, and the
+    substring from the first `[`/`{` to the matching last `]`/`}` (whichever pair the
+    text starts with)."""
+
+    def _try(candidate: str) -> Optional[List[Any]]:
+        try:
+            parsed = json.loads(candidate)
+        except (json.JSONDecodeError, ValueError):
+            return None
         if isinstance(parsed, list):
             return parsed
         if isinstance(parsed, dict):
-            # Common shape: a dict with a `data:` or `items:` list.
             for key in ("data", "items", "results", "values"):
                 v = parsed.get(key)
                 if isinstance(v, list):
                     return v
-    except (json.JSONDecodeError, ValueError):
-        pass
+        return None
+
+    out = _try(text)
+    if out is not None:
+        return out
+
+    fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+    if fenced:
+        out = _try(fenced.group(1))
+        if out is not None:
+            return out
+
+    stripped = text.strip()
+    if stripped and stripped[0] in "[{":
+        open_ch, close_ch = ("[", "]") if stripped[0] == "[" else ("{", "}")
+        last = stripped.rfind(close_ch)
+        if last != -1:
+            out = _try(stripped[: last + 1])
+            if out is not None:
+                return out
+
     # Fallback: split on newlines.
     return [ln for ln in text.splitlines() if ln.strip()]
 
@@ -6035,6 +6155,7 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                     log=context.log, server_cfg=server_cfg, tool_name=tool_name,
                     tool_args=tool_args, parse_as="auto",
                     validate_input_schema=step.get("validate_mcp_schema", True),
+                    run_id=getattr(context, "run_id", None),
                 )
             )
         except _BaseExceptionGroup as eg:
@@ -9150,7 +9271,7 @@ class McpCallStep(_StepBase):
     op: Literal["mcp_call"]
     server: _MCPServerSpec = Field(description="MCP server spec.")
     mcp_tool_name: str = Field(description="Tool name as the MCP server exposes it.")
-    tool_args: Optional[Dict[str, Any]] = Field(default=None, description="{arg_name: value}. String values support {text}+{port_name} substitution (+ {item} when per_item is set).")
+    tool_args: Optional[Dict[str, Any]] = Field(default=None, description="{arg_name: value}. String values support {text}+{port_name} substitution (+ {item} / {item.field} / {item.nested.field} when per_item is set -- {item} is the whole item, stringified as JSON if it's not already a string; {item.field} looks up a key when the item is a JSON object, raising a clear per-item error (isolated the same way a failed tool call is) if that field is missing).")
     parse_as: Literal["auto", "json", "text"] = Field(default="auto", description="auto tries JSON, falls back to text.")
     per_item: bool = Field(default=False, description="Call the tool once per item in a list source instead of once for the whole batch. Source is parsed the same way map/route/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, else non-empty lines). One item's call failing doesn't abort the others -- that item's entry carries is_error: true + error instead; an empty list makes zero calls and says so in the result rather than raising.")
     max_concurrent: int = Field(default=1, description="per_item only: thread-pool workers for the per-item tool calls. 1 = sequential.")
@@ -9168,7 +9289,11 @@ class ToolUseLoopStep(_StepBase):
     max_iterations: int = Field(default=10, description="Hard cap. Loop stops here regardless of finalize state.")
     system_prompt: Optional[str] = Field(default=None, description="Agent instructions. Should include 'call finalize when done.'")
     prompt_template: str = Field(default="{text}", description="Initial user turn.")
-    allowed_tools: Optional[List[str]] = Field(default=None, description="Optional allowlist (tool names). Default: all discovered.")
+    allowed_tools: Optional[List[str]] = Field(default=None, description="Optional allowlist. Default: all discovered. Each entry may be the bare tool name (read_file) or the server-namespaced name the model actually sees and required_tool_calls already matches against (repo_tools_gh__read_file); fnmatch '*' globs work on either form.")
+    on_allowed_tools_unmatched: Literal["fail", "warn"] = Field(
+        default="fail",
+        description="What happens when an allowed_tools entry matches zero discovered tools (by bare or namespaced name) -- a typo'd or wrong-form entry would otherwise silently shrink the effective tool list instead of erroring. 'fail' (default): raise, naming the unmatched entry/entries and every discovered tool name. 'warn': log and continue with whatever did match.",
+    )
     finalize_tool_name: str = Field(default="finalize", description="Name of the synthetic finalize tool the LLM calls to end the loop.")
     tool_result_max_chars: int = Field(default=20000, description="Characters of one tool result shown to the model (0 = no cap).")
     temperature: float = Field(default=0.0, description="Sampling temperature.")
@@ -9197,6 +9322,18 @@ class ToolUseLoopStep(_StepBase):
             "(default) raises, so the run fails and the reason is in the run's own failure message. 'warn' "
             "never raises; the result (and the asset's own metadata) instead carries required_tools_missing, "
             "the list of entries that were never satisfied (empty list when everything required was called)."
+        ),
+    )
+    required_tool_calls_unless_empty: bool = Field(
+        default=False,
+        description=(
+            "With required_tool_calls set: skip enforcement entirely (no reminder, no fail/warn) when this "
+            "step's own source resolves to an empty list (the same empty-list rule mcp_call/map/route's "
+            "per_item use: a JSON array, a dict with a data/items/results/values list, else non-empty "
+            "lines -- empty means none of those produced anything). For the common 'driven by an upstream "
+            "per-item step's 0-item findings list' shape: when there's nothing to call a tool ABOUT, there's "
+            "nothing to require a tool call over either. The result carries "
+            "required_tool_calls_skipped_empty_source (true/false) so this is never silent."
         ),
     )
 

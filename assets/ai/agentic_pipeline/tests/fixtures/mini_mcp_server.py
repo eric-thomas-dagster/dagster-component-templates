@@ -4,12 +4,13 @@
   python mini_mcp_server.py http <port>     # streamable-http; requires `Authorization: Bearer t0k` (401 otherwise)
   python mini_mcp_server.py sse <port>      # same bearer requirement
 """
+import os
 import sys
 
 try:
-    from mcp.server.mcpserver import MCPServer as Server  # mcp 2.x
+    from mcp.server.mcpserver import MCPServer as Server, Context  # mcp 2.x
 except ImportError:
-    from mcp.server.fastmcp import FastMCP as Server  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as Server, Context  # mcp 1.x
 
 server = Server("mini")
 
@@ -18,6 +19,24 @@ server = Server("mini")
 def echo(text: str, times: int = 1) -> dict:
     """Echo text back `times` times."""
     return {"echo": text * times}
+
+
+@server.tool()
+def read_env(name: str) -> dict:
+    """Read one env var from THIS subprocess's own environment and echo it back -- proves
+    whatever env a caller hands _mcp_subprocess_env() actually crosses the real subprocess
+    boundary, not just that the code looks like it should."""
+    return {"name": name, "value": os.environ.get(name)}
+
+
+@server.tool()
+def read_run_id(ctx: Context = None) -> dict:
+    """Echo back the request's out-of-band _meta.dagster_run_id (exactly how github_pr_tools'
+    own _run_id_from reads it: ctx.request_context.meta) -- proves a caller's `meta=` on
+    call_tool genuinely crosses the real wire, not just that the client-side code looks like
+    it should send it."""
+    meta = getattr(getattr(ctx, "request_context", None), "meta", None)
+    return {"dagster_run_id": (meta or {}).get("dagster_run_id") if ctx is not None else None}
 
 
 @server.tool()

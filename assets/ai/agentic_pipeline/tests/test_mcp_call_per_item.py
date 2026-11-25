@@ -77,6 +77,76 @@ def test_per_item_one_failure_does_not_abort_the_others(mod, ctx, mcp_call_captu
     assert out["items"][2]["is_error"] is False
 
 
+def test_per_item_object_field_access(mod, ctx, mcp_call_capture):
+    """{item.field} looks up a key when the item is a JSON object -- the Hooli-reported gap:
+    findings are objects ({"title": ..., "body": ...}) and the filing tool wants title/body as
+    separate args, not the whole item as one blob."""
+    state = new_state(text=json.dumps([{"title": "a", "body": "b"}]))
+    step = {
+        "id": "filed", "op": "mcp_call", "server": SERVER, "mcp_tool_name": "open_issue",
+        "tool_args": {"title": "{item.title}", "body": "{item.body}"}, "per_item": True,
+    }
+    out = mod._do_mcp_call(step, state, ctx)
+
+    assert out["n_items"] == 1
+    assert out["n_errors"] == 0
+    assert mcp_call_capture == [{"title": "a", "body": "b"}]
+
+
+def test_per_item_object_field_missing_is_isolated_per_item(mod, ctx, mcp_call_capture):
+    """A missing field on one item is that item's own error, not a step-wide failure --
+    matches the existing per-item failure-isolation behavior for a raising tool call."""
+    state = new_state(text=json.dumps([{"title": "a", "body": "b"}, {"title": "c"}]))
+    step = {
+        "id": "filed", "op": "mcp_call", "server": SERVER, "mcp_tool_name": "open_issue",
+        "tool_args": {"title": "{item.title}", "body": "{item.body}"}, "per_item": True,
+    }
+    out = mod._do_mcp_call(step, state, ctx)
+
+    assert out["n_items"] == 2
+    assert out["n_errors"] == 1
+    assert out["items"][0]["is_error"] is False
+    assert out["items"][1]["is_error"] is True
+    assert "body" in out["items"][1]["error"]
+    # the first item was still filed despite the second one's missing field
+    assert mcp_call_capture == [{"title": "a", "body": "b"}]
+
+
+def test_per_item_whole_item_still_works_alongside_field_access(mod, ctx, mcp_call_capture):
+    """{item} (whole item, JSON-stringified) keeps working when used alongside {item.field}."""
+    state = new_state(text=json.dumps([{"title": "a", "body": "b"}]))
+    step = {
+        "id": "filed", "op": "mcp_call", "server": SERVER, "mcp_tool_name": "open_issue",
+        "tool_args": {"title": "{item.title}", "raw": "{item}"}, "per_item": True,
+    }
+    out = mod._do_mcp_call(step, state, ctx)
+
+    assert out["n_errors"] == 0
+    assert mcp_call_capture[0]["title"] == "a"
+    assert json.loads(mcp_call_capture[0]["raw"]) == {"title": "a", "body": "b"}
+
+
+def test_per_item_source_from_fenced_llm_json(mod, ctx, mcp_call_capture):
+    """A free-text llm_call step commonly wraps its JSON findings list in a ```json fence
+    (no output_schema/forced tool-calling on llm_call, unlike map/extract) -- per_item must
+    still parse it as a list, not fall back to a one-item newline split."""
+    llm_text = (
+        "Here are the findings I found:\n\n```json\n"
+        '[{"title": "a", "body": "b"}, {"title": "c", "body": "d"}]\n'
+        "```\n\nLet me know if you need more."
+    )
+    state = new_state(text=llm_text)
+    step = {
+        "id": "filed", "op": "mcp_call", "server": SERVER, "mcp_tool_name": "open_issue",
+        "tool_args": {"title": "{item.title}", "body": "{item.body}"}, "per_item": True,
+    }
+    out = mod._do_mcp_call(step, state, ctx)
+
+    assert out["n_items"] == 2
+    assert out["n_errors"] == 0
+    assert mcp_call_capture == [{"title": "a", "body": "b"}, {"title": "c", "body": "d"}]
+
+
 def test_non_per_item_mcp_call_is_unchanged(mod, ctx, mcp_call_capture):
     """per_item defaults to False -- the original single-call shape still works."""
     state = new_state(text="hello")

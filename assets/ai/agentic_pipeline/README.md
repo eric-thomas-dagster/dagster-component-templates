@@ -592,7 +592,7 @@ metadata value, so a changed prompt marks exactly that step and what depends on 
 | `op` | ✅ | — | Any op in the **Op menu** above. |
 | `when` |  | — | Run only if a condition on an earlier step holds (see *Reasoning & governance ops*). |
 | `policy` |  | — | Step-level policy that narrows the pipeline `policy:`. |
-| `source` |  | Most recent step | Prior step id whose text feeds this step. `synthesize` uses `sources:` (plural, list) instead. |
+| `source` |  | Pipeline's original input | Prior step id whose text feeds this step — **not** "whatever step ran last": dependency structure is always declared, never implied by position in `steps:` (see "Every step's output..." below). `synthesize` uses `sources:` (plural, list) instead. |
 
 ### LLM sub-config (used inside every op)
 
@@ -701,7 +701,7 @@ Direct MCP tool call — no LLM, deterministic step. Use for the "fetch groundin
 | `output_join` |  | `newlines` | `per_item` only: how to join per-item results into `text` — same meaning as `map`'s/`route`'s `output_join` (`newlines` \| `jsonl` \| `none` \| `records`). |
 
 Result text: text parts are joined in order; an embedded *text* resource is returned as text; images, audio, binary resources and resource links become one-line placeholders (`[image omitted: image/png, ~3009 bytes]`) and are listed in the `content_parts` output field; a structured-only result becomes its JSON. A tool-level failure (`isError`) is a normal result with `is_error: true` on every transport. `mcp_call` returns the full text (no truncation).
-| `source` |  | Most recent step | Legacy — feeds `{text}` in string `tool_args`. |
+| `source` |  | Pipeline's original input | Legacy — feeds `{text}` in string `tool_args`. **Not** "whatever step ran last" — omit `source:` and this reads the pipeline's root input, same as every other op. |
 | `inputs` |  | — | Typed named inputs — feeds `{port_name}` in string `tool_args`. |
 
 ### `op: tool_use_loop`
@@ -720,7 +720,8 @@ The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach f
 | `max_iterations` |  | `10` | Hard cap. Loop stops here regardless of finalize state. |
 | `system_prompt` |  | Sensible default | Agent instructions. Should include "call `finalize` when done." |
 | `prompt_template` |  | `{text}` | Initial user turn. Supports `{text}` + `{port_name}` + `{partition.<name>}` substitution. |
-| `allowed_tools` |  | All discovered | Optional allowlist (tool names). |
+| `allowed_tools` |  | All discovered | Optional allowlist. Each entry may be the bare tool name (`read_file`) or the server-namespaced name the model actually sees and `required_tool_calls` already matches against (`repo_tools_gh__read_file`); fnmatch `*` globs work on either form. |
+| `on_allowed_tools_unmatched` |  | `fail` | What happens when an `allowed_tools` entry matches zero discovered tools (by bare or namespaced name) — a typo'd or wrong-form entry would otherwise silently shrink the effective tool list instead of erroring. `fail` raises, naming the unmatched entry/entries and every discovered tool name; `warn` logs and continues with whatever did match. |
 | `finalize_tool_name` |  | `finalize` | Name of the synthetic finalize tool the LLM calls to end the loop. |
 | `tool_result_max_chars` |  | `20000` | Characters of one tool result shown to the model; longer results are cut with a visible `...[truncated: N more chars not shown]` marker (`0` = no cap). The trajectory records `tool_result_chars` / `tool_result_truncated` / `tool_result_is_error`; a tool-reported failure reaches the model as `ERROR: tool reported failure: …`. |
 | `temperature` |  | `0.0` | |
@@ -730,6 +731,7 @@ The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach f
 | `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system message (the one confirmed real effect of this field today). |
 | `required_tool_calls` |  | — | Tool name(s)/fnmatch patterns the model MUST call at least once before the loop is allowed to finish (by `finalize` or by stopping without a tool call). Each entry is a single pattern (required) or a list of patterns (an "any of" group). When the model tries to stop without having called every required entry, it gets ONE reminder (consuming one of `max_iterations`' own rounds) and a chance to call them before finishing; whether a call itself succeeded or errored doesn't matter, only whether it was attempted. |
 | `on_required_tool_calls_missing` |  | `fail` | What happens when `required_tool_calls` is set and still unsatisfied after the one reminder. `fail` raises (the run fails, naming what's missing); `warn` never raises — the result carries `required_tools_missing` instead (empty list when everything required was called). |
+| `required_tool_calls_unless_empty` |  | `false` | With `required_tool_calls` set: skip enforcement entirely (no reminder, no fail/warn) when this step's own `source`/`inputs` resolves to an empty list (same empty-list rule `mcp_call`/`map`/`route`'s `per_item` use). For the common "driven by an upstream per-item step's 0-item findings list" shape — when there's nothing to call a tool about, there's nothing to require a call over either. The result carries `required_tool_calls_skipped_empty_source` (`true`/`false`) so this is never silent. |
 
 Emitted metadata includes `tool_call_trace`, `n_llm_calls`, `n_tool_calls`, `stop_reason` (`finalize_called` | `final_answer_no_tool` | `max_iterations`), plus per-turn latency + cost. When `required_tool_calls` is set, also `required_tools_missing`.
 
@@ -925,7 +927,7 @@ Batch-level by default — same `per_item` option as `route`: set it to match/ro
 | `conditions` | ✅ | — | List of `{when: {regex\|contains\|equals\|jsonpath: ...}, then: <specialist_name>}`. First match wins. |
 | `default` | ✅ | — | Specialist that runs when no condition matches. |
 | `specialists` | ✅ | — | List of `{name, description, model, api_key_env_var, system_prompt, temperature, max_tokens}` — same shape as `route`'s specialists. |
-| `source` |  | Most recent step | Upstream to inspect. |
+| `source` |  | Pipeline's original input | Upstream to inspect. **Not** "whatever step ran last" — same root-input default as every other op. |
 | `per_item` |  | `false` | Match/route a list source one item at a time instead of once for the whole batch. |
 | `max_concurrent` |  | `1` | `per_item` only: thread-pool workers for the per-item specialist calls. |
 | `output_join` |  | `newlines` | `per_item` only: `newlines` \| `jsonl` \| `none` \| `records` — same meaning as `map`'s. |
@@ -1624,5 +1626,9 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | `park_warn_after_hours` | `float` | `0.0` | The `pending_approvals` WARN asset check (generated when an approve step has `mode: park`) fails once a parked run has waited this many hours. 0 (default) = any parked run warns. |
 | `park_sensor_interval_seconds` | `int` | `30` | How often the generated `<asset>_approval_resume_sensor` looks for approvals of parked pipelines (only generated when an approve step has `mode: park`). |
 | `run_input_tag` | `str` | `"agentic/input"` | Run tag name carrying a per-run input value for this pipeline's prompts -- a `{input}` placeholder (usable anywhere {partition_key} is: prompt_template, system_prompt, tool_args, source.text/path/url, sink paths, ...) su… _(full docs in schema.json + component README)_ |
+| `context_notes` | `str` | — | Free text appended to the system prompt of every LLM-calling step in this pipeline (llm_call, route, conditional_route, debate, critique_loop, synthesize, map, classify, extract, reduce, self_reflect, best_of_n, cascade… _(full docs in schema.json + component README)_ |
+| `outcome_ledger_path` | `str` | — | Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own ledger_path field pointed at this SAME directory) writes this run's consequential actions into, keyed by run_id -- read by the companion… _(full docs in schema.json + component README)_ |
+| `decisions_marker` | `str` | `"decisions for you"` | Heading (case-insensitive) that starts the pipeline's final step's 'decisions for a person' section at the end of its text. The lines under it fill the outcome asset's decisions_for_you ("none" gives nothing), and the te… _(full docs in schema.json + component README)_ |
+| `emit_outcome_asset` | `bool` | `false` | Build a companion '{asset_name_prefix}_outcome' asset (same partitions_def as this pipeline) that collapses this run's outcome-ledger entries (see outcome_ledger_path) plus the pipeline's own LAST declared output (output… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

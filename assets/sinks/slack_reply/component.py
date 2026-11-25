@@ -296,9 +296,12 @@ def _get_slack_client(bot_token_env_var: str):
 
 
 def _extract_answer(value: Any, answer_field: Optional[str]) -> str:
-    """The agent components' own documented output shape is {final_answer, iterations,
-    tool_calls_made, stopped_reason, ...} -- default to `final_answer`; answer_field overrides
-    for a differently-shaped upstream."""
+    """The chat-agent components' own documented output shape is {final_answer, iterations,
+    tool_calls_made, stopped_reason, ...} -- default to `final_answer`. An agentic_pipeline
+    step's own output shape is {text, op, ...op-specific fields} instead (every step ends in
+    `text`, never `final_answer`) -- recognized as a second default so pointing upstream_asset_key
+    at a pipeline's last step Just Works without answer_field: text on every such YAML.
+    answer_field overrides for anything else."""
     if answer_field:
         if isinstance(value, dict):
             return str(value.get(answer_field, ""))
@@ -306,6 +309,8 @@ def _extract_answer(value: Any, answer_field: Optional[str]) -> str:
     if isinstance(value, dict):
         if "final_answer" in value:
             return str(value.get("final_answer") or "_(empty)_")
+        if "text" in value:
+            return str(value.get("text") or "_(empty)_")
         return str(value)
     return str(value)
 

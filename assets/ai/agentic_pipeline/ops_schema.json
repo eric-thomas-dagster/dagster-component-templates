@@ -10879,7 +10879,7 @@
             }
           ],
           "default": null,
-          "description": "{arg_name: value}. String values support {text}+{port_name} substitution (+ {item} when per_item is set).",
+          "description": "{arg_name: value}. String values support {text}+{port_name} substitution (+ {item} / {item.field} / {item.nested.field} when per_item is set -- {item} is the whole item, stringified as JSON if it's not already a string; {item.field} looks up a key when the item is a JSON object, raising a clear per-item error (isolated the same way a failed tool call is) if that field is missing).",
           "title": "Tool Args"
         },
         "version": {
@@ -15214,7 +15214,7 @@
             }
           ],
           "default": null,
-          "description": "Optional allowlist (tool names). Default: all discovered.",
+          "description": "Optional allowlist. Default: all discovered. Each entry may be the bare tool name (read_file) or the server-namespaced name the model actually sees and required_tool_calls already matches against (repo_tools_gh__read_file); fnmatch '*' globs work on either form.",
           "title": "Allowed Tools"
         },
         "api_base_env_var": {
@@ -15302,6 +15302,16 @@
           "default": null,
           "description": "LLM the agent runs on. Optional if `persona:` on the step resolves it.",
           "title": "Model"
+        },
+        "on_allowed_tools_unmatched": {
+          "default": "fail",
+          "description": "What happens when an allowed_tools entry matches zero discovered tools (by bare or namespaced name) -- a typo'd or wrong-form entry would otherwise silently shrink the effective tool list instead of erroring. 'fail' (default): raise, naming the unmatched entry/entries and every discovered tool name. 'warn': log and continue with whatever did match.",
+          "enum": [
+            "fail",
+            "warn"
+          ],
+          "title": "On Allowed Tools Unmatched",
+          "type": "string"
         },
         "on_required_tool_calls_missing": {
           "default": "fail",
@@ -15398,6 +15408,12 @@
           "default": null,
           "description": "Tool name(s)/fnmatch patterns the model MUST call at least once before the loop is allowed to finish (by finalize or by stopping without a tool call) -- a model that drafts a finding and then says 'filed' without having actually called the filing tool is a real, repeatedly observed failure mode prompt wording alone doesn't reliably prevent. Each entry is either a single pattern (that exact tool required) or a list of patterns (an 'any of' group -- satisfied by calling any one of them). When the model tries to stop without having called every required entry, it gets ONE reminder (consuming one of max_iterations' own rounds, not extra budget) and a chance to call them before finishing; whether a call itself succeeded or errored doesn't matter, only whether it was attempted. See on_required_tool_calls_missing for what happens if it still hasn't after that.",
           "title": "Required Tool Calls"
+        },
+        "required_tool_calls_unless_empty": {
+          "default": false,
+          "description": "With required_tool_calls set: skip enforcement entirely (no reminder, no fail/warn) when this step's own source resolves to an empty list (the same empty-list rule mcp_call/map/route's per_item use: a JSON array, a dict with a data/items/results/values list, else non-empty lines -- empty means none of those produced anything). For the common 'driven by an upstream per-item step's 0-item findings list' shape: when there's nothing to call a tool ABOUT, there's nothing to require a tool call over either. The result carries required_tool_calls_skipped_empty_source (true/false) so this is never silent.",
+          "title": "Required Tool Calls Unless Empty",
+          "type": "boolean"
         },
         "skill_keys": {
           "anyOf": [

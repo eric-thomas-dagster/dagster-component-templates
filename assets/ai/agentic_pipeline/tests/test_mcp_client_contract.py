@@ -74,15 +74,49 @@ def test_stdio_discovery_schema_and_call(mod, server_py):
     cfg = _stdio_cfg(server_py)
     tools = _run(mod._discover_mcp_tools_async(LOG, [cfg]))
     by = {t["name"]: t for t in tools}
-    assert set(by) == {"echo", "boom"}
+    assert set(by) == {"echo", "boom", "read_env", "read_run_id"}
     # the real input schema must survive (mcp 2.x renamed inputSchema -> input_schema; a naive getattr silently drops it)
     assert by["echo"]["input_schema"]["properties"]["text"]["type"] == "string"
     assert by["echo"]["input_schema"]["required"] == ["text"]
     assert "Echo text" in by["echo"]["description"]
     schema = mod._mcp_tools_to_openai_schema(tools, None)
-    assert {s["function"]["name"] for s in schema} == {"mini__echo", "mini__boom"}
+    assert {s["function"]["name"] for s in schema} == {"mini__echo", "mini__boom", "mini__read_env", "mini__read_run_id"}
     res = _run(mod._call_mcp_tool_async(log=LOG, server_cfg=cfg, tool_name="echo", tool_args={"text": "ab", "times": 2}, parse_as="auto"))
     assert res["value"] == {"echo": "abab"} and res["is_error"] is False and res["kind"] == "json"
+
+
+def test_stdio_env_var_crosses_subprocess_boundary(mod, server_py, monkeypatch):
+    """practice_mode_env_var (and any other env var) genuinely reaches a stdio MCP server
+    subprocess, proven with a real subprocess round trip against the server's own os.environ --
+    not just that _mcp_subprocess_env()'s code looks like it hands the env over."""
+    monkeypatch.setenv("PRACTICE_MODE", "1")
+    res = _run(mod._call_mcp_tool_async(
+        log=LOG, server_cfg=_stdio_cfg(server_py), tool_name="read_env",
+        tool_args={"name": "PRACTICE_MODE"}, parse_as="auto",
+    ))
+    assert res["value"] == {"name": "PRACTICE_MODE", "value": "1"}
+
+
+def test_stdio_run_id_crosses_as_request_meta(mod, server_py):
+    """_call_mcp_tool_async(run_id=...) must reach the server as request _meta.dagster_run_id --
+    the real mechanism github_pr_tools/linear_ticket_tools key their practice-mode/outcome ledger
+    on (same as litellm_agent already sends). A real stdio round trip, not a mocked call: proves
+    the meta genuinely crosses the wire, not just that the client-side code looks like it should
+    send it."""
+    res = _run(mod._call_mcp_tool_async(
+        log=LOG, server_cfg=_stdio_cfg(server_py), tool_name="read_run_id", tool_args={},
+        parse_as="auto", run_id="run-abc123",
+    ))
+    assert res["value"] == {"dagster_run_id": "run-abc123"}
+
+
+def test_stdio_no_run_id_sends_no_meta(mod, server_py):
+    """Without a run_id (e.g. a dev-loop materialize outside a real Dagster run), no meta is
+    sent and the server correctly reports no dagster_run_id -- not a crash, not a stale value."""
+    res = _run(mod._call_mcp_tool_async(
+        log=LOG, server_cfg=_stdio_cfg(server_py), tool_name="read_run_id", tool_args={}, parse_as="auto",
+    ))
+    assert res["value"] == {"dagster_run_id": None}
 
 
 def test_stdio_tool_error_sets_is_error(mod, server_py):
@@ -106,7 +140,7 @@ def test_remote_transports_with_auth_headers(mod, http_server, kind, ttype, monk
     monkeypatch.setenv("MINI_TOKEN", "Bearer t0k")
     cfg = {"name": "mini", "type": ttype, "url": url, "headers_env": {"Authorization": "MINI_TOKEN"}}
     tools = _run(mod._discover_mcp_tools_async(LOG, [cfg]))
-    assert {t["name"] for t in tools} == {"echo", "boom"}
+    assert {t["name"] for t in tools} == {"echo", "boom", "read_env", "read_run_id"}
     res = _run(mod._call_mcp_tool_async(log=LOG, server_cfg=cfg, tool_name="echo", tool_args={"text": "hi"}, parse_as="auto"))
     assert res["value"] == {"echo": "hi"}
 

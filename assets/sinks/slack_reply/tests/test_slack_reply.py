@@ -174,6 +174,27 @@ def test_answer_field_override(monkeypatch):
     assert client.calls[0]["text"] == "custom field text"
 
 
+@pytest.mark.parametrize("op", ["tool_use_loop", "mcp_call", "llm_call"])
+def test_agentic_pipeline_step_output_shape_posts_clean_text(monkeypatch, op):
+    """An agentic_pipeline step's own output dict is {text, op, ...op-specific fields} -- never
+    final_answer. Without this, upstream_asset_key pointed at a pipeline's last step (any of its
+    tool_use_loop/mcp_call/llm_call final-step shapes) would post the whole dict's str()
+    representation instead of just the answer -- confirmed as a real bug and fixed by recognizing
+    `text` as a second default extraction key, same priority tier as final_answer."""
+    component = _component()
+    pipeline_step_output = {
+        "text": "the real answer text", "op": op, "model_fingerprint": "gpt-4o-mini@t0.0",
+        "n_iterations": 3, "cost_usd": 0.01, "tool_call_trace": [{"phase": "tool_call"}],
+    }
+    result, client = _materialize(
+        pipeline_step_output, component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"},
+    )
+    assert result.success
+    assert client.calls[0]["text"] == "the real answer text"
+    # not the stringified whole dict -- the bug this guards against
+    assert "tool_call_trace" not in client.calls[0]["text"]
+
+
 def test_plain_string_upstream_output_is_used_directly(monkeypatch):
     component = _component()
     result, client = _materialize("just a plain string answer", component, monkeypatch, tags={"slack/channel": "C1", "slack/thread_ts": "100.001"})

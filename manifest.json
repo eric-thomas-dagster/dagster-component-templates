@@ -226,7 +226,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "Ab Initio"
     },
     {
       "id": "abinitio_run_asset",
@@ -268,7 +269,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "vendor": "Ab Initio"
     },
     {
       "id": "acceldata_check",
@@ -685,7 +687,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:microsoftazure"
+      "icon": "si:microsoftazure",
+      "vendor": "Microsoft"
     },
     {
       "id": "adls_monitor",
@@ -741,7 +744,8 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "adls_observation_sensor",
@@ -796,7 +800,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "adls_to_database_asset",
@@ -857,7 +862,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "cloud-storage"
+      "vertical": "cloud-storage",
+      "vendor": "Microsoft"
     },
     {
       "id": "adp_workforce_now_ingestion",
@@ -4838,7 +4844,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "si:airbyte"
+      "icon": "si:airbyte",
+      "vendor": "Airbyte"
     },
     {
       "id": "airbyte_resource",
@@ -4882,7 +4889,8 @@
         "sync",
         "shared credentials"
       ],
-      "icon": "si:airbyte"
+      "icon": "si:airbyte",
+      "vendor": "Airbyte"
     },
     {
       "id": "airbyte_sync_sensor",
@@ -4929,7 +4937,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "Airbyte"
     },
     {
       "id": "airbyte_sync_trigger_job",
@@ -4975,7 +4984,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:airbyte"
+      "icon": "si:airbyte",
+      "vendor": "Airbyte"
     },
     {
       "id": "airflow_dag_proxy",
@@ -5028,7 +5038,8 @@
         "source_field": "airflow_api.dags[].tasks[]",
         "key_template": "{dag_id}.{task_id}"
       },
-      "icon": "si:apacheairflow"
+      "icon": "si:apacheairflow",
+      "vendor": "Apache Airflow"
     },
     {
       "id": "airflow_trigger_job",
@@ -5073,7 +5084,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:apacheairflow"
+      "icon": "si:apacheairflow",
+      "vendor": "Apache Airflow"
     },
     {
       "id": "airlift_dag_assets",
@@ -5176,7 +5188,8 @@
         "el",
         "read from"
       ],
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Airtable"
     },
     {
       "id": "airtable_record_upsert",
@@ -5211,7 +5224,8 @@
           "requests",
           "pandas"
         ]
-      }
+      },
+      "vendor": "Airtable"
     },
     {
       "id": "airtable_resource",
@@ -5261,7 +5275,8 @@
         "airtable base",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Airtable"
     },
     {
       "id": "alation_export_job",
@@ -5363,7 +5378,8 @@
         "sink",
         "write to algolia"
       ],
-      "vertical": "search-activation"
+      "vertical": "search-activation",
+      "vendor": "Algolia"
     },
     {
       "id": "algolia_resource",
@@ -5424,7 +5440,8 @@
         "connect",
         "reverse etl"
       ],
-      "vertical": "search-activation"
+      "vertical": "search-activation",
+      "vendor": "Algolia"
     },
     {
       "id": "alter_row",
@@ -5757,7 +5774,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "vendor": "Ansible"
     },
     {
       "id": "anthropic_agent",
@@ -5806,7 +5824,8 @@
         "mcp_servers=<set>": [
           "mcp>=1.30,<3"
         ]
-      }
+      },
+      "vendor": "Anthropic"
     },
     {
       "id": "anthropic_llm",
@@ -5852,7 +5871,8 @@
         "claude",
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Anthropic"
     },
     {
       "id": "anthropic_llm_batch",
@@ -5896,7 +5916,8 @@
         "claude",
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Anthropic"
     },
     {
       "id": "anthropic_resource",
@@ -5946,7 +5967,8 @@
         "claude",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Anthropic"
     },
     {
       "id": "apollo_ingestion",
@@ -6494,7 +6516,8 @@
         "el",
         "read from"
       ],
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Asana"
     },
     {
       "id": "asana_resource",
@@ -6541,7 +6564,8 @@
         "asana tasks",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Asana"
     },
     {
       "id": "asana_task_create",
@@ -6577,7 +6601,8 @@
           "pandas>=2.0.0",
           "asana>=5.0.0"
         ]
-      }
+      },
+      "vendor": "Asana"
     },
     {
       "id": "asset_job",
@@ -7079,7 +7104,8 @@
         "output"
       ],
       "icon": "si:datadog",
-      "vertical": "security"
+      "vertical": "security",
+      "vendor": "Datadog"
     },
     {
       "id": "audit_logs_to_elastic_security",
@@ -7122,7 +7148,8 @@
         "output"
       ],
       "icon": "si:elastic",
-      "vertical": "security"
+      "vertical": "security",
+      "vendor": "Elastic"
     },
     {
       "id": "audit_logs_to_qradar",
@@ -7254,7 +7281,8 @@
         "output"
       ],
       "icon": "si:splunk",
-      "vertical": "security"
+      "vertical": "security",
+      "vendor": "Splunk"
     },
     {
       "id": "audit_logs_to_sumo_logic",
@@ -7343,7 +7371,8 @@
         "read from"
       ],
       "icon": "si:auth0",
-      "vertical": "security"
+      "vertical": "security",
+      "vendor": "Auth0"
     },
     {
       "id": "auth0_management_ingestion",
@@ -7383,7 +7412,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Auth0"
     },
     {
       "id": "auth0_resource",
@@ -7443,7 +7473,8 @@
         "oauth2",
         "resource",
         "sso"
-      ]
+      ],
+      "vendor": "Auth0"
     },
     {
       "id": "auth0_user_upsert",
@@ -7511,7 +7542,8 @@
         "sink",
         "sso",
         "upsert"
-      ]
+      ],
+      "vendor": "Auth0"
     },
     {
       "id": "auto_field",
@@ -7624,7 +7656,8 @@
         "a360 integration",
         "rpa integration",
         "read from automation anywhere"
-      ]
+      ],
+      "vendor": "Automation Anywhere"
     },
     {
       "id": "automation_condition_applicator",
@@ -8971,7 +9004,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Basecamp"
     },
     {
       "id": "basecamp_resource",
@@ -9016,7 +9050,8 @@
       },
       "keywords": [
         "basecamp resource"
-      ]
+      ],
+      "vendor": "Basecamp"
     },
     {
       "id": "basecamp_todo_upsert",
@@ -9080,7 +9115,8 @@
         "project-management",
         "reverse-etl",
         "upsert"
-      ]
+      ],
+      "vendor": "Basecamp"
     },
     {
       "id": "bedrock_converse_asset",
@@ -9214,7 +9250,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "BigCommerce"
     },
     {
       "id": "bigcommerce_product_upsert",
@@ -9281,7 +9318,8 @@
         "reverse-etl",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "BigCommerce"
     },
     {
       "id": "bigcommerce_resource",
@@ -9336,7 +9374,8 @@
         "ecommerce",
         "resource",
         "retail"
-      ]
+      ],
+      "vendor": "BigCommerce"
     },
     {
       "id": "bigquery_create_table_from_query_asset",
@@ -10109,7 +10148,8 @@
         "read",
         "load"
       ],
-      "icon": "Database"
+      "icon": "Database",
+      "vendor": "Google"
     },
     {
       "id": "bigtable_writer_asset",
@@ -10161,7 +10201,8 @@
         "write to",
         "output"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "ArrowUpFromLine",
+      "vendor": "Google"
     },
     {
       "id": "bill_com_ingestion",
@@ -10241,7 +10282,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Bitbucket"
     },
     {
       "id": "blob_convert",
@@ -10431,7 +10473,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Box"
     },
     {
       "id": "braze_ingestion",
@@ -10471,7 +10514,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Braze"
     },
     {
       "id": "braze_resource",
@@ -10522,7 +10566,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-09-11"
-      }
+      },
+      "vendor": "Braze"
     },
     {
       "id": "braze_sink",
@@ -10591,7 +10636,8 @@
         "source_field": "asset_name",
         "key_template": "{asset_name}"
       },
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "Braze"
     },
     {
       "id": "brex_ingestion",
@@ -11001,7 +11047,8 @@
         "astra",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Apache Cassandra"
     },
     {
       "id": "cassandra_resource",
@@ -11055,7 +11102,8 @@
         "astra",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Apache Cassandra"
     },
     {
       "id": "cassandra_writer",
@@ -11114,7 +11162,8 @@
         "astra",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Apache Cassandra"
     },
     {
       "id": "castordoc_export_job",
@@ -11317,7 +11366,8 @@
         "reverse-etl",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "Chargebee"
     },
     {
       "id": "chargebee_ingestion",
@@ -11357,7 +11407,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Chargebee"
     },
     {
       "id": "chargebee_resource",
@@ -11414,7 +11465,8 @@
         "erp",
         "resource",
         "subscriptions"
-      ]
+      ],
+      "vendor": "Chargebee"
     },
     {
       "id": "chargify_ingestion",
@@ -11598,7 +11650,8 @@
         "chromadb",
         "report",
         "aggregate"
-      ]
+      ],
+      "vendor": "Chroma"
     },
     {
       "id": "chromadb_reader",
@@ -11656,7 +11709,8 @@
         "chromadb",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Chroma"
     },
     {
       "id": "churn_prediction",
@@ -11782,7 +11836,8 @@
         "accounts",
         "odata"
       ],
-      "vertical": "customer-success"
+      "vertical": "customer-success",
+      "vendor": "ChurnZero"
     },
     {
       "id": "churnzero_resource",
@@ -11848,7 +11903,8 @@
         "connection",
         "connect"
       ],
-      "vertical": "customer-success"
+      "vertical": "customer-success",
+      "vendor": "ChurnZero"
     },
     {
       "id": "circleci_ingestion",
@@ -12141,7 +12197,8 @@
         "real-time",
         "analytics",
         "sql"
-      ]
+      ],
+      "vendor": "ClickHouse"
     },
     {
       "id": "clickhouse_table_observation_sensor",
@@ -12232,7 +12289,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "ClickUp"
     },
     {
       "id": "clickup_resource",
@@ -12277,7 +12335,8 @@
       },
       "keywords": [
         "clickup resource"
-      ]
+      ],
+      "vendor": "ClickUp"
     },
     {
       "id": "clickup_task_upsert",
@@ -12338,7 +12397,8 @@
         "project-management",
         "reverse-etl",
         "upsert"
-      ]
+      ],
+      "vendor": "ClickUp"
     },
     {
       "id": "close_crm_ingestion",
@@ -12378,7 +12438,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Close"
     },
     {
       "id": "close_crm_lead_upsert",
@@ -12445,7 +12506,8 @@
         "search-then-write",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "Close"
     },
     {
       "id": "close_crm_resource",
@@ -12504,7 +12566,8 @@
         "resource",
         "reverse-etl",
         "search-then-write"
-      ]
+      ],
+      "vendor": "Close"
     },
     {
       "id": "cloud_dlp_inspect_asset",
@@ -12549,7 +12612,8 @@
         "llm",
         "genai"
       ],
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "vendor": "Google"
     },
     {
       "id": "cloud_dlp_pii_check",
@@ -12600,7 +12664,8 @@
         "data quality",
         "assertion"
       ],
-      "icon": "ShieldCheck"
+      "icon": "ShieldCheck",
+      "vendor": "Google"
     },
     {
       "id": "cloud_documents",
@@ -12708,7 +12773,8 @@
       "keywords": [
         "infra"
       ],
-      "icon": "Server"
+      "icon": "Server",
+      "vendor": "Google"
     },
     {
       "id": "cloud_logging_query_asset",
@@ -12759,7 +12825,8 @@
         "read",
         "load"
       ],
-      "icon": "Database"
+      "icon": "Database",
+      "vendor": "Google"
     },
     {
       "id": "cloud_monitoring_metrics_asset",
@@ -13105,7 +13172,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "Coalesce"
     },
     {
       "id": "coalesce_resource",
@@ -13149,7 +13217,8 @@
         "run status",
         "shared credentials"
       ],
-      "icon": "si:coalesce"
+      "icon": "si:coalesce",
+      "vendor": "Coalesce"
     },
     {
       "id": "coalesce_workspace",
@@ -13199,7 +13268,8 @@
         "external system"
       ],
       "icon": "Link",
-      "component_type": "dagster_community_components.CoalesceWorkspaceComponent"
+      "component_type": "dagster_community_components.CoalesceWorkspaceComponent",
+      "vendor": "Coalesce"
     },
     {
       "id": "cognos_report_data_ingestion",
@@ -13813,7 +13883,8 @@
           "beautifulsoup4>=4.11.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Confluence"
     },
     {
       "id": "confluence_ingestion",
@@ -13853,7 +13924,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Confluence"
     },
     {
       "id": "confluence_page_upsert",
@@ -13915,7 +13987,8 @@
         "confluence page upsert",
         "reverse-etl",
         "upsert"
-      ]
+      ],
+      "vendor": "Confluence"
     },
     {
       "id": "confluence_resource",
@@ -13971,7 +14044,8 @@
         "confluence resource",
         "productivity",
         "resource"
-      ]
+      ],
+      "vendor": "Confluence"
     },
     {
       "id": "constant_contact_ingestion",
@@ -14165,7 +14239,8 @@
         "context engineering",
         "feedback",
         "warehouse"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "context_receipt_store",
@@ -14497,7 +14572,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Copper"
     },
     {
       "id": "copper_record_upsert",
@@ -14563,7 +14639,8 @@
         "search-then-write",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "Copper"
     },
     {
       "id": "copper_resource",
@@ -14620,7 +14697,8 @@
         "resource",
         "reverse-etl",
         "sales"
-      ]
+      ],
+      "vendor": "Copper"
     },
     {
       "id": "cosmosdb_reader",
@@ -14676,7 +14754,8 @@
         "azure cosmos",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "cosmosdb_resource",
@@ -14729,7 +14808,8 @@
         "azure cosmos",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "cosmosdb_writer",
@@ -14787,7 +14867,8 @@
         "azure cosmos",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "couchdb_reader",
@@ -14840,7 +14921,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "vendor": "CouchDB"
     },
     {
       "id": "couchdb_resource",
@@ -14889,7 +14971,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "CouchDB"
     },
     {
       "id": "couchdb_writer",
@@ -14942,7 +15025,8 @@
         "write to",
         "output"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "ArrowUpFromLine",
+      "vendor": "CouchDB"
     },
     {
       "id": "count_records",
@@ -17749,7 +17833,8 @@
         "clean-rooms",
         "privacy",
         "jobs-api"
-      ]
+      ],
+      "vendor": "Databricks"
     },
     {
       "id": "databricks_genie_query",
@@ -17797,7 +17882,8 @@
         "nl to sql",
         "natural language sql",
         "text to sql"
-      ]
+      ],
+      "vendor": "Databricks"
     },
     {
       "id": "databricks_io_manager",
@@ -17962,7 +18048,8 @@
         "databricks sql",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Databricks"
     },
     {
       "id": "databricks_table_observation_sensor",
@@ -18063,7 +18150,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Datadog"
     },
     {
       "id": "dataform_repository_resource",
@@ -18111,7 +18199,8 @@
         "connection",
         "connect"
       ],
-      "icon": "si:googlecloud"
+      "icon": "si:googlecloud",
+      "vendor": "Google"
     },
     {
       "id": "dataframe_describe",
@@ -18396,7 +18485,8 @@
         "promql",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Prometheus"
     },
     {
       "id": "dataframe_from_sql",
@@ -18640,7 +18730,8 @@
         "adls gen2",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "dataframe_to_avro",
@@ -19113,7 +19204,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Dynatrace"
     },
     {
       "id": "dataframe_to_eventhub",
@@ -19161,7 +19253,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "dataframe_to_excel",
@@ -19207,7 +19300,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "dataframe_to_fabric_lakehouse",
@@ -19318,7 +19412,8 @@
         "gcp bucket",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "dataframe_to_iceberg_table",
@@ -19373,7 +19468,8 @@
         "iceberg table",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Apache Iceberg"
     },
     {
       "id": "dataframe_to_influxdb",
@@ -19571,7 +19667,8 @@
       "keywords": [
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "New Relic"
     },
     {
       "id": "dataframe_to_odata",
@@ -19669,7 +19766,8 @@
         "open telemetry",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "OpenTelemetry"
     },
     {
       "id": "dataframe_to_otlp_metrics",
@@ -19720,7 +19818,8 @@
         "open telemetry",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "OpenTelemetry"
     },
     {
       "id": "dataframe_to_otlp_traces",
@@ -19771,7 +19870,8 @@
         "open telemetry",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "OpenTelemetry"
     },
     {
       "id": "dataframe_to_parquet",
@@ -19869,7 +19969,8 @@
         "promql",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Prometheus"
     },
     {
       "id": "dataframe_to_redshift",
@@ -19983,7 +20084,8 @@
         "bucket",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "AWS"
     },
     {
       "id": "dataframe_to_security_lake",
@@ -20082,7 +20184,8 @@
         "error tracking",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Sentry"
     },
     {
       "id": "dataframe_to_servicebus",
@@ -20756,7 +20859,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "dbt"
     },
     {
       "id": "dbt_cloud_resource",
@@ -20807,7 +20911,8 @@
         "dbt cloud",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "dbt"
     },
     {
       "id": "dbt_cloud_trigger_job",
@@ -20873,7 +20978,8 @@
         "trigger",
         "materialize batch"
       ],
-      "icon": "si:dbt"
+      "icon": "si:dbt",
+      "vendor": "dbt"
     },
     {
       "id": "dbt_run_job",
@@ -20918,7 +21024,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:dbt"
+      "icon": "si:dbt",
+      "vendor": "dbt"
     },
     {
       "id": "dbt_state_reuse_patch",
@@ -20963,7 +21070,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "si:dbt"
+      "icon": "si:dbt",
+      "vendor": "dbt"
     },
     {
       "id": "decision_tree_model",
@@ -21781,7 +21889,8 @@
         "infra"
       ],
       "featured": true,
-      "icon": "si:docker"
+      "icon": "si:docker",
+      "vendor": "Docker"
     },
     {
       "id": "document_ai_extractor",
@@ -22470,7 +22579,8 @@
         "esignature",
         "reverse-etl",
         "sink"
-      ]
+      ],
+      "vendor": "DocuSign"
     },
     {
       "id": "docusign_ingestion",
@@ -22514,7 +22624,8 @@
           "pyjwt>=2.8.0",
           "cryptography>=41.0.0"
         ]
-      }
+      },
+      "vendor": "DocuSign"
     },
     {
       "id": "docusign_resource",
@@ -22578,7 +22689,8 @@
         "docusign resource",
         "esignature",
         "resource"
-      ]
+      ],
+      "vendor": "DocuSign"
     },
     {
       "id": "domino_data_lab_ingestion",
@@ -22930,7 +23042,8 @@
         "el",
         "read from"
       ],
-      "vertical": "support-cx"
+      "vertical": "support-cx",
+      "vendor": "Drift"
     },
     {
       "id": "drift_resource",
@@ -22994,7 +23107,8 @@
         "bearer token",
         "resource"
       ],
-      "vertical": "support-cx"
+      "vertical": "support-cx",
+      "vendor": "Drift"
     },
     {
       "id": "drive_time",
@@ -23080,7 +23194,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Dropbox"
     },
     {
       "id": "dropbox_sign_ingestion",
@@ -23120,7 +23235,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Dropbox"
     },
     {
       "id": "druid_resource",
@@ -23368,7 +23484,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "vendor": "DuckDB"
     },
     {
       "id": "duckdb_polars_io_manager",
@@ -23425,7 +23542,8 @@
         "persistence",
         "io"
       ],
-      "icon": "si:duckdb"
+      "icon": "si:duckdb",
+      "vendor": "DuckDB"
     },
     {
       "id": "duckdb_pyspark_io_manager",
@@ -23483,7 +23601,8 @@
         "persistence",
         "io"
       ],
-      "icon": "si:duckdb"
+      "icon": "si:duckdb",
+      "vendor": "DuckDB"
     },
     {
       "id": "duckdb_query_reader",
@@ -23538,7 +23657,8 @@
         "duck-db",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "DuckDB"
     },
     {
       "id": "duckdb_resource",
@@ -23590,7 +23710,8 @@
         "duck-db",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "DuckDB"
     },
     {
       "id": "duckdb_table_writer",
@@ -23640,7 +23761,8 @@
         "duck-db",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "DuckDB"
     },
     {
       "id": "dynamic_fanout_asset",
@@ -23798,7 +23920,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "dynamics_crm_record_upsert",
@@ -23866,7 +23989,8 @@
         "reverse-etl",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "dynamics_crm_resource",
@@ -23926,7 +24050,8 @@
         "dynamics_crm",
         "resource",
         "reverse-etl"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "dynamodb_reader",
@@ -24141,7 +24266,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Dynatrace"
     },
     {
       "id": "dynatrace_resource",
@@ -24187,7 +24313,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Dynatrace"
     },
     {
       "id": "ecommerce_standardizer",
@@ -24289,7 +24416,8 @@
         "capacity provider",
         "batch inference",
         "dagster pipes"
-      ]
+      ],
+      "vendor": "AWS"
     },
     {
       "id": "egnyte_ingestion",
@@ -24386,7 +24514,8 @@
         "es cluster",
         "report",
         "aggregate"
-      ]
+      ],
+      "vendor": "Elasticsearch"
     },
     {
       "id": "elasticsearch_reader",
@@ -24442,7 +24571,8 @@
         "es cluster",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Elasticsearch"
     },
     {
       "id": "elasticsearch_resource",
@@ -24495,7 +24625,8 @@
         "es cluster",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Elasticsearch"
     },
     {
       "id": "email_approval_gate",
@@ -24818,7 +24949,8 @@
         "pattern": "One AssetsDefinition per mirrored dbt Cloud job (filtered by job_selection_include/exclude). Assets inside cover every dbt node from the Cloud project's manifest.",
         "source_field": "dbt_cloud.jobs[]",
         "key_template": "{dbt_fqn}"
-      }
+      },
+      "vendor": "dbt"
     },
     {
       "id": "enriched_dbt_project",
@@ -24882,7 +25014,8 @@
         "pattern": "One Dagster asset per dbt node (models + seeds + snapshots) discovered in the manifest. Asset keys mirror the dbt fully-qualified names.",
         "source_field": "dbt_manifest.nodes[]",
         "key_template": "{dbt_fqn}"
-      }
+      },
+      "vendor": "dbt"
     },
     {
       "id": "entity_extractor",
@@ -25154,7 +25287,8 @@
           "google-cloud-bigquery>=3.14"
         ]
       },
-      "icon": "si:googlebigquery"
+      "icon": "si:googlebigquery",
+      "vendor": "Google"
     },
     {
       "id": "event_log_to_datadog_job",
@@ -25186,7 +25320,8 @@
           "requests>=2.28"
         ]
       },
-      "icon": "si:datadog"
+      "icon": "si:datadog",
+      "vendor": "Datadog"
     },
     {
       "id": "event_log_to_s3_job",
@@ -25218,7 +25353,8 @@
           "boto3>=1.34"
         ]
       },
-      "icon": "si:amazonwebservices"
+      "icon": "si:amazonwebservices",
+      "vendor": "AWS"
     },
     {
       "id": "event_log_to_snowflake_job",
@@ -25250,7 +25386,8 @@
           "snowflake-connector-python>=3.6"
         ]
       },
-      "icon": "si:snowflake"
+      "icon": "si:snowflake",
+      "vendor": "Snowflake"
     },
     {
       "id": "event_log_to_splunk_job",
@@ -25282,7 +25419,8 @@
           "requests>=2.28"
         ]
       },
-      "icon": "si:splunk"
+      "icon": "si:splunk",
+      "vendor": "Splunk"
     },
     {
       "id": "eventhubs_monitor",
@@ -25335,7 +25473,8 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "eventhubs_observation_sensor",
@@ -25387,7 +25526,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "eventhubs_to_database_asset",
@@ -25447,7 +25587,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "streaming"
+      "vertical": "streaming",
+      "vendor": "Microsoft"
     },
     {
       "id": "expense_report_extractor",
@@ -25586,7 +25727,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "external_argo_workflow",
@@ -26180,7 +26322,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "vendor": "Hugging Face"
     },
     {
       "id": "external_iceberg_table",
@@ -26227,7 +26370,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "vendor": "Apache Iceberg"
     },
     {
       "id": "external_kafka_asset",
@@ -26280,7 +26424,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "vendor": "Apache Kafka"
     },
     {
       "id": "external_kinesis_asset",
@@ -26380,7 +26525,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "vendor": "MQTT"
     },
     {
       "id": "external_nats_asset",
@@ -26575,7 +26721,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "vendor": "Apache Pulsar"
     },
     {
       "id": "external_rabbitmq_asset",
@@ -26623,7 +26770,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "vendor": "RabbitMQ"
     },
     {
       "id": "external_redis_stream_asset",
@@ -26677,7 +26825,8 @@
         "declaration",
         "mirror asset",
         "mirror"
-      ]
+      ],
+      "vendor": "Redis"
     },
     {
       "id": "external_s3_asset",
@@ -27590,7 +27739,8 @@
         "el",
         "read from"
       ],
-      "vertical": "social"
+      "vertical": "social",
+      "vendor": "Facebook"
     },
     {
       "id": "facebook_ads_resource",
@@ -27638,7 +27788,8 @@
         "facebook marketing",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Facebook"
     },
     {
       "id": "failed_run_agent_sensor",
@@ -27930,7 +28081,8 @@
         "fintech",
         "resource",
         "staking"
-      ]
+      ],
+      "vendor": "Figment"
     },
     {
       "id": "figment_staking_rewards_ingestion",
@@ -27989,7 +28141,8 @@
         "ingestion",
         "rewards",
         "staking"
-      ]
+      ],
+      "vendor": "Figment"
     },
     {
       "id": "file_ingestion",
@@ -28392,7 +28545,8 @@
         "sink",
         "send push notification"
       ],
-      "vertical": "messaging-activation"
+      "vertical": "messaging-activation",
+      "vendor": "Firebase"
     },
     {
       "id": "firebase_resource",
@@ -28646,7 +28800,8 @@
         "google firestore",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Firebase"
     },
     {
       "id": "firestore_reader_asset",
@@ -28703,7 +28858,8 @@
         "read",
         "load"
       ],
-      "icon": "si:firebase"
+      "icon": "si:firebase",
+      "vendor": "Firebase"
     },
     {
       "id": "firestore_resource",
@@ -28755,7 +28911,8 @@
         "google firestore",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Firebase"
     },
     {
       "id": "firestore_writer",
@@ -28812,7 +28969,8 @@
         "google firestore",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Firebase"
     },
     {
       "id": "firestore_writer_asset",
@@ -28871,7 +29029,8 @@
         "write to",
         "output"
       ],
-      "icon": "si:firebase"
+      "icon": "si:firebase",
+      "vendor": "Firebase"
     },
     {
       "id": "fivetran_assets",
@@ -28918,7 +29077,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "favicon:fivetran.com"
+      "icon": "favicon:fivetran.com",
+      "vendor": "Fivetran"
     },
     {
       "id": "fivetran_resource",
@@ -28962,7 +29122,8 @@
         "sync",
         "shared credentials"
       ],
-      "icon": "si:fivetran"
+      "icon": "si:fivetran",
+      "vendor": "Fivetran"
     },
     {
       "id": "fivetran_sync_sensor",
@@ -29007,7 +29168,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "Fivetran"
     },
     {
       "id": "fivetran_sync_trigger_job",
@@ -29048,7 +29210,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "favicon:fivetran.com"
+      "icon": "favicon:fivetran.com",
+      "vendor": "Fivetran"
     },
     {
       "id": "fivetran_usage_observation_sensor",
@@ -29109,7 +29272,8 @@
         "billing",
         "insights",
         "custom metric"
-      ]
+      ],
+      "vendor": "Fivetran"
     },
     {
       "id": "fix_message_parser",
@@ -29383,7 +29547,8 @@
           "pandas>=2.0.0",
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Freshdesk"
     },
     {
       "id": "freshdesk_ingestion",
@@ -29434,7 +29599,8 @@
         "el",
         "read from"
       ],
-      "vertical": "support"
+      "vertical": "support",
+      "vendor": "Freshdesk"
     },
     {
       "id": "freshdesk_resource",
@@ -29482,7 +29648,8 @@
         "freshdesk tickets",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Freshdesk"
     },
     {
       "id": "freshsales_ingestion",
@@ -29566,7 +29733,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Freshservice"
     },
     {
       "id": "freshservice_resource",
@@ -29621,7 +29789,8 @@
         "itsm",
         "resource",
         "support"
-      ]
+      ],
+      "vendor": "Freshservice"
     },
     {
       "id": "freshservice_ticket_upsert",
@@ -29687,7 +29856,8 @@
         "sink",
         "support",
         "upsert"
-      ]
+      ],
+      "vendor": "Freshservice"
     },
     {
       "id": "front_ingestion",
@@ -29962,7 +30132,8 @@
         "company object",
         "churn data"
       ],
-      "vertical": "customer-success"
+      "vertical": "customer-success",
+      "vendor": "Gainsight"
     },
     {
       "id": "gainsight_resource",
@@ -30027,7 +30198,8 @@
         "connection",
         "connect"
       ],
-      "vertical": "customer-success"
+      "vertical": "customer-success",
+      "vendor": "Gainsight"
     },
     {
       "id": "gamma_regression",
@@ -30545,7 +30717,8 @@
         "mcp_servers=<set>": [
           "mcp>=1.30,<3"
         ]
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "gemini_image_generation",
@@ -30599,7 +30772,8 @@
         "llm",
         "genai"
       ],
-      "icon": "si:googlegemini"
+      "icon": "si:googlegemini",
+      "vendor": "Google"
     },
     {
       "id": "gemini_llm",
@@ -30653,7 +30827,8 @@
         "llm",
         "genai"
       ],
-      "icon": "si:googlegemini"
+      "icon": "si:googlegemini",
+      "vendor": "Google"
     },
     {
       "id": "gemini_resource",
@@ -30705,7 +30880,8 @@
         "vertex ai",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "generate_rows",
@@ -30998,7 +31174,8 @@
         "read from"
       ],
       "icon": "si:github",
-      "vertical": "security"
+      "vertical": "security",
+      "vendor": "GitHub"
     },
     {
       "id": "github_documents",
@@ -31040,7 +31217,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "GitHub"
     },
     {
       "id": "github_event_sensor",
@@ -31090,7 +31268,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:github"
+      "icon": "si:github",
+      "vendor": "GitHub"
     },
     {
       "id": "github_ingestion",
@@ -31144,7 +31323,8 @@
         "el",
         "read from"
       ],
-      "vertical": "devops-observability"
+      "vertical": "devops-observability",
+      "vendor": "GitHub"
     },
     {
       "id": "github_issue_upsert",
@@ -31179,7 +31359,8 @@
           "requests",
           "pandas"
         ]
-      }
+      },
+      "vendor": "GitHub"
     },
     {
       "id": "github_pr_tools",
@@ -31232,7 +31413,8 @@
         "mcp",
         "agents"
       ],
-      "icon": "si:github"
+      "icon": "si:github",
+      "vendor": "GitHub"
     },
     {
       "id": "github_pull_request_agent_sensor",
@@ -31282,7 +31464,8 @@
         "agents",
         "event listener"
       ],
-      "icon": "si:github"
+      "icon": "si:github",
+      "vendor": "GitHub"
     },
     {
       "id": "github_resource",
@@ -31334,7 +31517,8 @@
         "octocat",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "GitHub"
     },
     {
       "id": "gitlab_documents",
@@ -31376,7 +31560,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "GitLab"
     },
     {
       "id": "gitlab_event_sensor",
@@ -31423,7 +31608,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:gitlab"
+      "icon": "si:gitlab",
+      "vendor": "GitLab"
     },
     {
       "id": "gitlab_ingestion",
@@ -31465,7 +31651,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "GitLab"
     },
     {
       "id": "gmail_draft_create",
@@ -31526,7 +31713,8 @@
         "gmail-draft-create",
         "notification",
         "sink"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "gmail_ingestion",
@@ -31566,7 +31754,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "goanywhere_integration",
@@ -31859,7 +32048,8 @@
         "sink",
         "write to google ads"
       ],
-      "vertical": "marketing-ads"
+      "vertical": "marketing-ads",
+      "vendor": "Google"
     },
     {
       "id": "google_ads_ingestion",
@@ -31911,7 +32101,8 @@
         "el",
         "read from"
       ],
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "Google"
     },
     {
       "id": "google_ads_resource",
@@ -31959,7 +32150,8 @@
         "pip": [
           "google-ads>=24.0.0"
         ]
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "google_analytics_ingestion",
@@ -32011,7 +32203,8 @@
         "el",
         "read from"
       ],
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "Google"
     },
     {
       "id": "google_analytics_resource",
@@ -32059,7 +32252,8 @@
         "google analytics 4",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "google_bigquery",
@@ -32173,7 +32367,8 @@
         "read from"
       ],
       "icon": "si:googlecloud",
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Google"
     },
     {
       "id": "google_cloud_functions",
@@ -32221,7 +32416,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "google_cloud_run_jobs",
@@ -32270,7 +32466,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "google_dataflow",
@@ -32315,7 +32512,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "google_datastream",
@@ -32360,7 +32558,8 @@
       "keywords": [
         "3rd party",
         "external system"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "google_docs_extractor",
@@ -32418,7 +32617,8 @@
         "read from"
       ],
       "icon": "si:googlecloud",
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Google"
     },
     {
       "id": "google_drive_documents",
@@ -32476,7 +32676,8 @@
         "read from"
       ],
       "icon": "si:googlecloud",
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Google"
     },
     {
       "id": "google_drive_ingestion",
@@ -32539,7 +32740,8 @@
         "read from"
       ],
       "icon": "si:googlecloud",
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Google"
     },
     {
       "id": "google_pubsub",
@@ -32644,7 +32846,8 @@
         "el",
         "read from"
       ],
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Google"
     },
     {
       "id": "google_sheets_resource",
@@ -32690,7 +32893,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Google"
     },
     {
       "id": "google_sheets_row_upsert",
@@ -32725,7 +32929,8 @@
           "pandas>=2.0.0",
           "gspread>=5.0.0"
         ]
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "google_vertex_ai",
@@ -32839,7 +33044,8 @@
         "basic auth",
         "resource"
       ],
-      "vertical": "support-cx"
+      "vertical": "support-cx",
+      "vendor": "Gorgias"
     },
     {
       "id": "gorgias_tickets_ingestion",
@@ -32908,7 +33114,8 @@
         "el",
         "read from"
       ],
-      "vertical": "support-cx"
+      "vertical": "support-cx",
+      "vendor": "Gorgias"
     },
     {
       "id": "gradient_boosting_model",
@@ -33008,7 +33215,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Grafana"
     },
     {
       "id": "graph_first_assets",
@@ -33181,7 +33389,8 @@
           "pandas>=2.0.0",
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Greenhouse"
     },
     {
       "id": "greenhouse_harvest_ingestion",
@@ -33221,7 +33430,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Greenhouse"
     },
     {
       "id": "greenhouse_resource",
@@ -33253,7 +33463,8 @@
         "requires_pip": [
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Greenhouse"
     },
     {
       "id": "groq_llm",
@@ -33459,7 +33670,8 @@
         "requires_pip": [
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Heap"
     },
     {
       "id": "heap_user_property_sync",
@@ -33494,7 +33706,8 @@
           "pandas>=2.0.0",
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Heap"
     },
     {
       "id": "helm_deploy",
@@ -33601,7 +33814,8 @@
         "sink",
         "support",
         "upsert"
-      ]
+      ],
+      "vendor": "Help Scout"
     },
     {
       "id": "help_scout_ingestion",
@@ -33641,7 +33855,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Help Scout"
     },
     {
       "id": "help_scout_resource",
@@ -33697,7 +33912,8 @@
         "helpscout",
         "resource",
         "support"
-      ]
+      ],
+      "vendor": "Help Scout"
     },
     {
       "id": "hex_project_assets",
@@ -34299,7 +34515,8 @@
         "el",
         "read from"
       ],
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "HubSpot"
     },
     {
       "id": "hubspot_object_upsert",
@@ -34366,7 +34583,8 @@
         "sink",
         "write to hubspot"
       ],
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "HubSpot"
     },
     {
       "id": "hubspot_resource",
@@ -34424,7 +34642,8 @@
         "bearer token",
         "batch upsert",
         "connection"
-      ]
+      ],
+      "vendor": "HubSpot"
     },
     {
       "id": "huggingface_chat_completion",
@@ -34472,7 +34691,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Hugging Face"
     },
     {
       "id": "huggingface_dataset_asset",
@@ -34519,7 +34739,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Hugging Face"
     },
     {
       "id": "huggingface_inference_endpoint",
@@ -34566,7 +34787,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Hugging Face"
     },
     {
       "id": "huggingface_model_asset",
@@ -34613,7 +34835,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Hugging Face"
     },
     {
       "id": "huggingface_pipeline",
@@ -34655,7 +34878,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Hugging Face"
     },
     {
       "id": "huggingface_space_status_sensor",
@@ -34701,7 +34925,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "Hugging Face"
     },
     {
       "id": "huggingface_text_to_image",
@@ -34750,7 +34975,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Hugging Face"
     },
     {
       "id": "human_approval_gate",
@@ -35020,7 +35246,8 @@
         "iceberg table",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Apache Iceberg"
     },
     {
       "id": "iceberg_ingestion",
@@ -35085,7 +35312,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "database"
+      "vertical": "database",
+      "vendor": "Apache Iceberg"
     },
     {
       "id": "iceberg_io_manager",
@@ -35141,7 +35369,8 @@
         "persistence",
         "io"
       ],
-      "icon": "si:apache"
+      "icon": "si:apache",
+      "vendor": "Apache Iceberg"
     },
     {
       "id": "iceberg_maintenance_job",
@@ -35185,7 +35414,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:apache"
+      "icon": "si:apache",
+      "vendor": "Apache Iceberg"
     },
     {
       "id": "image_captioner",
@@ -35868,7 +36098,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "Link"
+      "icon": "Link",
+      "vendor": "Informatica"
     },
     {
       "id": "informatica_workspace",
@@ -35943,7 +36174,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "Link"
+      "icon": "Link",
+      "vendor": "Informatica"
     },
     {
       "id": "inline_dataframe",
@@ -36022,7 +36254,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Insightly"
     },
     {
       "id": "insightly_record_upsert",
@@ -36086,7 +36319,8 @@
         "reverse-etl",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "Insightly"
     },
     {
       "id": "insightly_resource",
@@ -36141,7 +36375,8 @@
         "insightly resource",
         "resource",
         "reverse-etl"
-      ]
+      ],
+      "vendor": "Insightly"
     },
     {
       "id": "insights_custom_metrics_sync",
@@ -36317,7 +36552,8 @@
           "pandas>=2.0.0",
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Intercom"
     },
     {
       "id": "intercom_ingestion",
@@ -36357,7 +36593,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Intercom"
     },
     {
       "id": "intercom_resource",
@@ -36400,7 +36637,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Intercom"
     },
     {
       "id": "interval_schedule",
@@ -36577,7 +36815,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-09-10"
-      }
+      },
+      "vendor": "Iterable"
     },
     {
       "id": "iterable_sink",
@@ -36646,7 +36885,8 @@
         "source_field": "asset_name",
         "key_template": "{asset_name}"
       },
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "Iterable"
     },
     {
       "id": "iterative_supervisor_agent",
@@ -36880,7 +37120,8 @@
         "el",
         "read from"
       ],
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Oracle"
     },
     {
       "id": "jde_orchestration_status_sensor",
@@ -36931,7 +37172,8 @@
         "event listener",
         "job orchestrator",
         "watcher"
-      ]
+      ],
+      "vendor": "Oracle"
     },
     {
       "id": "jde_orchestration_trigger_job",
@@ -36982,7 +37224,8 @@
       ],
       "keywords": [
         "job orchestrator"
-      ]
+      ],
+      "vendor": "Oracle"
     },
     {
       "id": "jde_orchestrator_resource",
@@ -37031,7 +37274,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Oracle"
     },
     {
       "id": "jde_orchestrator_workspace",
@@ -37080,7 +37324,8 @@
         "workspace-style component",
         "3rd party",
         "external system"
-      ]
+      ],
+      "vendor": "Oracle"
     },
     {
       "id": "jenkins_integration",
@@ -37241,7 +37486,8 @@
         "el",
         "read from"
       ],
-      "vertical": "devops-observability"
+      "vertical": "devops-observability",
+      "vendor": "Jira"
     },
     {
       "id": "jira_issue_sensor",
@@ -37289,7 +37535,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:jira"
+      "icon": "si:jira",
+      "vendor": "Jira"
     },
     {
       "id": "jira_issue_upsert",
@@ -37324,7 +37571,8 @@
           "requests",
           "pandas"
         ]
-      }
+      },
+      "vendor": "Jira"
     },
     {
       "id": "jira_resource",
@@ -37374,7 +37622,8 @@
         "atlassian jira",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Jira"
     },
     {
       "id": "jira_service_management_ingestion",
@@ -37414,7 +37663,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Jira"
     },
     {
       "id": "jira_service_management_request_upsert",
@@ -37482,7 +37732,8 @@
         "sink",
         "support",
         "upsert"
-      ]
+      ],
+      "vendor": "Jira"
     },
     {
       "id": "jira_service_management_resource",
@@ -37539,7 +37790,8 @@
         "jira_service_management",
         "resource",
         "support"
-      ]
+      ],
+      "vendor": "Jira"
     },
     {
       "id": "job_posting_extractor",
@@ -37826,7 +38078,8 @@
       "keywords": [
         "infra"
       ],
-      "icon": "si:kubernetes"
+      "icon": "si:kubernetes",
+      "vendor": "Kubernetes"
     },
     {
       "id": "k_centroids_diagnostics",
@@ -37982,7 +38235,8 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "Apache Kafka"
     },
     {
       "id": "kafka_observation_sensor",
@@ -38035,7 +38289,8 @@
         "observability",
         "watch"
       ],
-      "featured": true
+      "featured": true,
+      "vendor": "Apache Kafka"
     },
     {
       "id": "kafka_resource",
@@ -38088,7 +38343,8 @@
         "redpanda",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Apache Kafka"
     },
     {
       "id": "kafka_to_database_asset",
@@ -38147,7 +38403,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "streaming"
+      "vertical": "streaming",
+      "vendor": "Apache Kafka"
     },
     {
       "id": "key_vault_resource",
@@ -38192,7 +38449,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "keyword_extractor",
@@ -38441,7 +38699,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Klaviyo"
     },
     {
       "id": "klaviyo_profile_upsert",
@@ -38510,7 +38769,8 @@
         "source_field": "asset_name",
         "key_template": "{asset_name}"
       },
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "Klaviyo"
     },
     {
       "id": "klaviyo_resource",
@@ -38564,7 +38824,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-09-10"
-      }
+      },
+      "vendor": "Klaviyo"
     },
     {
       "id": "knowledge_base_eval",
@@ -38922,7 +39183,8 @@
         "el",
         "read from"
       ],
-      "vertical": "support-cx"
+      "vertical": "support-cx",
+      "vendor": "Kustomer"
     },
     {
       "id": "kustomer_resource",
@@ -38986,7 +39248,8 @@
         "bearer api key",
         "resource"
       ],
-      "vertical": "support-cx"
+      "vertical": "support-cx",
+      "vendor": "Kustomer"
     },
     {
       "id": "label_encoder",
@@ -39081,7 +39344,8 @@
       "keywords": [
         "report",
         "aggregate"
-      ]
+      ],
+      "vendor": "lakeFS"
     },
     {
       "id": "lakefs_io_manager",
@@ -39138,7 +39402,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "vendor": "lakeFS"
     },
     {
       "id": "lambda_invoke_asset",
@@ -39294,7 +39559,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "LangChain"
     },
     {
       "id": "langgraph_agent",
@@ -39465,7 +39731,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "LaunchDarkly"
     },
     {
       "id": "launchdarkly_resource",
@@ -39496,7 +39763,8 @@
         "requires_pip": [
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "LaunchDarkly"
     },
     {
       "id": "launchdarkly_segment_update",
@@ -39531,7 +39799,8 @@
           "pandas>=2.0.0",
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "LaunchDarkly"
     },
     {
       "id": "lead_scoring",
@@ -39703,7 +39972,8 @@
         "reverse-etl",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "Lever"
     },
     {
       "id": "lever_ingestion",
@@ -39743,7 +40013,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Lever"
     },
     {
       "id": "lever_resource",
@@ -39798,7 +40069,8 @@
         "lever resource",
         "recruiting",
         "resource"
-      ]
+      ],
+      "vendor": "Lever"
     },
     {
       "id": "lifecycle_wap",
@@ -40343,7 +40615,8 @@
         "azure purview",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "lineage_to_webhook",
@@ -40424,7 +40697,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Linear"
     },
     {
       "id": "linear_issue_sensor",
@@ -40471,7 +40745,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:linear"
+      "icon": "si:linear",
+      "vendor": "Linear"
     },
     {
       "id": "linear_issue_upsert",
@@ -40534,7 +40809,8 @@
         "project-management",
         "reverse-etl",
         "upsert"
-      ]
+      ],
+      "vendor": "Linear"
     },
     {
       "id": "linear_regression_model",
@@ -40633,7 +40909,8 @@
       },
       "keywords": [
         "linear resource"
-      ]
+      ],
+      "vendor": "Linear"
     },
     {
       "id": "linear_ticket_tools",
@@ -40689,7 +40966,8 @@
         "duplicate check",
         "practice mode",
         "engineering agent"
-      ]
+      ],
+      "vendor": "Linear"
     },
     {
       "id": "linkedin_ads_ingestion",
@@ -40740,7 +41018,8 @@
         "el",
         "read from"
       ],
-      "vertical": "social"
+      "vertical": "social",
+      "vendor": "LinkedIn"
     },
     {
       "id": "linkedin_ads_resource",
@@ -40787,7 +41066,8 @@
         "linkedin marketing",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "LinkedIn"
     },
     {
       "id": "linkedin_matched_audience_upsert",
@@ -40857,7 +41137,8 @@
         "sink",
         "write to linkedin"
       ],
-      "vertical": "marketing-ads"
+      "vertical": "marketing-ads",
+      "vendor": "LinkedIn"
     },
     {
       "id": "litellm_agent",
@@ -40908,7 +41189,8 @@
         "mcp_servers=<set>": [
           "mcp>=1.30,<3"
         ]
-      }
+      },
+      "vendor": "LiteLLM"
     },
     {
       "id": "litellm_audio_transcription",
@@ -40959,7 +41241,8 @@
         "lite llm",
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "LiteLLM"
     },
     {
       "id": "litellm_batch_completion",
@@ -41011,7 +41294,8 @@
         "lite llm",
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "LiteLLM"
     },
     {
       "id": "litellm_embedding_batch",
@@ -41065,7 +41349,8 @@
         "embed text",
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "LiteLLM"
     },
     {
       "id": "litellm_function_calling",
@@ -41117,7 +41402,8 @@
         "lite llm",
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "LiteLLM"
     },
     {
       "id": "litellm_image_generation",
@@ -41927,7 +42213,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "si:looker"
+      "icon": "si:looker",
+      "vendor": "Looker"
     },
     {
       "id": "lookup",
@@ -42096,7 +42383,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Magento"
     },
     {
       "id": "magento_product_upsert",
@@ -42165,7 +42453,8 @@
         "reverse-etl",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "Magento"
     },
     {
       "id": "magento_resource",
@@ -42222,7 +42511,8 @@
         "magento resource",
         "resource",
         "retail"
-      ]
+      ],
+      "vendor": "Magento"
     },
     {
       "id": "mailchimp_ingestion",
@@ -42262,7 +42552,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Mailchimp"
     },
     {
       "id": "mailchimp_member_upsert",
@@ -42297,7 +42588,8 @@
           "pandas>=2.0.0",
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Mailchimp"
     },
     {
       "id": "mailchimp_resource",
@@ -42328,7 +42620,8 @@
         "requires_pip": [
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Mailchimp"
     },
     {
       "id": "make_columns",
@@ -42836,7 +43129,8 @@
         "sink",
         "write to marketo"
       ],
-      "vertical": "marketing-automation"
+      "vertical": "marketing-automation",
+      "vendor": "Marketo"
     },
     {
       "id": "marketo_resource",
@@ -42879,7 +43173,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Marketo"
     },
     {
       "id": "matillion_job_sensor",
@@ -42923,7 +43218,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "Matillion"
     },
     {
       "id": "matillion_run_asset",
@@ -42966,7 +43262,8 @@
       "keywords": [
         "matillion etl",
         "infra"
-      ]
+      ],
+      "vendor": "Matillion"
     },
     {
       "id": "matomo_ingestion",
@@ -43314,7 +43611,8 @@
           "pymemcache>=4.0.0"
         ]
       },
-      "consumes": []
+      "consumes": [],
+      "vendor": "Memcached"
     },
     {
       "id": "memcached_resource",
@@ -43361,7 +43659,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Memcached"
     },
     {
       "id": "meta_custom_audience_upsert",
@@ -43473,7 +43772,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Metabase"
     },
     {
       "id": "metronome_invoices_ingestion",
@@ -43532,7 +43832,8 @@
         "invoices",
         "metronome",
         "metronome invoices ingestion"
-      ]
+      ],
+      "vendor": "Metronome"
     },
     {
       "id": "metronome_resource",
@@ -43589,7 +43890,8 @@
         "metronome resource",
         "resource",
         "usage-based-billing"
-      ]
+      ],
+      "vendor": "Metronome"
     },
     {
       "id": "metronome_usage_event_send",
@@ -43655,7 +43957,8 @@
         "reverse-etl",
         "sink",
         "usage-based-billing"
-      ]
+      ],
+      "vendor": "Metronome"
     },
     {
       "id": "minio_io_manager",
@@ -43709,7 +44012,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "vendor": "MinIO"
     },
     {
       "id": "minio_resource",
@@ -43758,7 +44062,8 @@
         "s3 compatible",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "MinIO"
     },
     {
       "id": "mirth_connect_workspace",
@@ -43881,7 +44186,8 @@
         "ministral",
         "mistral",
         "mistral llm"
-      ]
+      ],
+      "vendor": "Mistral AI"
     },
     {
       "id": "mistral_ocr",
@@ -43942,7 +44248,8 @@
         "mistral ocr",
         "ocr",
         "pdf"
-      ]
+      ],
+      "vendor": "Mistral AI"
     },
     {
       "id": "mixpanel_event_track",
@@ -44008,7 +44315,8 @@
         "source_field": "asset_name",
         "key_template": "{asset_name}"
       },
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "Mixpanel"
     },
     {
       "id": "mixpanel_resource",
@@ -44059,7 +44367,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-09-10"
-      }
+      },
+      "vendor": "Mixpanel"
     },
     {
       "id": "ml_pipeline",
@@ -44173,7 +44482,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:mlflow"
+      "icon": "si:mlflow",
+      "vendor": "MLflow"
     },
     {
       "id": "mlflow_model_inference",
@@ -44220,7 +44530,8 @@
         "llm",
         "genai"
       ],
-      "icon": "si:mlflow"
+      "icon": "si:mlflow",
+      "vendor": "MLflow"
     },
     {
       "id": "mlflow_model_promotion",
@@ -44263,7 +44574,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "si:mlflow"
+      "icon": "si:mlflow",
+      "vendor": "MLflow"
     },
     {
       "id": "mlflow_model_sensor",
@@ -44313,7 +44625,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "MLflow"
     },
     {
       "id": "mlflow_model_version_check",
@@ -44360,7 +44673,8 @@
         "quality gate"
       ],
       "featured": true,
-      "icon": "si:mlflow"
+      "icon": "si:mlflow",
+      "vendor": "MLflow"
     },
     {
       "id": "mlflow_resource",
@@ -44411,7 +44725,8 @@
         "ml flow",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "MLflow"
     },
     {
       "id": "mlflow_workspace",
@@ -44473,7 +44788,8 @@
         "source_field": "mlflow_api.experiments[]+.registered_models[]",
         "key_template": "{mlflow_entity.name}"
       },
-      "featured": true
+      "featured": true,
+      "vendor": "MLflow"
     },
     {
       "id": "modal_asset",
@@ -44518,7 +44834,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "vendor": "Modal"
     },
     {
       "id": "modal_pipes_asset",
@@ -44576,7 +44893,8 @@
         "ml training",
         "external compute",
         "dagster pipes"
-      ]
+      ],
+      "vendor": "Modal"
     },
     {
       "id": "model_coefficients",
@@ -44883,7 +45201,8 @@
         "items_page",
         "project management ingestion"
       ],
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "monday.com"
     },
     {
       "id": "monday_ingestion",
@@ -44923,7 +45242,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "monday.com"
     },
     {
       "id": "monday_resource",
@@ -44986,7 +45306,8 @@
         "project management api",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "monday.com"
     },
     {
       "id": "mongodb_ingestion",
@@ -45044,7 +45365,8 @@
         "el",
         "read from"
       ],
-      "vertical": "database"
+      "vertical": "database",
+      "vendor": "MongoDB"
     },
     {
       "id": "mongodb_io_manager",
@@ -45100,7 +45422,8 @@
         "persistence",
         "io"
       ],
-      "icon": "si:mongodb"
+      "icon": "si:mongodb",
+      "vendor": "MongoDB"
     },
     {
       "id": "mongodb_reader",
@@ -45158,7 +45481,8 @@
         "atlas",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "MongoDB"
     },
     {
       "id": "mongodb_resource",
@@ -45212,7 +45536,8 @@
         "atlas",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "MongoDB"
     },
     {
       "id": "mongodb_writer",
@@ -45270,7 +45595,8 @@
         "atlas",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "MongoDB"
     },
     {
       "id": "monte_carlo_check",
@@ -45459,7 +45785,8 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "MQTT"
     },
     {
       "id": "mqtt_observation_sensor",
@@ -45507,7 +45834,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "vendor": "MQTT"
     },
     {
       "id": "mqtt_to_database_asset",
@@ -45564,7 +45892,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "streaming"
+      "vertical": "streaming",
+      "vendor": "MQTT"
     },
     {
       "id": "mssql_io_manager",
@@ -45735,7 +46064,8 @@
         "msteams-message-send",
         "notification",
         "sink"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "msteams_resource",
@@ -45783,7 +46113,8 @@
         "connection",
         "connect"
       ],
-      "icon": "si:microsoftteams"
+      "icon": "si:microsoftteams",
+      "vendor": "Microsoft"
     },
     {
       "id": "multi_approver_gate",
@@ -46134,7 +46465,8 @@
         "persistence",
         "io"
       ],
-      "icon": "si:mysql"
+      "icon": "si:mysql",
+      "vendor": "MySQL"
     },
     {
       "id": "mysql_resource",
@@ -46187,7 +46519,8 @@
         "aurora mysql",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "MySQL"
     },
     {
       "id": "naive_bayes_model",
@@ -46549,7 +46882,8 @@
         "graphdb",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Neo4j"
     },
     {
       "id": "neo4j_resource",
@@ -46602,7 +46936,8 @@
         "graphdb",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Neo4j"
     },
     {
       "id": "neo4j_writer",
@@ -46659,7 +46994,8 @@
         "write to",
         "output"
       ],
-      "icon": "si:neo4j"
+      "icon": "si:neo4j",
+      "vendor": "Neo4j"
     },
     {
       "id": "nested_field_extractor",
@@ -46748,7 +47084,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Netlify"
     },
     {
       "id": "netsuite_ingestion",
@@ -46790,7 +47127,8 @@
           "tabulate>=0.9.0",
           "requests-oauthlib>=1.3.0"
         ]
-      }
+      },
+      "vendor": "NetSuite"
     },
     {
       "id": "netsuite_record_upsert",
@@ -46862,7 +47200,8 @@
         "sink",
         "write to netsuite"
       ],
-      "vertical": "erp-finance"
+      "vertical": "erp-finance",
+      "vendor": "NetSuite"
     },
     {
       "id": "netsuite_resource",
@@ -46931,7 +47270,8 @@
         "connection",
         "connect"
       ],
-      "vertical": "erp-finance"
+      "vertical": "erp-finance",
+      "vendor": "NetSuite"
     },
     {
       "id": "neural_network_model",
@@ -47041,7 +47381,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "vendor": "New Relic"
     },
     {
       "id": "newrelic_resource",
@@ -47087,7 +47428,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "New Relic"
     },
     {
       "id": "notion_brief_page",
@@ -47120,7 +47462,8 @@
         "requires_pip": [
           "notion-client"
         ]
-      }
+      },
+      "vendor": "Notion"
     },
     {
       "id": "notion_database_sensor",
@@ -47165,7 +47508,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:notion"
+      "icon": "si:notion",
+      "vendor": "Notion"
     },
     {
       "id": "notion_database_upsert",
@@ -47199,7 +47543,8 @@
           "notion-client",
           "pandas"
         ]
-      }
+      },
+      "vendor": "Notion"
     },
     {
       "id": "notion_documents",
@@ -47242,7 +47587,8 @@
           "dagster",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Notion"
     },
     {
       "id": "notion_ingestion",
@@ -47292,7 +47638,8 @@
         "el",
         "read from"
       ],
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Notion"
     },
     {
       "id": "notion_mcp_documents",
@@ -47335,7 +47682,8 @@
           "mcp",
           "anyio"
         ]
-      }
+      },
+      "vendor": "Notion"
     },
     {
       "id": "notion_mcp_server",
@@ -47384,7 +47732,8 @@
         "mcp server",
         "notion",
         "chat agent tools"
-      ]
+      ],
+      "vendor": "Notion"
     },
     {
       "id": "notion_page_sync",
@@ -47418,7 +47767,8 @@
           "notion-client",
           "pandas"
         ]
-      }
+      },
+      "vendor": "Notion"
     },
     {
       "id": "notion_resource",
@@ -47466,7 +47816,8 @@
         "notion api",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Notion"
     },
     {
       "id": "o365_audit_log_ingestion",
@@ -47971,7 +48322,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Okta"
     },
     {
       "id": "okta_resource",
@@ -48031,7 +48383,8 @@
         "okta resource",
         "resource",
         "sso"
-      ]
+      ],
+      "vendor": "Okta"
     },
     {
       "id": "okta_system_log_ingestion",
@@ -48077,7 +48430,8 @@
         "read from"
       ],
       "icon": "si:okta",
-      "vertical": "security"
+      "vertical": "security",
+      "vendor": "Okta"
     },
     {
       "id": "okta_user_upsert",
@@ -48145,7 +48499,8 @@
         "sink",
         "sso",
         "upsert"
-      ]
+      ],
+      "vendor": "Okta"
     },
     {
       "id": "ollama_inference_asset",
@@ -48191,7 +48546,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Ollama"
     },
     {
       "id": "omni_ingestion",
@@ -48320,7 +48676,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "onesignal_push_send",
@@ -48387,7 +48744,8 @@
         "sink",
         "send push notification"
       ],
-      "vertical": "messaging-activation"
+      "vertical": "messaging-activation",
+      "vendor": "OneSignal"
     },
     {
       "id": "onesignal_resource",
@@ -48441,7 +48799,8 @@
         "messaging",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "OneSignal"
     },
     {
       "id": "opcon_integration",
@@ -48560,7 +48919,8 @@
         "mcp_servers=<set>": [
           "mcp>=1.30,<3"
         ]
-      }
+      },
+      "vendor": "OpenAI"
     },
     {
       "id": "openai_llm",
@@ -48613,7 +48973,8 @@
       ],
       "builders": [
         "agents_pipelines"
-      ]
+      ],
+      "vendor": "OpenAI"
     },
     {
       "id": "openai_llm_batch",
@@ -48661,7 +49022,8 @@
         "o3",
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "OpenAI"
     },
     {
       "id": "openai_resource",
@@ -48715,7 +49077,8 @@
         "o3",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "OpenAI"
     },
     {
       "id": "openapi_ingestion",
@@ -48877,7 +49240,8 @@
         "data quality",
         "assertion"
       ],
-      "icon": "ShieldCheck"
+      "icon": "ShieldCheck",
+      "vendor": "OpenLineage"
     },
     {
       "id": "openlineage_export_job",
@@ -48918,7 +49282,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "Play"
+      "icon": "Play",
+      "vendor": "OpenLineage"
     },
     {
       "id": "openmetadata_export_job",
@@ -49074,7 +49439,8 @@
         "sink",
         "write to opensearch"
       ],
-      "vertical": "search-activation"
+      "vertical": "search-activation",
+      "vendor": "OpenSearch"
     },
     {
       "id": "opensearch_resource",
@@ -49137,7 +49503,8 @@
         "bulk api",
         "reverse etl"
       ],
-      "vertical": "search-activation"
+      "vertical": "search-activation",
+      "vendor": "OpenSearch"
     },
     {
       "id": "opsgenie_ingestion",
@@ -49177,7 +49544,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Opsgenie"
     },
     {
       "id": "optimization",
@@ -49312,7 +49680,8 @@
         "connection",
         "connect"
       ],
-      "icon": "si:oracle"
+      "icon": "si:oracle",
+      "vendor": "Oracle"
     },
     {
       "id": "orb_ingestion",
@@ -49471,7 +49840,8 @@
         "read from",
         "contacts"
       ],
-      "vertical": "sales-engagement"
+      "vertical": "sales-engagement",
+      "vendor": "Outreach"
     },
     {
       "id": "outreach_resource",
@@ -49535,7 +49905,8 @@
         "oauth2",
         "prospects"
       ],
-      "vertical": "sales-engagement"
+      "vertical": "sales-engagement",
+      "vendor": "Outreach"
     },
     {
       "id": "oversample_field",
@@ -49667,7 +50038,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "PagerDuty"
     },
     {
       "id": "pagerduty_heartbeat_job",
@@ -49706,7 +50078,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:pagerduty"
+      "icon": "si:pagerduty",
+      "vendor": "PagerDuty"
     },
     {
       "id": "pagerduty_incident_sensor",
@@ -49750,7 +50123,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:pagerduty"
+      "icon": "si:pagerduty",
+      "vendor": "PagerDuty"
     },
     {
       "id": "pagerduty_incident_upsert",
@@ -49785,7 +50159,8 @@
           "requests",
           "pandas"
         ]
-      }
+      },
+      "vendor": "PagerDuty"
     },
     {
       "id": "pagerduty_resource",
@@ -49831,7 +50206,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "PagerDuty"
     },
     {
       "id": "pandadoc_document_create",
@@ -49897,7 +50273,8 @@
         "pandadoc document create",
         "reverse-etl",
         "sink"
-      ]
+      ],
+      "vendor": "PandaDoc"
     },
     {
       "id": "pandadoc_ingestion",
@@ -49937,7 +50314,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "PandaDoc"
     },
     {
       "id": "pandadoc_resource",
@@ -49994,7 +50372,8 @@
         "pandadoc",
         "pandadoc resource",
         "resource"
-      ]
+      ],
+      "vendor": "PandaDoc"
     },
     {
       "id": "pandas_dataframe_check",
@@ -50579,7 +50958,8 @@
         "hr",
         "payscale",
         "payscale compensation enrichment"
-      ]
+      ],
+      "vendor": "PayScale"
     },
     {
       "id": "payscale_resource",
@@ -50639,7 +51019,8 @@
         "payscale",
         "payscale resource",
         "resource"
-      ]
+      ],
+      "vendor": "PayScale"
     },
     {
       "id": "pca",
@@ -51103,7 +51484,8 @@
         "rag",
         "sonar",
         "web-search"
-      ]
+      ],
+      "vendor": "Perplexity"
     },
     {
       "id": "persona_ingestion",
@@ -51193,7 +51575,8 @@
         "el",
         "read from"
       ],
-      "vertical": "finance-hr"
+      "vertical": "finance-hr",
+      "vendor": "Personio"
     },
     {
       "id": "personio_resource",
@@ -51240,7 +51623,8 @@
         "personio hris",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Personio"
     },
     {
       "id": "pgvector_asset",
@@ -51567,7 +51951,8 @@
         "vector db pinecone",
         "report",
         "aggregate"
-      ]
+      ],
+      "vendor": "Pinecone"
     },
     {
       "id": "pinecone_reader",
@@ -51624,7 +52009,8 @@
         "vector db pinecone",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Pinecone"
     },
     {
       "id": "pinot_resource",
@@ -51777,7 +52163,8 @@
         "el",
         "read from"
       ],
-      "vertical": "social"
+      "vertical": "social",
+      "vendor": "Pinterest"
     },
     {
       "id": "pinterest_ads_resource",
@@ -51832,7 +52219,8 @@
         "pinterest",
         "pinterest ads resource",
         "resource"
-      ]
+      ],
+      "vendor": "Pinterest"
     },
     {
       "id": "pinterest_audience_upsert",
@@ -51898,7 +52286,8 @@
         "pinterest audience upsert",
         "reverse-etl",
         "sink"
-      ]
+      ],
+      "vendor": "Pinterest"
     },
     {
       "id": "pipedrive_ingestion",
@@ -51947,7 +52336,8 @@
         "el",
         "read from"
       ],
-      "vertical": "crm-sales"
+      "vertical": "crm-sales",
+      "vendor": "Pipedrive"
     },
     {
       "id": "pipedrive_person_upsert",
@@ -51983,7 +52373,8 @@
           "pandas>=2.0.0",
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "Pipedrive"
     },
     {
       "id": "pipedrive_resource",
@@ -52029,7 +52420,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Pipedrive"
     },
     {
       "id": "pipes_python_asset",
@@ -52646,7 +53038,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:postgresql"
+      "icon": "si:postgresql",
+      "vendor": "PostgreSQL"
     },
     {
       "id": "postgres_io_manager",
@@ -52708,7 +53101,8 @@
         "storage",
         "persistence",
         "io"
-      ]
+      ],
+      "vendor": "PostgreSQL"
     },
     {
       "id": "postgres_resource",
@@ -52761,7 +53155,8 @@
         "postgre",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "PostgreSQL"
     },
     {
       "name": "posthog_events_ingestion",
@@ -52813,7 +53208,8 @@
         "el",
         "read from"
       ],
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "PostHog"
     },
     {
       "id": "postman_ingestion",
@@ -53185,7 +53581,8 @@
       "keywords": [
         "infra"
       ],
-      "icon": "si:prefect"
+      "icon": "si:prefect",
+      "vendor": "Prefect"
     },
     {
       "id": "prefect_flow_run",
@@ -53224,7 +53621,8 @@
       "keywords": [
         "infra"
       ],
-      "icon": "si:prefect"
+      "icon": "si:prefect",
+      "vendor": "Prefect"
     },
     {
       "id": "prefect_flow_run_sensor",
@@ -53264,7 +53662,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:prefect"
+      "icon": "si:prefect",
+      "vendor": "Prefect"
     },
     {
       "id": "prefect_resource",
@@ -53303,7 +53702,8 @@
         "connection",
         "connect"
       ],
-      "icon": "si:prefect"
+      "icon": "si:prefect",
+      "vendor": "Prefect"
     },
     {
       "id": "prefect_workspace",
@@ -53364,7 +53764,8 @@
         "pattern": "One Dagster asset per Prefect deployment enumerated via read_deployments().",
         "source_field": "prefect_api.deployments[]",
         "key_template": "{flow_name}_{deployment_name}"
-      }
+      },
+      "vendor": "Prefect"
     },
     {
       "id": "priority_scorer",
@@ -53692,7 +54093,8 @@
         "connection",
         "connect"
       ],
-      "icon": "si:prometheus"
+      "icon": "si:prometheus",
+      "vendor": "Prometheus"
     },
     {
       "id": "propensity_scoring",
@@ -54082,7 +54484,8 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "Apache Pulsar"
     },
     {
       "id": "pulsar_observation_sensor",
@@ -54129,7 +54532,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "vendor": "Apache Pulsar"
     },
     {
       "id": "pulsar_to_database_asset",
@@ -54185,7 +54589,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "streaming"
+      "vertical": "streaming",
+      "vendor": "Apache Pulsar"
     },
     {
       "id": "pulsar_topic_stats_query",
@@ -54239,7 +54644,8 @@
         "monitoring",
         "observability",
         "source"
-      ]
+      ],
+      "vendor": "Apache Pulsar"
     },
     {
       "id": "pulumi_asset",
@@ -54359,7 +54765,8 @@
           "requests>=2.28"
         ]
       },
-      "icon": "si:microsoftazure"
+      "icon": "si:microsoftazure",
+      "vendor": "Microsoft"
     },
     {
       "id": "pyspark_feed_orchestrator",
@@ -54426,7 +54833,8 @@
         "pattern": "Multi-asset per feed file. Each feed at the folder path becomes ONE @multi_asset via PySparkPipelineComponent — asset keys are the sinks defined in each feed's config.",
         "source_field": "<folder>/*.{json,yaml}::sinks[].asset_name",
         "key_template": "{feed.sinks[i].asset_name}"
-      }
+      },
+      "vendor": "Apache Spark"
     },
     {
       "id": "pyspark_pipeline",
@@ -54472,7 +54880,8 @@
         "reshape"
       ],
       "featured": true,
-      "icon": "si:apachespark"
+      "icon": "si:apachespark",
+      "vendor": "Apache Spark"
     },
     {
       "id": "pyspark_resource",
@@ -54520,7 +54929,8 @@
         "pyspark",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Apache Spark"
     },
     {
       "id": "python_callable_asset",
@@ -54689,7 +55099,8 @@
         "qdrant vector",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Qdrant"
     },
     {
       "id": "qlik_cloud_app_reload",
@@ -54741,7 +55152,8 @@
         "bi",
         "reload",
         "dashboard refresh"
-      ]
+      ],
+      "vendor": "Qlik"
     },
     {
       "id": "qlik_cloud_workspace",
@@ -54800,7 +55212,8 @@
         "dashboard refresh",
         "workspace",
         "multi app"
-      ]
+      ],
+      "vendor": "Qlik"
     },
     {
       "id": "qlik_compose_resource",
@@ -54849,7 +55262,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Qlik"
     },
     {
       "id": "qlik_compose_workflow_metrics_ingestion",
@@ -54908,7 +55322,8 @@
         "el",
         "read from"
       ],
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Qlik"
     },
     {
       "id": "qlik_compose_workflow_status_sensor",
@@ -54958,7 +55373,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "Qlik"
     },
     {
       "id": "qlik_compose_workflow_trigger_job",
@@ -55533,7 +55949,8 @@
         "sink",
         "write to quickbooks"
       ],
-      "vertical": "erp-finance"
+      "vertical": "erp-finance",
+      "vendor": "QuickBooks"
     },
     {
       "id": "quickbooks_ingestion",
@@ -55573,7 +55990,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "QuickBooks"
     },
     {
       "id": "quickbooks_resource",
@@ -55640,7 +56058,8 @@
         "connection",
         "connect"
       ],
-      "vertical": "erp-finance"
+      "vertical": "erp-finance",
+      "vendor": "QuickBooks"
     },
     {
       "id": "r_script",
@@ -55725,7 +56144,8 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "RabbitMQ"
     },
     {
       "id": "rabbitmq_observation_sensor",
@@ -55773,7 +56193,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "vendor": "RabbitMQ"
     },
     {
       "id": "rabbitmq_to_database_asset",
@@ -55830,7 +56251,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "streaming"
+      "vertical": "streaming",
+      "vendor": "RabbitMQ"
     },
     {
       "id": "rag_eval",
@@ -56022,7 +56444,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Ramp"
     },
     {
       "id": "ramp_reimbursement_card_write",
@@ -56103,7 +56526,8 @@
         "write to ramp",
         "activation"
       ],
-      "vertical": "finance"
+      "vertical": "finance",
+      "vendor": "Ramp"
     },
     {
       "id": "ramp_resource",
@@ -56168,7 +56592,8 @@
         "vault api",
         "resource"
       ],
-      "vertical": "finance"
+      "vertical": "finance",
+      "vendor": "Ramp"
     },
     {
       "id": "random_forest_model",
@@ -56519,7 +56944,8 @@
         "reverse-etl",
         "sink",
         "upsert"
-      ]
+      ],
+      "vendor": "Recurly"
     },
     {
       "id": "recurly_ingestion",
@@ -56559,7 +56985,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Recurly"
     },
     {
       "id": "recurly_resource",
@@ -56616,7 +57043,8 @@
         "recurly resource",
         "resource",
         "subscriptions"
-      ]
+      ],
+      "vendor": "Recurly"
     },
     {
       "id": "redis_reader",
@@ -56674,7 +57102,8 @@
         "valkey",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Redis"
     },
     {
       "id": "redis_resource",
@@ -56728,7 +57157,8 @@
         "valkey",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Redis"
     },
     {
       "id": "redis_stream_observation_sensor",
@@ -56782,7 +57212,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "vendor": "Redis"
     },
     {
       "id": "redis_streams_monitor",
@@ -56836,7 +57267,8 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "Redis"
     },
     {
       "id": "redis_streams_to_database_asset",
@@ -56899,7 +57331,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "streaming"
+      "vertical": "streaming",
+      "vendor": "Redis"
     },
     {
       "id": "redis_writer",
@@ -56958,7 +57391,8 @@
         "valkey",
         "write to",
         "output"
-      ]
+      ],
+      "vendor": "Redis"
     },
     {
       "id": "redshift_io_manager",
@@ -57645,7 +58079,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "Rivery"
     },
     {
       "id": "rivery_run_asset",
@@ -57687,7 +58122,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "vendor": "Rivery"
     },
     {
       "id": "router",
@@ -58394,7 +58830,8 @@
         "copy",
         "migration"
       ],
-      "icon": "si:amazons3"
+      "icon": "si:amazons3",
+      "vendor": "AWS"
     },
     {
       "id": "s3_create_object_asset",
@@ -58437,7 +58874,8 @@
         "put_object",
         "s3createobjectoperator"
       ],
-      "icon": "si:amazons3"
+      "icon": "si:amazons3",
+      "vendor": "AWS"
     },
     {
       "id": "s3_csv_io_manager",
@@ -58539,7 +58977,8 @@
         "delete",
         "migration"
       ],
-      "icon": "si:amazons3"
+      "icon": "si:amazons3",
+      "vendor": "AWS"
     },
     {
       "id": "s3_list_keys_asset",
@@ -58587,7 +59026,8 @@
         "list",
         "migration"
       ],
-      "icon": "si:amazons3"
+      "icon": "si:amazons3",
+      "vendor": "AWS"
     },
     {
       "id": "s3_monitor",
@@ -58854,7 +59294,8 @@
         "upload",
         "migration"
       ],
-      "icon": "si:amazons3"
+      "icon": "si:amazons3",
+      "vendor": "AWS"
     },
     {
       "id": "sage_intacct_ar_invoices_ingestion",
@@ -58924,7 +59365,8 @@
         "readbyquery",
         "finance ingestion"
       ],
-      "vertical": "finance-ops"
+      "vertical": "finance-ops",
+      "vendor": "Sage Intacct"
     },
     {
       "id": "sage_intacct_resource",
@@ -58991,7 +59433,8 @@
         "accounting api",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Sage Intacct"
     },
     {
       "id": "salesforce_event_log_ingestion",
@@ -59044,7 +59487,8 @@
         "read from"
       ],
       "icon": "si:salesforce",
-      "vertical": "security"
+      "vertical": "security",
+      "vendor": "Salesforce"
     },
     {
       "id": "salesforce_ingestion",
@@ -59100,7 +59544,8 @@
         "el",
         "read from"
       ],
-      "vertical": "crm-sales"
+      "vertical": "crm-sales",
+      "vendor": "Salesforce"
     },
     {
       "id": "salesforce_record_sensor",
@@ -59149,7 +59594,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:salesforce"
+      "icon": "si:salesforce",
+      "vendor": "Salesforce"
     },
     {
       "id": "salesforce_record_upsert",
@@ -59221,7 +59667,8 @@
         "sink",
         "write to salesforce"
       ],
-      "vertical": "crm-sales"
+      "vertical": "crm-sales",
+      "vendor": "Salesforce"
     },
     {
       "id": "salesforce_resource",
@@ -59285,7 +59732,8 @@
         "connection",
         "external id upsert",
         "composite api"
-      ]
+      ],
+      "vendor": "Salesforce"
     },
     {
       "id": "salesloft_people_ingestion",
@@ -59353,7 +59801,8 @@
         "read from",
         "contacts"
       ],
-      "vertical": "sales-engagement"
+      "vertical": "sales-engagement",
+      "vendor": "Salesloft"
     },
     {
       "id": "salesloft_resource",
@@ -59415,7 +59864,8 @@
         "api key",
         "people"
       ],
-      "vertical": "sales-engagement"
+      "vertical": "sales-engagement",
+      "vendor": "Salesloft"
     },
     {
       "id": "sample",
@@ -59511,7 +59961,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "vendor": "SAP"
     },
     {
       "id": "sap_event_mesh_sensor",
@@ -59558,7 +60009,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "SAP"
     },
     {
       "id": "sap_hana_ingestion",
@@ -59616,7 +60068,8 @@
         "el",
         "read from"
       ],
-      "vertical": "database"
+      "vertical": "database",
+      "vendor": "SAP"
     },
     {
       "id": "sap_hana_resource",
@@ -59666,7 +60119,8 @@
         "sap hana",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "SAP"
     },
     {
       "id": "sap_job_trigger_asset",
@@ -59715,7 +60169,8 @@
         "trigger",
         "run",
         "poll"
-      ]
+      ],
+      "vendor": "SAP"
     },
     {
       "id": "sap_rfc_ingestion",
@@ -59773,7 +60228,8 @@
         "el",
         "read from"
       ],
-      "vertical": "finance-hr"
+      "vertical": "finance-hr",
+      "vendor": "SAP"
     },
     {
       "id": "sap_rfc_resource",
@@ -59820,7 +60276,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "SAP"
     },
     {
       "id": "scale_ai_ingestion",
@@ -59994,7 +60451,8 @@
         "announce",
         "weekly review",
         "thread"
-      ]
+      ],
+      "vendor": "Slack"
     },
     {
       "id": "schema_fit",
@@ -60226,7 +60684,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Segment"
     },
     {
       "id": "segment_resource",
@@ -60278,7 +60737,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-09-11"
-      }
+      },
+      "vendor": "Segment"
     },
     {
       "id": "segment_track",
@@ -60345,7 +60805,8 @@
         "source_field": "asset_name",
         "key_template": "{asset_name}"
       },
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "Segment"
     },
     {
       "id": "select_columns",
@@ -60551,7 +61012,8 @@
         "source_field": "asset_name",
         "key_template": "{asset_name}"
       },
-      "vertical": "marketing"
+      "vertical": "marketing",
+      "vendor": "SendGrid"
     },
     {
       "id": "sendgrid_resource",
@@ -60602,7 +61064,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-09-10"
-      }
+      },
+      "vendor": "SendGrid"
     },
     {
       "id": "sensitive_asset",
@@ -60745,7 +61208,8 @@
         "error tracking",
         "job",
         "materialize batch"
-      ]
+      ],
+      "vendor": "Sentry"
     },
     {
       "name": "sentry_issues_ingestion",
@@ -60798,7 +61262,8 @@
         "el",
         "read from"
       ],
-      "vertical": "devops-observability"
+      "vertical": "devops-observability",
+      "vendor": "Sentry"
     },
     {
       "id": "sentry_monitor_checkin_job",
@@ -60854,7 +61319,8 @@
         "arrival sensor",
         "job",
         "materialize batch"
-      ]
+      ],
+      "vendor": "Sentry"
     },
     {
       "id": "servicebus_monitor",
@@ -60906,7 +61372,8 @@
         "arrival sensor",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "servicebus_observation_sensor",
@@ -60957,7 +61424,8 @@
         "event listener",
         "observability",
         "watch"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "servicebus_to_database_asset",
@@ -61016,7 +61484,8 @@
         "read from",
         "upsert"
       ],
-      "vertical": "streaming"
+      "vertical": "streaming",
+      "vendor": "Microsoft"
     },
     {
       "id": "servicenow_ingestion",
@@ -61077,7 +61546,8 @@
         "el",
         "read from"
       ],
-      "vertical": "devops-observability"
+      "vertical": "devops-observability",
+      "vendor": "ServiceNow"
     },
     {
       "id": "servicenow_record_upsert",
@@ -61146,7 +61616,8 @@
         "sink",
         "write to servicenow"
       ],
-      "vertical": "devops-observability"
+      "vertical": "devops-observability",
+      "vendor": "ServiceNow"
     },
     {
       "id": "servicenow_resource",
@@ -61189,7 +61660,8 @@
         "snow",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "ServiceNow"
     },
     {
       "id": "servicenow_sensor",
@@ -61236,7 +61708,8 @@
         "trigger",
         "event listener",
         "watcher"
-      ]
+      ],
+      "vendor": "ServiceNow"
     },
     {
       "id": "sftp_monitor",
@@ -61535,7 +62008,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "sharepoint_monitor",
@@ -61626,7 +62100,8 @@
         "document library",
         "shared credentials"
       ],
-      "icon": "si:sharepoint"
+      "icon": "si:sharepoint",
+      "vendor": "Microsoft"
     },
     {
       "id": "shell_command_asset",
@@ -61800,7 +62275,8 @@
         "el",
         "read from"
       ],
-      "vertical": "crm-sales"
+      "vertical": "crm-sales",
+      "vendor": "Shopify"
     },
     {
       "id": "shopify_product_upsert",
@@ -61869,7 +62345,8 @@
         "sink",
         "write to shopify"
       ],
-      "vertical": "crm-sales"
+      "vertical": "crm-sales",
+      "vendor": "Shopify"
     },
     {
       "id": "shopify_resource",
@@ -61924,7 +62401,8 @@
         "custom app",
         "reverse etl",
         "connection"
-      ]
+      ],
+      "vendor": "Shopify"
     },
     {
       "id": "siem_audit_export_job",
@@ -62120,7 +62598,8 @@
         "sigma input table upsert",
         "sink",
         "webhook"
-      ]
+      ],
+      "vendor": "Sigma"
     },
     {
       "id": "sigma_resource",
@@ -62178,7 +62657,8 @@
         "resource",
         "sigma",
         "sigma resource"
-      ]
+      ],
+      "vendor": "Sigma"
     },
     {
       "id": "sigma_workbook_ingestion",
@@ -62237,7 +62717,8 @@
         "sigma",
         "sigma workbook ingestion",
         "workbooks"
-      ]
+      ],
+      "vendor": "Sigma"
     },
     {
       "id": "simulation_sampling",
@@ -62475,7 +62956,8 @@
         "chat_agent",
         "automation",
         "mention"
-      ]
+      ],
+      "vendor": "Slack"
     },
     {
       "id": "slack_approval_gate",
@@ -62534,7 +63016,8 @@
         "human in the loop",
         "hitl"
       ],
-      "icon": "si:slack"
+      "icon": "si:slack",
+      "vendor": "Slack"
     },
     {
       "id": "slack_audit_log_ingestion",
@@ -62585,7 +63068,8 @@
         "read from"
       ],
       "icon": "si:slack",
-      "vertical": "security"
+      "vertical": "security",
+      "vendor": "Slack"
     },
     {
       "id": "slack_chat_tools",
@@ -62640,7 +63124,8 @@
         "mcp",
         "chat_agent",
         "thread"
-      ]
+      ],
+      "vendor": "Slack"
     },
     {
       "id": "slack_ingestion",
@@ -62693,7 +63178,8 @@
         "el",
         "read from"
       ],
-      "vertical": "productivity"
+      "vertical": "productivity",
+      "vendor": "Slack"
     },
     {
       "id": "slack_message_send",
@@ -62751,7 +63237,8 @@
         "slack",
         "slack message send",
         "slack-message-send"
-      ]
+      ],
+      "vendor": "Slack"
     },
     {
       "id": "slack_notification",
@@ -62799,7 +63286,8 @@
         "slack channel",
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "Slack"
     },
     {
       "id": "slack_notification_job",
@@ -62843,7 +63331,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:slack"
+      "icon": "si:slack",
+      "vendor": "Slack"
     },
     {
       "id": "slack_pr_approval_watcher",
@@ -62895,7 +63384,8 @@
         "merge",
         "human in the loop"
       ],
-      "icon": "si:slack"
+      "icon": "si:slack",
+      "vendor": "Slack"
     },
     {
       "id": "slack_reply",
@@ -62951,7 +63441,8 @@
         "chat_agent",
         "reply",
         "notification"
-      ]
+      ],
+      "vendor": "Slack"
     },
     {
       "id": "slack_resource",
@@ -63001,7 +63492,8 @@
         "slack channel",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Slack"
     },
     {
       "id": "slack_run_request_sensor",
@@ -63054,7 +63546,8 @@
         "run_request",
         "automation",
         "authorization"
-      ]
+      ],
+      "vendor": "Slack"
     },
     {
       "id": "sling_replication_asset",
@@ -63207,7 +63700,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Smartsheet"
     },
     {
       "id": "smartsheet_resource",
@@ -63260,7 +63754,8 @@
         "resource",
         "smartsheet",
         "smartsheet resource"
-      ]
+      ],
+      "vendor": "Smartsheet"
     },
     {
       "id": "smartsheet_row_upsert",
@@ -63321,7 +63816,8 @@
         "smartsheet",
         "smartsheet row upsert",
         "upsert"
-      ]
+      ],
+      "vendor": "Smartsheet"
     },
     {
       "id": "smooth",
@@ -63709,7 +64205,8 @@
         "genai",
         "tool use agent"
       ],
-      "featured": true
+      "featured": true,
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_cortex_asset",
@@ -65116,7 +65613,8 @@
         "apache spark",
         "pyspark",
         "infra"
-      ]
+      ],
+      "vendor": "Apache Spark"
     },
     {
       "id": "spark_livy_batch_asset",
@@ -65169,7 +65667,8 @@
         "yarn",
         "self-hosted",
         "batch"
-      ]
+      ],
+      "vendor": "Apache Spark"
     },
     {
       "id": "spatial_cluster",
@@ -66861,7 +67360,8 @@
           "requests",
           "pandas"
         ]
-      }
+      },
+      "vendor": "Stripe"
     },
     {
       "id": "stripe_event_sensor",
@@ -66909,7 +67409,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:stripe"
+      "icon": "si:stripe",
+      "vendor": "Stripe"
     },
     {
       "id": "stripe_ingestion",
@@ -66962,7 +67463,8 @@
         "el",
         "read from"
       ],
-      "vertical": "finance-hr"
+      "vertical": "finance-hr",
+      "vendor": "Stripe"
     },
     {
       "id": "stripe_resource",
@@ -67013,7 +67515,8 @@
         "stripe payments",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Stripe"
     },
     {
       "id": "structured_document_extractor",
@@ -68144,7 +68647,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "si:tableau"
+      "icon": "si:tableau",
+      "vendor": "Tableau"
     },
     {
       "id": "talend_cloud_workspace",
@@ -68486,7 +68990,8 @@
         "chat_agent",
         "automation",
         "mention"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "teams_approval_gate",
@@ -68539,7 +69044,8 @@
       "keywords": [
         "llm",
         "genai"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "teams_chat_tools",
@@ -68594,7 +69100,8 @@
         "mcp",
         "chat_agent",
         "thread"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "teams_notification_job",
@@ -68636,7 +69143,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:microsoftteams"
+      "icon": "si:microsoftteams",
+      "vendor": "Microsoft"
     },
     {
       "id": "teams_reply",
@@ -68692,7 +69200,8 @@
         "chat_agent",
         "reply",
         "notification"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "teams_run_request_sensor",
@@ -68745,7 +69254,8 @@
         "run_request",
         "automation",
         "authorization"
-      ]
+      ],
+      "vendor": "Microsoft"
     },
     {
       "id": "tecton_asset",
@@ -69001,7 +69511,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "vendor": "Terraform"
     },
     {
       "id": "terraform_cloud_asset",
@@ -69046,7 +69557,8 @@
       },
       "keywords": [
         "infra"
-      ]
+      ],
+      "vendor": "Terraform"
     },
     {
       "id": "test_of_means",
@@ -69647,7 +70159,8 @@
         "el",
         "read from"
       ],
-      "vertical": "social"
+      "vertical": "social",
+      "vendor": "TikTok"
     },
     {
       "id": "tiktok_ads_resource",
@@ -69695,7 +70208,8 @@
         "pip": [
           "requests>=2.28"
         ]
-      }
+      },
+      "vendor": "TikTok"
     },
     {
       "id": "tiktok_custom_audience_upsert",
@@ -69763,7 +70277,8 @@
         "sink",
         "write to tiktok"
       ],
-      "vertical": "marketing-ads"
+      "vertical": "marketing-ads",
+      "vendor": "TikTok"
     },
     {
       "id": "tile_binning",
@@ -70455,7 +70970,8 @@
         "successblocs",
         "health score"
       ],
-      "vertical": "customer-success"
+      "vertical": "customer-success",
+      "vendor": "Totango"
     },
     {
       "id": "totango_resource",
@@ -70520,7 +71036,8 @@
         "connection",
         "connect"
       ],
-      "vertical": "customer-success"
+      "vertical": "customer-success",
+      "vendor": "Totango"
     },
     {
       "id": "train_test_splitter",
@@ -70724,7 +71241,8 @@
         "trello",
         "trello card upsert",
         "upsert"
-      ]
+      ],
+      "vendor": "Trello"
     },
     {
       "id": "trello_ingestion",
@@ -70764,7 +71282,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Trello"
     },
     {
       "id": "trello_resource",
@@ -70810,7 +71329,8 @@
       },
       "keywords": [
         "trello resource"
-      ]
+      ],
+      "vendor": "Trello"
     },
     {
       "id": "trigger_job_asset",
@@ -70950,7 +71470,8 @@
       "keywords": [
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Trino"
     },
     {
       "id": "trino_resource",
@@ -71293,7 +71814,8 @@
       "keywords": [
         "trigger",
         "watcher"
-      ]
+      ],
+      "vendor": "Twilio"
     },
     {
       "id": "twilio_resource",
@@ -71339,7 +71861,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Twilio"
     },
     {
       "id": "twilio_sms_job",
@@ -71378,7 +71901,8 @@
         "job",
         "materialize batch"
       ],
-      "icon": "si:twilio"
+      "icon": "si:twilio",
+      "vendor": "Twilio"
     },
     {
       "id": "twilio_sms_send",
@@ -71446,7 +71970,8 @@
         "sink",
         "send sms"
       ],
-      "vertical": "messaging-activation"
+      "vertical": "messaging-activation",
+      "vendor": "Twilio"
     },
     {
       "id": "twitter_ads_ingestion",
@@ -71497,7 +72022,8 @@
         "el",
         "read from"
       ],
-      "vertical": "social"
+      "vertical": "social",
+      "vendor": "Twitter"
     },
     {
       "id": "twitter_ads_resource",
@@ -71558,7 +72084,8 @@
         "twitter ads resource",
         "twitter/x ads resource",
         "x"
-      ]
+      ],
+      "vendor": "Twitter"
     },
     {
       "id": "twitter_ads_tailored_audience_upsert",
@@ -71630,7 +72157,8 @@
         "twitter ads tailored audience upsert",
         "twitter/x ads tailored audience upsert",
         "x"
-      ]
+      ],
+      "vendor": "Twitter"
     },
     {
       "id": "type_coercer",
@@ -71791,7 +72319,8 @@
         "sink",
         "write to typesense"
       ],
-      "vertical": "search-activation"
+      "vertical": "search-activation",
+      "vendor": "Typesense"
     },
     {
       "id": "typesense_resource",
@@ -71852,7 +72381,8 @@
         "connect",
         "reverse etl"
       ],
-      "vertical": "search-activation"
+      "vertical": "search-activation",
+      "vendor": "Typesense"
     },
     {
       "id": "uipath_orchestrator_integration",
@@ -72510,7 +73040,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Vercel"
     },
     {
       "id": "vertex_ai_text_embeddings_asset",
@@ -73120,7 +73651,8 @@
         "nps",
         "accounts"
       ],
-      "vertical": "customer-success"
+      "vertical": "customer-success",
+      "vendor": "Vitally"
     },
     {
       "id": "vitally_resource",
@@ -73186,7 +73718,8 @@
         "connection",
         "connect"
       ],
-      "vertical": "customer-success"
+      "vertical": "customer-success",
+      "vendor": "Vitally"
     },
     {
       "id": "voyage_embedding_batch",
@@ -73336,7 +73869,8 @@
         "weights biases",
         "report",
         "aggregate"
-      ]
+      ],
+      "vendor": "Weights & Biases"
     },
     {
       "id": "wandb_reader",
@@ -73392,7 +73926,8 @@
         "weights biases",
         "read",
         "load"
-      ]
+      ],
+      "vendor": "Weights & Biases"
     },
     {
       "id": "wandb_resource",
@@ -73444,7 +73979,8 @@
         "weights biases",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Weights & Biases"
     },
     {
       "id": "wandb_workspace",
@@ -73504,7 +74040,8 @@
         "pattern": "One Dagster asset per W&B run/model/artifact target enumerated from the W&B API.",
         "source_field": "wandb_api.runs[]+.artifacts[]",
         "key_template": "{wandb_entity.name}"
-      }
+      },
+      "vendor": "Weights & Biases"
     },
     {
       "id": "warehouse_dedup",
@@ -74426,7 +74963,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "WooCommerce"
     },
     {
       "id": "woocommerce_product_upsert",
@@ -74494,7 +75032,8 @@
         "upsert",
         "woocommerce",
         "woocommerce product upsert"
-      ]
+      ],
+      "vendor": "WooCommerce"
     },
     {
       "id": "woocommerce_resource",
@@ -74550,7 +75089,8 @@
         "woocommerce",
         "woocommerce resource",
         "wordpress"
-      ]
+      ],
+      "vendor": "WooCommerce"
     },
     {
       "id": "word_cloud",
@@ -74661,7 +75201,8 @@
         "upsert",
         "workable",
         "workable candidate upsert"
-      ]
+      ],
+      "vendor": "Workable"
     },
     {
       "id": "workable_ingestion",
@@ -74710,7 +75251,8 @@
         "el",
         "read from"
       ],
-      "vertical": "finance-hr"
+      "vertical": "finance-hr",
+      "vendor": "Workable"
     },
     {
       "id": "workable_resource",
@@ -74765,7 +75307,8 @@
         "resource",
         "workable",
         "workable resource"
-      ]
+      ],
+      "vendor": "Workable"
     },
     {
       "id": "workday_ingestion",
@@ -74805,7 +75348,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Workday"
     },
     {
       "id": "workday_resource",
@@ -74848,7 +75392,8 @@
       "keywords": [
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Workday"
     },
     {
       "id": "workos_ingestion",
@@ -74928,7 +75473,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Wrike"
     },
     {
       "id": "wrike_resource",
@@ -74973,7 +75519,8 @@
       },
       "keywords": [
         "wrike resource"
-      ]
+      ],
+      "vendor": "Wrike"
     },
     {
       "id": "wrike_task_upsert",
@@ -75034,7 +75581,8 @@
         "upsert",
         "wrike",
         "wrike task upsert"
-      ]
+      ],
+      "vendor": "Wrike"
     },
     {
       "id": "x12_edi_parser",
@@ -75143,7 +75691,8 @@
         "upsert",
         "xero",
         "xero contact upsert"
-      ]
+      ],
+      "vendor": "Xero"
     },
     {
       "id": "xero_ingestion",
@@ -75183,7 +75732,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Xero"
     },
     {
       "id": "xero_resource",
@@ -75242,7 +75792,8 @@
         "resource",
         "xero",
         "xero resource"
-      ]
+      ],
+      "vendor": "Xero"
     },
     {
       "id": "xml_parser",
@@ -75339,7 +75890,8 @@
         "el",
         "read from"
       ],
-      "vertical": "support"
+      "vertical": "support",
+      "vendor": "Zendesk"
     },
     {
       "id": "zendesk_resource",
@@ -75389,7 +75941,8 @@
         "zendesk tickets",
         "connection",
         "connect"
-      ]
+      ],
+      "vendor": "Zendesk"
     },
     {
       "id": "zendesk_ticket_sensor",
@@ -75437,7 +75990,8 @@
         "event listener",
         "watcher"
       ],
-      "icon": "si:zendesk"
+      "icon": "si:zendesk",
+      "vendor": "Zendesk"
     },
     {
       "id": "zendesk_user_upsert",
@@ -75473,7 +76027,8 @@
           "pandas>=2.0.0",
           "zenpy>=2.0.0"
         ]
-      }
+      },
+      "vendor": "Zendesk"
     },
     {
       "id": "zero_shot_classifier",
@@ -75590,7 +76145,8 @@
         "scheduling",
         "zocdoc",
         "zocdoc appointments ingestion"
-      ]
+      ],
+      "vendor": "Zocdoc"
     },
     {
       "id": "zocdoc_availability_upsert",
@@ -75660,7 +76216,8 @@
         "upsert",
         "zocdoc",
         "zocdoc availability upsert"
-      ]
+      ],
+      "vendor": "Zocdoc"
     },
     {
       "id": "zocdoc_resource",
@@ -75722,7 +76279,8 @@
         "scheduling",
         "zocdoc",
         "zocdoc resource"
-      ]
+      ],
+      "vendor": "Zocdoc"
     },
     {
       "id": "zoho_crm_ingestion",
@@ -75762,7 +76320,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Zoho"
     },
     {
       "id": "zoho_crm_record_upsert",
@@ -75831,7 +76390,8 @@
         "upsert",
         "zoho",
         "zoho crm record upsert"
-      ]
+      ],
+      "vendor": "Zoho"
     },
     {
       "id": "zoho_crm_resource",
@@ -75892,7 +76452,8 @@
         "upsert",
         "zoho",
         "zoho crm resource"
-      ]
+      ],
+      "vendor": "Zoho"
     },
     {
       "id": "zoho_desk_ingestion",
@@ -75932,7 +76493,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Zoho"
     },
     {
       "id": "zoom_ingestion",
@@ -76085,7 +76647,8 @@
         "zoql",
         "zuora",
         "zuora account upsert"
-      ]
+      ],
+      "vendor": "Zuora"
     },
     {
       "id": "zuora_ingestion",
@@ -76125,7 +76688,8 @@
           "requests>=2.28.0",
           "tabulate>=0.9.0"
         ]
-      }
+      },
+      "vendor": "Zuora"
     },
     {
       "id": "zuora_resource",
@@ -76185,7 +76749,8 @@
         "subscriptions",
         "zuora",
         "zuora resource"
-      ]
+      ],
+      "vendor": "Zuora"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

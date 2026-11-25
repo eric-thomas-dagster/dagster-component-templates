@@ -128,6 +128,9 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | `security_token` | `str` | — | Salesforce security token (from Settings > Personal Setup > Reset My Security Token). Required unless resource_key is set. |
 | `sf_objects` | `List[str]` | `['Account', 'Opportunity', 'Contact', 'Lead']` | Salesforce objects to extract -- any standard object (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.) or custom object (append __c, e.g. MyObject__c). Fields are discovered per-object via Salesforce's d… _(full docs in schema.json + component README)_ |
 | `incremental_field` | `str` | — | Salesforce field name to load incrementally on (e.g. 'SystemModstamp', 'LastModifiedDate', or 'Id') -- the direct equivalent of a StreamSets Salesforce origin's stored-offset SOQL (`WHERE Id > '${OFFSET}' ORDER BY Id`)… _(full docs in schema.json + component README)_ |
+| `soql_query` | `str` | — | Raw, arbitrary SOQL query text containing a literal `${OFFSET}` placeholder token (e.g. "SELECT Id, Name, Amount FROM Opportunity WHERE Id > '${OFFSET}' ORDER BY Id") -- an ALTERNATIVE to sf_objects + where_clause + incr… _(full docs in schema.json + component README)_ |
+| `soql_object` | `str` | — | Required with soql_query: the single Salesforce object your query's FROM targets (standard or custom __c) -- needed to route the Bulk/standard-SOQL API call, since it isn't parsed out of soql_query's text. |
+| `initial_offset` | `str` | — | With soql_query: the ${OFFSET} value substituted on the very first run, before any stored high-water mark exists (e.g. '0000-01-01T00:00:00.000Z' for a date/datetime cursor, or '' for an Id/string cursor matched with a '… _(full docs in schema.json + component README)_ |
 | `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising… _(full docs in schema.json + component README)_ |
 | `hash_salt` | `str` | — | Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use "{{ env.VAR_NAME }}" for the inlin… _(full docs in schema.json + component README)_ |
 | `hash_salt_env_var` | `str` | — | Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time. |
@@ -210,6 +213,30 @@ Any additional filter the origin applied beyond the stored offset maps onto `whe
 (e.g. `where_clause: "Type = 'Customer'"`). Both fields apply identically to every object in
 `sf_objects` — for a different incremental field or filter per object, use one component
 instance per object (one `defs.yaml` per StreamSets origin stage is the usual mapping anyway).
+
+**If you'd rather migrate the origin's query text as-is** instead of re-deriving it into
+`sf_objects`/`where_clause`/`incremental_field` — e.g. the query is complex enough that the
+field-list composition above wouldn't reproduce it exactly — use `soql_query` instead, with
+the literal `${OFFSET}` placeholder kept verbatim:
+
+```yaml
+attributes:
+  asset_name: opportunities
+  username: "{{ env('SALESFORCE_USERNAME') }}"
+  password: "{{ env('SALESFORCE_PASSWORD') }}"
+  security_token: "{{ env('SALESFORCE_TOKEN') }}"
+  soql_query: "SELECT Id, Name, Amount FROM Opportunity WHERE Id > '${OFFSET}' ORDER BY Id"
+  soql_object: Opportunity   # the query's FROM target -- not parsed out of soql_query's text
+  incremental_field: Id      # which column of soql_query's own SELECT list to track as the new high-water mark
+  initial_offset: ""         # substituted for ${OFFSET} on the very first run, before any offset is stored
+```
+
+`${OFFSET}` is a **naive text substitution**, not type-aware quoted the way `where_clause`'s
+generated incremental predicate is — your query already carries whatever quote characters it
+needs around the placeholder (exactly as written above), the same way StreamSets' own origin
+does the substitution. `soql_query` is mutually exclusive with `where_clause` (your query
+already has its own complete `WHERE`), and requires `soql_object` + `incremental_field` to
+also be set.
 
 ## Notes
 

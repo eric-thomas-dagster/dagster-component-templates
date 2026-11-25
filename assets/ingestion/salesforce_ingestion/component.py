@@ -395,6 +395,33 @@ def _build_salesforce_resource(sf_client, sobject, resource_name, incremental_fi
         yield from _sf_query_records(sf_client, sobject, soql)
 
     return _resource
+
+
+def _build_salesforce_soql_resource(sf_client, soql_query, soql_object, resource_name, incremental_field, initial_offset):
+    """Alternative to `_build_salesforce_resource` for migrating a StreamSets Salesforce
+    origin's LITERAL query text as-is (e.g. `SELECT Id, Name, Amount FROM Opportunity WHERE
+    Id > '${OFFSET}' ORDER BY Id`) instead of composing a query from sf_objects/where_clause/
+    incremental_field. `${OFFSET}` is a NAIVE TEXT substitution -- not the type-aware quoting
+    `_quote_soql_value` applies to where_clause's incremental predicate -- because the
+    customer's own query text already contains whatever quote characters it needs around the
+    placeholder (exactly how StreamSets' own origin does the same literal substitution; adding
+    quotes here would double-quote a query that already has them).
+
+    incremental_field still uses dlt's own declarative incremental cursor (dlt.sources.
+    incremental) to track the new high-water mark -- it reads that field's value from each
+    yielded row, the same mechanism the composed-query path uses, just pointed at a column in
+    this raw query's SELECT list instead of one this function derived itself."""
+    from dlt.sources import incremental as dlt_incremental
+
+    @dlt.resource(name=resource_name, write_disposition="merge", primary_key="Id")
+    def _resource(
+        last_value: dlt_incremental[str] = dlt_incremental(incremental_field, initial_value=initial_offset),
+    ):
+        offset = last_value.last_value if last_value.last_value is not None else ""
+        soql = soql_query.replace("${OFFSET}", str(offset))
+        yield from _sf_query_records(sf_client, soql_object, soql)
+
+    return _resource
 # END inline Salesforce dlt source
 
 
@@ -514,6 +541,30 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
             "Applied identically to every object in sf_objects; for a different incremental "
             "field per object, use one component instance per object."
         ),
+    )
+
+    soql_query: Optional[str] = Field(
+        default=None,
+        description=(
+            "Raw, arbitrary SOQL query text containing a literal `${OFFSET}` placeholder token "
+            "(e.g. \"SELECT Id, Name, Amount FROM Opportunity WHERE Id > '${OFFSET}' ORDER BY "
+            "Id\") -- an ALTERNATIVE to sf_objects + where_clause + incremental_field, for "
+            "migrating a StreamSets Salesforce origin's query text as-is instead of "
+            "re-deriving it into this component's field-list/WHERE-fragment/incremental-field "
+            "decomposition. Mutually exclusive with where_clause (your query already has its "
+            "own complete WHERE). Requires soql_object and incremental_field also be set. "
+            "${OFFSET} is a NAIVE TEXT substitution, not type-aware quoted -- your query text "
+            "already carries whatever quote characters it needs around the placeholder, same "
+            "as StreamSets' own origin."
+        ),
+    )
+    soql_object: Optional[str] = Field(
+        default=None,
+        description="Required with soql_query: the single Salesforce object your query's FROM targets (standard or custom __c) -- needed to route the Bulk/standard-SOQL API call, since it isn't parsed out of soql_query's text.",
+    )
+    initial_offset: Optional[str] = Field(
+        default=None,
+        description="With soql_query: the ${OFFSET} value substituted on the very first run, before any stored high-water mark exists (e.g. '0000-01-01T00:00:00.000Z' for a date/datetime cursor, or '' for an Id/string cursor matched with a '>' comparison). Unset: substitutes an empty string.",
     )
 
     hash_columns: Optional[List[str]] = Field(
@@ -950,6 +1001,31 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
         component = self
+        soql_query = self.soql_query
+        soql_object = self.soql_object
+        initial_offset = self.initial_offset
+        if soql_query:
+            if self.where_clause:
+                raise ValueError(
+                    "SalesforceIngestionComponent: soql_query and where_clause are mutually "
+                    "exclusive -- a raw soql_query already contains its own complete WHERE."
+                )
+            if not soql_object:
+                raise ValueError("SalesforceIngestionComponent: soql_query requires soql_object.")
+            if not self.incremental_field:
+                raise ValueError("SalesforceIngestionComponent: soql_query requires incremental_field.")
+            if "${OFFSET}" not in soql_query:
+                raise ValueError(
+                    "SalesforceIngestionComponent: soql_query must contain a literal '${OFFSET}' "
+                    "placeholder token for the stored high-water mark to substitute into."
+                )
+            # soql_query acts as a single synthetic "object" so every downstream lookup
+            # (table_name_map, output asset-key suffix, with_resources subsetting, kind
+            # inference, description) keeps working unchanged -- only the two resource-building
+            # call sites below branch on soql_query to build via _build_salesforce_soql_resource
+            # instead of composing a query from sf_objects/where_clause/incremental_field.
+            sf_objects = [soql_object]
+
         # dlt's salesforce_source exposes resources by lowercased object name (e.g. "Account" ->
         # .account), and that lowercased name is also the default destination table name -- the
         # existing code already relies on this (`resource_keys = [o.lower() for o in sf_objects]`).
@@ -1114,12 +1190,19 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
                 sf_client = Salesforce(
                     username=username, password=password, security_token=security_token,
                 )
-                selected_resources = [
-                    _build_salesforce_resource(
-                        sf_client, original_name_by_key[rk], rk, incremental_field, where_clause,
-                    )
-                    for rk in resource_keys
-                ]
+                if soql_query:
+                    selected_resources = [
+                        _build_salesforce_soql_resource(
+                            sf_client, soql_query, soql_object, resource_keys[0], incremental_field, initial_offset,
+                        )
+                    ]
+                else:
+                    selected_resources = [
+                        _build_salesforce_resource(
+                            sf_client, original_name_by_key[rk], rk, incremental_field, where_clause,
+                        )
+                        for rk in resource_keys
+                    ]
                 _apply_table_name_overrides_list(selected_resources, resource_keys)
 
                 if not selected_resources:
@@ -1264,12 +1347,19 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
             sf_client = Salesforce(
                 username=username, password=password, security_token=security_token,
             )
-            selected_resources = [
-                _build_salesforce_resource(
-                    sf_client, original_name_by_key[rk], rk, incremental_field, where_clause,
-                )
-                for rk in selected_keys
-            ]
+            if soql_query:
+                selected_resources = [
+                    _build_salesforce_soql_resource(
+                        sf_client, soql_query, soql_object, selected_keys[0], incremental_field, initial_offset,
+                    )
+                ]
+            else:
+                selected_resources = [
+                    _build_salesforce_resource(
+                        sf_client, original_name_by_key[rk], rk, incremental_field, where_clause,
+                    )
+                    for rk in selected_keys
+                ]
             _apply_table_name_overrides_list(selected_resources, selected_keys)
             if on_schema_change != "allow_all":
                 for _r in selected_resources:

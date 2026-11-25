@@ -706,6 +706,24 @@
       "label": "Incremental Field",
       "description": "Salesforce field name to load incrementally on (e.g. 'SystemModstamp', 'LastModifiedDate', or 'Id') -- the direct equivalent of a StreamSets Salesforce origin's stored-offset SOQL (`WHERE Id > '${OFFSET}' ORDER BY Id`), expressed as dlt's own declarative resumable cursor (dlt.sources.incremental) instead of a literal SOQL string with an embedded offset variable -- functionally equivalent (both produce a resumable 'give me everything since X' read), structurally different: a migration translating a literal StreamSets SOQL string should map its replication column onto this field, not copy the SOQL text verbatim. SOQL quoting (quoted for id/string-like fields, bare for date/datetime/numeric) is inferred automatically from the field's Salesforce type. Unset (default): every object does a full reload each run, matching this component's prior behavior. Set: every object in sf_objects loads via merge (primary_key='Id') instead, keeping only rows newer than the last run's highest value for this field. Applied identically to every object in sf_objects; for a different incremental field per object, use one component instance per object.",
       "required": false
+    },
+    "soql_query": {
+      "type": "string",
+      "label": "Soql Query",
+      "description": "Raw, arbitrary SOQL query text containing a literal `${OFFSET}` placeholder token (e.g. \"SELECT Id, Name, Amount FROM Opportunity WHERE Id > '${OFFSET}' ORDER BY Id\") -- an ALTERNATIVE to sf_objects + where_clause + incremental_field, for migrating a StreamSets Salesforce origin's query text as-is instead of re-deriving it into this component's field-list/WHERE-fragment/incremental-field decomposition. Mutually exclusive with where_clause (your query already has its own complete WHERE). Requires soql_object and incremental_field also be set. ${OFFSET} is a NAIVE TEXT substitution, not type-aware quoted -- your query text already carries whatever quote characters it needs around the placeholder, same as StreamSets' own origin.",
+      "required": false
+    },
+    "soql_object": {
+      "type": "string",
+      "label": "Soql Object",
+      "description": "Required with soql_query: the single Salesforce object your query's FROM targets (standard or custom __c) -- needed to route the Bulk/standard-SOQL API call, since it isn't parsed out of soql_query's text.",
+      "required": false
+    },
+    "initial_offset": {
+      "type": "string",
+      "label": "Initial Offset",
+      "description": "With soql_query: the ${OFFSET} value substituted on the very first run, before any stored high-water mark exists (e.g. '0000-01-01T00:00:00.000Z' for a date/datetime cursor, or '' for an Id/string cursor matched with a '>' comparison). Unset: substitutes an empty string.",
+      "required": false
     }
   },
   "tags": [

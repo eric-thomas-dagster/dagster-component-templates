@@ -277,6 +277,102 @@ def test_bulk_api_falls_back_to_standard_soql_when_async_disabled(mod, monkeypat
     assert "SELECT Id, Name, SystemModstamp, BillingStreet FROM Account" in fake_client.queries
 
 
+def test_soql_query_substitutes_offset_token_with_initial_offset_on_first_run(mod, monkeypatch):
+    """No stored last_value yet -- ${OFFSET} substitutes initial_offset verbatim (a NAIVE
+    text substitution, not type-aware quoted: the query's own quote characters around
+    ${OFFSET} are preserved exactly as the customer wrote them)."""
+    fake_client = FakeSalesforce(
+        describe_by_object={"Account": DEFAULT_DESCRIBE_FIELDS},
+        bulk_pages_by_object={"Account": []},
+    )
+    install_fake_simple_salesforce(monkeypatch, fake_client)
+    resource = mod._build_salesforce_soql_resource(
+        fake_client,
+        "SELECT Id, Name FROM Account WHERE Id > '${OFFSET}' ORDER BY Id",
+        "Account", "account", "Id", "000000000000000",
+    )
+    assert resource.write_disposition == "merge"
+    assert resource.incremental is not None
+    list(resource())
+    assert fake_client.queries == [
+        "SELECT Id, Name FROM Account WHERE Id > '000000000000000' ORDER BY Id"
+    ]
+
+
+def test_soql_query_substitutes_empty_string_when_initial_offset_unset(mod, monkeypatch):
+    fake_client = FakeSalesforce(
+        describe_by_object={"Account": DEFAULT_DESCRIBE_FIELDS},
+        bulk_pages_by_object={"Account": []},
+    )
+    install_fake_simple_salesforce(monkeypatch, fake_client)
+    resource = mod._build_salesforce_soql_resource(
+        fake_client,
+        "SELECT Id FROM Account WHERE Id > '${OFFSET}' ORDER BY Id",
+        "Account", "account", "Id", None,
+    )
+    list(resource())
+    assert fake_client.queries == ["SELECT Id FROM Account WHERE Id > '' ORDER BY Id"]
+
+
+def test_soql_query_and_where_clause_are_mutually_exclusive(mod, monkeypatch):
+    install_fake_dlt(monkeypatch, mod)
+    component = _make_component(
+        mod,
+        soql_query="SELECT Id FROM Account WHERE Id > '${OFFSET}'",
+        soql_object="Account",
+        incremental_field="Id",
+        where_clause="Type = 'Customer'",
+    )
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        component.build_defs(context=None)
+
+
+def test_soql_query_requires_soql_object(mod, monkeypatch):
+    install_fake_dlt(monkeypatch, mod)
+    component = _make_component(
+        mod, soql_query="SELECT Id FROM Account WHERE Id > '${OFFSET}'", incremental_field="Id",
+    )
+    with pytest.raises(ValueError, match="requires soql_object"):
+        component.build_defs(context=None)
+
+
+def test_soql_query_requires_incremental_field(mod, monkeypatch):
+    install_fake_dlt(monkeypatch, mod)
+    component = _make_component(
+        mod, soql_query="SELECT Id FROM Account WHERE Id > '${OFFSET}'", soql_object="Account",
+    )
+    with pytest.raises(ValueError, match="requires incremental_field"):
+        component.build_defs(context=None)
+
+
+def test_soql_query_requires_the_offset_placeholder_token(mod, monkeypatch):
+    install_fake_dlt(monkeypatch, mod)
+    component = _make_component(
+        mod, soql_query="SELECT Id FROM Account", soql_object="Account", incremental_field="Id",
+    )
+    with pytest.raises(ValueError, match=r"\$\{OFFSET\}"):
+        component.build_defs(context=None)
+
+
+def test_soql_query_materializes_end_to_end(mod, monkeypatch):
+    """End-to-end sanity check through build_defs()/materialize() with soql_query set --
+    confirms the single-synthetic-object override (table_name_map, output asset-key suffix,
+    kind inference) keeps working around the swapped resource-building call."""
+    table = pd.DataFrame({"id": [1, 2], "name": ["Acme", "Globex"]})
+    fake_sf = FakeSalesforce(describe_by_object={"Account": DEFAULT_DESCRIBE_FIELDS})
+    install_fake_dlt(monkeypatch, mod, table_rows={"account": table}, fake_sf_client=fake_sf)
+    component = _make_component(
+        mod,
+        soql_query="SELECT Id, Name FROM Account WHERE Id > '${OFFSET}' ORDER BY Id",
+        soql_object="Account",
+        incremental_field="Id",
+    )
+    result = _materialize(component)
+    assert result.success
+    df = result.output_for_node("test_asset")
+    assert len(df) == 2
+
+
 def test_single_asset_shape_materializes_with_where_clause_and_incremental_field_configured(mod, monkeypatch):
     """End-to-end sanity check through build_defs()/materialize() with the new fields set --
     confirms the asset still wires up correctly (schema_contract, table-name overrides, etc.)

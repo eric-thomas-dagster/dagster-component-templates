@@ -683,22 +683,44 @@ def build_mcp_server(tools: SlackChatTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("slack-chat-tools")
+
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see module docstring) -- a bad-arguments or failure comes back as a plain
+        {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL (isError=False) tool
+        result indistinguishable from success. Re-raising here lets the `mcp` package's own exception handling
+        (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a registered tool function and
+        turn it into a real isError=True CallToolResult) make the failure visible to whatever's counting failed
+        calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError), not this module's: the SDK's
+        tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a raised exception's own message
+        when it recognizes the exception as ITS OWN ToolError/ResourceError -- anything else (including a
+        same-named ToolError class defined elsewhere) is treated as an unexpected crash and replaced with a
+        generic 'Error executing tool <name>' before it reaches the client, throwing away the reason the agent
+        needs to act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
 
     @mcp.tool()
     def get_thread() -> dict:
         """The conversation so far: the last messages in the thread this run is answering (or the single message, if not in a thread), oldest first, as {user, text, ts} rows."""
-        return tools.call("get_thread", {})
+        return _mcp_call("get_thread", {})
 
     @mcp.tool()
     def upload_files(file_ids: list) -> dict:
         """Posts one or more files report_tools_server already generated (by file_id, from its make_chart/make_pdf/make_docx/make_xlsx results) into the thread this run is answering, right now -- use this when the person wants a file posted mid-conversation rather than waiting for the run to finish."""
-        return tools.call("upload_files", {"file_ids": file_ids})
+        return _mcp_call("upload_files", {"file_ids": file_ids})
 
     @mcp.tool()
     def create_canvas(title: str, markdown: str) -> dict:
         """Creates a Slack canvas from markdown -- use this for a long document the person wants to keep and edit, instead of a PDF. Tabs it into this channel and returns {canvas_id, link}; include the link in your own answer text."""
-        return tools.call("create_canvas", {"title": title, "markdown": markdown})
+        return _mcp_call("create_canvas", {"title": title, "markdown": markdown})
 
     return mcp
 

@@ -597,7 +597,12 @@ def build_mcp_server(tools: LinearTicketTools):
         a tool argument; `dagster_run_id` is what an agent component's run_id threading puts in its
         out-of-band request _meta."""
         meta = getattr(getattr(ctx, "request_context", None), "meta", None)
-        return (meta or {}).get("dagster_run_id") if ctx is not None else None
+        if ctx is None:
+            return None
+        # mcp 2.x's Meta is a TypedDict (a real dict at runtime) -- .get() works. mcp 1.x's
+        # Meta is a pydantic BaseModel with extra="allow", which has no .get() but exposes
+        # extra keys as real attributes. Handle both without assuming either shape.
+        return meta.get("dagster_run_id") if isinstance(meta, dict) else getattr(meta, "dagster_run_id", None)
 
     @_tool
     def find_issues(query: str) -> dict:

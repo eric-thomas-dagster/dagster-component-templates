@@ -48,7 +48,11 @@ def boom(reason: str) -> dict:
 async def echo_meta(ctx: Context) -> dict:
     "Echo back whatever the caller sent as out-of-band request _meta (e.g. a Dagster run id)."
     meta = ctx.request_context.meta
-    return {"dagster_run_id": (meta or {}).get("dagster_run_id")}
+    # mcp 2.x's Meta is a TypedDict (a real dict at runtime) -- .get() works. mcp 1.x's
+    # Meta is a pydantic BaseModel with extra="allow", which has no .get() but exposes
+    # extra keys as real attributes. Handle both without assuming either shape.
+    dagster_run_id = meta.get("dagster_run_id") if isinstance(meta, dict) else getattr(meta, "dagster_run_id", None)
+    return {"dagster_run_id": dagster_run_id}
 
 
 @server.tool()

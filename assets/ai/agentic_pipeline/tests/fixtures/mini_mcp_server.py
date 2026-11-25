@@ -36,7 +36,13 @@ def read_run_id(ctx: Context = None) -> dict:
     call_tool genuinely crosses the real wire, not just that the client-side code looks like
     it should send it."""
     meta = getattr(getattr(ctx, "request_context", None), "meta", None)
-    return {"dagster_run_id": (meta or {}).get("dagster_run_id") if ctx is not None else None}
+    if ctx is None:
+        return {"dagster_run_id": None}
+    # mcp 2.x's Meta is a TypedDict (a real dict at runtime) -- .get() works. mcp 1.x's
+    # Meta is a pydantic BaseModel with extra="allow", which has no .get() but exposes
+    # extra keys as real attributes. Handle both without assuming either shape.
+    dagster_run_id = meta.get("dagster_run_id") if isinstance(meta, dict) else getattr(meta, "dagster_run_id", None)
+    return {"dagster_run_id": dagster_run_id}
 
 
 @server.tool()

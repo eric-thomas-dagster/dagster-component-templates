@@ -10,6 +10,14 @@ attributes:
   timeout_seconds: 30
   max_workers: 20
   retries: 2
+  retry_on_status_codes: [429, 500, 502, 503, 504]
   output_prefix: response
   parse_json: true
+  response_json_path: data.id
   group_name: web_enrichment
+
+# POST variant with a per-row request body and bearer auth:
+#   method: POST
+#   body_template: '{{"product_id": {id}, "name": "{name}"}}'
+#   auth_type: bearer
+#   auth_token_env_var: PRODUCT_API_TOKEN

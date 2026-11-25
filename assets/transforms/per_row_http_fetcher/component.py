@@ -9,10 +9,20 @@ Adds three output columns:
   - `<output_prefix>_status` (int)      — HTTP status code (-1 on error)
   - `<output_prefix>_json` (dict | None) — parsed JSON when content-type looks like JSON, else None
 
+When `response_json_path` is set, a fourth `<output_prefix>_value` column
+holds the extracted value from that dotted path into the parsed JSON.
+
 Concurrent fetches via `concurrent.futures.ThreadPoolExecutor` (good
 default for I/O-bound work). For very large URL lists (10k+) prefer
 async/httpx — out of scope for v1.
+
+Request body (`body_template`), auth (`auth_type`), and configurable retry
+status codes (`retry_on_status_codes`) mirror `DataframeToHttpComponent`'s
+field names/shapes (assets/sinks/dataframe_to_http) for registry-wide
+consistency — inlined fresh here per this repo's no-shared-helpers rule,
+not imported from that module.
 """
+import time
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
@@ -29,6 +39,95 @@ from dagster import (
     asset,
 )
 from pydantic import Field
+
+
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+# Module-level (not instance/class-attribute) OAuth2 token cache, keyed by
+# (token_url, client_id_env_var) -- same convention as dataframe_to_http's own
+# cache (a component instance isn't a long-lived singleton across runs the
+# way a resource is, so a plain module dict keyed on the config that actually
+# identifies the token is the simplest correct cache here).
+_OAUTH2_TOKEN_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def _fetch_oauth2_client_credentials_token(
+    token_url: str,
+    client_id: str,
+    client_secret: str,
+    scope: Optional[str],
+    audience: Optional[str],
+) -> Dict[str, Any]:
+    """Isolates the one external token-request call so it can be monkeypatched
+    wholesale in tests. Returns the raw token response dict ({'access_token',
+    'expires_in', ...}); caller is responsible for caching."""
+    import requests
+
+    body: Dict[str, Any] = {
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret,
+    }
+    if scope:
+        body["scope"] = scope
+    if audience:
+        body["audience"] = audience
+    resp = requests.post(token_url, data=body, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _get_oauth2_access_token(
+    token_url: str,
+    client_id_env_var: str,
+    client_secret_env_var: str,
+    scope: Optional[str],
+    audience: Optional[str],
+) -> str:
+    cache_key = f"{token_url}:{client_id_env_var}"
+    cached = _OAUTH2_TOKEN_CACHE.get(cache_key) or {}
+    if cached.get("expires", 0) > time.time() + 60:
+        return cached["access_token"]
+
+    client_id = _require_env(client_id_env_var)
+    client_secret = _require_env(client_secret_env_var)
+    data = _fetch_oauth2_client_credentials_token(
+        token_url=token_url,
+        client_id=client_id,
+        client_secret=client_secret,
+        scope=scope,
+        audience=audience,
+    )
+    _OAUTH2_TOKEN_CACHE[cache_key] = {
+        "access_token": data["access_token"],
+        # Refresh a little early rather than racing expiry.
+        "expires": time.time() + data.get("expires_in", 3600) - 60,
+    }
+    return data["access_token"]
+
+
+def _extract_json_path(data: Any, path: Optional[str]) -> Any:
+    """Dotted-path extraction into a parsed JSON value, e.g. 'data.id' for {'data': {'id': 123}}."""
+    if not path or data is None:
+        return None
+    cur = data
+    for part in path.split("."):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        else:
+            return None
+    return cur
 
 
 
@@ -121,11 +220,41 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: Union[str, List[str]] = Field(description="Upstream asset key providing a DataFrame")
     url_column: Union[str, int] = Field(description="Column whose value is the URL to fetch for each row.")
-    method: str = Field(default="GET", description="HTTP method: GET / POST / PUT / DELETE / HEAD.")
+    method: str = Field(default="GET", description="HTTP method: GET / POST / PUT / PATCH / DELETE / HEAD.")
+    body_template: Optional[str] = Field(
+        default=None,
+        description=(
+            "Request body template for POST/PUT/PATCH, built per-row from the record — "
+            "`{column_name}` placeholders are substituted with that row's value before "
+            "sending (same templating style as DataframeToHttpComponent's `url` field, "
+            "via Python str.format — literal `{`/`}` in a JSON body must be escaped as "
+            "`{{`/`}}`, e.g. `{{\"thing_id\": {id}}}`). Sent as the raw request body "
+            "(`Content-Type: application/json` is set automatically when the rendered "
+            "body starts with `{` or `[`). Ignored when unset."
+        ),
+    )
     headers: Optional[Dict[str, str]] = Field(
         default=None,
         description="Static headers sent with every request (e.g. {'Authorization': 'Bearer …'}).",
     )
+    auth_type: Literal["none", "basic", "bearer", "oauth2_client_credentials"] = Field(
+        default="none",
+        description="'none' | 'basic' | 'bearer' | 'oauth2_client_credentials'.",
+    )
+    auth_username_env_var: Optional[str] = Field(default=None, description="Required for auth_type='basic'.")
+    auth_password_env_var: Optional[str] = Field(default=None, description="Required for auth_type='basic'.")
+    auth_token_env_var: Optional[str] = Field(default=None, description="Required for auth_type='bearer'.")
+    oauth2_token_url: Optional[str] = Field(
+        default=None, description="Token endpoint. Required for auth_type='oauth2_client_credentials'."
+    )
+    oauth2_client_id_env_var: Optional[str] = Field(
+        default=None, description="Env var holding the OAuth2 client ID. Required for auth_type='oauth2_client_credentials'."
+    )
+    oauth2_client_secret_env_var: Optional[str] = Field(
+        default=None, description="Env var holding the OAuth2 client secret. Required for auth_type='oauth2_client_credentials'."
+    )
+    oauth2_scope: Optional[str] = Field(default=None, description="Optional OAuth2 scope to request.")
+    oauth2_audience: Optional[str] = Field(default=None, description="Optional OAuth2 audience parameter.")
     timeout_seconds: int = Field(
         default=30, ge=1, le=600,
         description="Per-request timeout in seconds.",
@@ -136,15 +265,31 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
     )
     retries: int = Field(
         default=0, ge=0, le=10,
-        description="Retry count per request on 5xx / connection errors (with exponential backoff).",
+        description="Retry count per request on a retryable status code / connection error (with exponential backoff).",
+    )
+    retry_on_status_codes: List[int] = Field(
+        default_factory=lambda: [429, 500, 502, 503, 504],
+        description="Response status codes that trigger a retry (in addition to connection/timeout errors, which always retry). Only takes effect when `retries` > 0.",
+    )
+    retry_backoff_seconds: float = Field(
+        default=0.5,
+        description="Base delay for exponential backoff between retries (delay = base * 2**attempt).",
     )
     output_prefix: str = Field(
         default="response",
-        description="Prefix for the three output columns: <prefix>_body, <prefix>_status, <prefix>_json.",
+        description="Prefix for the output columns: <prefix>_body, <prefix>_status, <prefix>_json, and (when response_json_path is set) <prefix>_value.",
     )
     parse_json: bool = Field(
         default=True,
         description="Parse the response body as JSON when content-type looks like JSON (saves a downstream step).",
+    )
+    response_json_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dotted path into the parsed JSON response to extract into `<output_prefix>_value` "
+            "(e.g. 'data.id' for {'data': {'id': 123}}). Requires parse_json=True (the default). "
+            "Leave unset to only get the raw body/status/full JSON columns."
+        ),
     )
 
     group_name: Optional[str] = Field(default=None)
@@ -237,7 +382,9 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
+        return coerce_field_shapes(
+            data, lists=('owners', 'kinds', 'deps', 'retry_on_status_codes'), csv=(), tags=('asset_tags',)
+        )
 
     @model_validator(mode="before")
     @classmethod
@@ -274,12 +421,25 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         url_column = self.url_column
         method = self.method.upper()
+        body_template = self.body_template
         headers = dict(self.headers or {})
         timeout = self.timeout_seconds
         max_workers = self.max_workers
         retries = self.retries
+        retry_on_status_codes = set(int(c) for c in (self.retry_on_status_codes or []))
+        retry_backoff_seconds = self.retry_backoff_seconds
         prefix = self.output_prefix
         parse_json = self.parse_json
+        response_json_path = self.response_json_path
+        auth_type = self.auth_type
+        auth_username_env_var = self.auth_username_env_var
+        auth_password_env_var = self.auth_password_env_var
+        auth_token_env_var = self.auth_token_env_var
+        oauth2_token_url = self.oauth2_token_url
+        oauth2_client_id_env_var = self.oauth2_client_id_env_var
+        oauth2_client_secret_env_var = self.oauth2_client_secret_env_var
+        oauth2_scope = self.oauth2_scope
+        oauth2_audience = self.oauth2_audience
 
         tags = dict(self.asset_tags or {})
         for k in (self.kinds or ["python", "http", "api"]):
@@ -344,14 +504,44 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
 
             session = requests.Session()
             session.headers.update(headers)
+            if auth_type == "basic":
+                if not (auth_username_env_var and auth_password_env_var):
+                    raise ValueError("auth_type='basic' requires auth_username_env_var + auth_password_env_var.")
+                session.auth = (_require_env(auth_username_env_var), _require_env(auth_password_env_var))
+            elif auth_type == "bearer":
+                if not auth_token_env_var:
+                    raise ValueError("auth_type='bearer' requires auth_token_env_var.")
+                session.headers["Authorization"] = f"Bearer {_require_env(auth_token_env_var)}"
+            elif auth_type == "oauth2_client_credentials":
+                if not (oauth2_token_url and oauth2_client_id_env_var and oauth2_client_secret_env_var):
+                    raise ValueError(
+                        "auth_type='oauth2_client_credentials' requires oauth2_token_url, "
+                        "oauth2_client_id_env_var, and oauth2_client_secret_env_var."
+                    )
+                token = _get_oauth2_access_token(
+                    token_url=oauth2_token_url,
+                    client_id_env_var=oauth2_client_id_env_var,
+                    client_secret_env_var=oauth2_client_secret_env_var,
+                    scope=oauth2_scope,
+                    audience=oauth2_audience,
+                )
+                session.headers["Authorization"] = f"Bearer {token}"
+            elif auth_type != "none":
+                raise ValueError(f"unknown auth_type: {auth_type!r}")
 
-            def _one(url: str):
+            def _one(url: str, row: Dict[str, Any]):
+                request_kwargs: Dict[str, Any] = {}
+                if body_template and method not in ("GET", "HEAD"):
+                    rendered = body_template.format(**row)
+                    request_kwargs["data"] = rendered.encode("utf-8")
+                    if rendered.lstrip()[:1] in ("{", "["):
+                        request_kwargs.setdefault("headers", {})["Content-Type"] = "application/json"
                 last_exc = None
                 for attempt in range(retries + 1):
                     try:
-                        r = session.request(method, url, timeout=timeout)
-                        if r.status_code >= 500 and attempt < retries:
-                            _time.sleep(0.5 * (2 ** attempt))
+                        r = session.request(method, url, timeout=timeout, **request_kwargs)
+                        if r.status_code in retry_on_status_codes and attempt < retries:
+                            _time.sleep(retry_backoff_seconds * (2 ** attempt))
                             continue
                         body = r.text
                         status = r.status_code
@@ -365,7 +555,7 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
                     except requests.RequestException as e:
                         last_exc = e
                         if attempt < retries:
-                            _time.sleep(0.5 * (2 ** attempt))
+                            _time.sleep(retry_backoff_seconds * (2 ** attempt))
                             continue
                         break
                 return f"ERROR: {last_exc}", -1, None
@@ -382,10 +572,13 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
                 _df[f"{prefix}_status"] = -1
                 if parse_json:
                     _df[f"{prefix}_json"] = None
+                    if response_json_path:
+                        _df[f"{prefix}_value"] = None
                 return _df
             urls = upstream[url_column].astype(str).tolist()
+            row_dicts = upstream.to_dict(orient="records")
             with ThreadPoolExecutor(max_workers=max_workers) as pool:
-                results = list(pool.map(_one, urls))
+                results = list(pool.map(lambda args: _one(*args), zip(urls, row_dicts)))
 
             df = upstream.copy().reset_index(drop=True)
             _bodies = [r[0] for r in results]
@@ -398,6 +591,8 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
             df[f"{prefix}_status"] = [r[1] for r in results]
             if parse_json:
                 df[f"{prefix}_json"] = [r[2] for r in results]
+                if response_json_path:
+                    df[f"{prefix}_value"] = [_extract_json_path(r[2], response_json_path) for r in results]
 
             ok = int(sum(1 for r in results if 200 <= r[1] < 300))
             context.add_output_metadata({

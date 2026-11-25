@@ -313,20 +313,41 @@ def build_mcp_server(tools: "StripeMcpProxyTools"):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("stripe-mcp-proxy")
+
+    def _raise_on_error(result: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.list_tools()/tools.call() never raise (see StripeMcpProxyTools's own docstring) -- a
+        bad-arguments or failure comes back as a plain {"error": ...} dict, which the MCP transport would
+        otherwise hand back as a NORMAL (isError=False) tool result indistinguishable from success. Re-raising
+        here lets the `mcp` package's own exception handling (both fastmcp 1.x and mcp.server.mcpserver 2.x
+        catch any exception from a registered tool function and turn it into a real isError=True
+        CallToolResult) make the failure visible to whatever's counting failed calls in the agent loop. MUST
+        be the SDK's own ToolError (_SdkToolError), not this module's: the SDK's tool dispatch
+        (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a raised exception's own message when it
+        recognizes the exception as ITS OWN ToolError/ResourceError -- anything else (including a same-named
+        ToolError class defined elsewhere) is treated as an unexpected crash and replaced with a generic 'Error
+        executing tool <name>' before it reaches the client, throwing away the reason the agent needs to act on."""
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
 
     @mcp.tool(name="list_remote_tools")
     def list_remote_tools() -> dict:
         """List the Stripe MCP tools currently available through this proxy (name + description
         for each), so the agent can discover what's callable before using call_remote_tool."""
-        return tools.list_tools()
+        return _raise_on_error(tools.list_tools())
 
     @mcp.tool(name="call_remote_tool")
     def call_remote_tool(tool_name: str, arguments: Optional[dict] = None) -> dict:
         """Call one Stripe MCP tool by name (see list_remote_tools), with a JSON-object of
         arguments matching that tool's own schema. Returns {"text": ...} or {"error": ...} --
         never raises."""
-        return tools.call(tool_name, arguments)
+        return _raise_on_error(tools.call(tool_name, arguments))
 
     return mcp
 

@@ -294,6 +294,22 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "flatten_mode": {
+      "type": "string",
+      "enum": [
+        "in_place",
+        "root"
+      ],
+      "label": "Flatten Mode",
+      "description": "'in_place' (default, backward-compatible): flattened keys are prefixed with the source column name (e.g. `address.city`) — fields stay within the source field's own namespace. 'root': the prefix is dropped (e.g. just `city`) — matches StreamSets' Field Flattener in ROOT mode, which promotes flattened fields to the record root with no parent-name prefix. Note: 'root' can produce a column-name collision if two source fields flatten to the same bare key; later columns win (duplicates dropped).",
+      "required": false
+    },
+    "expand_lists": {
+      "type": "boolean",
+      "label": "Expand Lists",
+      "description": "False (default, backward-compatible): list values are left as opaque Python objects in a single cell — not flattened into columns. True: list elements are recursively expanded into indexed sub-keys using an `l{separator}<index>` path segment (e.g. `phones.l.0.number`) — matches StreamSets' Field Flattener, which expands list elements the same way it does nested dict fields rather than leaving lists untouched.",
+      "required": false
     }
   },
   "tags": [

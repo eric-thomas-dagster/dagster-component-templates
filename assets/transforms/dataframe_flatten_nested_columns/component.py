@@ -231,7 +231,19 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
             "E.g. `{coordinates: [lon, lat, depth]}` names them "
             "`coordinates.lon`, `coordinates.lat`, `coordinates.depth` (or "
             "just `lon`/`lat`/`depth` with strip_prefix=True). If missing, "
-            "positional integer indices are used."
+            "positional integer indices are used (or `l.<index>` instead of "
+            "bare `.<index>` when `streamsets_list_index_naming=True`)."
+        ),
+    )
+    streamsets_list_index_naming: bool = Field(
+        default=False,
+        description=(
+            "False (default, backward-compatible): auto-generated array-index "
+            "column labels are bare integers (`coordinates.0`, `coordinates.1`). "
+            "True: labels get a literal `l` segment before the index "
+            "(`coordinates.l.0`, `coordinates.l.1`) — matches StreamSets' Field "
+            "Flattener naming for list elements. Ignored for any column with an "
+            "explicit `array_label_map` entry (those names always win)."
         ),
     )
 
@@ -475,6 +487,7 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
                 # Rows without a dict value in that column keep NaN.
                 sep = self.separator or "."
                 _label_map = self.array_label_map or {}
+                _streamsets_naming = self.streamsets_list_index_naming
                 for col in target_cols:
                     if col in exclude:
                         continue
@@ -502,7 +515,7 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
                             _labels = _label_map.get(col) or []
                             _cols_to_add = {}
                             for _i in range(_max_len):
-                                _key = _labels[_i] if _i < len(_labels) else str(_i)
+                                _key = _labels[_i] if _i < len(_labels) else (f"l{sep}{_i}" if _streamsets_naming else str(_i))
                                 _name = _key if self.strip_prefix else f"{col}{sep}{_key}"
                                 _cols_to_add[_name] = [
                                     (lst[_i] if isinstance(lst, list) and _i < len(lst) else None)
@@ -576,7 +589,7 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
                         _labels = _label_map.get(col) or _label_map.get(col.rsplit(sep, 1)[-1]) or []
                         _cols_to_add = {}
                         for _i in range(_max_len):
-                            _key = _labels[_i] if _i < len(_labels) else str(_i)
+                            _key = _labels[_i] if _i < len(_labels) else (f"l{sep}{_i}" if _streamsets_naming else str(_i))
                             _name = _key if self.strip_prefix else f"{col}{sep}{_key}"
                             _cols_to_add[_name] = [
                                 (lst[_i] if isinstance(lst, list) and _i < len(lst) else None)

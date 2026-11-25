@@ -441,6 +441,29 @@ class JsonFlattenComponent(Component, Model, Resolvable):
         default=True,
         description="Drop the source column after flattening.",
     )
+    flatten_mode: Literal["in_place", "root"] = Field(
+        default="in_place",
+        description=(
+            "'in_place' (default, backward-compatible): flattened keys are prefixed "
+            "with the source column name (e.g. `address.city`) — fields stay within "
+            "the source field's own namespace. 'root': the prefix is dropped (e.g. "
+            "just `city`) — matches StreamSets' Field Flattener in ROOT mode, which "
+            "promotes flattened fields to the record root with no parent-name prefix. "
+            "Note: 'root' can produce a column-name collision if two source fields "
+            "flatten to the same bare key; later columns win (duplicates dropped)."
+        ),
+    )
+    expand_lists: bool = Field(
+        default=False,
+        description=(
+            "False (default, backward-compatible): list values are left as opaque "
+            "Python objects in a single cell — not flattened into columns. True: "
+            "list elements are recursively expanded into indexed sub-keys using an "
+            "`l{separator}<index>` path segment (e.g. `phones.l.0.number`) — matches "
+            "StreamSets' Field Flattener, which expands list elements the same way "
+            "it does nested dict fields rather than leaving lists untouched."
+        ),
+    )
 
 
     description: Optional[str] = Field(
@@ -512,6 +535,8 @@ class JsonFlattenComponent(Component, Model, Resolvable):
         max_depth = self.max_depth
         drop_original = self.drop_original
         output_format = (self.output_format or "wide").lower()
+        flatten_mode = self.flatten_mode
+        expand_lists = self.expand_lists
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -632,6 +657,16 @@ group_name=group_name,
 
             df = upstream.copy()
 
+            def _expand_lists_for_streamsets(obj):
+                """Recursively turn list values into dicts keyed `l{separator}<index>`
+                so json_normalize flattens them the same way it flattens nested dicts —
+                matches StreamSets' Field Flattener, which doesn't leave lists opaque."""
+                if isinstance(obj, dict):
+                    return {k: _expand_lists_for_streamsets(v) for k, v in obj.items()}
+                if isinstance(obj, list):
+                    return {f"l{separator}{i}": _expand_lists_for_streamsets(v) for i, v in enumerate(obj)}
+                return obj
+
             def flatten_column(df: pd.DataFrame, col: str) -> pd.DataFrame:
                 try:
                     _values = df[col].tolist()
@@ -655,15 +690,25 @@ group_name=group_name,
                             _parsed.append(_json.loads(s))
                         except Exception:
                             _parsed.append({})
+                    if expand_lists:
+                        _parsed = [_expand_lists_for_streamsets(p) for p in _parsed]
                     flat = json_normalize(
                         _parsed,
                         sep=separator,
                         max_level=max_depth,
                     )
                     flat.index = df.index
-                    # prefix columns with the source column name
-                    flat.columns = [f"{col}{separator}{c}" for c in flat.columns]
+                    if flatten_mode == "root":
+                        # Drop the source-field prefix entirely — matches StreamSets'
+                        # ROOT flatten target, which promotes fields with no parent name.
+                        flat.columns = [str(c) for c in flat.columns]
+                    else:
+                        # in_place (default): keep fields within the source field's
+                        # own namespace, prefixed by its name.
+                        flat.columns = [f"{col}{separator}{c}" for c in flat.columns]
                     df = pd.concat([df, flat], axis=1)
+                    if df.columns.has_duplicates:
+                        df = df.loc[:, ~df.columns.duplicated()]
                     if drop_original:
                         df = df.drop(columns=[col])
                 except Exception as e:

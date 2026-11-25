@@ -82,6 +82,12 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `streamsets_list_index_naming` | `bool` | `false` | False (default, backward-compatible): auto-generated array-index column labels are bare integers (`coordinates.0`, `coordinates.1`). True: labels get a literal `l` segment before the index (`coordinates.l.0`, `coordinate… _(full docs in schema.json + component README)_ |
+
 ### Other
 
 | Field | Type | Default | Description |

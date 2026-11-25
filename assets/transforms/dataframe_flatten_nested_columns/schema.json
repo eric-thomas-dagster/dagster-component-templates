@@ -229,6 +229,12 @@
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
       "required": false,
       "default": null
+    },
+    "streamsets_list_index_naming": {
+      "type": "boolean",
+      "label": "Streamsets List Index Naming",
+      "description": "False (default, backward-compatible): auto-generated array-index column labels are bare integers (`coordinates.0`, `coordinates.1`). True: labels get a literal `l` segment before the index (`coordinates.l.0`, `coordinates.l.1`) — matches StreamSets' Field Flattener naming for list elements. Ignored for any column with an explicit `array_label_map` entry (those names always win).",
+      "required": false
     }
   },
   "tags": [

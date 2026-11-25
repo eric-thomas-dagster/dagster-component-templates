@@ -344,6 +344,17 @@ class TextToColumns(Component, Model, Resolvable):
         ),
     )
     strip_whitespace: bool = Field(default=True, description="Strip whitespace from each part")
+    on_insufficient_parts: Literal["pad", "error"] = Field(
+        default="pad",
+        description=(
+            "Only checked when `output_columns` is set (it defines the expected part "
+            "count). 'pad' (default, backward-compatible): a value with fewer parts "
+            "than `output_columns` gets NaN in the missing trailing columns — pandas' "
+            "own `str.split(expand=True)` behavior. 'error': raise instead, listing the "
+            "offending row(s) — matches StreamSets' Splitter stage, which treats a "
+            "too-short value as a record error rather than padding it."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -551,6 +562,7 @@ class TextToColumns(Component, Model, Resolvable):
         expand_to_rows = self.expand_to_rows
         keep_source = self.keep_source
         strip_whitespace = self.strip_whitespace
+        on_insufficient_parts = self.on_insufficient_parts
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -687,6 +699,21 @@ group_name=group_name,
                 df = df.explode(column).reset_index(drop=True)
             else:
                 split_df = df[column].str.split(separator, expand=True, n=max_splits)
+
+                if output_columns and on_insufficient_parts == "error":
+                    _expected = len(output_columns)
+                    _part_counts = df[column].str.split(separator, n=max_splits).str.len()
+                    _short = df.index[_part_counts.fillna(0).astype(int) < _expected]
+                    if len(_short) > 0:
+                        _sample = df.loc[_short[:5], column].tolist()
+                        raise ValueError(
+                            f"TextToColumns: {len(_short)} row(s) split into fewer than the "
+                            f"expected {_expected} part(s) (output_columns has {_expected} "
+                            f"name(s)) — e.g. {_sample!r}. Matches StreamSets' Splitter "
+                            f"record-error behavior for a too-short value; set "
+                            f"on_insufficient_parts='pad' to fill missing columns with null "
+                            f"instead."
+                        )
 
                 if strip_whitespace:
                     split_df = split_df.apply(

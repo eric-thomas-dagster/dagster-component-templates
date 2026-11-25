@@ -435,6 +435,15 @@ class ArrayExploderComponent(Component, Model, Resolvable):
         default=False,
         description="Drop rows where the exploded value is null/NaN.",
     )
+    move_exploded_to_end: bool = Field(
+        default=False,
+        description=(
+            "False (default, backward-compatible): pandas' own `DataFrame.explode()` "
+            "leaves the exploded column(s) in their original position. True: reorder "
+            "columns so the exploded column(s) land last — matches StreamSets' List "
+            "Pivot, which always moves the pivoted field to the end of the record."
+        ),
+    )
 
 
     description: Optional[str] = Field(
@@ -504,6 +513,7 @@ class ArrayExploderComponent(Component, Model, Resolvable):
         column = self.column
         ignore_index = self.ignore_index
         drop_nulls = self.drop_nulls
+        move_exploded_to_end = self.move_exploded_to_end
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -624,6 +634,10 @@ group_name=group_name,
                     raise ValueError(f"Column '{_c}' not found in DataFrame. Available: {list(upstream.columns)}")
 
             result = upstream.explode(column, ignore_index=ignore_index)
+
+            if move_exploded_to_end:
+                _others = [c for c in result.columns if c not in cols_to_check]
+                result = result[_others + [c for c in cols_to_check if c in result.columns]]
 
             if drop_nulls:
                 # If multiple columns: drop rows where any of them is null

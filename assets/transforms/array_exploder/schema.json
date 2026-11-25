@@ -280,6 +280,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "move_exploded_to_end": {
+      "type": "boolean",
+      "label": "Move Exploded To End",
+      "description": "False (default, backward-compatible): pandas' own `DataFrame.explode()` leaves the exploded column(s) in their original position. True: reorder columns so the exploded column(s) land last — matches StreamSets' List Pivot, which always moves the pivoted field to the end of the record.",
+      "required": false
     }
   },
   "tags": [

@@ -56,6 +56,8 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -91,6 +93,8 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `separator` | `str` | `"."` | Separator for nested key names (e.g. 'address.city') |
 | `max_depth` | `int` | — | Maximum recursion depth. None means unlimited. |
 | `drop_original` | `bool` | `true` | Drop the source column after flattening. |
+| `flatten_mode` | `Literal['in_place', 'root']` | `"in_place"` | 'in_place' (default, backward-compatible): flattened keys are prefixed with the source column name (e.g. `address.city`) — fields stay within the source field's own namespace. 'root': the prefix is dropped (e.g. just `ci… _(full docs in schema.json + component README)_ |
+| `expand_lists` | `bool` | `false` | False (default, backward-compatible): list values are left as opaque Python objects in a single cell — not flattened into columns. True: list elements are recursively expanded into indexed sub-keys using an `l{separator}… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

@@ -314,6 +314,16 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "on_insufficient_parts": {
+      "type": "string",
+      "enum": [
+        "pad",
+        "error"
+      ],
+      "label": "On Insufficient Parts",
+      "description": "Only checked when `output_columns` is set (it defines the expected part count). 'pad' (default, backward-compatible): a value with fewer parts than `output_columns` gets NaN in the missing trailing columns — pandas' own `str.split(expand=True)` behavior. 'error': raise instead, listing the offending row(s) — matches StreamSets' Splitter stage, which treats a too-short value as a record error rather than padding it.",
+      "required": false
     }
   },
   "tags": [

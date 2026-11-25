@@ -1065,6 +1065,11 @@ def build_mcp_server(tools: DocumentIntelligenceTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("document-intelligence-tools")
     allowed = set(tools.tool_names())
 
@@ -1073,22 +1078,39 @@ def build_mcp_server(tools: DocumentIntelligenceTools):
             mcp.tool()(fn)
         return fn
 
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see DocumentIntelligenceTools.call) -- a bad-arguments or failure comes
+        back as a plain {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL
+        (isError=False) tool result indistinguishable from success. Re-raising here lets the `mcp` package's
+        own exception handling (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a
+        registered tool function and turn it into a real isError=True CallToolResult) make the failure visible
+        to whatever's counting failed calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError),
+        not this module's: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a
+        raised exception's own message when it recognizes the exception as ITS OWN ToolError/ResourceError --
+        anything else (including a same-named ToolError class defined elsewhere) is treated as an unexpected
+        crash and replaced with a generic 'Error executing tool <name>' before it reaches the client, throwing
+        away the reason the agent needs to act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def extract(file_ref: str, output_fields: list, doc_label: str = None, model: str = None) -> dict:
         """Extract the named fields from ONE document at `file_ref` and return them as JSON."""
-        return tools.call("extract", {"file_ref": file_ref, "output_fields": output_fields, "doc_label": doc_label, "model": model})
+        return _mcp_call("extract", {"file_ref": file_ref, "output_fields": output_fields, "doc_label": doc_label, "model": model})
 
     @_tool
     def suggest_schema(sample_file_ref: str, doc_label: str = None, model: str = None, max_fields: int = 12) -> dict:
         """Given ONE sample document, propose a list of field names (with a one-line description each)
         worth extracting from documents like this one."""
-        return tools.call("suggest_schema", {"sample_file_ref": sample_file_ref, "doc_label": doc_label, "model": model, "max_fields": max_fields})
+        return _mcp_call("suggest_schema", {"sample_file_ref": sample_file_ref, "doc_label": doc_label, "model": model, "max_fields": max_fields})
 
     @_tool
     def check_review_decision(approval_dir: str, key: str) -> dict:
         """Read-only: report a human review decision already written for `key` in `approval_dir`, if any
         (never writes a decision itself)."""
-        return tools.call("check_review_decision", {"approval_dir": approval_dir, "key": key})
+        return _mcp_call("check_review_decision", {"approval_dir": approval_dir, "key": key})
 
     return mcp
 

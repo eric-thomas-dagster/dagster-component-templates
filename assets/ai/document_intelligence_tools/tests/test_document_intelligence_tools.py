@@ -530,6 +530,36 @@ def test_build_mcp_server_respects_the_allow_list(mod):
     assert names == ["extract"]
 
 
+def test_stdio_server_bad_args_is_a_real_isError_result_with_the_original_message():
+    """Full round trip through a real subprocess (same transport agentic_pipeline/slack_chat_tools etc. use) --
+    not just calling the registered function in-process -- since the SDK's tool dispatch only preserves a
+    raised exception's own message when it recognizes the exception as ITS OWN ToolError (see _mcp_call in
+    component.py); getting this wrong (e.g. raising this module's own DocumentIntelligenceToolError instead)
+    still produces isError=True but replaces the message with a useless generic 'Error executing tool <name>',
+    mirroring dagster_instance_tools/tests/test_mcp_stdio.py's identical check."""
+    import asyncio
+    import os
+    import sys
+
+    pytest.importorskip("mcp")
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    server = str((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + "/component.py")
+    params = StdioServerParameters(command=sys.executable, args=[server], env=dict(os.environ))
+
+    async def go():
+        async with stdio_client(params) as (r, w):
+            async with ClientSession(r, w) as s:
+                await s.initialize()
+                # empty file_ref is a known, deterministic failure -- no LLM call, no API key needed.
+                return await s.call_tool("extract", {"file_ref": "", "output_fields": ["a"]})
+
+    result = asyncio.run(asyncio.wait_for(go(), 60))
+    assert getattr(result, "is_error", None) or getattr(result, "isError", None)
+    assert "file_ref" in result.content[0].text
+
+
 def test_this_module_name_raises_a_clear_error_without_a_module_spec(mod, monkeypatch):
     monkeypatch.setattr(mod, "__spec__", None)
     with pytest.raises(RuntimeError, match="python -m"):

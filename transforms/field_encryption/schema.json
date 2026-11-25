@@ -1,0 +1,225 @@
+{
+  "component_type": "dagster_community_components.FieldEncryptionComponent",
+  "description": "Field-level encrypt/decrypt using the real AWS Encryption SDK — raw-key or KMS-backed, type-preserving, per-field encryption-context binding.",
+  "category": "transformation",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe"
+    }
+  },
+  "icon": "Lock",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "'encrypt' or 'decrypt'.",
+      "required": true,
+      "enum": ["encrypt", "decrypt"],
+      "ui:widget": "select"
+    },
+    "fields": {
+      "type": "array",
+      "label": "Fields",
+      "description": "DataFrame column(s) to encrypt (mode='encrypt') or decrypt (mode='decrypt'). Comma-separated string or a YAML list.",
+      "required": true
+    },
+    "key_source": {
+      "type": "string",
+      "label": "Key Source",
+      "description": "'raw_key' (a user-supplied symmetric key via AWS ESDK's RawMasterKeyProvider) or 'kms' (an AWS KMS CMK via AWS ESDK's StrictAwsKmsMasterKeyProvider).",
+      "required": false,
+      "default": "raw_key",
+      "enum": ["raw_key", "kms"],
+      "ui:widget": "select"
+    },
+    "raw_key_env_var": {
+      "type": "string",
+      "label": "Raw Key Env Var",
+      "description": "Env var holding a base64-encoded 256-bit (32-byte) symmetric key. Required when key_source='raw_key'. Generate one with: python3 -c \"import os,base64; print(base64.b64encode(os.urandom(32)).decode())\"",
+      "required": false,
+      "default": null
+    },
+    "kms_key_ids": {
+      "type": "array",
+      "label": "Kms Key Ids",
+      "description": "KMS key ARN(s) for StrictAwsKmsMasterKeyProvider. Required when key_source='kms'. For mode='encrypt' any valid KMS key identifier works (ARN, key id, alias name/ARN); for mode='decrypt' AWS requires the full key ARN -- key ids and alias names/ARNs are not accepted for decryption.",
+      "required": false,
+      "default": null
+    },
+    "key_id": {
+      "type": "string",
+      "label": "Key Id",
+      "description": "Logical wrapping-key identifier passed to the master key provider. Must match between the encrypt run and the decrypt run for raw_key mode (it's how the RawMasterKeyProvider looks up which key material to use).",
+      "required": false,
+      "default": "field-encryption-key"
+    },
+    "encryption_context": {
+      "type": "object",
+      "label": "Encryption Context",
+      "description": "Additional authenticated data (AAD) passed to the AWS Encryption SDK. Not secret, but must match exactly between encrypt and decrypt of the same value or decryption fails. This component automatically adds a `field: <column name>` entry per column on top of whatever you set here, so ciphertext can't silently be swapped between columns.",
+      "required": false,
+      "default": null
+    },
+    "on_decrypt_error": {
+      "type": "string",
+      "label": "On Decrypt Error",
+      "description": "'raise' (default -- stop the asset on the first value that fails to decrypt: wrong key, corrupted ciphertext, or mismatched encryption context) or 'null' (replace that value with null and keep going; count of failures is reported in output metadata).",
+      "required": false,
+      "default": "raise",
+      "enum": ["raise", "null"],
+      "ui:widget": "select"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "transforms"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include Preview Metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview Rows",
+      "required": false,
+      "default": 20
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    }
+  }
+}

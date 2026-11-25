@@ -1,0 +1,2 @@
+pandas
+aws-encryption-sdk

@@ -1,0 +1,14 @@
+type: dagster_community_components.FieldEncryptionComponent
+attributes:
+  asset_name: encrypted_customer_rows
+  upstream_asset_key: customer_rows
+  mode: encrypt
+  fields:
+    - ssn
+    - date_of_birth
+  key_source: raw_key
+  raw_key_env_var: FIELD_ENCRYPTION_KEY
+  key_id: customer_pii_key
+  encryption_context:
+    dataset: customers
+  group_name: transforms

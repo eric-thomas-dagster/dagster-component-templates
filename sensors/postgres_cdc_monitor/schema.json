@@ -1,0 +1,121 @@
+{
+  "component_type": "dagster_community_components.PostgresCDCMonitorSensorComponent",
+  "description": "Component for micro-batch PostgreSQL CDC via logical replication (pgoutput).",
+  "category": "sensor",
+  "icon": "si:postgresql",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests carrying a batch of insert/update/delete row changes"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "required": true
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "PostgreSQL host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "PostgreSQL port",
+      "required": false
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "PostgreSQL username with the REPLICATION attribute and SELECT on tracked tables",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Environment variable holding the PostgreSQL password",
+      "required": false
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "description": "PostgreSQL database to connect to",
+      "required": true
+    },
+    "schema": {
+      "type": "string",
+      "label": "Schema",
+      "default": "public",
+      "description": "Postgres schema to track table_patterns against. One schema per sensor instance.",
+      "required": false
+    },
+    "slot_name": {
+      "type": "string",
+      "label": "Slot Name",
+      "description": "Logical replication slot name. Created automatically (output plugin 'pgoutput') on first use if it doesn't already exist -- requires the connecting role to have the REPLICATION attribute. If a slot with this name already exists using a DIFFERENT output plugin, this sensor fails loudly via skip_reason rather than silently reading garbage.",
+      "required": true
+    },
+    "publication_name": {
+      "type": "string",
+      "label": "Publication Name",
+      "description": "Logical replication publication name. Created automatically if missing (FOR TABLE <resolved table_patterns>), and kept in sync every tick -- tables newly matching table_patterns are ADDed, tables that no longer match are DROPped. Creating/altering a publication requires table ownership or superuser.",
+      "required": true
+    },
+    "table_patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Table Patterns",
+      "description": "fnmatch-style glob patterns (e.g. 'orders', 'order_items_*') matched against bare table names within `schema`. Resolved against pg_catalog.pg_tables at the start of every tick (not cached), so a new table matching a wildcard is picked up automatically on its next tick -- no restart required.",
+      "required": true
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Name of the job to trigger when changes are detected",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
+      "required": false
+    },
+    "max_events_per_tick": {
+      "type": "integer",
+      "label": "Max Events Per Tick",
+      "description": "Caps how many row-change events this sensor processes in one tick. Checked by the server after each decoded transaction, so (without `streaming`, which this component never requests) a batch never ends inside an uncommitted transaction. Unset (default): no cap, processes everything currently decodable.",
+      "required": false
+    },
+    "op_name": {
+      "type": "string",
+      "label": "Op Name",
+      "description": "Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat with other sensors in this registry; set to the real op/asset name if it's not literally 'config'.",
+      "required": false
+    },
+    "source_asset_key": {
+      "type": "string",
+      "label": "Source Asset Key",
+      "description": "Optional asset key to receive an AssetObservation on every tick that yields changes. Metadata includes database, schema, tables, event_count, inserts, updates, deletes, last_lsn.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
+      "required": false
+    },
+    "emit_materialization": {
+      "default": true,
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "label": "Emit Materialization",
+      "required": false,
+      "type": "boolean"
+    }
+  }
+}

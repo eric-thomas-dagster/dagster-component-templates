@@ -1,0 +1,17 @@
+type: dagster_community_components.PostgresCDCMonitorSensorComponent
+attributes:
+  sensor_name: orders_cdc_sensor
+  host: db.internal
+  port: 5432
+  username: repl_user
+  password_env_var: POSTGRES_REPL_PASSWORD
+  database: sales
+  schema: public
+  slot_name: dagster_orders_slot
+  publication_name: dagster_orders_pub
+  table_patterns:
+    - orders
+    - order_items_*
+  job_name: apply_sales_cdc_job
+  minimum_interval_seconds: 30
+  default_status: running

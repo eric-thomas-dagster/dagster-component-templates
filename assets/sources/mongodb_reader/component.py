@@ -21,6 +21,29 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN offset-value coercion (inlined per component; keep copies identical — see
+# tests/test_incremental_offset.py). Stored/initial offsets round-trip through Dagster
+# metadata as text (MetadataValue.text), but MongoDB's $gt comparison is BSON-type-
+# sensitive -- comparing a numeric field against a string filter value does not behave
+# like a numeric comparison. Coerce int/float-looking strings back to their native type
+# before building the filter; anything else (ObjectId hex, ISO date strings, etc.) is
+# passed through unchanged, since auto-detecting those reliably isn't possible from a
+# plain string alone -- documented as a known limitation in this field's description.
+def _coerce_offset_value(value):
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        pass
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        pass
+    return value
+# END offset-value coercion
+
+
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -249,6 +272,47 @@ class MongodbReaderComponent(Component, Model, Resolvable):
         default=1,
         description="Sort direction: 1 for ascending, -1 for descending",
     )
+    offset_field: Optional[str] = Field(
+        default=None,
+        description=(
+            "Field to track as an incremental offset/high-water-mark for resumable, "
+            "repeat-until-empty incremental reads (the StreamSets-origin pattern: read "
+            "everything new since last run, across as many pages as it takes). When set, "
+            "this asset reads every document where offset_field > the last stored offset, "
+            "paginating in batches of page_size (keyset pagination via sort+$gt, not "
+            "skip/limit) until a page comes back with fewer than page_size documents, "
+            "then stores the new high-water-mark for next run as this materialization's "
+            "own output metadata (key 'dagster_community_components/last_offset') -- no "
+            "separate state file, safe under ephemeral/serverless execution. Leave unset "
+            "for the original single-query behavior (query + limit + sort_field, "
+            "unchanged). Mutually exclusive with partition_type -- this version has no "
+            "way to scope the stored high-water-mark to one partition, so combining the "
+            "two would silently share one offset across every partition."
+        ),
+    )
+    initial_offset: Optional[str] = Field(
+        default=None,
+        description=(
+            "Starting value for offset_field on the FIRST run (or a manual backfill) "
+            "when no prior materialization has recorded a high-water-mark yet. Ignored "
+            "once a prior run has stored one. Only used when offset_field is set. The "
+            "stored high-water-mark round-trips through Dagster metadata as text, so "
+            "int/float-looking values (this field included) are coerced back to their "
+            "native type before being compared against offset_field with $gt -- "
+            "MongoDB's comparison is BSON-type-sensitive, so a numeric field compared "
+            "against a string filter value will not behave like a numeric comparison. "
+            "Works correctly for numeric/epoch-timestamp offset fields. For an ObjectId "
+            "or a proper BSON date field, this coercion does not apply (neither is "
+            "reliably detectable from a plain string) -- not yet supported."
+        ),
+    )
+    page_size: int = Field(
+        default=1000,
+        description=(
+            "Documents fetched per page when offset_field is set. Ignored when "
+            "offset_field is unset."
+        ),
+    )
     deps: Optional[List[str]] = Field(
         default=None,
         description="Upstream asset keys for lineage",
@@ -419,8 +483,19 @@ class MongodbReaderComponent(Component, Model, Resolvable):
         limit = self.limit
         sort_field = self.sort_field
         sort_direction = self.sort_direction
+        offset_field = self.offset_field
+        initial_offset = self.initial_offset
+        page_size = self.page_size
         deps = self.deps
         group_name = self.group_name
+
+        if offset_field and self.partition_type:
+            raise ValueError(
+                "offset_field and partition_type are mutually exclusive on "
+                "MongodbReaderComponent: get_latest_materialization_event() has no "
+                "partition scoping in this Dagster version, so the stored high-water-mark "
+                "would be shared across every partition instead of tracked per-partition."
+            )
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -533,17 +608,61 @@ group_name=group_name,
             db = client[database]
             coll = db[collection]
 
-            context.log.info(
-                f"Querying MongoDB {database}.{collection} with filter: {query}"
-            )
+            new_offset = None
+            if offset_field:
+                event = context.instance.get_latest_materialization_event(
+                    AssetKey.from_user_string(asset_name)
+                )
+                prev_offset = None
+                if event is not None and event.asset_materialization is not None:
+                    md = event.asset_materialization.metadata.get(
+                        "dagster_community_components/last_offset"
+                    )
+                    prev_offset = getattr(md, "value", None) if md is not None else None
+                current_offset = _coerce_offset_value(
+                    prev_offset if prev_offset is not None else initial_offset
+                )
 
-            cursor = coll.find(query or {}, projection or None)
-            if sort_field:
-                cursor = cursor.sort(sort_field, sort_direction)
-            if limit:
-                cursor = cursor.limit(limit)
+                context.log.info(
+                    f"Incremental read on {database}.{collection} where "
+                    f"{offset_field} > {current_offset!r} (page_size={page_size})"
+                )
 
-            docs = list(cursor)
+                docs: List[dict] = []
+                while True:
+                    page_filter = dict(query or {})
+                    if current_offset is not None:
+                        page_filter[offset_field] = {"$gt": current_offset}
+                    page_cursor = (
+                        coll.find(page_filter, projection or None)
+                        .sort(offset_field, 1)
+                        .limit(page_size)
+                    )
+                    page_docs = list(page_cursor)
+                    if not page_docs:
+                        break
+                    docs.extend(page_docs)
+                    current_offset = page_docs[-1][offset_field]
+                    if len(page_docs) < page_size:
+                        break
+                new_offset = current_offset
+                context.log.info(
+                    f"Incremental read complete: {len(docs)} new document(s), "
+                    f"new offset={new_offset!r}"
+                )
+            else:
+                context.log.info(
+                    f"Querying MongoDB {database}.{collection} with filter: {query}"
+                )
+
+                cursor = coll.find(query or {}, projection or None)
+                if sort_field:
+                    cursor = cursor.sort(sort_field, sort_direction)
+                if limit:
+                    cursor = cursor.limit(limit)
+
+                docs = list(cursor)
+
             for doc in docs:
                 doc["_id"] = str(doc.get("_id", ""))
 
@@ -560,6 +679,10 @@ group_name=group_name,
                 "dagster/row_count": MetadataValue.int(len(df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
+            if offset_field:
+                _metadata["dagster_community_components/last_offset"] = MetadataValue.text(
+                    str(new_offset) if new_offset is not None else ""
+                )
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage
             if not _effective_lineage:

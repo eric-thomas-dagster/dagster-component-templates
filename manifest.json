@@ -77162,9 +77162,66 @@
         "enrichment",
         "asn"
       ]
+    },
+    {
+      "id": "mysql_cdc_monitor",
+      "name": "MySQL CDC Monitor",
+      "category": "sensor",
+      "description": "Component for micro-batch MySQL CDC via the binary log (binlog).",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "path": "sensors/mysql_cdc_monitor",
+      "tags": [
+        "sensor",
+        "monitor",
+        "mysql",
+        "cdc",
+        "binlog"
+      ],
+      "dependencies": {
+        "pip": [
+          "mysql-replication>=1.0.0",
+          "PyMySQL>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mysql_cdc_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mysql_cdc_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mysql_cdc_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mysql_cdc_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mysql_cdc_monitor/requirements.txt",
+      "icon": "si:mysql",
+      "validation": {
+        "level": "unverified",
+        "evidence": "Mocked tests only (mysql-replication's BinLogStreamReader mocked at the library boundary) -- not yet validated against a real MySQL server with live binlog replication."
+      },
+      "vendor": "MySQL",
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Component for micro-batch MySQL CDC via the binary log (binlog).",
+        "requires_pip": [
+          "mysql-replication>=1.0.0",
+          "PyMySQL>=1.0.0"
+        ]
+      },
+      "consumes": [
+        "resource:mysql"
+      ],
+      "keywords": [
+        "mysql",
+        "mariadb",
+        "cdc",
+        "change data capture",
+        "binlog",
+        "binary log",
+        "replication",
+        "streamsets migration",
+        "gtid"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1469
+  "total": 1470
 }

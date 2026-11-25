@@ -26,13 +26,12 @@ The `MongodbReaderComponent` connects to a MongoDB instance and reads documents 
 | `connection_string_env_var` | `str` | `"MONGODB_URI"` | Env var with the MongoDB connection string. Set this OR connection_string. |
 | `resource_key` | `str` | — | Optional key of a registered MongoDBResourceComponent (resources/mongodb_resource). When set, connection credentials are read from that resource at run time instead of the inline connection_string/connection_string_env_v… _(full docs in schema.json + component README)_ |
 
-Set `resource_key` to point at a registered `MongoDBResourceComponent` (`resources/mongodb_resource`) to share one MongoDB connection/credential across this source and other components, instead of repeating `connection_string`/`connection_string_env_var` on every component. Leave it unset to keep using those inline fields directly (unchanged default behavior).
-
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `limit` | `int` | `0` | Maximum number of documents to return (0 = no limit) |
+| `page_size` | `int` | `1000` | Documents fetched per page when offset_field is set. Ignored when offset_field is unset. |
 
 ### Catalog metadata
 
@@ -85,6 +84,8 @@ Set `resource_key` to point at a registered `MongoDBResourceComponent` (`resourc
 | `projection` | `dict` | — | Fields to include/exclude in results |
 | `sort_field` | `str` | — | Field name to sort results by |
 | `sort_direction` | `int` | `1` | Sort direction: 1 for ascending, -1 for descending |
+| `offset_field` | `str` | — | Field to track as an incremental offset/high-water-mark for resumable, repeat-until-empty incremental reads (the StreamSets-origin pattern: read everything new since last run, across as many pages as it takes). When set… _(full docs in schema.json + component README)_ |
+| `initial_offset` | `str` | — | Starting value for offset_field on the FIRST run (or a manual backfill) when no prior materialization has recorded a high-water-mark yet. Ignored once a prior run has stored one. Only used when offset_field is set. The s… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |

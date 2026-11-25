@@ -25,6 +25,12 @@ The `ElasticsearchReaderComponent` connects to an Elasticsearch cluster and exec
 | `host_env_var` | `str` | `"ELASTICSEARCH_URL"` | Env var with Elasticsearch URL. Defaults to ELASTICSEARCH_URL. Set this OR host. |
 | `api_key_env_var` | `str` | — | Environment variable containing Elasticsearch API key (optional) |
 
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `page_size` | `int` | `1000` | Documents fetched per page when offset_field is set. Ignored when offset_field is unset (n_results is the cap for the original single-query behavior). |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -51,6 +57,8 @@ The `ElasticsearchReaderComponent` connects to an Elasticsearch cluster and exec
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -80,6 +88,8 @@ The `ElasticsearchReaderComponent` connects to an Elasticsearch cluster and exec
 | `search_text` | `str` | — | Simple text search string (uses multi_match query) |
 | `search_fields` | `List[str]` | — | Fields to search in for text search (None = all fields) |
 | `n_results` | `int` | `100` | Maximum number of documents to return |
+| `offset_field` | `str` | — | Field to track as an incremental offset/high-water-mark for resumable, repeat-until-empty incremental reads (the StreamSets-origin pattern: read everything new since last run, across as many pages as it takes). When set… _(full docs in schema.json + component README)_ |
+| `initial_offset` | `str` | — | Starting value for offset_field on the FIRST run (or a manual backfill) when no prior materialization has recorded a high-water-mark yet. Ignored once a prior run has stored one. Only used when offset_field is set. The s… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |

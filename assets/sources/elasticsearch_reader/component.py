@@ -22,6 +22,28 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN offset-value coercion (inlined per component; keep copies identical — see
+# tests/test_incremental_offset.py). Stored/initial offsets round-trip through Dagster
+# metadata as text (MetadataValue.text), but a "range" query's gt comparison against a
+# numeric field needs a real number, not its string form. Coerce int/float-looking
+# strings back to their native type before building the filter; anything else (an ISO
+# date string, etc.) is passed through unchanged, since auto-detecting those reliably
+# isn't possible from a plain string alone -- documented as a known limitation.
+def _coerce_offset_value(value):
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        pass
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        pass
+    return value
+# END offset-value coercion
+
+
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -251,6 +273,49 @@ class ElasticsearchReaderComponent(Component, Model, Resolvable):
         description="Fields to return in results (None = all fields)"
     )
 
+    offset_field: Optional[str] = Field(
+        default=None,
+        description=(
+            "Field to track as an incremental offset/high-water-mark for resumable, "
+            "repeat-until-empty incremental reads (the StreamSets-origin pattern: read "
+            "everything new since last run, across as many pages as it takes). When set, "
+            "this asset reads every document where offset_field > the last stored offset, "
+            "paginating via Elasticsearch's search_after (keyset pagination, sorted "
+            "ascending by offset_field with _id as a tiebreaker -- not from/size, which "
+            "is capped at a 10,000-result window) in batches of page_size until a page "
+            "comes back with fewer than page_size hits, then stores the new "
+            "high-water-mark for next run as this materialization's own output metadata "
+            "(key 'dagster_community_components/last_offset') -- no separate state file, "
+            "safe under ephemeral/serverless execution. Leave unset for the original "
+            "single-query behavior (query/search_text + n_results, unchanged). Mutually "
+            "exclusive with partition_type -- this version has no way to scope the "
+            "stored high-water-mark to one partition, so combining the two would "
+            "silently share one offset across every partition."
+        ),
+    )
+    initial_offset: Optional[str] = Field(
+        default=None,
+        description=(
+            "Starting value for offset_field on the FIRST run (or a manual backfill) "
+            "when no prior materialization has recorded a high-water-mark yet. Ignored "
+            "once a prior run has stored one. Only used when offset_field is set. The "
+            "stored high-water-mark round-trips through Dagster metadata as text, so "
+            "int/float-looking values (this field included) are coerced back to their "
+            "native type before being compared against offset_field with a range/gt "
+            "query. Works correctly for numeric/epoch-timestamp offset fields. For a "
+            "date-typed field, this coercion does not apply (not reliably detectable "
+            "from a plain string) -- not yet supported."
+        ),
+    )
+    page_size: int = Field(
+        default=1000,
+        description=(
+            "Documents fetched per page when offset_field is set. Ignored when "
+            "offset_field is unset (n_results is the cap for the original single-query "
+            "behavior)."
+        ),
+    )
+
     deps: Optional[List[str]] = Field(
         default=None,
         description="Upstream asset keys for lineage"
@@ -421,8 +486,19 @@ class ElasticsearchReaderComponent(Component, Model, Resolvable):
         search_fields = self.search_fields
         n_results = self.n_results
         source_fields = self.source_fields
+        offset_field = self.offset_field
+        initial_offset = self.initial_offset
+        page_size = self.page_size
         deps = self.deps
         group_name = self.group_name
+
+        if offset_field and self.partition_type:
+            raise ValueError(
+                "offset_field and partition_type are mutually exclusive on "
+                "ElasticsearchReaderComponent: get_latest_materialization_event() has no "
+                "partition scoping in this Dagster version, so the stored high-water-mark "
+                "would be shared across every partition instead of tracked per-partition."
+            )
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -534,37 +610,98 @@ group_name=group_name,
 
             es = Elasticsearch(**es_kwargs)
 
-            if search_text:
-                q: Dict[str, Any] = {
-                    "query": {
+            def _base_query() -> Dict[str, Any]:
+                if search_text:
+                    return {
                         "multi_match": {
                             "query": search_text,
                             "fields": search_fields or ["*"],
                         }
                     }
-                }
+                return (query or {"match_all": {}}).get("query", query or {"match_all": {}})
+
+            new_offset = None
+            if offset_field:
+                event = context.instance.get_latest_materialization_event(
+                    AssetKey.from_user_string(asset_name)
+                )
+                prev_offset = None
+                if event is not None and event.asset_materialization is not None:
+                    md = event.asset_materialization.metadata.get(
+                        "dagster_community_components/last_offset"
+                    )
+                    prev_offset = getattr(md, "value", None) if md is not None else None
+                current_offset = _coerce_offset_value(
+                    prev_offset if prev_offset is not None else initial_offset
+                )
+
+                context.log.info(
+                    f"Incremental read on index '{index_name}' where {offset_field} > "
+                    f"{current_offset!r} (page_size={page_size})"
+                )
+
+                base_q = _base_query()
+                rows: List[Dict[str, Any]] = []
+                search_after = None
+                while True:
+                    bool_q: Dict[str, Any] = {"must": [base_q]} if base_q else {"must": [{"match_all": {}}]}
+                    if current_offset is not None:
+                        bool_q["filter"] = [{"range": {offset_field: {"gt": current_offset}}}]
+                    page_kwargs: Dict[str, Any] = {
+                        "index": index_name,
+                        "body": {
+                            "query": {"bool": bool_q},
+                            "sort": [{offset_field: "asc"}, {"_id": "asc"}],
+                        },
+                        "size": page_size,
+                    }
+                    if source_fields:
+                        page_kwargs["source"] = source_fields
+                    if search_after is not None:
+                        page_kwargs["body"]["search_after"] = search_after
+                    resp = es.search(**page_kwargs)
+                    hits = resp["hits"]["hits"]
+                    if not hits:
+                        break
+                    rows.extend(
+                        {"_id": hit["_id"], "_score": hit.get("_score"), **hit["_source"]}
+                        for hit in hits
+                    )
+                    search_after = hits[-1]["sort"]
+                    current_offset = hits[-1]["_source"].get(offset_field, current_offset)
+                    if len(hits) < page_size:
+                        break
+                new_offset = current_offset
+                df = pd.DataFrame(rows)
+                context.log.info(
+                    f"Incremental read complete: {len(df)} new document(s), "
+                    f"new offset={new_offset!r}"
+                )
             else:
-                q = query or {"query": {"match_all": {}}}
+                if search_text:
+                    q: Dict[str, Any] = {"query": _base_query()}
+                else:
+                    q = query or {"query": {"match_all": {}}}
 
-            context.log.info(f"Querying Elasticsearch index '{index_name}' for up to {n_results} results")
+                context.log.info(f"Querying Elasticsearch index '{index_name}' for up to {n_results} results")
 
-            search_kwargs: Dict[str, Any] = {
-                "index": index_name,
-                "body": q,
-                "size": n_results,
-            }
-            if source_fields:
-                search_kwargs["source"] = source_fields
-            resp = es.search(**search_kwargs)
+                search_kwargs: Dict[str, Any] = {
+                    "index": index_name,
+                    "body": q,
+                    "size": n_results,
+                }
+                if source_fields:
+                    search_kwargs["source"] = source_fields
+                resp = es.search(**search_kwargs)
 
-            rows = [
-                {"_id": hit["_id"], "_score": hit.get("_score"), **hit["_source"]}
-                for hit in resp["hits"]["hits"]
-            ]
-            df = pd.DataFrame(rows)
+                rows = [
+                    {"_id": hit["_id"], "_score": hit.get("_score"), **hit["_source"]}
+                    for hit in resp["hits"]["hits"]
+                ]
+                df = pd.DataFrame(rows)
 
-            total_hits = resp["hits"]["total"]["value"] if isinstance(resp["hits"]["total"], dict) else resp["hits"]["total"]
-            context.log.info(f"Retrieved {len(df)} documents (total matches: {total_hits})")
+                total_hits = resp["hits"]["total"]["value"] if isinstance(resp["hits"]["total"], dict) else resp["hits"]["total"]
+                context.log.info(f"Retrieved {len(df)} documents (total matches: {total_hits})")
 
 
             # Build column schema metadata
@@ -577,6 +714,10 @@ group_name=group_name,
                 "dagster/row_count": MetadataValue.int(len(df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
+            if offset_field:
+                _metadata["dagster_community_components/last_offset"] = MetadataValue.text(
+                    str(new_offset) if new_offset is not None else ""
+                )
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage
             if not _effective_lineage:

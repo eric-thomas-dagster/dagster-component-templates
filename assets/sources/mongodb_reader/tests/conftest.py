@@ -46,7 +46,14 @@ class FakeCollection:
     def find(self, query=None, projection=None):
         self.find_calls.append((query, projection))
         q = query or {}
-        matched = [d for d in self.docs if all(d.get(k) == v for k, v in q.items())]
+
+        def _matches(d, k, v):
+            if isinstance(v, dict) and "$gt" in v:
+                dv = d.get(k)
+                return dv is not None and dv > v["$gt"]
+            return d.get(k) == v
+
+        matched = [d for d in self.docs if all(_matches(d, k, v) for k, v in q.items())]
         return FakeCursor(matched)
 
 

@@ -293,6 +293,24 @@
       "label": "Resource Key",
       "description": "Optional key of a registered MongoDBResourceComponent (resources/mongodb_resource). When set, connection credentials are read from that resource at run time instead of the inline connection_string/connection_string_env_var -- lets one credential serve this source and other components without configuring it twice. Leave unset to use the inline fields (existing behavior, unchanged).",
       "required": false
+    },
+    "offset_field": {
+      "type": "string",
+      "label": "Offset Field",
+      "description": "Field to track as an incremental offset/high-water-mark for resumable, repeat-until-empty incremental reads (the StreamSets-origin pattern: read everything new since last run, across as many pages as it takes). When set, this asset reads every document where offset_field > the last stored offset, paginating in batches of page_size (keyset pagination via sort+$gt, not skip/limit) until a page comes back with fewer than page_size documents, then stores the new high-water-mark for next run as this materialization's own output metadata (key 'dagster_community_components/last_offset') -- no separate state file, safe under ephemeral/serverless execution. Leave unset for the original single-query behavior (query + limit + sort_field, unchanged). Mutually exclusive with partition_type -- this version has no way to scope the stored high-water-mark to one partition, so combining the two would silently share one offset across every partition.",
+      "required": false
+    },
+    "initial_offset": {
+      "type": "string",
+      "label": "Initial Offset",
+      "description": "Starting value for offset_field on the FIRST run (or a manual backfill) when no prior materialization has recorded a high-water-mark yet. Ignored once a prior run has stored one. Only used when offset_field is set. The stored high-water-mark round-trips through Dagster metadata as text, so int/float-looking values (this field included) are coerced back to their native type before being compared against offset_field with $gt -- MongoDB's comparison is BSON-type-sensitive, so a numeric field compared against a string filter value will not behave like a numeric comparison. Works correctly for numeric/epoch-timestamp offset fields. For an ObjectId or a proper BSON date field, this coercion does not apply (neither is reliably detectable from a plain string) -- not yet supported.",
+      "required": false
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Documents fetched per page when offset_field is set. Ignored when offset_field is unset.",
+      "required": false
     }
   },
   "tags": [

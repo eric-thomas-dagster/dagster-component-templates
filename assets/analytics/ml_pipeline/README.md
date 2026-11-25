@@ -44,13 +44,15 @@ attributes:
 
 The fix, shown in the quick example above: insert a `filter` step (`predicate: "split == 'test'"`) between `predict` and `evaluate`/`confusion_matrix`. Also make sure `predict`'s own `input:` actually has the `split` column available -- that's the `split` step's own output, not whatever ran before it (e.g. `scaled`), since the `split` column only gets added there.
 
-## Op menu (36 total)
+## Op menu (40 total)
 
 **Preprocessing** (9): `impute`, `scale`, `one_hot_encode`, `label_encode`, `tile_binning`, `outlier_clip`, `missing_indicator`, `quantile_transformer`, `power_transformer`
 
 **Feature generation** (5): `date_features`, `polynomial_features`, `pca`, `tfidf`, `hashing_vectorizer`
 
-**Feature selection** (5): `variance_threshold`, `correlation_filter`, `mutual_info_selection`, `filter`, `select`
+**General ETL** (6): `filter`, `select`, `rename`, `cast`, `with_columns`, `join` — the same shape every bank/vendor-file transform needs (rename their columns, coerce types, derive a column, join a reference table) without writing custom Python. `join`'s `right:` accepts any `source:` kind (including `encrypted_file`, below), loaded the same way the pipeline's own input is.
+
+**Feature selection** (3): `variance_threshold`, `correlation_filter`, `mutual_info_selection`
 
 **Time-series** (2): `lag_features`, `rolling_window`
 
@@ -272,6 +274,7 @@ Promote any of these to a Dagster+ Insights custom metric via the UI — one cli
 | `file` | `{kind: file, path: ..., delimiter: ','}` | Local CSV files |
 | `warehouse_query` | `{kind: warehouse_query, resource_key: snowflake, sql: "..."}` | **Production ML** — any Dagster resource with `.get_engine()` or `.get_connection()` |
 | `upstream_asset` | `{kind: upstream_asset, upstream_asset_key: raw/events}` | Chain the pipeline downstream of any other Dagster asset |
+| `encrypted_file` | `{kind: encrypted_file, path: ..., format: csv, key_source: raw_key\|kms, raw_key_env_var: ..., kms_key_ids: ..., key_id: ..., encryption_context: {...}}` | Envelope-decrypt a whole file (real AWS Encryption SDK — raw key or KMS) before parsing it. File-level, not cell-level — see [`FieldEncryptionComponent`](../../../transforms/field_encryption/README.md) for per-column encryption on already-tabular data. |
 
 ## Sinks — where the outputs go
 
@@ -281,6 +284,7 @@ Promote any of these to a Dagster+ Insights custom metric via the UI — one cli
 | `csv_sinks` | `[{from: step_id, path: /path/to.csv}]` | Path is `{partition_key}`-aware |
 | `parquet_sinks` | `[{from: step_id, path: s3://.../file.parquet}]` | Same shape as csv_sinks |
 | `table_sinks` | `[{from: step_id, resource_key: snowflake, table: t, schema: s, if_exists: append, partition_column: date}]` | Write back to warehouse via same resource interface. `partition_column` enables the "single table + partition col" pattern. |
+| `encrypted_file_sinks` | `[{from: step_id, path: ..., format: csv, key_source: raw_key\|kms, raw_key_env_var: ..., kms_key_ids: ..., key_id: ..., encryption_context: {...}}]` | Serializes the step's DataFrame, then envelope-encrypts the WHOLE file before writing. Same mechanism as the `encrypted_file` source, in reverse. |
 
 ## Partitioning
 
@@ -310,6 +314,34 @@ post_processing:
         tags: {tier: gold, team: ml-platform}
         owners: ["ml-team@company.com"]
 ```
+
+**Or declare partitioning natively** on the component itself, via `partition_type` (single-axis: `daily`/`weekly`/`monthly`/`hourly`/`cron`/`static`/`dynamic` — same field names/shapes as `polars_pipeline`'s) or `partition_dimensions` (2+ axes build a `MultiPartitionsDefinition`). This is the shape a multi-tenant file-batch pattern needs — e.g. one asset shared across ~100 banks, partitioned on `(bank, batch_day)` instead of one dynamic partition per file (which blows past Dagster's partition-count guidance at any real file-arrival volume — see [`examples/bank_file_batch_ingestion.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bank_file_batch_ingestion.md) for the full math):
+
+```yaml
+type: dagster_community_components.MLPipelineComponent
+attributes:
+  asset_name_prefix: bank_batch
+  source:
+    kind: encrypted_file
+    path: "./incoming/{bank}/batch.enc"   # {partition_key} substitution applies the same way here
+    format: csv
+    key_source: raw_key
+    raw_key_env_var: BANK_FILE_KEY
+  target_column: amount
+  feature_columns: [amount]
+  partition_dimensions:
+    - {name: bank, type: static, values: [acme-bank, globex-bank]}
+    - {name: batch_day, type: daily, start: "2025-01-01"}
+  steps:
+    - {id: renamed, op: rename, columns: {acct_no: account_id}}
+    - {id: typed, op: cast, source: renamed, columns: {amount: float, posted_at: datetime}}
+  outputs:
+    assets: [typed]
+    encrypted_file_sinks:
+      - {from: typed, path: "./staging/{bank}_{batch_day}.enc", key_source: raw_key, raw_key_env_var: BANK_FILE_KEY}
+```
+
+One asset, one `multi_asset` materialization per `(bank, batch_day)` — decrypt → transform → re-encrypt → stage, with no hand-rolled Python asset.
 
 ## Per-step resume (`can_subset=True`)
 
@@ -356,10 +388,24 @@ Full end-to-end demo + comparison against 7 alternative shapes (raw `@dg.asset`,
 | `owners` | `List[str]` | — | Owners on the emitted assets. |
 | `description` | `str` | — | Description on the emitted assets. |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Single-axis partitioning: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'cron' / 'static' / 'dynamic' / None for unpartitioned. Set this OR partition_dimensions, not both. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for daily/weekly/monthly/hourly/cron. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values (or a YAML list) for partition_type='static', e.g. 'us,eu,asia'. |
+| `partition_cron_schedule` | `str` | — | Cron expression for partition_type='cron', e.g. '0 0 * * 1-5' for weekdays only. |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | Partition-key format string for partition_type='cron'. |
+| `partition_end_offset` | `int` | `0` | end_offset passed to the time-window partitions definition (daily/weekly/monthly/hourly/cron). |
+| `partition_timezone` | `str` | — | Timezone for time-window partitions (daily/weekly/monthly/hourly/cron). |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-dimensional partitioning — a list of {name, type, start?, values?, cron_schedule?, dynamic_partition_name?, end_offset?, timezone?} dimension specs (same per-axis shape as partition_type/partition_start/etc. above… _(full docs in schema.json + component README)_ |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `experiment_tracking` | `Dict[str, Any]` | — | Experiment-tracker config. Auto-logged from train / evaluate / cross_validate / grid_search / random_search / bayesian_search steps. Two backends (either OR both): `mlflow:` — `{tracking_uri_env_var, experiment_name, run… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

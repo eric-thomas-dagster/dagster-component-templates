@@ -2,6 +2,7 @@ pandas
 scikit-learn
 joblib
 # Optional deps enabled by specific ops:
+#   aws-encryption-sdk      — required by source kind='encrypted_file' / outputs.encrypted_file_sinks
 #   shap                    — required by the `shap_values` op
 #   xgboost                 — for sklearn_class: "xgboost.XGBClassifier" / XGBRegressor
 #   lightgbm                — for sklearn_class: "lightgbm.LGBMClassifier" / LGBMRegressor

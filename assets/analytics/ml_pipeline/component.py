@@ -45,23 +45,40 @@ Standardization — that's the point. Every ML pipeline in the org uses
 the same YAML shape, the same ops, the same output conventions.
 Reviewers, tests, and CI can validate against ONE schema.
 
-Op coverage (36 ops total -- see README.md's "Op menu" for the full
+Op coverage (40 ops total -- see README.md's "Op menu" for the full
 categorized list):
 
-- Ingestion:          url | file | upstream_asset | warehouse_query | dataframe
+- Ingestion:          url | file | upstream_asset | warehouse_query | dataframe |
+                      encrypted_file (envelope-decrypt a whole file via the real
+                      AWS Encryption SDK before parsing it -- raw_key or KMS)
 - Preprocessing (9):  impute, scale, one_hot_encode, label_encode, tile_binning,
                       outlier_clip, missing_indicator, quantile_transformer,
                       power_transformer
 - Feature gen (5):    date_features, polynomial_features, pca, tfidf,
                       hashing_vectorizer
-- Feature select (5): variance_threshold, correlation_filter,
-                      mutual_info_selection, filter, select
+- General ETL (6):    filter, select, rename, cast, with_columns, join --
+                      the same shape every bank/vendor-file transform needs
+                      (rename their columns, coerce types, derive a column,
+                      join a reference table) without writing custom Python
 - Time-series (2):    lag_features, rolling_window
 - Split + train (5):  split, train, grid_search, random_search, bayesian_search
 - Evaluate (7):       predict, predict_proba, evaluate, confusion_matrix,
                       importance, cross_validate, shap_values
 - Persist + Registry (3): save_model, register_model, load_model
-- Sinks:              csv_sinks, parquet_sinks, table_sinks
+- Sinks:              csv_sinks, parquet_sinks, table_sinks, encrypted_file_sinks
+                      (envelope-encrypt a DataFrame's serialized bytes before
+                      writing -- the `join`/`rename`/`cast`/encrypted-file trio
+                      together cover "decrypt -> transform -> re-encrypt -> stage"
+                      as ONE multi_asset materialization, no hand-rolled Python
+                      asset needed -- see examples/bank_file_batch_ingestion.md
+                      in the dagster-community-components-cli repo)
+
+Partitioning: `partition_type` (single-axis: daily/weekly/monthly/hourly/cron/
+static/dynamic) OR `partition_dimensions` (a list of the same axis shapes --
+2+ entries build a MultiPartitionsDefinition, e.g. `[{name: bank, type: static,
+values: [...]}, {name: batch_day, type: daily, start: ...}]`). Same field
+names/shapes as `polars_pipeline`'s partitioning, for consistency across the
+pipeline-component family.
 
 **Gotcha**: `evaluate`/`confusion_matrix`/`shap_values` do NOT auto-filter
 to a `split`-column test subset -- if you `predict` on the full
@@ -84,7 +101,7 @@ import contextlib
 import importlib
 import re
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -143,6 +160,166 @@ def _apply_partition_template(s: str, partition_key: Optional[str]) -> str:
         }))
     except Exception:
         return s
+
+
+def _build_partitions_def(
+    partition_type: Optional[str], partition_start: Optional[str],
+    partition_values: Optional[Any], dynamic_partition_name: Optional[str],
+    partition_dimensions: Optional[List[Dict[str, Any]]],
+    cron_schedule=None,
+    cron_fmt="%Y-%m-%d",
+    end_offset=0,
+    timezone=None,
+):
+    """Partition-def builder — same field names/shape as polars_pipeline's,
+    for consistency across the pipeline-component family. `partition_dimensions`
+    (a list of {name, type, ...}) builds a MultiPartitionsDefinition when more
+    than one axis is given; `partition_type` is the single-axis shorthand.
+    Set one or the other, not both."""
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "ml_pipeline: set either partition_type OR partition_dimensions, not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        _end_offset = spec.get("end_offset", 0)
+        _timezone = spec.get("timezone")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":   return DailyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "weekly":  return WeeklyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "monthly": return MonthlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "hourly":  return HourlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
+        if t == "cron":
+            from dagster import TimeWindowPartitionsDefinition
+            if not spec.get("start"):
+                raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+            if not spec.get("cron_schedule"):
+                raise ValueError("partition dimension type='cron' requires 'cron_schedule'")
+            return TimeWindowPartitionsDefinition(start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"], end_offset=_end_offset, timezone=_timezone)
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        return MultiPartitionsDefinition({d["name"]: _build_axis(d) for d in partition_dimensions})
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly", "cron") and not partition_start:
+        raise ValueError(f"partition_type={partition_type!r} requires partition_start")
+    if partition_type == "daily":   return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "weekly":  return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "monthly": return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "hourly":  return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not cron_schedule:
+            raise ValueError("partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only.")
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError("partition_type='dynamic' requires dynamic_partition_name")
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+# ── File-level envelope encryption (AWS Encryption SDK) — a fresh, independent
+# copy of the same mechanism FieldEncryptionComponent uses at the DataFrame-CELL
+# level (transforms/field_encryption/component.py), here operating on whole
+# FILE bytes instead. Per this repo's house rule, this is NOT imported from
+# that component — a deliberate duplicate. See that component's module
+# docstring for the same StreamSets-ciphertext-compatibility caveat: this is a
+# real, standards-compliant AWS ESDK implementation, but interop with
+# ciphertext some OTHER tool already produced is unverified unless you've
+# confirmed the exact plaintext layout independently.
+def _build_file_key_provider(key_source: str, raw_key_env_var, kms_key_ids, key_id: str):
+    import base64
+    import os
+
+    import aws_encryption_sdk
+    from aws_encryption_sdk.identifiers import EncryptionKeyType, WrappingAlgorithm
+    from aws_encryption_sdk.internal.crypto.wrapping_keys import WrappingKey
+    from aws_encryption_sdk.key_providers.raw import RawMasterKeyProvider
+
+    if key_source == "raw_key":
+        raw_key_b64 = os.environ.get(raw_key_env_var or "", "")
+        if not raw_key_b64:
+            raise ValueError(f"raw_key_env_var {raw_key_env_var!r} is unset or empty.")
+        raw_key_bytes = base64.b64decode(raw_key_b64)
+
+        class _StaticRawMasterKeyProvider(RawMasterKeyProvider):
+            provider_id = "ml-pipeline-file-encryption-raw"
+
+            def __new__(cls, *args, **kwargs):
+                return super(RawMasterKeyProvider, cls).__new__(cls)
+
+            def __init__(self_mk, **kwargs):
+                RawMasterKeyProvider.__init__(self_mk, **kwargs)
+
+            def _get_raw_key(self_mk, kid):
+                return WrappingKey(
+                    wrapping_algorithm=WrappingAlgorithm.AES_256_GCM_IV12_TAG16_NO_PADDING,
+                    wrapping_key=raw_key_bytes,
+                    wrapping_key_type=EncryptionKeyType.SYMMETRIC,
+                )
+
+        key_provider = _StaticRawMasterKeyProvider()
+        key_provider.add_master_key(key_id)
+        return key_provider
+    kms_ids = kms_key_ids if isinstance(kms_key_ids, list) else [kms_key_ids]
+    return aws_encryption_sdk.StrictAwsKmsMasterKeyProvider(key_ids=kms_ids)
+
+
+def _file_decrypt_bytes(ciphertext: bytes, key_provider, encryption_context: dict) -> bytes:
+    import aws_encryption_sdk
+
+    esdk_client = aws_encryption_sdk.EncryptionSDKClient(
+        commitment_policy=aws_encryption_sdk.CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT
+    )
+    plaintext, header = esdk_client.decrypt(source=ciphertext, key_provider=key_provider)
+    for k, v in (encryption_context or {}).items():
+        if header.encryption_context.get(k) != v:
+            raise ValueError(f"encryption_context mismatch: expected {k}={v!r}, got {header.encryption_context.get(k)!r}")
+    return plaintext
+
+
+def _file_encrypt_bytes(plaintext: bytes, key_provider, encryption_context: dict) -> bytes:
+    import aws_encryption_sdk
+
+    esdk_client = aws_encryption_sdk.EncryptionSDKClient(
+        commitment_policy=aws_encryption_sdk.CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT
+    )
+    ciphertext, _header = esdk_client.encrypt(
+        source=plaintext, key_provider=key_provider, encryption_context=encryption_context or {},
+    )
+    return ciphertext
 
 
 def _ingest(source_config: dict, context, partition_key: Optional[str] = None) -> Any:
@@ -206,6 +383,34 @@ def _ingest(source_config: dict, context, partition_key: Optional[str] = None) -
             f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
             f"or .get_connection() (DB-API); got {type(resource).__name__}"
         )
+    if kind == "encrypted_file":
+        # Decrypt a whole FILE's bytes (envelope-encrypted via the real AWS
+        # Encryption SDK — see _build_file_key_provider above) before parsing
+        # it into a DataFrame. Distinct from FieldEncryptionComponent, which
+        # encrypts/decrypts individual DataFrame CELLS after the data is
+        # already tabular — this operates one level earlier, on the raw file.
+        raw_path = source_config.get("path")
+        if not raw_path:
+            raise ValueError("ml_pipeline source kind='encrypted_file' requires `path`")
+        path = _apply_partition_template(raw_path, partition_key)
+        with open(path, "rb") as f:
+            ciphertext = f.read()
+        key_provider = _build_file_key_provider(
+            source_config.get("key_source", "raw_key"),
+            source_config.get("raw_key_env_var"),
+            source_config.get("kms_key_ids"),
+            source_config.get("key_id", "ml-pipeline-file-key"),
+        )
+        plaintext = _file_decrypt_bytes(ciphertext, key_provider, source_config.get("encryption_context") or {})
+        fmt = source_config.get("format", "csv")
+        if fmt == "csv":
+            return pd.read_csv(StringIO(plaintext.decode("utf-8")), sep=source_config.get("delimiter", ","))
+        if fmt == "json":
+            return pd.read_json(StringIO(plaintext.decode("utf-8")))
+        if fmt == "parquet":
+            import io
+            return pd.read_parquet(io.BytesIO(plaintext))
+        raise ValueError(f"encrypted_file format {fmt!r} not supported (use csv|json|parquet)")
     raise ValueError(f"unsupported source kind: {kind!r}")
 
 
@@ -292,6 +497,60 @@ def _do_filter(df, step: dict, target: str, features: list, context):
 def _do_select(df, step: dict, target: str, features: list, context):
     cols = step["columns"]
     return df[cols].copy()
+
+
+def _do_rename(df, step: dict, target: str, features: list, context):
+    """{op: rename, columns: {old_name: new_name, ...}}"""
+    return df.rename(columns=step["columns"])
+
+
+def _do_cast(df, step: dict, target: str, features: list, context):
+    """{op: cast, columns: {col: dtype, ...}, errors?: 'raise'|'coerce'|'ignore'}.
+    `dtype` accepts pandas dtype strings (e.g. 'float64', 'category') plus the
+    shorthands 'int'/'float'/'datetime'/'date', which route through
+    pd.to_numeric/pd.to_datetime instead of a bare .astype() so malformed
+    values can be coerced to NaT/NaN rather than raising, per `errors:`."""
+    import pandas as pd
+    out = df.copy()
+    errors = step.get("errors", "raise")
+    for col, dtype in step["columns"].items():
+        dtype_l = str(dtype).lower()
+        if dtype_l in ("datetime", "datetime64", "date"):
+            out[col] = pd.to_datetime(out[col], errors=errors)
+        elif dtype_l in ("int", "integer"):
+            out[col] = pd.to_numeric(out[col], errors=errors).astype("Int64")
+        elif dtype_l in ("float", "number", "numeric"):
+            out[col] = pd.to_numeric(out[col], errors=errors)
+        else:
+            out[col] = out[col].astype(dtype)
+    return out
+
+
+def _do_with_columns(df, step: dict, target: str, features: list, context):
+    """{op: with_columns, columns: {new_col: '<pandas .eval() expression over existing columns>', ...}}"""
+    out = df.copy()
+    for col, expr in step["columns"].items():
+        out[col] = out.eval(expr)
+    return out
+
+
+def _do_join(df, step: dict, target: str, features: list, context):
+    """{op: join, right: <source-shaped dict, same `kind:` menu as the pipeline's
+    own `source:`>, on?: [...] | left_on?/right_on?: [...], how?: 'inner'|'left'|
+    'right'|'outer', suffixes?: [l, r]}. `right` is loaded via the same `_ingest`
+    used for the pipeline's main input — any source kind (file/url/warehouse_query/
+    encrypted_file/...) works on the right-hand side too."""
+    partition_key = context.partition_key if context.has_partition_key else None
+    right_df = _ingest(step["right"], context, partition_key=partition_key)
+    kwargs: Dict[str, Any] = {"how": step.get("how", "inner")}
+    if "on" in step:
+        kwargs["on"] = step["on"]
+    else:
+        kwargs["left_on"] = step["left_on"]
+        kwargs["right_on"] = step["right_on"]
+    if "suffixes" in step:
+        kwargs["suffixes"] = tuple(step["suffixes"])
+    return df.merge(right_df, **kwargs)
 
 
 def _do_date_features(df, step: dict, target: str, features: list, context):
@@ -1371,6 +1630,10 @@ _FRAME_OPS = {
     # Selection + generation
     "filter":                 _do_filter,
     "select":                 _do_select,
+    "rename":                 _do_rename,
+    "cast":                   _do_cast,
+    "with_columns":           _do_with_columns,
+    "join":                   _do_join,
     "date_features":          _do_date_features,
     "polynomial_features":    _do_polynomial_features,
     "pca":                    _do_pca,
@@ -1665,10 +1928,48 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     owners: Optional[List[str]] = Field(default=None, description="Owners on the emitted assets.")
     description: Optional[str] = Field(default=None, description="Description on the emitted assets.")
 
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Single-axis partitioning: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'cron' / "
+                    "'static' / 'dynamic' / None for unpartitioned. Set this OR partition_dimensions, not both.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None, description="Partition start date in ISO format, e.g. '2024-01-01'. Required for daily/weekly/monthly/hourly/cron.",
+    )
+    partition_values: Optional[Union[str, List[str]]] = Field(
+        default=None, description="Comma-separated values (or a YAML list) for partition_type='static', e.g. 'us,eu,asia'.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None, description="Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
+    )
+    partition_cron_schedule: Optional[str] = Field(
+        default=None, description="Cron expression for partition_type='cron', e.g. '0 0 * * 1-5' for weekdays only.",
+    )
+    partition_cron_fmt: Optional[str] = Field(
+        default="%Y-%m-%d", description="Partition-key format string for partition_type='cron'.",
+    )
+    partition_end_offset: int = Field(
+        default=0, description="end_offset passed to the time-window partitions definition (daily/weekly/monthly/hourly/cron).",
+    )
+    partition_timezone: Optional[str] = Field(
+        default=None, description="Timezone for time-window partitions (daily/weekly/monthly/hourly/cron).",
+    )
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Multi-dimensional partitioning — a list of {name, type, start?, values?, "
+            "cron_schedule?, dynamic_partition_name?, end_offset?, timezone?} dimension specs "
+            "(same per-axis shape as partition_type/partition_start/etc. above, one dict per "
+            "axis). 2+ entries build a MultiPartitionsDefinition, e.g. a `(bank, batch_day)` "
+            "shape: [{name: bank, type: static, values: [...]}, {name: batch_day, type: daily, "
+            "start: '2024-01-01'}]. Set this OR partition_type, not both."
+        ),
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('kinds', 'owners'), csv=(), tags=('tags',))
+        return coerce_field_shapes(data, lists=('kinds', 'owners'), csv=('partition_values',), tags=('tags',))
 
     @classmethod
     def get_form_config(cls):
@@ -1687,6 +1988,14 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         csv_sinks: List[Dict[str, Any]] = list(outputs.get("csv_sinks", []) or [])
         parquet_sinks: List[Dict[str, Any]] = list(outputs.get("parquet_sinks", []) or [])
         table_sinks: List[Dict[str, Any]] = list(outputs.get("table_sinks", []) or [])
+        encrypted_file_sinks: List[Dict[str, Any]] = list(outputs.get("encrypted_file_sinks", []) or [])
+
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values,
+            self.dynamic_partition_name, self.partition_dimensions,
+            cron_schedule=self.partition_cron_schedule, cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+            end_offset=self.partition_end_offset, timezone=self.partition_timezone,
+        )
 
         # Auto-detect required Dagster resource keys from source + table_sinks —
         # customer never has to list them explicitly.
@@ -1813,6 +2122,7 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             ins=ins or None,
             required_resource_keys=required_resource_keys or None,
             can_subset=True,
+            partitions_def=partitions_def,
         )
         def _pipeline(context: dg.AssetExecutionContext, **kwargs):
             # Partition-aware compute: read context.partition_key once + thread
@@ -1904,6 +2214,37 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 path = _apply_partition_template(sink["path"], partition_key)
                 state[from_id].to_parquet(path, index=False)
                 context.log.info(f"parquet_sink {from_id!r} → {path}")
+
+            # Write encrypted-file sinks — serialize the DataFrame to bytes in
+            # the given format, then envelope-encrypt the WHOLE file (same AWS
+            # Encryption SDK mechanism as the encrypted_file source kind, not
+            # FieldEncryptionComponent's per-cell encryption) before writing.
+            for sink in encrypted_file_sinks:
+                from_id = sink["from"]
+                if from_id not in state:
+                    continue  # subset skipped upstream; skip sink
+                path = _apply_partition_template(sink["path"], partition_key)
+                fmt = sink.get("format", "csv")
+                df_out = state[from_id]
+                if fmt == "csv":
+                    plaintext = df_out.to_csv(index=False).encode("utf-8")
+                elif fmt == "json":
+                    plaintext = df_out.to_json(orient="records").encode("utf-8")
+                elif fmt == "parquet":
+                    import io
+                    buf = io.BytesIO()
+                    df_out.to_parquet(buf, index=False)
+                    plaintext = buf.getvalue()
+                else:
+                    raise ValueError(f"encrypted_file_sinks format {fmt!r} not supported (use csv|json|parquet)")
+                key_provider = _build_file_key_provider(
+                    sink.get("key_source", "raw_key"), sink.get("raw_key_env_var"),
+                    sink.get("kms_key_ids"), sink.get("key_id", "ml-pipeline-file-key"),
+                )
+                ciphertext = _file_encrypt_bytes(plaintext, key_provider, sink.get("encryption_context") or {})
+                with open(path, "wb") as f:
+                    f.write(ciphertext)
+                context.log.info(f"encrypted_file_sink {from_id!r} → {path}")
 
             # Write Table sinks — via a Dagster resource. Two partition patterns:
             #   Pattern A (per-partition-table): put `{partition_key}` in `table:`

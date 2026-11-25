@@ -4,36 +4,164 @@
   "category": "analytics",
   "icon": "Workflow",
   "x-dagster-io": {
-    "inputs":  {"type": "any",       "description": "Source data — URL, file, warehouse SQL, or upstream asset (kind = url|file|warehouse_query|upstream_asset)."},
-    "outputs": {"type": "dataframe", "description": "One or more first-class asset outputs (declared via outputs.assets: [step_ids]), plus optional csv / parquet / table sinks."}
+    "inputs": {
+      "type": "any",
+      "description": "Source data — URL, file, warehouse SQL, or upstream asset (kind = url|file|warehouse_query|upstream_asset)."
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "One or more first-class asset outputs (declared via outputs.assets: [step_ids]), plus optional csv / parquet / table sinks."
+    }
   },
   "attributes": {
-    "asset_name_prefix":  {"type": "string", "required": true, "label": "Asset Name Prefix",
-                           "description": "Prefix for emitted asset names. Each step listed in outputs.assets becomes '{prefix}_{step_id}'."},
-
-    "source":             {"type": "object", "required": true, "label": "Source",
-                           "description": "Data source. kind = url | file | warehouse_query | upstream_asset. warehouse_query requires resource_key + sql; auto-detects the required_resource_keys."},
-
-    "target_column":      {"type": "string", "required": true, "label": "Target Column",
-                           "description": "Column to predict / cluster on."},
-
-    "feature_columns":    {"type": "array",  "required": true, "label": "Feature Columns", "items": {"type": "string"},
-                           "description": "Feature columns fed to train/predict/cross_validate."},
-
-    "steps":              {"type": "array",  "required": true, "label": "Steps", "items": {"type": "object"},
-                           "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Steps chain by id — a step with `source:` (or `input:`, `model:`) points at another step's output; omit `source:` and it defaults to the most recent DataFrame in state. 36 ops: preprocessing (impute / scale / one_hot_encode / label_encode / tile_binning / outlier_clip / missing_indicator / quantile_transformer / power_transformer), selection + generation (filter / select / date_features / polynomial_features / pca), text features (tfidf / hashing_vectorizer), feature selection (variance_threshold / correlation_filter / mutual_info_selection), time-series (lag_features / rolling_window), split + CV (split / cross_validate), train (`train` / `grid_search` / `random_search` / **`bayesian_search`** — Optuna TPE sampler with `param_space:` and `n_trials`), evaluate / interpret (predict / predict_proba / evaluate / confusion_matrix / importance / shap_values), persist (save_model), **Model Registry** (`register_model` — logs a fitted model to MLflow Model Registry OR Snowflake Model Registry by `model_name` + auto-timestamp version; `load_model` — loads a versioned model into state so downstream `predict` / `predict_proba` / `evaluate` ops score against it in a separate pipeline / schedule). Registry ops take `backend: mlflow|snowflake`. MLflow requires `tracking_uri` (or `tracking_uri_env_var`) — no silent local fallback. Snowflake requires `connection: {...}` (same shape as snowpark_pipeline)."},
-
-    "outputs":            {"type": "object", "required": true, "label": "Outputs",
-                           "description": "Output declaration. Shape: {assets: [<step_ids>], csv_sinks: [], parquet_sinks: [], table_sinks: []}. `assets:` step outputs become first-class Dagster assets; sinks are side effects. All sink paths are `{partition_key}`-aware; table_sinks accept a `partition_column:` for the analytics-friendly single-table pattern, plus `mode: upsert_on_match, match: [col, col]` for idempotent partition-rewrite (DELETE-then-INSERT keyed by match tuple, in a transaction — safe to re-run the same partition)."},
-
-    "experiment_tracking": {"type": "object", "label": "Experiment Tracking",
-                           "description": "Opt-in tracker config for train / evaluate / cross_validate / grid_search / random_search / bayesian_search steps. Two backends (either OR both — silently no-op when the library isn't installed): `mlflow: {tracking_uri_env_var, experiment_name, run_name_template, log_model, tags}` (auto-`log_params` + `log_metrics` from every tracker-aware op; `log_model: true` uses `mlflow.sklearn.log_model`), `wandb: {project_env_var, api_key_env_var, entity_env_var, run_name_template, tags}`. `run_name_template` supports `{prefix}` / `{partition_key}` / `{run_id}`. Metrics are prefixed with the step id (e.g. `tuned.n_estimators`, `metrics.accuracy`) so multiple steps can log to the same run without collisions."},
-
-    "group_name":         {"type": "string", "label": "Group Name", "description": "Group name for emitted assets. Default: 'ml'."},
-    "kinds":              {"type": "array",  "label": "Kinds", "items": {"type": "string"},
-                           "description": "Asset kinds. Default: ['python', 'ml']."},
-    "tags":               {"type": "object", "label": "Tags", "description": "Additional tags for the emitted assets."},
-    "owners":             {"description": "Owners on the emitted assets.", "type": "array",  "label": "Owners", "items": {"type": "string"}},
-    "description":        {"type": "string", "label": "Description", "description": "Description on the emitted assets."}
+    "asset_name_prefix": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name Prefix",
+      "description": "Prefix for emitted asset names. Each step listed in outputs.assets becomes '{prefix}_{step_id}'."
+    },
+    "source": {
+      "type": "object",
+      "required": true,
+      "label": "Source",
+      "description": "Data source. kind = url | file | warehouse_query | upstream_asset. warehouse_query requires resource_key + sql; auto-detects the required_resource_keys."
+    },
+    "target_column": {
+      "type": "string",
+      "required": true,
+      "label": "Target Column",
+      "description": "Column to predict / cluster on."
+    },
+    "feature_columns": {
+      "type": "array",
+      "required": true,
+      "label": "Feature Columns",
+      "items": {
+        "type": "string"
+      },
+      "description": "Feature columns fed to train/predict/cross_validate."
+    },
+    "steps": {
+      "type": "array",
+      "required": true,
+      "label": "Steps",
+      "items": {
+        "type": "object"
+      },
+      "description": "Ordered pipeline steps. Each: {id, op, ...op-specific args}. Steps chain by id — a step with `source:` (or `input:`, `model:`) points at another step's output; omit `source:` and it defaults to the most recent DataFrame in state. 36 ops: preprocessing (impute / scale / one_hot_encode / label_encode / tile_binning / outlier_clip / missing_indicator / quantile_transformer / power_transformer), selection + generation (filter / select / date_features / polynomial_features / pca), text features (tfidf / hashing_vectorizer), feature selection (variance_threshold / correlation_filter / mutual_info_selection), time-series (lag_features / rolling_window), split + CV (split / cross_validate), train (`train` / `grid_search` / `random_search` / **`bayesian_search`** — Optuna TPE sampler with `param_space:` and `n_trials`), evaluate / interpret (predict / predict_proba / evaluate / confusion_matrix / importance / shap_values), persist (save_model), **Model Registry** (`register_model` — logs a fitted model to MLflow Model Registry OR Snowflake Model Registry by `model_name` + auto-timestamp version; `load_model` — loads a versioned model into state so downstream `predict` / `predict_proba` / `evaluate` ops score against it in a separate pipeline / schedule). Registry ops take `backend: mlflow|snowflake`. MLflow requires `tracking_uri` (or `tracking_uri_env_var`) — no silent local fallback. Snowflake requires `connection: {...}` (same shape as snowpark_pipeline)."
+    },
+    "outputs": {
+      "type": "object",
+      "required": true,
+      "label": "Outputs",
+      "description": "Output declaration. Shape: {assets: [<step_ids>], csv_sinks: [], parquet_sinks: [], table_sinks: []}. `assets:` step outputs become first-class Dagster assets; sinks are side effects. All sink paths are `{partition_key}`-aware; table_sinks accept a `partition_column:` for the analytics-friendly single-table pattern, plus `mode: upsert_on_match, match: [col, col]` for idempotent partition-rewrite (DELETE-then-INSERT keyed by match tuple, in a transaction — safe to re-run the same partition)."
+    },
+    "experiment_tracking": {
+      "type": "object",
+      "label": "Experiment Tracking",
+      "description": "Opt-in tracker config for train / evaluate / cross_validate / grid_search / random_search / bayesian_search steps. Two backends (either OR both — silently no-op when the library isn't installed): `mlflow: {tracking_uri_env_var, experiment_name, run_name_template, log_model, tags}` (auto-`log_params` + `log_metrics` from every tracker-aware op; `log_model: true` uses `mlflow.sklearn.log_model`), `wandb: {project_env_var, api_key_env_var, entity_env_var, run_name_template, tags}`. `run_name_template` supports `{prefix}` / `{partition_key}` / `{run_id}`. Metrics are prefixed with the step id (e.g. `tuned.n_estimators`, `metrics.accuracy`) so multiple steps can log to the same run without collisions."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group name for emitted assets. Default: 'ml'."
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "items": {
+        "type": "string"
+      },
+      "description": "Asset kinds. Default: ['python', 'ml']."
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Additional tags for the emitted assets."
+    },
+    "owners": {
+      "description": "Owners on the emitted assets.",
+      "type": "array",
+      "label": "Owners",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description on the emitted assets."
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Cron expression for partition_type='cron', e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "Partition-key format string for partition_type='cron'.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "end_offset passed to the time-window partitions definition (daily/weekly/monthly/hourly/cron).",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "Timezone for time-window partitions (daily/weekly/monthly/hourly/cron).",
+      "required": false
+    }
   }
 }

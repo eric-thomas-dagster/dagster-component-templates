@@ -44629,7 +44629,7 @@
       "category": "analytics",
       "author": "Eric Thomas",
       "version": "1.2.0",
-      "description": "Standardized end-to-end ML pipeline in one YAML — source + steps + outputs. 36 ops covering feature engineering, hyperparameter tuning (grid / random / **bayesian** via Optuna), evaluation, interpretability, and model persistence. Any sklearn / XGBoost / LightGBM estimator via `sklearn_class:` escape hatch. Opt-in `experiment_tracking:` block auto-logs params / metrics / model artifacts to MLflow and/or Weights & Biases from every train / evaluate / *_search / cross_validate step. Rich per-step metadata (elapsed_seconds, model_class, hyperparams, CV mean/std, evaluate metrics, top feature) surfaces as `MetadataValue` on emitted assets — promote to Dagster+ Insights for training-cost / accuracy dashboards. Warehouse-connected via any Dagster resource. Partition-aware.",
+      "description": "Standardized end-to-end ML pipeline in one YAML — source + steps + outputs. 40 ops covering feature engineering, general ETL (rename/cast/with_columns/join), hyperparameter tuning (grid / random / **bayesian** via Optuna), evaluation, interpretability, and model persistence. Any sklearn / XGBoost / LightGBM estimator via `sklearn_class:` escape hatch. Opt-in `experiment_tracking:` block auto-logs params / metrics / model artifacts to MLflow and/or Weights & Biases from every train / evaluate / *_search / cross_validate step. Rich per-step metadata (elapsed_seconds, model_class, hyperparams, CV mean/std, evaluate metrics, top feature) surfaces as `MetadataValue` on emitted assets — promote to Dagster+ Insights for training-cost / accuracy dashboards. Warehouse-connected via any Dagster resource. Partition-aware. Envelope-encrypt/decrypt whole files via source kind='encrypted_file' / outputs.encrypted_file_sinks (real AWS Encryption SDK) -- decrypt -> transform -> re-encrypt -> stage as ONE materialization, multi-dimensional partitioning via partition_dimensions.",
       "tags": [],
       "produces": [
         "multi_asset"
@@ -44638,7 +44638,8 @@
         "pip": [
           "pandas",
           "scikit-learn",
-          "joblib"
+          "joblib",
+          "aws-encryption-sdk"
         ]
       },
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ml_pipeline/component.py",

@@ -1,0 +1,6 @@
+type: dagster_community_components.AtlassianMcpServerComponent
+attributes:
+  resource_key: atlassian_mcp
+  auth_mode: personal_api_token
+  atlassian_email_env_var: ATLASSIAN_EMAIL
+  atlassian_api_token_env_var: ATLASSIAN_API_TOKEN

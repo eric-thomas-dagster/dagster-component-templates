@@ -1,0 +1,4 @@
+type: dagster_community_components.CloudflareMcpServerComponent
+attributes:
+  resource_key: cloudflare_mcp
+  api_token_env_var: CLOUDFLARE_API_TOKEN

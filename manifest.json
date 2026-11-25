@@ -6792,6 +6792,56 @@
       ]
     },
     {
+      "id": "atlassian_mcp_server",
+      "name": "atlassian_mcp_server",
+      "category": "ai",
+      "description": "Registers a local stdio MCP server proxying arbitrary Jira/Confluence/JSM MCP tools to Atlassian's hosted MCP server, authenticated with a static personal API token or service-account key -- no OAuth.",
+      "path": "assets/ai/atlassian_mcp_server",
+      "tags": [
+        "agentic"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/atlassian_mcp_server/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/atlassian_mcp_server/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/atlassian_mcp_server/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/atlassian_mcp_server/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/atlassian_mcp_server/requirements.txt",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "mcp",
+          "anyio"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-25"
+      },
+      "vertical": "data-platform",
+      "icon": "si:atlassian",
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "A Dagster resource (a local stdio MCP server) other mcp_servers-aware components reference via server_resource_key.",
+        "requires_pip": [
+          "dagster",
+          "mcp",
+          "anyio"
+        ]
+      },
+      "keywords": [
+        "model context protocol",
+        "mcp server",
+        "atlassian",
+        "jira",
+        "confluence",
+        "chat agent tools"
+      ],
+      "vendor": "Atlassian"
+    },
+    {
       "id": "attentive_ingestion",
       "name": "Attentive Ingestion",
       "category": "ingestion",
@@ -13080,6 +13130,54 @@
         "genai"
       ],
       "icon": "Sparkles"
+    },
+    {
+      "id": "cloudflare_mcp_server",
+      "name": "cloudflare_mcp_server",
+      "category": "ai",
+      "description": "Registers a local stdio MCP server proxying arbitrary Cloudflare MCP tools to Cloudflare's hosted MCP server, authenticated with a static Cloudflare API token -- no OAuth, no token refresh.",
+      "path": "assets/ai/cloudflare_mcp_server",
+      "tags": [
+        "agentic"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloudflare_mcp_server/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloudflare_mcp_server/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloudflare_mcp_server/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloudflare_mcp_server/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloudflare_mcp_server/requirements.txt",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "mcp",
+          "anyio"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-25"
+      },
+      "vertical": "data-platform",
+      "icon": "si:cloudflare",
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "A Dagster resource (a local stdio MCP server) other mcp_servers-aware components reference via server_resource_key.",
+        "requires_pip": [
+          "dagster",
+          "mcp",
+          "anyio"
+        ]
+      },
+      "keywords": [
+        "model context protocol",
+        "mcp server",
+        "cloudflare",
+        "chat agent tools"
+      ],
+      "vendor": "Cloudflare"
     },
     {
       "id": "cloudformation_asset",
@@ -67467,6 +67565,54 @@
       "vendor": "Stripe"
     },
     {
+      "id": "stripe_mcp_server",
+      "name": "stripe_mcp_server",
+      "category": "ai",
+      "description": "Registers a local stdio MCP server proxying arbitrary Stripe MCP tools to Stripe's hosted MCP server, authenticated with a static Agent API key -- no OAuth, no token refresh.",
+      "path": "assets/ai/stripe_mcp_server",
+      "tags": [
+        "agentic"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/stripe_mcp_server/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/stripe_mcp_server/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/stripe_mcp_server/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/stripe_mcp_server/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/stripe_mcp_server/requirements.txt",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "mcp",
+          "anyio"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-25"
+      },
+      "vertical": "data-platform",
+      "icon": "si:stripe",
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "A Dagster resource (a local stdio MCP server) other mcp_servers-aware components reference via server_resource_key.",
+        "requires_pip": [
+          "dagster",
+          "mcp",
+          "anyio"
+        ]
+      },
+      "keywords": [
+        "model context protocol",
+        "mcp server",
+        "stripe",
+        "chat agent tools"
+      ],
+      "vendor": "Stripe"
+    },
+    {
       "id": "stripe_resource",
       "name": "Stripe Resource",
       "category": "resource",
@@ -76755,5 +76901,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1461
+  "total": 1464
 }

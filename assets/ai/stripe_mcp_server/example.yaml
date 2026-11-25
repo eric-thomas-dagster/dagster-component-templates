@@ -1,0 +1,4 @@
+type: dagster_community_components.StripeMcpServerComponent
+attributes:
+  resource_key: stripe_mcp
+  api_key_env_var: STRIPE_AGENT_API_KEY

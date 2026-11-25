@@ -1237,6 +1237,11 @@ def build_mcp_server(tools: GithubPrTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server, Context as _Context
 
+    try:  # the SDK's own ToolError, not this module's GithubPrScopeError -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("github-pr-tools")
     allowed = set(tools.tool_names())
 
@@ -1257,20 +1262,37 @@ def build_mcp_server(tools: GithubPrTools):
         # extra keys as real attributes. Handle both without assuming either shape.
         return meta.get("dagster_run_id") if isinstance(meta, dict) else getattr(meta, "dagster_run_id", None)
 
+    def _mcp_call(name: str, args: Dict[str, Any], *, run_id: Optional[str] = None) -> Dict[str, Any]:
+        """tools.call() never raises (see module docstring) -- a bad-arguments or failure comes back as a plain
+        {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL (isError=False) tool
+        result indistinguishable from success. Re-raising here lets the `mcp` package's own exception handling
+        (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a registered tool function and
+        turn it into a real isError=True CallToolResult) make the failure visible to whatever's counting failed
+        calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError), not this module's
+        GithubPrScopeError: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a
+        raised exception's own message when it recognizes the exception as ITS OWN ToolError/ResourceError --
+        anything else (including a same-named ToolError class defined elsewhere) is treated as an unexpected
+        crash and replaced with a generic 'Error executing tool <name>' before it reaches the client, throwing
+        away the reason the agent needs to act on."""
+        result = tools.call(name, args, run_id=run_id)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def get_pull_request(number: int) -> dict:
         """A pull request's title, description, changed files with patches, and CI check state."""
-        return tools.call("get_pull_request", {"number": number})
+        return _mcp_call("get_pull_request", {"number": number})
 
     @_tool
     def list_open_pull_requests() -> dict:
         """Open pull requests (number, title, branch, author), to avoid proposing a change twice."""
-        return tools.call("list_open_pull_requests")
+        return _mcp_call("list_open_pull_requests", {})
 
     @_tool
     def assess_pull_request(number: int) -> dict:
         """The fixed risk assessment for a PR: level 'low' or 'needs_human', and the reasons. review_pull_request enforces this; it is not advisory only."""
-        return tools.call("assess_pull_request", {"number": number})
+        return _mcp_call("assess_pull_request", {"number": number})
 
     @_tool
     def propose_fix(branch: str, title: str, body: str, files: list, note: str = "", ctx: _Context = None) -> dict:
@@ -1278,39 +1300,39 @@ def build_mcp_server(tools: GithubPrTools):
         which replaces that exact text (it must appear once) and leaves the rest of the file untouched, or
         {path, content} with the FULL new content (only for new files). The branch is created for you. CI,
         dependencies and packaging files are protected. Never merges."""
-        return tools.call("propose_fix", {"branch": branch, "title": title, "body": body, "files": files, "note": note}, run_id=_run_id_from(ctx))
+        return _mcp_call("propose_fix", {"branch": branch, "title": title, "body": body, "files": files, "note": note}, run_id=_run_id_from(ctx))
 
     @_tool
     def review_pull_request(number: int, decision: str, body: str, ctx: _Context = None) -> dict:
         """Review a PR. decision is COMMENT or APPROVE. APPROVE is refused unless the PR is low risk, and is posted under a second GitHub identity."""
-        return tools.call("review_pull_request", {"number": number, "decision": decision, "body": body}, run_id=_run_id_from(ctx))
+        return _mcp_call("review_pull_request", {"number": number, "decision": decision, "body": body}, run_id=_run_id_from(ctx))
 
     @_tool
     def refresh_open_agent_prs() -> dict:
         """Bring every open agent-branch PR up to date with the base branch (e.g. after a merge), so CI runs against the just-merged code instead of a stale base."""
-        return tools.call("refresh_open_agent_prs", {})
+        return _mcp_call("refresh_open_agent_prs", {})
 
     @_tool
     def find_issues(query: str) -> dict:
         """Open issues the agents already filed whose title matches query's main words. Call this BEFORE open_issue to avoid filing the same problem twice."""
-        return tools.call("find_issues", {"query": query})
+        return _mcp_call("find_issues", {"query": query})
 
     @_tool
     def open_issue(title: str, body: str, labels: list = None, ctx: _Context = None) -> dict:
         """File a GitHub issue (labeled 'engineering-agent'). Check find_issues first."""
-        return tools.call("open_issue", {"title": title, "body": body, "labels": labels}, run_id=_run_id_from(ctx))
+        return _mcp_call("open_issue", {"title": title, "body": body, "labels": labels}, run_id=_run_id_from(ctx))
 
     @_tool
     def list_files(path: str = "") -> dict:
         """List files/directories under `path` in the configured repo (pinned to base_branch). An
         entry matching exclude_paths never appears in the listing at all."""
-        return tools.call("list_files", {"path": path})
+        return _mcp_call("list_files", {"path": path})
 
     @_tool
     def read_file(path: str, ref: str = None) -> dict:
         """Read one file's content from the configured repo. ref defaults to base_branch; pass a
         branch, commit SHA or tag to read a different one. Refuses a path matching exclude_paths."""
-        return tools.call("read_file", {"path": path, "ref": ref})
+        return _mcp_call("read_file", {"path": path, "ref": ref})
 
     return mcp
 

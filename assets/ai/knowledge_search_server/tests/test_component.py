@@ -160,16 +160,17 @@ def test_search_raises_naming_the_exact_missing_vector_store_api_key_env_var(mod
         resource.search("q", top_k=1)
 
 
-def test_safe_search_returns_clear_error_instead_of_crashing(mod, monkeypatch):
-    """What the MCP tool itself actually calls -- a missing key must come back as
-    {"error": "..."} naming the variable, not propagate as an exception."""
+def test_safe_search_raises_the_sdk_tool_error_naming_the_variable(mod, monkeypatch):
+    """What the MCP tool itself actually calls -- a missing key must raise the MCP SDK's own
+    ToolError naming the variable (so the `mcp` package turns it into a real isError=True
+    result), not come back as a quiet {"error": ...} dict an agent loop's failed-call
+    accounting would miss."""
     monkeypatch.delenv("MISSING_OPENAI_KEY", raising=False)
     resource = mod.KnowledgeSearchResource(
         provider="chromadb", collection_name="kb", embed_provider="openai", embed_api_key_env_var="MISSING_OPENAI_KEY",
     )
-    result = mod._safe_search(resource, "q", 1)
-    assert "error" in result
-    assert "MISSING_OPENAI_KEY" in result["error"]
+    with pytest.raises(mod._sdk_tool_error_cls(), match="MISSING_OPENAI_KEY"):
+        mod._safe_search(resource, "q", 1)
 
 
 def test_safe_search_passes_through_on_success(mod, monkeypatch):

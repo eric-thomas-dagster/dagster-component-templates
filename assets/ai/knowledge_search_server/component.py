@@ -850,9 +850,10 @@ def build_mcp_server(resource: KnowledgeSearchResource, server_name: str = "know
     def search_knowledge(query: str, top_k: int = 5) -> dict:
         """Search the knowledge base for chunks relevant to `query`. Returns
         {"chunks": [{"chunk_id", "text", "score", "source", "doc_id"}, ...]} on success, or
-        {"error": "..."} naming exactly what's misconfigured (e.g. a missing API key env
-        var) rather than a generic tool-call failure. When receipts_db_path is configured,
-        also returns a receipt_id -- pass it to record_feedback to report an outcome."""
+        raises on failure (e.g. a missing API key env var) so the MCP transport reports a
+        real isError result instead of a normal-looking one. When receipts_db_path is
+        configured, also returns a receipt_id -- pass it to record_feedback to report an
+        outcome."""
         return _safe_search(resource, query, top_k)
 
     if resource.receipts_db_path:
@@ -868,21 +869,39 @@ def build_mcp_server(resource: KnowledgeSearchResource, server_name: str = "know
     return mcp
 
 
+def _sdk_tool_error_cls():
+    """The MCP SDK's own ToolError class -- NOT a same-named class defined anywhere in this
+    module: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a
+    raised exception's own message when it recognizes the exception as ITS OWN ToolError/
+    ResourceError -- anything else is treated as an unexpected crash and replaced with a
+    generic 'Error executing tool <name>' before it reaches the client, throwing away the
+    reason the agent needs to act on."""
+    try:  # mcp 2.x (confirmed live, 2.3.0)
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError
+    except ImportError:  # mcp 1.x (stable FastMCP API, not live-verified here)
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError
+    return _SdkToolError
+
+
 def _safe_search(resource: "KnowledgeSearchResource", query: str, top_k: int) -> dict:
-    """Catches any exception from resource.search() and returns {"error": "..."} instead of
-    letting it propagate as FastMCP's own generic "Error executing tool" message -- a
-    separate, directly-testable function rather than inline in the tool closure above."""
+    """resource.search() can raise (e.g. a missing embed/vector-store API key env var) --
+    re-raise as the MCP SDK's own ToolError so the `mcp` package's own exception handling
+    (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a registered tool
+    function) turns it into a real isError=True CallToolResult, instead of a plain
+    {"error": ...} dict that reads as a NORMAL (isError=False), successful result to whatever
+    is counting failed tool calls in the agent loop. See _sdk_tool_error_cls for why the
+    exception class matters."""
     try:
         return resource.search(query, top_k=top_k)
-    except Exception as e:  # noqa: BLE001 -- surface as data, the agent loop must not crash
-        return {"error": f"{type(e).__name__}: {e}"}
+    except Exception as e:  # noqa: BLE001 -- surface as a real MCP tool error, the agent loop must see the failure
+        raise _sdk_tool_error_cls()(f"{type(e).__name__}: {e}") from e
 
 
 def _safe_record_feedback(resource: "KnowledgeSearchResource", receipt_id: str, signal: str, user_id: Optional[str]) -> dict:
     try:
         return resource.record_feedback(receipt_id, signal, user_id)
-    except Exception as e:  # noqa: BLE001 -- surface as data, the agent loop must not crash
-        return {"error": f"{type(e).__name__}: {e}"}
+    except Exception as e:  # noqa: BLE001 -- surface as a real MCP tool error, the agent loop must see the failure
+        raise _sdk_tool_error_cls()(f"{type(e).__name__}: {e}") from e
 
 
 def main(argv: Optional[List[str]] = None) -> None:

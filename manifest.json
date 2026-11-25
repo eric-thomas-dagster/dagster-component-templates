@@ -50676,6 +50676,40 @@
       "icon": "ShieldCheck"
     },
     {
+      "id": "pandas_pipeline",
+      "name": "pandas_pipeline",
+      "category": "transformation",
+      "description": "Multi-step pandas DataFrame pipeline in a single Dagster asset — the pandas-engine sibling to polars_pipeline.",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "path": "assets/transforms/pandas_pipeline",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "duckdb",
+          "aws-encryption-sdk"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pandas_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pandas_pipeline/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pandas_pipeline/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pandas_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pandas_pipeline/requirements.txt",
+      "validation": {
+        "level": "tested",
+        "evidence": "assets/transforms/pandas_pipeline/tests/test_pandas_pipeline.py",
+        "last_validated": "2026-11-25"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame(s) — accepts pandas or polars (converted automatically).",
+        "outputs": "pandas DataFrame after the chain (last step / primary_step).",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      }
+    },
+    {
       "id": "pandera_asset_check",
       "name": "PanderaAssetCheck",
       "category": "check",
@@ -77291,5 +77325,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1471
+  "total": 1472
 }

@@ -13,7 +13,7 @@ import pytest
 README = pathlib.Path(__file__).resolve().parent.parent / "README.md"
 
 # Fields common to every op (declared on _StepBase), never repeated in a per-op table.
-_COMMON_FIELDS = {"id", "op", "source", "inputs", "when", "policy", "persona", "version"}
+_COMMON_FIELDS = {"id", "op", "source", "inputs", "when", "policy", "persona", "version", "description"}
 
 # op name -> the exact README section heading text ("### `op: X`") to find its table under.
 _OP_HEADING = {op: f"`op: {op}`" for op in (

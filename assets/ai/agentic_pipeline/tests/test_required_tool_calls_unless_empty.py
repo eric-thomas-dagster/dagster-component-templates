@@ -75,6 +75,44 @@ def test_non_empty_source_still_enforces_normally(mod, fake_litellm, tool_use_lo
     assert phases.count("finalize_rejected") == 1
 
 
+def test_empty_source_under_a_custom_wrapper_key_also_skips(mod, fake_litellm, tool_use_loop_capture):
+    """A real-world upstream shape this field's own description names explicitly --
+    {"findings": []} -- not one of the hardcoded data/items/results/values keys. Before the
+    _parse_items widening, this was treated as a single opaque "item" (the whole JSON text),
+    so required_tool_calls_unless_empty never triggered even though the findings list was
+    empty. This is the exact gap a live user hit."""
+    fake_litellm.reply("", tool_calls=[tool_call("finalize", {"answer": "nothing to do"}, id="f1")])
+
+    state = new_state(text=json.dumps({"findings": []}))
+    out = mod._do_tool_use_loop(_base_step(), state, _ctx())
+
+    assert out["text"] == "nothing to do"
+    assert out["required_tool_calls_skipped_empty_source"] is True
+    assert tool_use_loop_capture == []
+
+
+def test_non_empty_source_under_a_custom_wrapper_key_still_enforces(mod, fake_litellm, tool_use_loop_capture):
+    """Same {"findings": [...]} shape, but non-empty -- enforcement still applies normally."""
+    fake_litellm.reply("", tool_calls=[tool_call("finalize", {"answer": "done early"}, id="f1")])
+    fake_litellm.reply("", tool_calls=[tool_call("svc__open_issue", {}, id="t1")])
+    fake_litellm.reply("", tool_calls=[tool_call("finalize", {"answer": "done"}, id="f2")])
+
+    state = new_state(text=json.dumps({"findings": [{"title": "a finding"}]}))
+    out = mod._do_tool_use_loop(_base_step(), state, _ctx())
+
+    assert out["text"] == "done"
+    assert out["required_tool_calls_skipped_empty_source"] is False
+    assert tool_use_loop_capture == ["open_issue"]
+
+
+def test_ambiguous_two_list_keys_is_not_guessed(mod):
+    """A dict with TWO list-valued keys is genuinely ambiguous -- _parse_items must not guess
+    between them, so it falls through to the newline-split fallback (the whole JSON text as
+    one opaque line), same as before the widening."""
+    text = json.dumps({"findings": [1], "warnings": [2]})
+    assert mod._parse_items(text) == [text]
+
+
 def test_flag_off_still_fails_on_empty_source(mod, fake_litellm, tool_use_loop_capture):
     """Without required_tool_calls_unless_empty, an empty source gets no special treatment --
     the existing fail-by-default behavior is unchanged (this is an opt-in, not a new default)."""

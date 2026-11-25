@@ -90,3 +90,25 @@ def test_partition_type_metadata_reports_none_when_unpartitioned(mod):
     )
     specs = _specs(component)
     assert specs[dg.AssetKey.from_user_string("research_bot_answer")].metadata["partition_type"].value == "none"
+
+
+def test_step_level_description_overrides_pipeline_level(mod):
+    """Reported by a live user: every step asset showed the same pipeline-level description,
+    making a pipeline's steps indistinguishable in the UI. A step's own `description:` now
+    overrides it for that step only; a step that omits it still falls back to the
+    pipeline-level description (today's default, unchanged)."""
+    component = mod.AgenticPipelineComponent(
+        asset_name_prefix="research_bot",
+        description="pipeline-level description",
+        source={"kind": "literal", "text": "hello"},
+        steps=[
+            {"id": "first", "op": "llm_call", "model": "gpt-4o-mini", "api_key_env_var": "OPENAI_API_KEY",
+             "description": "fetches the raw lead"},
+            {"id": "second", "op": "llm_call", "source": "first", "model": "gpt-4o-mini",
+             "api_key_env_var": "OPENAI_API_KEY"},
+        ],
+        outputs={"assets": ["first", "second"]},
+    )
+    specs = _specs(component)
+    assert specs[dg.AssetKey.from_user_string("research_bot_first")].description == "fetches the raw lead"
+    assert specs[dg.AssetKey.from_user_string("research_bot_second")].description == "pipeline-level description"

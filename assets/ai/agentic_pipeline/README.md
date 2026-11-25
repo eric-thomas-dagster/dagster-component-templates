@@ -392,7 +392,7 @@ See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generato
 
 | op | Shape | What it does |
 |---|---|---|
-| `llm_call` | 1 LLM call | Single completion over source text. Simplest possible op. |
+| `llm_call` | 1 LLM call | Single completion over source text. Simplest possible op. **Omit `source:` and this reads the pipeline's root input, NOT the previous step** — same root-input default as every other op (see "Steps read text from a prior step by `source:` id" below). A step meant to continue from the step right before it in the YAML needs an explicit `source: <previous step's id>`. |
 | `route` | 1 router LLM → 1 specialist | Router LLM picks the best specialist agent from a set; specialist answers. Multi-agent selection based on soft signal ("does this read as a bug or a question?"). |
 | `conditional_route` | deterministic picker → 1 specialist | Same shape as `route` but the picker is a code path (regex / contains / equals / jsonpath), not an LLM. Cheap, testable, reviewable. Use when the branch signal is structured (a label field, a subject-line pattern). |
 | `debate` | N proposers → 1 arbitrator | Each proposer writes a proposal; arbitrator picks the winner. Multi-agent consensus. |
@@ -593,6 +593,7 @@ metadata value, so a changed prompt marks exactly that step and what depends on 
 | `when` |  | — | Run only if a condition on an earlier step holds (see *Reasoning & governance ops*). |
 | `policy` |  | — | Step-level policy that narrows the pipeline `policy:`. |
 | `source` |  | Pipeline's original input | Prior step id whose text feeds this step — **not** "whatever step ran last": dependency structure is always declared, never implied by position in `steps:` (see "Every step's output..." below). `synthesize` uses `sources:` (plural, list) instead. |
+| `description` |  | Pipeline-level `description:` | This step's own asset description in the Dagster UI. Without it, every step in the pipeline shows the same pipeline-level description — set this per step to tell them apart in the catalog/asset-graph pages. |
 
 ### LLM sub-config (used inside every op)
 
@@ -962,7 +963,7 @@ Apply an LLM call to each item in a list source. Aggregates per-item results int
 | `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
 | `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system prompt. |
 
-Source parsing: JSON array → items. Falls back to `dict → data|items|results|values` list, then to non-empty newlines.
+Source parsing: JSON array → items. Falls back to `dict → data|items|results|values` list (or, if none of those keys match, a dict with exactly one list-valued key under any name, e.g. `{"findings": [...]}`), then to non-empty newlines.
 
 **`map` has no tool access** -- each per-item call is a plain completion, no `mcp_servers`. There is deliberately no
 single op that runs a full tool-use loop once per item in a list (support-ticket-triage-shaped workloads often want

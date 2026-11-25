@@ -345,6 +345,19 @@
           "title": "Agent",
           "type": "string"
         },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "extra_context": {
           "anyOf": [
             {
@@ -856,6 +869,19 @@
           "default": null,
           "description": "mode=park only. Defaults to <approval_dir>/checkpoints.",
           "title": "Checkpoint Dir"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -1671,6 +1697,19 @@
       "additionalProperties": true,
       "description": "N candidates, pick the best one.",
       "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
           "title": "Id",
@@ -2464,6 +2503,19 @@
           "default": null,
           "description": "Acceptance check. Omit to accept any non-empty answer."
         },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
           "title": "Id",
@@ -2967,6 +3019,19 @@
           "default": null,
           "description": "Env var holding API key.",
           "title": "Api Key Env Var"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -3684,6 +3749,19 @@
           "title": "Default",
           "type": "string"
         },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
           "title": "Id",
@@ -4286,6 +4364,19 @@
           "$ref": "#/$defs/_LLMSubConfig",
           "description": "LLM sub-config for the critic."
         },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "drafter": {
           "$ref": "#/$defs/_LLMSubConfig",
           "description": "LLM sub-config for the drafter."
@@ -4878,6 +4969,19 @@
           "$ref": "#/$defs/_LLMSubConfig",
           "description": "LLM sub-config for the judge. Sees the source + all proposals, picks winner_index, surfaces arbitrator_reasoning."
         },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
           "title": "Id",
@@ -5340,6 +5444,19 @@
           "default": null,
           "description": "Used when the model's pick isn't a valid outcomes key. Omit to make an invalid pick a hard error.",
           "title": "Default Outcome"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "evidence_source": {
           "anyOf": [
@@ -5958,6 +6075,19 @@
       "additionalProperties": true,
       "description": "Dynamic sibling of route/agent_call: the candidate pool is discovered (AgentCardComponent siblings and/or an external manifest) and a picker LLM matches task: against each candidate before invoking the pick over MCP or HTTP.",
       "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "fallback": {
           "anyOf": [
             {
@@ -6496,6 +6626,19 @@
           "title": "Criteria",
           "type": "array"
         },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "fail_below": {
           "anyOf": [
             {
@@ -7019,6 +7162,19 @@
           "default": null,
           "description": "Env var holding API key.",
           "title": "Api Key Env Var"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -7555,9 +7711,22 @@
       "description": "Deterministic row filter over the upstream step's list of records -- no LLM, no asset/lineage node. Same `condition` syntax as the standalone FilterComponent.",
       "properties": {
         "condition": {
-          "description": "Pandas query expression, e.g. 'amount > 10 and status == \"urgent\"'. Evaluated over the upstream records (parsed the same way map/invoke_component parse a list: JSON array, dict -> data|items|results|values, else non-empty newlines).",
+          "description": "Pandas query expression, e.g. 'amount > 10 and status == \"urgent\"'. Evaluated over the upstream records (parsed the same way map/invoke_component parse a list: JSON array, dict -> data|items|results|values (or, if none of those match, a dict with exactly one list-valued key under any name), else non-empty newlines).",
           "title": "Condition",
           "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -8006,6 +8175,19 @@
       "additionalProperties": true,
       "description": "Deterministic grouping over the upstream step's list of records -- no LLM, no asset/lineage node. Groups by one field's value into {key, records: [...]} shapes, one per distinct value -- unlike a groupby+list-aggregation, each group's records stay as a list of whole items, not parallel same-length lists.",
       "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
           "title": "Id",
@@ -8462,6 +8644,19 @@
       "additionalProperties": true,
       "description": "Framework-composition op. Invoke a user-provided callable -- bring your own LangGraph/AutoGen/CrewAI/DSPy code as ONE step.",
       "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "entry_callable": {
           "description": "Function name in that module. Signature: def fn(**initial_state) -> dict.",
           "title": "Entry Callable",
@@ -8962,6 +9157,19 @@
           "description": "Dotted path, e.g. dagster_community_components.FilterComponent.",
           "title": "Component Type",
           "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -9470,6 +9678,19 @@
           "default": null,
           "description": "Env var holding API key.",
           "title": "Api Key Env Var"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -10017,6 +10238,19 @@
           "default": null,
           "description": "Env var for the model provider.",
           "title": "Api Key Env Var"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -10760,6 +10994,19 @@
       "additionalProperties": true,
       "description": "Direct MCP tool call -- no LLM, deterministic step.\n\nBatch-level by default: one call for the whole source. Set `per_item: true` to parse a\nlist source (same rule map/route/invoke_component use) and call the tool once per item\ninstead -- the tool a pipeline files N findings/tickets through, one call each, rather\nthan one call that has to somehow represent all of them at once.",
       "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
           "title": "Id",
@@ -10822,7 +11069,7 @@
         },
         "per_item": {
           "default": false,
-          "description": "Call the tool once per item in a list source instead of once for the whole batch. Source is parsed the same way map/route/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, else non-empty lines). One item's call failing doesn't abort the others -- that item's entry carries is_error: true + error instead; an empty list makes zero calls and says so in the result rather than raising.",
+          "description": "Call the tool once per item in a list source instead of once for the whole batch. Source is parsed the same way map/route/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, or (if none of those match) a dict with exactly one list-valued key under any name, else non-empty lines). One item's call failing doesn't abort the others -- that item's entry carries is_error: true + error instead; an empty list makes zero calls and says so in the result rather than raising.",
           "title": "Per Item",
           "type": "boolean"
         },
@@ -11612,6 +11859,19 @@
       "additionalProperties": true,
       "description": "Plan -> execute -> verify -> replan -> synthesize. The open-ended multi-step reasoning op.",
       "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "executor": {
           "anyOf": [
             {
@@ -12168,6 +12428,19 @@
           "description": "Items per fold call.",
           "title": "Chunk Size",
           "type": "integer"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "fold_prompt_template": {
           "anyOf": [
@@ -12977,6 +13250,19 @@
       "additionalProperties": true,
       "description": "Router LLM picks a specialist by name via tool-call; specialist LLM answers.\n\nBatch-level by default: one router call picks ONE specialist for the entire source text. Set\n`per_item: true` to route a list source (a batch of support tickets, say) one item at a\ntime instead -- a fresh router decision + specialist answer per item. Without it, a list\nsource still gets routed as a single unit (the router picks one specialist and it answers\nfor every item in the batch); `validate_pipeline` flags a route/conditional_route step whose\nsource is a list and `per_item` is not set.",
       "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "fallback": {
           "anyOf": [
             {
@@ -13042,7 +13328,7 @@
         },
         "per_item": {
           "default": false,
-          "description": "Route a list source one item at a time (a fresh router decision + specialist answer per item) instead of once for the whole batch. Source is parsed the same way map/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, else non-empty lines).",
+          "description": "Route a list source one item at a time (a fresh router decision + specialist answer per item) instead of once for the whole batch. Source is parsed the same way map/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, or (if none of those match) a dict with exactly one list-valued key under any name, else non-empty lines).",
           "title": "Per Item",
           "type": "boolean"
         },
@@ -13499,6 +13785,19 @@
           "default": null,
           "description": "Env var holding API key.",
           "title": "Api Key Env Var"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -14021,6 +14320,19 @@
       "additionalProperties": true,
       "description": "Invoke an inline sub-pipeline (a steps: list) as ONE step of the outer pipeline.",
       "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
           "title": "Id",
@@ -14523,6 +14835,19 @@
           "default": null,
           "description": "Env var holding API key.",
           "title": "Api Key Env Var"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "id": {
           "description": "Step identifier, referenced by other steps' source/sources/inputs.",
@@ -15243,6 +15568,19 @@
           "description": "Env var holding the model provider's key.",
           "title": "Api Key Env Var"
         },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
+        },
         "finalize_tool_name": {
           "default": "finalize",
           "description": "Name of the synthetic finalize tool the LLM calls to end the loop.",
@@ -15411,7 +15749,7 @@
         },
         "required_tool_calls_unless_empty": {
           "default": false,
-          "description": "With required_tool_calls set: skip enforcement entirely (no reminder, no fail/warn) when this step's own source resolves to an empty list (the same empty-list rule mcp_call/map/route's per_item use: a JSON array, a dict with a data/items/results/values list, else non-empty lines -- empty means none of those produced anything). For the common 'driven by an upstream per-item step's 0-item findings list' shape: when there's nothing to call a tool ABOUT, there's nothing to require a tool call over either. The result carries required_tool_calls_skipped_empty_source (true/false) so this is never silent.",
+          "description": "With required_tool_calls set: skip enforcement entirely (no reminder, no fail/warn) when this step's own source resolves to an empty list (the same empty-list rule mcp_call/map/route's per_item use: a JSON array, a dict with a data/items/results/values list, or (if none of those match) a dict with exactly one list-valued key under any name, else non-empty lines -- empty means none of those produced anything). For the common 'driven by an upstream per-item step's 0-item findings list' shape: when there's nothing to call a tool ABOUT, there's nothing to require a tool call over either. The result carries required_tool_calls_skipped_empty_source (true/false) so this is never silent.",
           "title": "Required Tool Calls Unless Empty",
           "type": "boolean"
         },
@@ -15871,6 +16209,19 @@
           "default": null,
           "description": "Env var holding API key.",
           "title": "Api Key Env Var"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.",
+          "title": "Description"
         },
         "evidence_source": {
           "anyOf": [

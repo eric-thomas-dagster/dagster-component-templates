@@ -1949,8 +1949,10 @@ def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     Two input modes (mutually compatible — inputs takes precedence for
     named substitution, source still resolves for the `{text}` fallback):
 
-    1. Legacy single-source: `source: <step_id>` (or omit for last step) →
-       prompt_template's `{text}` placeholder substitutes with that step's text.
+    1. Legacy single-source: `source: <step_id>` → prompt_template's `{text}`
+       placeholder substitutes with that step's text. Omit `source:` and this
+       reads the pipeline's root input instead -- same root-input default as
+       every other op (NOT "whatever step ran last"; see _ROOT_SOURCE_ID).
 
     2. Typed named inputs: `inputs: {port_name: {from: step_id} | {literal: value}}` →
        each port name becomes a `{port_name}` placeholder in prompt_template
@@ -2119,7 +2121,7 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     fallback: <specialist_name>  (optional)
 
     per_item (default false): source's text is parsed as a list (same rule map/invoke_component
-    use: a JSON array, a dict with a data/items/results/values list, else non-empty lines) and
+    use: a JSON array, a dict with a data/items/results/values list, or (if none of those match) a dict with exactly one list-valued key under any name, else non-empty lines) and
     this runs once PER ITEM -- a fresh router decision + specialist answer per item, not one
     decision for the whole batch. max_concurrent thread-pools the per-item calls (default 1,
     sequential); output_join ('newlines' default | 'jsonl' | 'none' | 'records') shapes the
@@ -3531,7 +3533,7 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     way a free-text prompt instruction can be.
 
     per_item (default false): source's text is parsed as a list (same rule map/route/
-    invoke_component use: a JSON array, a dict with a data/items/results/values list, else
+    invoke_component use: a JSON array, a dict with a data/items/results/values list, or (if none of those match) a dict with exactly one list-valued key under any name, else
     non-empty lines) and this calls the tool once PER ITEM instead of once for the whole
     batch, substituting `{item}` (whole item) / `{item.field}` (one key, when the item is a
     JSON object -- a missing field is that item's own isolated error, not a step-wide failure)
@@ -4702,6 +4704,14 @@ def _parse_items(text: str) -> List[Any]:
                 v = parsed.get(key)
                 if isinstance(v, list):
                     return v
+            # No recognized wrapper key -- but if exactly one key in the object
+            # holds a list (e.g. {"findings": [...]}), that's unambiguously the
+            # items list regardless of its name. Two or more list-valued keys
+            # is genuinely ambiguous and falls through unchanged (conservative:
+            # never silently guesses between two real candidates).
+            list_values = [v for v in parsed.values() if isinstance(v, list)]
+            if len(list_values) == 1:
+                return list_values[0]
         return None
 
     out = _try(text)
@@ -9180,6 +9190,7 @@ class _StepBase(BaseModel):
     policy: Optional[_PolicyConfig] = Field(default=None, description="Per-step policy override -- can only be MORE restrictive than the pipeline-level policy:.")
     persona: Optional[str] = Field(default=None, description="Name resolved against the top-level personas: block; expands into this step's LLM sub-config(s).")
     version: Optional[str] = Field(default=None, description="Human-readable prompt version name, surfaced in agentic_prompt_version metadata. Falls back to the persona's own version if the step omits it.")
+    description: Optional[str] = Field(default=None, description="This step's own asset description, shown in the Dagster UI's catalog/asset-graph pages. Falls back to the pipeline-level `description:` field when omitted (today's default -- every step reads the same description). Set per step to tell a pipeline's assets apart in the UI.")
 
 
 class LlmCallStep(_StepBase):
@@ -9211,7 +9222,7 @@ class RouteStep(_StepBase):
     specialists: List[_SpecialistConfig] = Field(description="List of specialist LLMs (2+).")
     fallback: Optional[str] = Field(default=None, description="Specialist name to fall back to if the router can't pick. Unset: an invalid pick raises (per_item: names the item).")
     include_reasoning: bool = Field(default=True, description="If true, surfaces the router's free-text reasoning as router_reasoning metadata.")
-    per_item: bool = Field(default=False, description="Route a list source one item at a time (a fresh router decision + specialist answer per item) instead of once for the whole batch. Source is parsed the same way map/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, else non-empty lines).")
+    per_item: bool = Field(default=False, description="Route a list source one item at a time (a fresh router decision + specialist answer per item) instead of once for the whole batch. Source is parsed the same way map/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, or (if none of those match) a dict with exactly one list-valued key under any name, else non-empty lines).")
     max_concurrent: int = Field(default=1, description="per_item only: thread-pool workers for the per-item router+specialist calls. 1 = sequential.")
     output_join: Literal["newlines", "jsonl", "none", "records"] = Field(default="newlines", description="per_item only: how to join per-item results into `text` -- same meaning as map's output_join. 'records' merges {item, selected_specialist, router_reasoning, routing_source, text} per item into one JSON array, directly consumable by a downstream synthesize/map/reduce.")
 
@@ -9273,7 +9284,7 @@ class McpCallStep(_StepBase):
     mcp_tool_name: str = Field(description="Tool name as the MCP server exposes it.")
     tool_args: Optional[Dict[str, Any]] = Field(default=None, description="{arg_name: value}. String values support {text}+{port_name} substitution (+ {item} / {item.field} / {item.nested.field} when per_item is set -- {item} is the whole item, stringified as JSON if it's not already a string; {item.field} looks up a key when the item is a JSON object, raising a clear per-item error (isolated the same way a failed tool call is) if that field is missing).")
     parse_as: Literal["auto", "json", "text"] = Field(default="auto", description="auto tries JSON, falls back to text.")
-    per_item: bool = Field(default=False, description="Call the tool once per item in a list source instead of once for the whole batch. Source is parsed the same way map/route/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, else non-empty lines). One item's call failing doesn't abort the others -- that item's entry carries is_error: true + error instead; an empty list makes zero calls and says so in the result rather than raising.")
+    per_item: bool = Field(default=False, description="Call the tool once per item in a list source instead of once for the whole batch. Source is parsed the same way map/route/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, or (if none of those match) a dict with exactly one list-valued key under any name, else non-empty lines). One item's call failing doesn't abort the others -- that item's entry carries is_error: true + error instead; an empty list makes zero calls and says so in the result rather than raising.")
     max_concurrent: int = Field(default=1, description="per_item only: thread-pool workers for the per-item tool calls. 1 = sequential.")
     output_join: Literal["newlines", "jsonl", "none", "records"] = Field(default="newlines", description="per_item only: how to join per-item results into `text` -- same meaning as map's/route's output_join.")
 
@@ -9329,7 +9340,7 @@ class ToolUseLoopStep(_StepBase):
         description=(
             "With required_tool_calls set: skip enforcement entirely (no reminder, no fail/warn) when this "
             "step's own source resolves to an empty list (the same empty-list rule mcp_call/map/route's "
-            "per_item use: a JSON array, a dict with a data/items/results/values list, else non-empty "
+            "per_item use: a JSON array, a dict with a data/items/results/values list, or (if none of those match) a dict with exactly one list-valued key under any name, else non-empty "
             "lines -- empty means none of those produced anything). For the common 'driven by an upstream "
             "per-item step's 0-item findings list' shape: when there's nothing to call a tool ABOUT, there's "
             "nothing to require a tool call over either. The result carries "
@@ -9478,7 +9489,7 @@ class InvokeComponentStep(_StepBase):
 class FilterStep(_StepBase):
     """Deterministic row filter over the upstream step's list of records -- no LLM, no asset/lineage node. Same `condition` syntax as the standalone FilterComponent."""
     op: Literal["filter"]
-    condition: str = Field(description="Pandas query expression, e.g. 'amount > 10 and status == \"urgent\"'. Evaluated over the upstream records (parsed the same way map/invoke_component parse a list: JSON array, dict -> data|items|results|values, else non-empty newlines).")
+    condition: str = Field(description="Pandas query expression, e.g. 'amount > 10 and status == \"urgent\"'. Evaluated over the upstream records (parsed the same way map/invoke_component parse a list: JSON array, dict -> data|items|results|values (or, if none of those match, a dict with exactly one list-valued key under any name), else non-empty newlines).")
     negate: bool = Field(default=False, description="Invert the match: keep rows that do NOT satisfy condition.")
 
 
@@ -10163,7 +10174,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             outs[f"{prefix}_{aid}"] = dg.AssetOut(
                 code_version=_step_code_version(_step, self.personas, self.policy),
                 group_name=group_name,
-                description=self.description,
+                description=_step.get("description") or self.description,
                 owners=self.owners or None,
                 tags=per_asset_tags,
                 metadata={

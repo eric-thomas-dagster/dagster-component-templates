@@ -33,21 +33,24 @@
       },
       "description": "Flat shape: ordered list of polars ops applied to upstream_asset_key. Supported: filter, with_columns, select, drop, group_by, sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null, cast, join, union, sql."
     },
-    "steps": {"label": "Steps", 
+    "steps": {
+      "label": "Steps",
       "type": "array",
       "items": {
         "type": "object"
       },
       "description": "Multi-step form. Each step: {id, source: {kind: upstream|ref, upstream_asset_key|ref}, operations: [...]}. Use 'op: sql' to drop into polars SQLContext (current chain = 'self'; prior steps usable by id)."
     },
-    "sinks": {"label": "Sinks", 
+    "sinks": {
+      "label": "Sinks",
       "type": "array",
       "items": {
         "type": "object"
       },
-      "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv, path: '...'}. These run after the chain finishes; the asset's return value comes from primary_step."
+      "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|encrypted_file|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, encryption_context?` — encrypts the serialized bytes via the real AWS Encryption SDK before writing (same mechanism as FieldEncryptionComponent, file-level instead of per-cell). These run after the chain finishes; the asset's return value comes from primary_step."
     },
-    "primary_step": {"label": "Primary Step", 
+    "primary_step": {
+      "label": "Primary Step",
       "type": "string",
       "description": "Step id whose frame is the asset's return value (default: last step)"
     },
@@ -72,41 +75,48 @@
       "type": "string",
       "label": "Asset Group"
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "description": "Asset description.",
       "type": "string"
     },
-    "asset_tags": {"label": "Asset Tags", 
+    "asset_tags": {
+      "label": "Asset Tags",
       "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object"
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "deps": {"label": "Deps", 
+    "deps": {
+      "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "include_preview_metadata": {"label": "Include Preview Metadata", 
+    "include_preview_metadata": {
+      "label": "Include Preview Metadata",
       "description": "Include a preview of the output data in metadata (sample rows) for builder UIs.",
       "type": "boolean",
       "default": false
     },
-    "preview_rows": {"label": "Preview Rows", 
+    "preview_rows": {
+      "label": "Preview Rows",
       "description": "Rows to include in the preview metadata when `include_preview_metadata` is True.",
       "type": "integer",
       "default": 25,
@@ -116,7 +126,7 @@
     "source": {
       "type": "object",
       "label": "Source",
-      "description": "File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}`. `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. Format is inferred from extension (.json / .ndjson / .csv / .parquet / .ipc / .avro) when unset. Mutually exclusive with `upstream_asset_key`.",
+      "description": "File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}` or `{kind: encrypted_file, path, format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, encryption_context?}` (decrypts the file's raw bytes via the real AWS Encryption SDK before parsing — same mechanism as FieldEncryptionComponent, file-level instead of per-cell). `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. Format is inferred from extension (.json / .ndjson / .csv / .parquet / .ipc / avro — a trailing .enc/.encrypted is stripped first) when unset. Mutually exclusive with `upstream_asset_key`.",
       "required": false
     },
     "partition_type": {

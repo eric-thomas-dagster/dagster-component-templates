@@ -53016,7 +53016,8 @@
       "dependencies": {
         "pip": [
           "dagster",
-          "polars"
+          "polars",
+          "aws-encryption-sdk"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/polars_pipeline/README.md",

@@ -37,7 +37,30 @@ ALL ops, including across steps):
         - {from: enriched, kind: parquet, path: "./out/enriched.parquet"}
       # The asset's RETURN value is the last step's frame (or `primary_step`
       # if you name one explicitly).
+
+  (c) `source: {kind: encrypted_file, ...}` / `sinks: [{kind: encrypted_file, ...}]`
+      — real AWS Encryption SDK envelope encryption (same mechanism as
+      `FieldEncryptionComponent`, but file-level: decrypts/encrypts the
+      whole file's bytes, not a DataFrame cell). Lets a single asset do
+      decrypt -> transform -> re-encrypt -> stage in one materialization:
+
+      steps:
+        - id: staged
+          source: {kind: encrypted_file, path: "incoming/{partition.bank}/{partition.batch_day}.csv.enc",
+                   format: csv, key_source: raw_key, raw_key_env_var: BANK_FILE_KEY}
+          operations:
+            - {op: rename, mapping: {acct: account_id}}
+            - {op: cast, mapping: {amount: Float64}}
+      sinks:
+        - {from: staged, kind: encrypted_file, path: "staged/{partition.bank}.csv.enc",
+           format: csv, key_source: raw_key, raw_key_env_var: BANK_FILE_KEY}
+      # key_source: 'raw_key' (env var holds a base64 symmetric key) or 'kms'
+      # (kms_key_ids:). encryption_context: is bound per-file via an
+      # automatic `path: <resolved path>` entry, so ciphertext can't be
+      # silently swapped between files/partitions.
 """
+import base64
+import os
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import dagster as dg
@@ -168,6 +191,236 @@ def _suffix_for(fmt: str) -> str:
         "csv": ".csv", "parquet": ".parquet", "ndjson": ".ndjson",
         "json": ".json", "ipc": ".ipc", "avro": ".avro",
     }.get(fmt, ".dat")
+
+
+# BEGIN file-level AWS Encryption SDK I/O (encrypted_file source/sink kinds) --
+# Same real AWS Encryption SDK (envelope encryption, not a toy cipher),
+# raw-key or KMS-backed, as FieldEncryptionComponent (transforms/field_encryption)
+# -- but operating on a WHOLE FILE's raw bytes instead of one DataFrame cell.
+# Per this repo's house rule (no shared helper files), this is NOT imported
+# from field_encryption's module -- it's a fresh copy of the same mechanism
+# at a different granularity.
+def _build_esdk_key_provider(cfg: Dict[str, Any]):
+    """Build an AWS Encryption SDK master key provider from a source/sink
+    config dict's key_source/raw_key_env_var/kms_key_ids/key_id fields --
+    same raw_key/kms modes and provider construction as FieldEncryptionComponent."""
+    from aws_encryption_sdk.identifiers import WrappingAlgorithm, EncryptionKeyType
+    from aws_encryption_sdk.internal.crypto.wrapping_keys import WrappingKey
+    from aws_encryption_sdk.key_providers.raw import RawMasterKeyProvider
+    import aws_encryption_sdk as _esdk
+
+    key_source = (cfg.get("key_source") or "raw_key").lower()
+    key_id = cfg.get("key_id") or "polars-pipeline-encrypted-file-key"
+    if key_source == "raw_key":
+        raw_key_env_var = cfg.get("raw_key_env_var")
+        if not raw_key_env_var:
+            raise ValueError("encrypted_file: key_source='raw_key' requires raw_key_env_var")
+        raw_key_b64 = os.environ.get(raw_key_env_var, "")
+        if not raw_key_b64:
+            raise ValueError(f"encrypted_file: raw_key_env_var {raw_key_env_var!r} is unset or empty")
+        raw_key_bytes = base64.b64decode(raw_key_b64)
+
+        class _StaticRawMasterKeyProvider(RawMasterKeyProvider):
+            provider_id = "polars-pipeline-encrypted-file"
+
+            def __new__(cls, *args, **kwargs):
+                return super(RawMasterKeyProvider, cls).__new__(cls)
+
+            def __init__(self_mk, **kwargs):
+                RawMasterKeyProvider.__init__(self_mk, **kwargs)
+
+            def _get_raw_key(self_mk, key_id):
+                return WrappingKey(
+                    wrapping_algorithm=WrappingAlgorithm.AES_256_GCM_IV12_TAG16_NO_PADDING,
+                    wrapping_key=raw_key_bytes,
+                    wrapping_key_type=EncryptionKeyType.SYMMETRIC,
+                )
+
+        provider = _StaticRawMasterKeyProvider()
+        provider.add_master_key(key_id)
+        return provider
+    if key_source == "kms":
+        kms_key_ids = cfg.get("kms_key_ids")
+        if not kms_key_ids:
+            raise ValueError("encrypted_file: key_source='kms' requires kms_key_ids")
+        ids = kms_key_ids if isinstance(kms_key_ids, list) else [kms_key_ids]
+        return _esdk.StrictAwsKmsMasterKeyProvider(key_ids=ids)
+    raise ValueError(f"encrypted_file: key_source must be 'raw_key' or 'kms', got {key_source!r}")
+
+
+def _infer_format_stripping_enc_suffix(path: str) -> Optional[str]:
+    """Same extension-sniffing _read_file_source uses, but strips a trailing
+    .enc/.encrypted suffix first (e.g. 'orders.csv.enc' -> infer from 'orders.csv')."""
+    low = path.lower()
+    for suf in (".enc", ".encrypted"):
+        if low.endswith(suf):
+            low = low[: -len(suf)]
+            break
+    if low.endswith(".ndjson") or low.endswith(".jsonl"):
+        return "ndjson"
+    if low.endswith(".json"):
+        return "json"
+    if low.endswith(".csv") or low.endswith(".tsv"):
+        return "csv"
+    if low.endswith(".parquet") or low.endswith(".pq"):
+        return "parquet"
+    if low.endswith(".ipc") or low.endswith(".arrow"):
+        return "ipc"
+    if low.endswith(".avro"):
+        return "avro"
+    return None
+
+
+def _read_encrypted_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[str], partition_map: Optional[Dict[str, str]]):
+    """Read `kind: encrypted_file` -- decrypt the file's raw bytes via the
+    real AWS Encryption SDK (file-level, same mechanism as
+    FieldEncryptionComponent but whole-file instead of per-cell), then parse
+    the plaintext bytes with the same format dispatch `_read_file_source`
+    uses once bytes are on disk.
+
+    Encryption-context binding: always adds a `path: <resolved path>` entry
+    (the ACTUAL post-partition-template path, not the raw template string)
+    on top of whatever `encryption_context:` is configured, so ciphertext
+    can't be silently swapped between files/partitions -- same discipline
+    FieldEncryptionComponent applies per-column.
+    """
+    try:
+        import aws_encryption_sdk
+    except ImportError as e:
+        raise ImportError(
+            "polars_pipeline: source kind=encrypted_file requires aws-encryption-sdk. "
+            "Run: pip install aws-encryption-sdk"
+        ) from e
+
+    raw_path = src.get("path")
+    if not raw_path:
+        raise ValueError("polars_pipeline source kind=encrypted_file requires 'path'")
+    path = _apply_partition_template(raw_path, partition_key, partition_map)
+
+    fmt = (src.get("format") or "").lower()
+    if not fmt:
+        fmt = _infer_format_stripping_enc_suffix(path) or ""
+        if not fmt:
+            raise ValueError(
+                f"polars_pipeline: can't infer format from {path!r} — set `format:` explicitly."
+            )
+
+    if _is_uri(path):
+        try:
+            import fsspec
+        except ImportError:
+            raise ImportError(
+                "polars_pipeline: reading encrypted cloud URLs requires fsspec + a backend "
+                "(pip install 's3fs' | 'gcsfs' | 'adlfs')."
+            )
+        storage_options = src.get("storage_options") or {}
+        with fsspec.open(path, "rb", **storage_options) as fin:
+            ciphertext = fin.read()
+    else:
+        with open(path, "rb") as fin:
+            ciphertext = fin.read()
+
+    key_provider = _build_esdk_key_provider(src)
+    esdk_client = aws_encryption_sdk.EncryptionSDKClient(
+        commitment_policy=aws_encryption_sdk.CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT
+    )
+    expected_context = {**(src.get("encryption_context") or {}), "path": path}
+    plaintext, header = esdk_client.decrypt(source=ciphertext, key_provider=key_provider)
+    for k, v in expected_context.items():
+        if header.encryption_context.get(k) != v:
+            raise ValueError(
+                f"polars_pipeline encrypted_file source: encryption_context mismatch for "
+                f"path {path!r}: expected {k}={v!r}, got {header.encryption_context.get(k)!r}"
+            )
+
+    import tempfile as _tempfile
+    _tmp = _tempfile.NamedTemporaryFile(suffix=_suffix_for(fmt), delete=False)
+    try:
+        _tmp.write(plaintext)
+    finally:
+        _tmp.close()
+
+    delimiter = src.get("delimiter", ",")
+    if fmt == "csv":
+        return pl_module.scan_csv(_tmp.name, separator=delimiter)
+    if fmt == "parquet":
+        return pl_module.scan_parquet(_tmp.name)
+    if fmt == "ndjson":
+        return pl_module.scan_ndjson(_tmp.name)
+    if fmt == "json":
+        return pl_module.read_json(_tmp.name).lazy()
+    if fmt == "ipc":
+        return pl_module.scan_ipc(_tmp.name)
+    if fmt == "avro":
+        return pl_module.read_avro(_tmp.name).lazy()
+    raise ValueError(f"polars_pipeline: format {fmt!r} not supported")
+
+
+def _write_encrypted_file_sink(df, sink: Dict[str, Any], partition_key: Optional[str], partition_map: Optional[Dict[str, str]]) -> str:
+    """Write `kind: encrypted_file` -- serialize the DataFrame to bytes in
+    the given format, then encrypt those bytes via the real AWS Encryption
+    SDK (file-level, same config shape as the encrypted_file source kind)
+    before writing to `path`. Returns the resolved path for metadata."""
+    try:
+        import aws_encryption_sdk
+    except ImportError as e:
+        raise ImportError(
+            "polars_pipeline: sink kind=encrypted_file requires aws-encryption-sdk. "
+            "Run: pip install aws-encryption-sdk"
+        ) from e
+
+    raw_path = sink.get("path")
+    if not raw_path:
+        raise ValueError("polars_pipeline sink kind=encrypted_file requires 'path'")
+    path = _apply_partition_template(raw_path, partition_key, partition_map)
+
+    fmt = (sink.get("format") or "").lower()
+    if not fmt:
+        fmt = _infer_format_stripping_enc_suffix(path) or ""
+        if not fmt:
+            raise ValueError(
+                f"polars_pipeline sink kind=encrypted_file: can't infer format from {path!r} — "
+                "set `format:` explicitly."
+            )
+    if fmt not in ("csv", "parquet", "ndjson", "json"):
+        raise ValueError(
+            f"polars_pipeline sink kind=encrypted_file: format {fmt!r} not supported. "
+            "Use 'csv' | 'parquet' | 'ndjson' | 'json'."
+        )
+
+    import io as _io
+    buf = _io.BytesIO()
+    if fmt == "csv":
+        df.write_csv(buf)
+    elif fmt == "parquet":
+        df.write_parquet(buf)
+    else:  # ndjson / json
+        df.write_ndjson(buf)
+    plaintext = buf.getvalue()
+
+    key_provider = _build_esdk_key_provider(sink)
+    esdk_client = aws_encryption_sdk.EncryptionSDKClient(
+        commitment_policy=aws_encryption_sdk.CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT
+    )
+    ctx = {**(sink.get("encryption_context") or {}), "path": path}
+    ciphertext, _header = esdk_client.encrypt(source=plaintext, key_provider=key_provider, encryption_context=ctx)
+
+    if _is_uri(path):
+        try:
+            import fsspec
+        except ImportError:
+            raise ImportError(
+                "polars_pipeline: writing encrypted cloud URLs requires fsspec + a backend "
+                "(pip install 's3fs' | 'gcsfs' | 'adlfs')."
+            )
+        storage_options = sink.get("storage_options") or {}
+        with fsspec.open(path, "wb", **storage_options) as fout:
+            fout.write(ciphertext)
+    else:
+        with open(path, "wb") as fout:
+            fout.write(ciphertext)
+    return path
+# END file-level AWS Encryption SDK I/O
 
 
 def _build_partitions_def(
@@ -552,6 +805,14 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
 
     `op: sql` uses polars's SQLContext where the current chain is available
     as `self` and earlier step outputs are available by id.
+
+    **Encrypted file I/O.** `source: {kind: encrypted_file, ...}` and
+    `sinks: [{kind: encrypted_file, ...}]` decrypt/encrypt a whole file's
+    bytes via the real AWS Encryption SDK (same mechanism as
+    `FieldEncryptionComponent`, file-level instead of per-cell) — lets one
+    asset do decrypt -> transform (via the ops above) -> re-encrypt ->
+    stage in a single materialization. See the module docstring for a
+    worked example.
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
@@ -566,9 +827,13 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
         description=(
             "File / URL source shape. `{kind: file, path, format?, delimiter?}` or "
             "`{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, "
-            "upstream_asset_key}`. `path`/`url` support `{partition_key}` and "
-            "`{partition.<name>}` templating. Format is inferred from extension "
-            "(.json / .ndjson / .csv / .parquet / .ipc / .avro) when unset. "
+            "upstream_asset_key}` or `{kind: encrypted_file, path, format?, key_source?, "
+            "raw_key_env_var?, kms_key_ids?, key_id?, encryption_context?}` (decrypts the "
+            "file's raw bytes via the real AWS Encryption SDK before parsing — same "
+            "mechanism as FieldEncryptionComponent, file-level instead of per-cell). "
+            "`path`/`url` support `{partition_key}` and `{partition.<name>}` templating. "
+            "Format is inferred from extension (.json / .ndjson / .csv / .parquet / .ipc / "
+            "avro — a trailing .enc/.encrypted is stripped first) when unset. "
             "Mutually exclusive with `upstream_asset_key`."
         ),
     )
@@ -588,8 +853,13 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     sinks: Optional[List[Dict[str, Any]]] = Field(
         default=None,
         description=(
-            "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv, path: '...'}. "
-            "These run after the chain finishes; the asset's return value comes from primary_step."
+            "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|"
+            "encrypted_file|table, path: '...'}. `kind: encrypted_file` additionally takes "
+            "`format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, "
+            "encryption_context?` — encrypts the serialized bytes via the real AWS "
+            "Encryption SDK before writing (same mechanism as FieldEncryptionComponent, "
+            "file-level instead of per-cell). These run after the chain finishes; the "
+            "asset's return value comes from primary_step."
         ),
     )
     primary_step: Optional[str] = Field(
@@ -902,13 +1172,18 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                     context.log.info(
                         f"step {sid} source: read {src_kind} → {(src.get('path') or src.get('url'))!r}"
                     )
+                elif src_kind == "encrypted_file":
+                    lf = _read_encrypted_file_source(pl, src, partition_key, partition_map)
+                    context.log.info(
+                        f"step {sid} source: decrypted encrypted_file → {src.get('path')!r}"
+                    )
                 elif src_kind == "ref":
                     ref = src.get("ref") or ""
                     if ref not in step_outputs:
                         raise ValueError(f"step {sid!r}: source ref={ref!r} not yet defined")
                     lf = step_outputs[ref]
                 else:
-                    raise ValueError(f"step {sid!r}: source.kind={src_kind!r} not supported. Use 'upstream' or 'ref'.")
+                    raise ValueError(f"step {sid!r}: source.kind={src_kind!r} not supported. Use 'upstream' | 'file' | 'url' | 'encrypted_file' | 'ref'.")
 
                 ops = step.get("operations") or []
                 context.log.info(f"step {sid} ({s_idx + 1}/{len(steps)}): {len(ops)} op(s)")
@@ -960,6 +1235,10 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                     else:
                         df.write_csv(path)
                     sink_metadata[f"polars/sink/{from_id}/path"] = MetadataValue.path(path)
+                elif kind == "encrypted_file":
+                    written_path = _write_encrypted_file_sink(df, sink, partition_key, partition_map)
+                    sink_metadata[f"polars/sink/{from_id}/path"] = MetadataValue.path(written_path)
+                    sink_metadata[f"polars/sink/{from_id}/encrypted"] = MetadataValue.bool(True)
                 elif kind == "table":
                     # Write to any Dagster resource that exposes .get_engine() /
                     # .get_connection() (e.g. postgres_resource, duckdb_resource,
@@ -1134,7 +1413,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                     )
                 else:
                     raise ValueError(
-                        f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'table'."
+                        f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'encrypted_file' | 'table'."
                     )
                 sink_metadata[f"polars/sink/{from_id}/row_count"] = MetadataValue.int(df.height)
 

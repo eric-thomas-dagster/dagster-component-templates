@@ -66,10 +66,10 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame). Mutually exclusive with `source:`. |
-| `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}`. `path`/`url` support `{partition_key}` and `{partition.<name>… _(full docs in schema.json + component README)_ |
+| `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}` or `{kind: encrypted_file, path, format?, key_source?, raw_key… _(full docs in schema.json + component README)_ |
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to upstream_asset_key OR source. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: upstream\|ref, upstream_asset_key\|ref}, operations: [...]}. |
-| `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv, path: '...'}. These run after the chain finishes; the asset's return value comes from primary_step. |
+| `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv\|encrypted_file\|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, encr… _(full docs in schema.json + component README)_ |
 | `primary_step` | `str` | — | Step id whose frame is returned as the asset's output (default: last step). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. Must match the sensor's `dynamic_partitions_name`. |
@@ -130,6 +130,41 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 | `sql` | `sql: "<query>"` | Escape hatch via polars' SQLContext (`self` = current chain; prior steps usable by id) |
 
 Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / median / std / var / first / last / nunique`.
+
+## Encrypted file I/O
+
+`source: {kind: encrypted_file, ...}` and `sinks: [{from, kind: encrypted_file, ...}]` decrypt/encrypt a whole file's bytes via the real AWS Encryption SDK — the same envelope-encryption mechanism as `FieldEncryptionComponent` (`transforms/field_encryption`), just file-level instead of per-cell. This lets one asset do decrypt → transform → re-encrypt → stage in a single materialization — no separate ops, no hand-rolled Python.
+
+```yaml
+steps:
+  - id: staged
+    source:
+      kind: encrypted_file
+      path: "incoming/{partition.bank}/{partition.batch_day}.csv.enc"
+      format: csv                 # inferred from the name if omitted (.enc/.encrypted stripped first)
+      key_source: raw_key         # or 'kms'
+      raw_key_env_var: BANK_FILE_KEY
+    operations:
+      - {op: rename, mapping: {acct: account_id}}
+      - {op: cast, mapping: {amount: Float64}}
+sinks:
+  - from: staged
+    kind: encrypted_file
+    path: "staged/{partition.bank}.csv.enc"
+    format: csv
+    key_source: raw_key
+    raw_key_env_var: BANK_FILE_KEY
+```
+
+| Field | Notes |
+|---|---|
+| `path` | Local path or cloud URL (via fsspec). Supports `{partition_key}` / `{partition.<name>}` templating. |
+| `format` | `csv` \| `parquet` \| `ndjson` \| `json` (sinks: `csv`/`parquet`/`ndjson`/`json` only — no `ipc`/`avro` on write). Inferred from the filename when unset, stripping a trailing `.enc`/`.encrypted` first. |
+| `key_source` | `raw_key` (symmetric key from `raw_key_env_var`, base64-encoded 32 bytes) or `kms` (`kms_key_ids`). |
+| `key_id` | Logical wrapping-key identifier for `raw_key` mode — must match between the writer and reader. |
+| `encryption_context` | Optional AAD. A `path: <resolved path>` entry is always added on top, so ciphertext can't be silently swapped between files or partitions. |
+
+This is a real AWS Encryption SDK integration, not a toy cipher — same provider construction as `FieldEncryptionComponent`, round-trip-tested against the actual library. It is **not** verified to be byte-compatible with any other tool's AWS-ESDK ciphertext (e.g. StreamSets' "Encrypt and Decrypt Fields" stage) — the wire format is a standard envelope, but what gets encrypted (this component writes the serialized file bytes directly, with no per-field wrapping) is this component's own scheme.
 
 ## Streaming
 

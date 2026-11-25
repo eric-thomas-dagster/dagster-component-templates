@@ -694,6 +694,18 @@
       "label": "Max Rows Per Resource",
       "description": "Caps how many rows each resource loads. Unset (default): no cap. This still loads real rows into the real destination -- it is not a dry run or a preview -- meant for a first run to check a connection and the shape of the data cheaply, not for routine use. Never applied unless you set it.",
       "required": false
+    },
+    "where_clause": {
+      "type": "string",
+      "label": "Where Clause",
+      "description": "Optional raw SOQL WHERE fragment (without the leading 'WHERE'), ANDed onto incremental_field's generated predicate when both are set, or used alone otherwise -- e.g. \"Type = 'Customer'\". Applied identically to every object in sf_objects; for a different fragment per object, use one component instance per object. This is static, deploy-time YAML config, not untrusted input.",
+      "required": false
+    },
+    "incremental_field": {
+      "type": "string",
+      "label": "Incremental Field",
+      "description": "Salesforce field name to load incrementally on (e.g. 'SystemModstamp', 'LastModifiedDate', or 'Id') -- the direct equivalent of a StreamSets Salesforce origin's stored-offset SOQL (`WHERE Id > '${OFFSET}' ORDER BY Id`), expressed as dlt's own declarative resumable cursor (dlt.sources.incremental) instead of a literal SOQL string with an embedded offset variable -- functionally equivalent (both produce a resumable 'give me everything since X' read), structurally different: a migration translating a literal StreamSets SOQL string should map its replication column onto this field, not copy the SOQL text verbatim. SOQL quoting (quoted for id/string-like fields, bare for date/datetime/numeric) is inferred automatically from the field's Salesforce type. Unset (default): every object does a full reload each run, matching this component's prior behavior. Set: every object in sf_objects loads via merge (primary_key='Id') instead, keeping only rows newer than the last run's highest value for this field. Applied identically to every object in sf_objects; for a different incremental field per object, use one component instance per object.",
+      "required": false
     }
   },
   "tags": [

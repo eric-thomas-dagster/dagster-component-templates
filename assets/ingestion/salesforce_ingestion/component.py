@@ -287,6 +287,117 @@ def _build_partitions_def(
 
 
 
+# BEGIN inline Salesforce dlt source (inlined per component; NOT a vendored copy of dlt's
+# verified `salesforce` source -- that source lives outside the pip-installed `dlt` package
+# (normally pulled into a CONSUMING project via `dlt init salesforce <dest>`, which vendors
+# its files there, not here) and this repo's house convention is no vendored copies of
+# someone else's source (see docs/postgres-cdc-design.md). Built directly against
+# simple_salesforce (already a direct dependency) using the same technique the verified
+# source itself uses internally -- describe() for the field list, Bulk API query_all with a
+# standard-SOQL fallback on "Async API not enabled", WHERE <field> > <last_value> for
+# incremental loads -- so this works with a plain `pip install simple-salesforce`, no extra
+# vendoring step, and natively supports a custom WHERE fragment, a custom incremental field
+# (including a string/Id-typed one, correctly quoted), and arbitrary custom (__c) objects --
+# none of which the fixed, hardcoded verified-source functions exposed. Also fixes a real
+# pre-existing bug: the previous code called the verified source's `salesforce_source()` as
+# `salesforce_source(user_name=..., password=..., security_token=...)`, but that function's
+# actual signature only accepts `credentials=`/`session=` (confirmed against the real
+# vendored source) -- every real run would have raised TypeError immediately, never caught
+# because this component's own tests fake the whole boundary away.
+_SF_UNQUOTED_SOQL_TYPES = {
+    "int", "double", "currency", "percent", "boolean", "date", "datetime", "long", "time",
+}
+
+
+def _quote_soql_value(value, field_type):
+    """SOQL string literals use single quotes with backslash-escaping; numeric/date/boolean
+    literals are bare. `field_type` is a Salesforce describe() field type (e.g. 'id', 'string',
+    'datetime') -- unknown/other types are treated as quoted, the safer default for SOQL."""
+    if field_type in _SF_UNQUOTED_SOQL_TYPES:
+        return str(value)
+    return "'" + str(value).replace("'", "\\'") + "'"
+
+
+def _sf_describe_fields_and_types(sf_client, sobject):
+    """Mirrors the verified source's own describe()-based field selection (drop compound
+    fields, which Salesforce also returns split into their component fields) -- returns
+    (field_names, {field_name: type}) so callers can both build a SELECT list and decide
+    SOQL quoting for an incremental/where field."""
+    desc = getattr(sf_client, sobject).describe()
+    compound_fields = {
+        f["compoundFieldName"] for f in desc["fields"] if f.get("compoundFieldName")
+    } - {"Name"}
+    fields = [f["name"] for f in desc["fields"] if f["name"] not in compound_fields]
+    field_types = {f["name"]: f["type"] for f in desc["fields"]}
+    return fields, field_types
+
+
+def _sf_query_records(sf_client, sobject, soql):
+    """Bulk API first (handles large objects + polling transparently), falling back to
+    standard SOQL + query_more pagination when Bulk/Async API isn't enabled on the org --
+    same fallback the verified source itself uses."""
+    from simple_salesforce.exceptions import SalesforceMalformedRequest
+
+    try:
+        for page in getattr(sf_client.bulk, sobject).query_all(soql, lazy_operation=True):
+            for record in page:
+                record.pop("attributes", None)
+                yield record
+    except SalesforceMalformedRequest as e:
+        if "Async API not enabled" not in str(e):
+            raise
+        result = sf_client.query(soql)
+        while True:
+            for record in result["records"]:
+                record.pop("attributes", None)
+                yield record
+            if result["done"]:
+                break
+            result = sf_client.query_more(result["nextRecordsUrl"])
+
+
+def _build_salesforce_resource(sf_client, sobject, resource_name, incremental_field, where_clause):
+    """One @dlt.resource per Salesforce object (standard or custom __c) -- incremental
+    (merge, primary_key='Id', every Salesforce object has one) when incremental_field is
+    set; full reload (replace) otherwise. `where_clause` is an optional raw SOQL fragment
+    ANDed onto the incremental predicate (or used alone when incremental_field is unset) --
+    this is static, deploy-time YAML config, not untrusted user input, consistent with how
+    this repo's other components (e.g. warehouse_query sources) already embed raw SQL."""
+    from dlt.sources import incremental as dlt_incremental
+
+    fields, field_types = _sf_describe_fields_and_types(sf_client, sobject)
+    select_clause = f"SELECT {', '.join(fields)} FROM {sobject}"
+
+    if incremental_field:
+        field_type = field_types.get(incremental_field)
+
+        @dlt.resource(name=resource_name, write_disposition="merge", primary_key="Id")
+        def _resource(
+            last_value: dlt_incremental[str] = dlt_incremental(incremental_field, initial_value=None),
+        ):
+            clauses = []
+            if last_value.last_value is not None:
+                clauses.append(
+                    f"{incremental_field} > {_quote_soql_value(last_value.last_value, field_type)}"
+                )
+            if where_clause:
+                clauses.append(f"({where_clause})")
+            predicate = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+            soql = f"{select_clause}{predicate} ORDER BY {incremental_field} ASC"
+            yield from _sf_query_records(sf_client, sobject, soql)
+
+        return _resource
+
+    @dlt.resource(name=resource_name, write_disposition="replace")
+    def _resource():
+        predicate = f" WHERE {where_clause}" if where_clause else ""
+        soql = f"{select_clause}{predicate}"
+        yield from _sf_query_records(sf_client, sobject, soql)
+
+    return _resource
+# END inline Salesforce dlt source
+
+
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
 from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
@@ -372,7 +483,38 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
         ),
     )
 
-    sf_objects: List[str] = Field(default=["Account", "Opportunity", "Contact", "Lead"], description="Salesforce objects to extract (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.)")
+    sf_objects: List[str] = Field(default=["Account", "Opportunity", "Contact", "Lead"], description="Salesforce objects to extract -- any standard object (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.) or custom object (append __c, e.g. MyObject__c). Fields are discovered per-object via Salesforce's describe() API, so any object name Salesforce itself recognizes works here.")
+
+    where_clause: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional raw SOQL WHERE fragment (without the leading 'WHERE'), ANDed onto "
+            "incremental_field's generated predicate when both are set, or used alone "
+            "otherwise -- e.g. \"Type = 'Customer'\". Applied identically to every object in "
+            "sf_objects; for a different fragment per object, use one component instance per "
+            "object. This is static, deploy-time YAML config, not untrusted input."
+        ),
+    )
+    incremental_field: Optional[str] = Field(
+        default=None,
+        description=(
+            "Salesforce field name to load incrementally on (e.g. 'SystemModstamp', "
+            "'LastModifiedDate', or 'Id') -- the direct equivalent of a StreamSets Salesforce "
+            "origin's stored-offset SOQL (`WHERE Id > '${OFFSET}' ORDER BY Id`), expressed as "
+            "dlt's own declarative resumable cursor (dlt.sources.incremental) instead of a "
+            "literal SOQL string with an embedded offset variable -- functionally equivalent "
+            "(both produce a resumable 'give me everything since X' read), structurally "
+            "different: a migration translating a literal StreamSets SOQL string should map "
+            "its replication column onto this field, not copy the SOQL text verbatim. SOQL "
+            "quoting (quoted for id/string-like fields, bare for date/datetime/numeric) is "
+            "inferred automatically from the field's Salesforce type. Unset (default): every "
+            "object does a full reload each run, matching this component's prior behavior. "
+            "Set: every object in sf_objects loads via merge (primary_key='Id') instead, "
+            "keeping only rows newer than the last run's highest value for this field. "
+            "Applied identically to every object in sf_objects; for a different incremental "
+            "field per object, use one component instance per object."
+        ),
+    )
 
     hash_columns: Optional[List[str]] = Field(
         default=None,
@@ -922,10 +1064,17 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
                 return _res.username, _res.password, _res.security_token
             return component.username, component.password, component.security_token
 
-        def _apply_table_name_overrides(source, keys):
-            for rk in keys:
-                if rk in dest_table_names and dest_table_names[rk] != rk and hasattr(source, rk):
-                    getattr(source, rk).apply_hints(table_name=dest_table_names[rk])
+        def _apply_table_name_overrides_list(resources, keys):
+            for resource, rk in zip(resources, keys):
+                if rk in dest_table_names and dest_table_names[rk] != rk:
+                    resource.apply_hints(table_name=dest_table_names[rk])
+
+        where_clause = self.where_clause
+        incremental_field = self.incremental_field
+        # Original (as-typed) casing per lowercased resource key -- Salesforce object names
+        # are generally case-insensitive at the API, but custom objects' `__c` suffix casing
+        # is preserved here to match exactly what the user wrote, not a lowercased guess.
+        original_name_by_key = {rk: obj for rk, obj in zip(resource_keys, sf_objects)}
 
         if self.asset_shape == "single":
             @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
@@ -946,7 +1095,7 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
                     )
                 if _column_lineage_md:
                     context.add_output_metadata(_column_lineage_md)
-                from dlt.sources.salesforce import salesforce_source
+                from simple_salesforce import Salesforce
 
                 username, password, security_token = _resolve_credentials(component, context)
 
@@ -962,24 +1111,17 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
                     dataset_name=dataset_name,
                 )
 
-                source = salesforce_source(
-                    user_name=username,
-                    password=password,
-                    security_token=security_token,
+                sf_client = Salesforce(
+                    username=username, password=password, security_token=security_token,
                 )
-                _apply_table_name_overrides(source, resource_keys)
+                selected_resources = [
+                    _build_salesforce_resource(
+                        sf_client, original_name_by_key[rk], rk, incremental_field, where_clause,
+                    )
+                    for rk in resource_keys
+                ]
+                _apply_table_name_overrides_list(selected_resources, resource_keys)
 
-                selected_resources = []
-                for resource_name in sf_objects:
-                    attr = resource_name.lower()
-                    if hasattr(source, attr):
-                        selected_resources.append(getattr(source, attr))
-                    elif hasattr(source, resource_name):
-                        selected_resources.append(getattr(source, resource_name))
-                    else:
-                        context.log.warning(
-                            f"Object '{resource_name}' not found in Salesforce source; skipping."
-                        )
                 if not selected_resources:
                     raise ValueError("No valid Salesforce objects selected.")
                 if on_schema_change != "allow_all":
@@ -1103,7 +1245,7 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
                 context.log.info("salesforce_ingestion: no objects selected; skipping.")
                 return
 
-            from dlt.sources.salesforce import salesforce_source
+            from simple_salesforce import Salesforce
 
             username, password, security_token = _resolve_credentials(component, context)
 
@@ -1119,24 +1261,27 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            source = salesforce_source(
-                user_name=username,
-                password=password,
-                security_token=security_token,
+            sf_client = Salesforce(
+                username=username, password=password, security_token=security_token,
             )
-            _apply_table_name_overrides(source, selected_keys)
-            subset_source = source.with_resources(*selected_keys)
+            selected_resources = [
+                _build_salesforce_resource(
+                    sf_client, original_name_by_key[rk], rk, incremental_field, where_clause,
+                )
+                for rk in selected_keys
+            ]
+            _apply_table_name_overrides_list(selected_resources, selected_keys)
             if on_schema_change != "allow_all":
-                for _r in subset_source.resources.values():
+                for _r in selected_resources:
                     _r.apply_hints(schema_contract=_resolve_schema_contract(on_schema_change))
             if exclude_columns:
-                _apply_exclude_columns(subset_source.resources.values(), exclude_columns)
+                _apply_exclude_columns(selected_resources, exclude_columns)
             if hash_columns:
-                _apply_hash_columns(subset_source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                _apply_hash_columns(selected_resources, hash_columns, hash_salt, hash_salt_env_var)
             if max_rows_per_resource:
-                _apply_max_rows_per_resource(subset_source.resources.values(), max_rows_per_resource)
+                _apply_max_rows_per_resource(selected_resources, max_rows_per_resource)
 
-            load_info = pipeline.run(subset_source)
+            load_info = pipeline.run(selected_resources)
             context.log.info(f"Salesforce data loaded: {load_info}")
 
             non_sql_destinations = {

@@ -1,12 +1,12 @@
 # Salesforce Ingestion Component
 
 
-Ingest [Salesforce](https://www.salesforce.com) CRM objects using [dlt](https://dlthub.com)'s verified `salesforce` source.
+Ingest [Salesforce](https://www.salesforce.com) CRM objects via [simple-salesforce](https://github.com/simple-salesforce/simple-salesforce) + [dlt](https://dlthub.com) (same technique dlt's own verified `salesforce` source uses internally — describe()-driven field selection, Bulk API with a standard-SOQL fallback — built directly rather than vendored, so it works with a plain `pip install` and supports arbitrary custom objects, a custom WHERE fragment, and a custom incremental field out of the box).
 
 
 ## Purpose
 
-dlt handles API authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
+dlt handles pagination, destination loading, schema contracts, and incremental merge state. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 
 
 ## Source-specific fields
@@ -18,7 +18,9 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | `password` | `str` | one of username/password/security_token OR resource_key | Salesforce password |
 | `security_token` | `str` | one of username/password/security_token OR resource_key | Salesforce security token |
 | `resource_key` | `str` | no | Resource key registered by a SalesforceResourceComponent. When set, credentials are read from that resource at run time instead of username/password/security_token -- lets one Salesforce credential serve both this connector and the salesforce_record_upsert reverse-ETL sink. Only meaningful when that resource uses `auth_mode: password` (this ingestion component doesn't support JWT Bearer). |
-| `sf_objects` | `List[str]` | no | Objects to extract — defaults to `["Account", "Opportunity", "Contact", "Lead"]`. Any standard or custom (`__c`) object is supported. |
+| `sf_objects` | `List[str]` | no | Objects to extract — defaults to `["Account", "Opportunity", "Contact", "Lead"]`. Any standard or custom (`__c`) object is supported — fields are discovered per-object via Salesforce's `describe()` API, so any object name Salesforce itself recognizes works here. |
+| `where_clause` | `str` | no | Raw SOQL `WHERE` fragment (no leading `WHERE`), ANDed onto `incremental_field`'s predicate when both are set, or used alone otherwise. Applied identically to every object in `sf_objects`. |
+| `incremental_field` | `str` | no | Field to load incrementally on (e.g. `SystemModstamp`, `LastModifiedDate`, or `Id`) — see "Migrating a StreamSets Salesforce origin" below. Unset (default): every object does a full reload each run. |
 
 ## Standard fields
 
@@ -115,6 +117,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `where_clause` | `str` | — | Optional raw SOQL WHERE fragment (without the leading 'WHERE'), ANDed onto incremental_field's generated predicate when both are set, or used alone otherwise -- e.g. "Type = 'Customer'". Applied identically to every obje… _(full docs in schema.json + component README)_ |
 | `table_name_map` | `Dict[str, str]` | — | Override the destination table name for specific Salesforce objects, e.g. {'Account': 'raw_accounts'}. Keys are matched case-insensitively against `sf_objects`. dlt otherwise names each destination table after its lowerc… _(full docs in schema.json + component README)_ |
 | `bucket_url` | `str` | — | Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also… _(full docs in schema.json + component README)_ |
 
@@ -123,7 +126,8 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `security_token` | `str` | — | Salesforce security token (from Settings > Personal Setup > Reset My Security Token). Required unless resource_key is set. |
-| `sf_objects` | `List[str]` | `['Account', 'Opportunity', 'Contact', 'Lead']` | Salesforce objects to extract (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.) |
+| `sf_objects` | `List[str]` | `['Account', 'Opportunity', 'Contact', 'Lead']` | Salesforce objects to extract -- any standard object (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.) or custom object (append __c, e.g. MyObject__c). Fields are discovered per-object via Salesforce's d… _(full docs in schema.json + component README)_ |
+| `incremental_field` | `str` | — | Salesforce field name to load incrementally on (e.g. 'SystemModstamp', 'LastModifiedDate', or 'Id') -- the direct equivalent of a StreamSets Salesforce origin's stored-offset SOQL (`WHERE Id > '${OFFSET}' ORDER BY Id`)… _(full docs in schema.json + component README)_ |
 | `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising… _(full docs in schema.json + component README)_ |
 | `hash_salt` | `str` | — | Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use "{{ env.VAR_NAME }}" for the inlin… _(full docs in schema.json + component README)_ |
 | `hash_salt_env_var` | `str` | — | Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time. |
@@ -178,11 +182,40 @@ attributes:
 Set `DESTINATION__SNOWFLAKE__CREDENTIALS__*` env vars before running. The asset emits a `MaterializeResult` with destination metadata.
 
 
+## Migrating a StreamSets Salesforce origin
+
+A StreamSets Salesforce origin typically runs a stored-offset SOQL query like:
+
+```sql
+SELECT Id, Name, ... FROM Account WHERE Id > '${OFFSET}' ORDER BY Id
+```
+
+The direct equivalent here is `incremental_field` — dlt's own declarative resumable cursor,
+not a literal SOQL string with an embedded offset variable (functionally equivalent: both
+produce a resumable "give me everything since X" read; structurally different, so map the
+origin's replication column onto this field rather than copying the SOQL text verbatim):
+
+```yaml
+type: dagster_community_components.SalesforceIngestionComponent
+attributes:
+  asset_name: accounts
+  username: "{{ env('SALESFORCE_USERNAME') }}"
+  password: "{{ env('SALESFORCE_PASSWORD') }}"
+  security_token: "{{ env('SALESFORCE_TOKEN') }}"
+  sf_objects: [Account]
+  incremental_field: Id          # quoted automatically in the generated SOQL (Id is a string-typed field)
+```
+
+Any additional filter the origin applied beyond the stored offset maps onto `where_clause`
+(e.g. `where_clause: "Type = 'Customer'"`). Both fields apply identically to every object in
+`sf_objects` — for a different incremental field or filter per object, use one component
+instance per object (one `defs.yaml` per StreamSets origin stage is the usual mapping anyway).
+
 ## Notes
 
 - **Security token**: regenerate via Settings > Personal Setup > Reset My Security Token.
-- **Custom objects**: append `__c` (e.g. `MyObject__c`).
-- **Bulk API**: large objects use Salesforce Bulk API — dlt handles polling.
+- **Custom objects**: append `__c` (e.g. `MyObject__c`) — any object Salesforce itself recognizes works, standard or custom, since fields are discovered per-object via `describe()` rather than a fixed hardcoded list.
+- **Bulk API**: large objects use Salesforce Bulk API, falling back to standard SOQL + pagination when Bulk/Async API isn't enabled on the org.
 - **Non-SQL destinations**: setting `destination=filesystem` (or any vector store / lake format) requires `persist_only=true`. The component logs a warning and returns a `MaterializeResult` if you forget.
 
 
@@ -224,6 +257,7 @@ Dependencies declared here draw lineage edges in the Dagster graph without loadi
 
 ## Learn more
 
-- [dlt Salesforce source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/salesforce)
+- [dlt Salesforce source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/salesforce) — the reference implementation this component's query-building technique follows (not vendored — see the `incremental_field`/`where_clause` fields above)
+- [simple-salesforce](https://github.com/simple-salesforce/simple-salesforce) — the Salesforce API client this component uses directly
 - [dlt destinations overview](https://dlthub.com/docs/dlt-ecosystem/destinations)
 - [`../DESTINATIONS.md`](../DESTINATIONS.md) — configuration reference for this library

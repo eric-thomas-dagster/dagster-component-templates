@@ -1,0 +1,9 @@
+type: dagster_community_components.DataframeToKafkaComponent
+attributes:
+  asset_name: orders_to_kafka
+  upstream_asset_key: orders_raw
+  bootstrap_servers: localhost:9092
+  topic: orders
+  key_column: order_id   # optional — pins same-key rows to the same partition
+  batch_size: 500
+  group_name: producers

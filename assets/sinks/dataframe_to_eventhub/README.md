@@ -101,7 +101,7 @@ SDK has distinct auth + config (connection string, topic, partition key
 semantics). The same shape exists for other queues:
 
 - `redis_writer` (already in registry) → Redis hashes / streams
-- `dataframe_to_kafka` (planned) → Kafka topic
+- `dataframe_to_kafka` (already in registry) → Kafka topic
 - `dataframe_to_pubsub` (planned) → GCP Pub/Sub
 - `dataframe_to_kinesis` (planned) → AWS Kinesis
 

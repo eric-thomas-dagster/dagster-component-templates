@@ -19723,6 +19723,53 @@
       ]
     },
     {
+      "id": "dataframe_to_kafka",
+      "name": "dataframe_to_kafka",
+      "category": "sink",
+      "description": "Send each DataFrame row to a Kafka topic as a JSON message. Destination-side counterpart to kafka_monitor / kafka_to_database_asset, which only consume from Kafka.",
+      "path": "assets/sinks/dataframe_to_kafka",
+      "tags": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_kafka/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_kafka/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_kafka/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_kafka/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_kafka/requirements.txt",
+      "icon": "si:apachekafka",
+      "validation": {
+        "level": "tested",
+        "evidence": "assets/sinks/dataframe_to_kafka/tests/test_dataframe_to_kafka.py",
+        "last_validated": "2026-11-25"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame whose rows become Kafka messages.",
+        "outputs": "None (sink — publishes to a Kafka topic).",
+        "side_effects": "One message per row. Requires a Kafka broker reachable via bootstrap_servers, bootstrap_servers_env_var, or resource_key.",
+        "requires_resources": [],
+        "input_type": "pd.DataFrame",
+        "output_type": null
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "kafka-python"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "consumes": [],
+      "keywords": [
+        "write to",
+        "output",
+        "kafka",
+        "producer"
+      ],
+      "vendor": "Apache"
+    },
+    {
       "id": "dataframe_to_kusto",
       "name": "dataframe_to_kusto",
       "category": "sink",
@@ -77118,5 +77165,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1468
+  "total": 1469
 }

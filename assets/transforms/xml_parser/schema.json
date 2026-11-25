@@ -286,6 +286,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "streamsets_tree_column": {
+      "type": "string",
+      "label": "Streamsets Tree Column",
+      "description": "When set, parses the ENTIRE xml_column value into one new column holding a nested dict matching StreamSets' XML Parser output convention exactly (verified against a real StreamSets engine): each attribute becomes a key `attr\\|<name>`, an element's own text becomes a `value` key, and child elements are grouped by tag name into LISTS of these same dicts -- even a single child becomes a one-item list, for a consistently shaped structure regardless of cardinality. This is a different operation from `xpath_expressions` (targeted field extraction) -- it reproduces StreamSets' whole-document parse shape for pipelines migrating off a stage that assumed it downstream. Can be used together with or instead of `xpath_expressions`.",
+      "required": false
     }
   },
   "tags": [

@@ -249,6 +249,72 @@
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
       "required": false,
       "default": null
+    },
+    "body_template": {
+      "type": "string",
+      "label": "Body Template",
+      "description": "Request body template for POST/PUT/PATCH, built per-row from the record — `{column_name}` placeholders are substituted with that row's value before sending (same templating style as DataframeToHttpComponent's `url` field, via Python str.format — literal `{`/`}` in a JSON body must be escaped as `{{`/`}}`, e.g. `{{\"thing_id\": {id}}}`). Sent as the raw request body (`Content-Type: application/json` is set automatically when the rendered body starts with `{` or `[`). Ignored when unset.",
+      "required": false
+    },
+    "auth_username_env_var": {
+      "type": "string",
+      "label": "Auth Username Env Var",
+      "description": "Required for auth_type='basic'.",
+      "required": false
+    },
+    "auth_password_env_var": {
+      "type": "string",
+      "label": "Auth Password Env Var",
+      "description": "Required for auth_type='basic'.",
+      "required": false
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "Auth Token Env Var",
+      "description": "Required for auth_type='bearer'.",
+      "required": false
+    },
+    "oauth2_token_url": {
+      "type": "string",
+      "label": "Oauth2 Token Url",
+      "description": "Token endpoint. Required for auth_type='oauth2_client_credentials'.",
+      "required": false
+    },
+    "oauth2_client_id_env_var": {
+      "type": "string",
+      "label": "Oauth2 Client Id Env Var",
+      "description": "Env var holding the OAuth2 client ID. Required for auth_type='oauth2_client_credentials'.",
+      "required": false
+    },
+    "oauth2_client_secret_env_var": {
+      "type": "string",
+      "label": "Oauth2 Client Secret Env Var",
+      "description": "Env var holding the OAuth2 client secret. Required for auth_type='oauth2_client_credentials'.",
+      "required": false
+    },
+    "oauth2_scope": {
+      "type": "string",
+      "label": "Oauth2 Scope",
+      "description": "Optional OAuth2 scope to request.",
+      "required": false
+    },
+    "oauth2_audience": {
+      "type": "string",
+      "label": "Oauth2 Audience",
+      "description": "Optional OAuth2 audience parameter.",
+      "required": false
+    },
+    "retry_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Backoff Seconds",
+      "description": "Base delay for exponential backoff between retries (delay = base * 2**attempt).",
+      "required": false
+    },
+    "response_json_path": {
+      "type": "string",
+      "label": "Response Json Path",
+      "description": "Dotted path into the parsed JSON response to extract into `<output_prefix>_value` (e.g. 'data.id' for {'data': {'id': 123}}). Requires parse_json=True (the default). Leave unset to only get the raw body/status/full JSON columns.",
+      "required": false
     }
   }
 }

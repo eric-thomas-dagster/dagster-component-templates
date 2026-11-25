@@ -320,6 +320,16 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "log_format": {
+      "type": "string",
+      "enum": [
+        "common",
+        "combined"
+      ],
+      "label": "Log Format",
+      "description": "Use a pre-built Apache access-log regex instead of `pattern`/`output_columns` -- verified against Apache's own Common/Combined LogFormat spec and the standard Logstash grok field names. 'common' extracts clientip, ident, auth, timestamp, verb, request, httpversion, response, bytes (rawrequest instead of verb/request/httpversion for a malformed request line). 'combined' adds referrer and agent. Forces mode='extract'; `pattern` and `output_columns` are ignored when set (StreamSets' Log Parser equivalent for these two formats uses these exact field names, not generic numbered capture groups).",
+      "required": false
     }
   },
   "tags": [

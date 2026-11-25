@@ -169,7 +169,25 @@ class LookupComponent(dg.Component, dg.Model, dg.Resolvable):
     upstream_lookup_key: str = Field(description="Reference (small) DataFrame asset key")
     on: list = Field(description="Columns used for the join (must exist in both)")
     columns_to_add: Optional[list] = Field(default=None, description="Columns from the lookup to attach (None = all non-join columns)")
-    multiple_match: str = Field(default="first", description="When the lookup has multiple matches: 'first' | 'last' | 'all' (cartesian)")
+    multiple_match: str = Field(
+        default="first",
+        description=(
+            "When the lookup has multiple matches: 'first' | 'last' | 'all' (cartesian -- one "
+            "output row per match, same as StreamSets JDBC Lookup's SPLIT_INTO_MULTIPLE_RECORDS) "
+            "| 'all_as_list' (one output row, added columns become list-valued, collecting every "
+            "match -- StreamSets JDBC Lookup's ALL_AS_LIST)."
+        ),
+    )
+    on_no_match: str = Field(
+        default="pass",
+        description=(
+            "What to do when a row has no match in the lookup: 'pass' (default -- row passes "
+            "through, added columns are null/NaN, matching StreamSets Local Lookup's "
+            "leave-the-field-unset behavior, the closest a shared tabular column can represent) "
+            "| 'error' (raise if any row has zero matches -- StreamSets JDBC Lookup's "
+            "fail-on-missing-match policy)."
+        ),
+    )
     sort_conditions: Optional[List[Dict[str, str]]] = Field(
         default=None,
         description=(
@@ -337,6 +355,14 @@ class LookupComponent(dg.Component, dg.Model, dg.Resolvable):
                 lookup_subset = lookup_subset.drop_duplicates(subset=join_keys, keep="first")
             elif self.multiple_match == "last":
                 lookup_subset = lookup_subset.drop_duplicates(subset=join_keys, keep="last")
+            elif self.multiple_match == "all_as_list":
+                # StreamSets JDBC Lookup's ALL_AS_LIST: one output row per left-side row,
+                # every matching lookup row's added columns collected into a list per column
+                # (not one output row per match -- that's 'all', StreamSets' SPLIT_INTO_MULTIPLE_RECORDS).
+                lookup_subset = (
+                    lookup_subset.groupby(join_keys, as_index=False, dropna=False)
+                    .agg({c: list for c in cols_to_add})
+                )
             if self.rename:
                 lookup_subset = lookup_subset.rename(columns=self.rename)
             if self.match_flag_column:
@@ -345,6 +371,14 @@ class LookupComponent(dg.Component, dg.Model, dg.Resolvable):
                 df = df.drop(columns=["_lookup_match"])
             else:
                 df = df.merge(lookup_subset, on=join_keys, how="left")
+            if self.on_no_match == "error":
+                _added_cols = [self.rename.get(c, c) if self.rename else c for c in cols_to_add]
+                _unmatched = df[_added_cols].isna().all(axis=1) if _added_cols else pd.Series(False, index=df.index)
+                if _unmatched.any():
+                    raise ValueError(
+                        f"LookupComponent: {int(_unmatched.sum())} row(s) had no match in the "
+                        f"lookup table on join key(s) {join_keys} (on_no_match='error')."
+                    )
             context.add_output_metadata({
                 "dagster/row_count": dg.MetadataValue.int(len(df)),
             })

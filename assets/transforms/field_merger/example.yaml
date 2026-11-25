@@ -1,0 +1,8 @@
+type: dagster_community_components.FieldMergerComponent
+attributes:
+  asset_name: merged_customer_tags
+  upstream_asset_key: raw_customer_tags
+  source_field: extra_tags
+  target_field: tags
+  on_key_conflict: error
+  group_name: data_quality

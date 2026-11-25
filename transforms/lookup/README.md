@@ -93,7 +93,8 @@ Mirrors two ADF Lookup transform capabilities beyond plain row order:
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `columns_to_add` | `list` | — | Columns from the lookup to attach (None = all non-join columns) |
-| `multiple_match` | `str` | `"first"` | When the lookup has multiple matches: 'first' \| 'last' \| 'all' (cartesian) |
+| `multiple_match` | `str` | `"first"` | When the lookup has multiple matches: 'first' \| 'last' \| 'all' (cartesian -- one output row per match, same as StreamSets JDBC Lookup's SPLIT_INTO_MULTIPLE_RECORDS) \| 'all_as_list' (one output row, added columns becom… _(full docs in schema.json + component README)_ |
+| `on_no_match` | `str` | `"pass"` | What to do when a row has no match in the lookup: 'pass' (default -- row passes through, added columns are null/NaN, matching StreamSets Local Lookup's leave-the-field-unset behavior, the closest a shared tabular column… _(full docs in schema.json + component README)_ |
 | `sort_conditions` | `List[Dict[str, str]]` | — | Order candidate matches before taking 'first'/'last' (ADF's Lookup transform: explicit sort conditions, not just row order). List of {column, order: asc\|desc (default asc)}. Ignored when multiple_match='all'. |
 | `match_flag_column` | `str` | — | If set, adds a boolean column (ADF's isMatch()) marking whether each row found a match in the lookup. |
 | `rename` | `dict` | — | Rename added columns: {original: new} |

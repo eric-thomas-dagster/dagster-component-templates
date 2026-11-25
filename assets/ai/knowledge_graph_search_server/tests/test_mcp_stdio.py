@@ -74,9 +74,15 @@ def test_stdio_server_get_neighbors_and_find_path(graph_path):
     assert path["path"] == ["Alice", "Acme Corp"]
 
 
-def test_stdio_server_unknown_entity_returns_error_not_crash(graph_path):
+def test_stdio_server_unknown_entity_is_a_real_isError_result_with_the_original_message(graph_path):
+    """A tool-level failure (unknown entity name) must come back as a REAL isError result, not a
+    quiet non-error {"error": ...} dict an agent loop's failed-call accounting would miss -- see
+    _safe in component.py. Also confirms the original message (not a generic "Error executing
+    tool X") survives end-to-end, which only holds when the SDK recognizes the raised exception
+    as its own ToolError."""
     async def body(s):
-        return _json(await s.call_tool("get_entity", {"name": "Nobody"}))
+        return await s.call_tool("get_entity", {"name": "Nobody"})
 
     res = _run(body, {"KNOWLEDGE_GRAPH_SEARCH_PROVIDER": "networkx", "KNOWLEDGE_GRAPH_SEARCH_PATH": graph_path})
-    assert "error" in res
+    assert getattr(res, "is_error", None) or getattr(res, "isError", None)
+    assert "Nobody" in res.content[0].text and "not found" in res.content[0].text

@@ -162,13 +162,15 @@ def test_build_defs_neo4j_requires_uri(mod):
         comp.build_defs(None)
 
 
-# ─── MCP tool wrapper: errors surface as data, never crash the agent loop ────────────────
+# ─── MCP tool wrapper: a resource-level {"error": ...} or a raised exception both become a
+# ─── real MCP ToolError, so a failed call is never mistaken for a successful one ─────────
 
-def test_safe_wrapper_returns_error_dict_instead_of_raising(mod, tmp_path):
+def test_safe_wrapper_raises_sdk_tool_error_for_a_resource_error_dict(mod, tmp_path):
     path = str(tmp_path / "kg.json")
     r = _resource(mod, path)  # file doesn't exist -> empty graph, not an exception
-    res = mod._safe(r.get_entity, "Anyone")
-    assert res == {"error": "entity 'Anyone' not found"}
+    assert r.get_entity("Anyone") == {"error": "entity 'Anyone' not found"}  # resource's own direct contract, unchanged
+    with pytest.raises(mod._sdk_tool_error_cls(), match="entity 'Anyone' not found"):
+        mod._safe(r.get_entity, "Anyone")
 
 
 # ─── provider='sql_tables': recursive-CTE graph traversal over knowledge_graph_builder's

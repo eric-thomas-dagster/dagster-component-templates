@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SlackApprovalGateComponent",
-  "description": "Human-in-the-loop approval gate via Slack reactions. Posts the upstream asset's text to a Slack channel, watches for reactions from an allowlisted set of approvers via a companion sensor, writes the same JSON approval token file `HumanApprovalGateComponent` reads \u2014 everything downstream of the gate is unchanged. Reactions-polling (not interactive buttons) so it works in Dagster+ Serverless without a public webhook.",
+  "description": "Human-in-the-loop approval gate via Slack reactions. Posts the upstream asset's text to a Slack channel, watches for reactions from an allowlisted set of approvers via a companion sensor, writes the same JSON approval token file `HumanApprovalGateComponent` reads — everything downstream of the gate is unchanged. Reactions-polling (not interactive buttons) so it works in Dagster+ Serverless without a public webhook.",
   "category": "ai",
   "icon": "Chat",
   "x-dagster-io": {
@@ -41,13 +41,13 @@
       "description": "Env var with `xoxb-...` bot token (needs chat:write + reactions:read + reactions:write)."
     },
     "approve_emoji": {
-      "description": "Emoji name (no colons) approvers react with. Default `white_check_mark` (\u2705).",
+      "description": "Emoji name (no colons) approvers react with. Default `white_check_mark` (✅).",
       "type": "string",
       "label": "Approve Emoji",
       "default": "white_check_mark"
     },
     "reject_emoji": {
-      "description": "Emoji name (no colons) for explicit rejection. Default `x` (\u274c).",
+      "description": "Emoji name (no colons) for explicit rejection. Default `x` (❌).",
       "type": "string",
       "label": "Reject Emoji",
       "default": "x"
@@ -89,7 +89,7 @@
       "type": "string",
       "label": "On Timeout",
       "default": "escalate",
-      "description": "`escalate` (default \u2014 ping escalate_slack_user, keep waiting) \\| `reject` (write approved=false token) \\| `approve` (write approved=true \u2014 use with caution).",
+      "description": "`escalate` (default — ping escalate_slack_user, keep waiting) \\| `reject` (write approved=false token) \\| `approve` (write approved=true — use with caution).",
       "enum": [
         "escalate",
         "reject",
@@ -291,7 +291,8 @@
     "approval",
     "slack",
     "gate",
-    "quorum"
+    "quorum",
+    "agentic"
   ],
   "name": "Slack Approval Gate"
 }

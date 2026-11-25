@@ -213,7 +213,8 @@
     "approval",
     "quorum",
     "gate",
-    "hitl"
+    "hitl",
+    "agentic"
   ],
   "name": "Multi-Approver Gate"
 }

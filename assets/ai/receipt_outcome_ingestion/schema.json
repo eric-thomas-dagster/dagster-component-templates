@@ -162,7 +162,8 @@
     "feedback",
     "learning loop",
     "csat",
-    "outcomes"
+    "outcomes",
+    "agentic"
   ],
   "name": "receipt_outcome_ingestion"
 }

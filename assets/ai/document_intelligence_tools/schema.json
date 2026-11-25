@@ -112,5 +112,8 @@
       "description": "Model used for the refine pass only (litellm format). Unset = reuse the call's own model for both passes. Only used when refine=true.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

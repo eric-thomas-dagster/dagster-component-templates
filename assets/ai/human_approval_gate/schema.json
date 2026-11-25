@@ -222,5 +222,8 @@
       "required": false,
       "default": null
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

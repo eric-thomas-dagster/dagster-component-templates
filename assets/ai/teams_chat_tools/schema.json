@@ -82,5 +82,8 @@
       "description": "If set, ALSO registers a stdio MCP-server-shaped resource (same name/type/command/env shape as MCPServerResource) under this key, built from this component's own settings. *_template fields are passed through VERBATIM as env values -- resolved by the calling agent's own {tag.*} substitution at run time, not by this component. Leave unset to skip this -- existing resource_key-only behavior is unchanged.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

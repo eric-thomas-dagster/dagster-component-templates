@@ -140,5 +140,8 @@
       "type": "array",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

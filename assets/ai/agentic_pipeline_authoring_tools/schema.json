@@ -43,6 +43,7 @@
     "ai",
     "mcp",
     "agentic_pipeline",
-    "authoring"
+    "authoring",
+    "agentic"
   ]
 }

@@ -80,5 +80,8 @@
       "description": "find_issues includes an issue closed within this many days, not just still-open ones. A person closing a bad finding (wontfix, already handled) is a signal not to re-file it -- without this, that signal is lost the moment the issue leaves Linear's active states, and an advisor agent re-files the same thing it was already told no about.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

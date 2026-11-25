@@ -18,7 +18,10 @@
       "description": "'assets' (default, simpler, more Dagster-native): one asset per allow-listed operation, each a direct HTTP call. 'mcp_server': build a real fastmcp.FastMCP server from the spec, exposed via a resource (resource_key) other code can host, plus a small inspection asset listing the server's resulting tools.",
       "required": false,
       "default": "assets",
-      "enum": ["assets", "mcp_server"],
+      "enum": [
+        "assets",
+        "mcp_server"
+      ],
       "ui:widget": "select"
     },
     "spec_url": {
@@ -65,7 +68,9 @@
     },
     "operation_ids": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Operation IDs",
       "description": "Allow-list of operationId values (the OpenAPI spec's own operationId field per operation). Operations NOT in this list are NEVER exposed, in either mode. Leave unset to expose every operation in the spec.",
       "required": false,
@@ -91,7 +96,11 @@
       "description": "mode='assets' only. How to parse each operation's response body: 'json' (raise if not JSON), 'text' (raw string), 'auto' (try JSON, fall back to text).",
       "required": false,
       "default": "auto",
-      "enum": ["json", "text", "auto"],
+      "enum": [
+        "json",
+        "text",
+        "auto"
+      ],
       "ui:widget": "select"
     },
     "request_timeout_seconds": {
@@ -145,7 +154,9 @@
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "description": "Asset owners.",
       "required": false,
@@ -160,7 +171,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog. mode='assets' always adds 'api' and 'openapi' (even if you set your own kinds), the same way mcp_tool_call always adds 'mcp' -- so a UI can find every operation asset this component emits by kind alone.",
       "required": false,
@@ -173,7 +186,16 @@
       "description": "mode='assets' only. 'daily' | 'weekly' | 'monthly' | 'hourly' | 'cron' | 'static' | 'multi' | 'dynamic'. Applied to every emitted operation asset.",
       "required": false,
       "default": null,
-      "enum": ["daily", "weekly", "monthly", "hourly", "cron", "static", "multi", "dynamic"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "cron",
+        "static",
+        "multi",
+        "dynamic"
+      ],
       "ui:widget": "select"
     },
     "partition_cron_schedule": {
@@ -235,7 +257,9 @@
     "partition_dimensions": {
       "x-dagster-group": "partitions",
       "type": "array",
-      "items": {"type": "object"},
+      "items": {
+        "type": "object"
+      },
       "label": "Partition Dimensions",
       "description": "Multi-axis partition spec: list of {name, type, start, values} dicts.",
       "required": false,
@@ -248,7 +272,10 @@
       "description": "mode='assets' only. 'single_run' materializes an entire backfill range in one run (one HTTP call per partition in the range, each with its own {partition_key} substitution). 'multi_run' launches one run per partition. Leave unset for Dagster's default.",
       "required": false,
       "default": null,
-      "enum": ["single_run", "multi_run"],
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
       "ui:widget": "select"
     },
     "backfill_policy_max_partitions_per_run": {
@@ -293,7 +320,10 @@
       "description": "'linear' or 'exponential'.",
       "required": false,
       "default": "exponential",
-      "enum": ["linear", "exponential"],
+      "enum": [
+        "linear",
+        "exponential"
+      ],
       "ui:widget": "select"
     },
     "mcp_server_resource_key": {
@@ -303,6 +333,14 @@
       "required": false
     }
   },
-  "tags": ["ai", "openapi", "agent", "mcp", "tool", "asset"],
+  "tags": [
+    "ai",
+    "openapi",
+    "agent",
+    "mcp",
+    "tool",
+    "asset",
+    "agentic"
+  ],
   "name": "OpenAPI Tool Server"
 }

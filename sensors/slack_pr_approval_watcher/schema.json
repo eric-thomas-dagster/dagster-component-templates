@@ -185,5 +185,8 @@
       "description": "Only used when verify_after_merge is true. Give up waiting for the verification re-run after this many minutes and report a timeout instead of a pass/fail.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

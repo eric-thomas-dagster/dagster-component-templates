@@ -95,5 +95,8 @@
       "description": "Relative tolerance for a numeric field to count as matching its fixture's expected value, in 'fields' mode -- e.g. 0.01 means within 1% (so 1042.50 matches an expected 1042.51, but not an expected 950.00). Passed as math.isclose's rel_tol. Only used when match_mode is 'fields'.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

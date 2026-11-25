@@ -56,7 +56,7 @@
       "required": false
     },
     "owners": {
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "items": {
         "type": "string"
       },
@@ -87,7 +87,8 @@
     "agents",
     "human in the loop",
     "review queue",
-    "approval"
+    "approval",
+    "agentic"
   ],
   "name": "agent_review_queue"
 }

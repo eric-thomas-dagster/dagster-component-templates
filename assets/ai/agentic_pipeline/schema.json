@@ -211,5 +211,8 @@
       "description": "Run tag name carrying a per-run input value for this pipeline's prompts -- a `{input}` placeholder (usable anywhere {partition_key} is: prompt_template, system_prompt, tool_args, source.text/path/url, sink paths, ...) substitutes with `context.run.tags[run_input_tag]` when that tag is set on the run, else `{input}` is left unsubstituted. This is the first-class way to give an agent a different question each run WITHOUT the dynamic-partition-per-question workaround (no partition-key sanitization of commas/brackets, no ~200-char cap, no id suffix to avoid collisions on a repeated question) -- launch the run with this tag set (Launchpad tags, `dg launch --tags`, or a sensor/job that sets it) instead of creating a partition. `{partition_key}` keeps working exactly as it does today; the two are independent and may both be used in the same pipeline. Set to null to disable (frees `{input}` to mean nothing special, e.g. for a pipeline that gets real per-run data some other way).",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

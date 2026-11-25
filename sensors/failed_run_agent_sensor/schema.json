@@ -136,5 +136,8 @@
       "description": "Trigger for every code location EXCEPT these -- same naming convention as dagster_discovery_tools' own exclude_locations. The usual case is excluding the agents' own code location, so a fixer run's own failures don't trigger more fixer runs. Checked independently of code_location_names (an allow-list); set whichever shape fits -- an 'allow only these' list, or a 'watch everything except these' one.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

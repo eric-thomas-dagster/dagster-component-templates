@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-11-24",
+  "last_updated": "2026-11-25",
   "components": [
     {
       "id": "ab_controls",
@@ -559,7 +559,9 @@
       "category": "ai",
       "description": "Adaptive research pipeline where the planner LLM decides N sub-topics at runtime. Row-wise researcher writes one note per subtopic; synthesizer combines into a markdown brief. Where DynamicOutput / dynamic partitions fits — N is truly runtime-decided.",
       "path": "assets/ai/adaptive_research_brief",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Sparkles",
       "type": "dagster_community_components.AdaptiveResearchBriefComponent",
       "component_type": "dagster_community_components.AdaptiveResearchBriefComponent",
@@ -948,7 +950,8 @@
         "agent",
         "a2a",
         "mcp",
-        "registry"
+        "registry",
+        "agentic"
       ],
       "icon": "IdCard",
       "type": "dagster_community_components.AgentCardComponent",
@@ -995,7 +998,8 @@
         "a2a",
         "mcp",
         "registry",
-        "workspace"
+        "workspace",
+        "agentic"
       ],
       "icon": "IdCard",
       "type": "dagster_community_components.AgentCardWorkspaceComponent",
@@ -1039,7 +1043,9 @@
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "assets/ai/agent_fixture_check",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -1090,7 +1096,8 @@
         "memory",
         "llm",
         "agents",
-        "rag"
+        "rag",
+        "agentic"
       ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_memory_store/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_memory_store/component.py",
@@ -1189,7 +1196,8 @@
         "agents",
         "human in the loop",
         "review queue",
-        "approval"
+        "approval",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -1241,7 +1249,9 @@
       "author": "Dagster Community",
       "version": "1.0.0",
       "description": "Whole agentic pipeline in one YAML. `source: + steps: + outputs:` — every step becomes a first-class Dagster asset with cost / latency / tokens / router-reasoning as metadata. 16 ops for the common shapes (single call, routing, debate, critique, synthesis, MCP tool calls, tool-use loops, framework handoffs, map, extract, classify, reduce, self-reflect, sub-pipelines, calls to pre-built agents). Any LiteLLM provider. Reusable `personas:` + pre-built `agents:` declared once and referenced by name.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "produces": [
         "multi_asset"
       ],
@@ -4671,7 +4681,8 @@
         "ai",
         "mcp",
         "agentic_pipeline",
-        "authoring"
+        "authoring",
+        "agentic"
       ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline_authoring_tools/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agentic_pipeline_authoring_tools/component.py",
@@ -5754,7 +5765,9 @@
       "category": "ai",
       "description": "Single-shot LLM agent with MCP tool support, using the Anthropic SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
       "path": "assets/ai/anthropic_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/schema.json",
       "component_type": "dagster_community_components.AnthropicAgentComponent",
       "icon": "si:anthropic",
@@ -6083,7 +6096,9 @@
       "category": "ai",
       "icon": "History",
       "description": "Materialize the full who/when/why history of an approval workflow as a Dagster DataFrame asset. Reads every JSON approval token in a shared `approval_dir` (written by HumanApprovalGate, SlackApprovalGate, TeamsApprovalGate — or any external system dropping tokens in that dir) and emits one row per token with columns: partition_key, approved, approver, reason, feedback, decided_at, token_file, upstream_asset, source. Governance-grade audit surface — point Insights at it, join to run history, export to GRC on a schedule. Independent of which component WROTE the token — audits Human/Slack/Teams/external-webhook tokens uniformly. Complements the approval-gate components (read-only, additive, no coupling).",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/approval_audit_asset/README.md",
@@ -11150,7 +11165,9 @@
       "category": "ai",
       "description": "Iterative + catalog. Planner runs per step, sees REAL columns/preview from prior step's materialization, picks next component from the live registry. Handles customer-built data with unknown schemas — schema is discovered at runtime from the actual output.",
       "path": "assets/ai/catalog_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Sparkles",
       "type": "dagster_community_components.CatalogAgentComponent",
       "component_type": "dagster_community_components.CatalogAgentComponent",
@@ -14321,7 +14338,8 @@
       "tags": [
         "ai",
         "conversation",
-        "memory"
+        "memory",
+        "agentic"
       ],
       "dependencies": {
         "pip": []
@@ -15850,7 +15868,9 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/dagster_api_check_tools",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -16023,7 +16043,9 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/dagster_discovery_tools",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -16076,7 +16098,9 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/dagster_evidence_tools",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -16184,7 +16208,8 @@
         "mcp",
         "observability",
         "dagster instance",
-        "debugging"
+        "debugging",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -16782,7 +16807,9 @@
       "category": "ai",
       "description": "\"Workflow as tool\": WRITE-capable tools over the Dagster instance (materialize_assets, run_job) for agents -- each a real, synchronous dagster.execute_job run, not a read-only query. Registers a resource and ships a stdio MCP server (python -m <module>) for agentic_pipeline's tool_use_loop / mcp_call. A deliberately separate component from the read-only dagster_instance_tools.",
       "path": "assets/ai/dagster_workflow_tools",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Zap",
       "agent_hints": {
         "inputs": "None -- declares which Definitions module this tool is allowed to materialize/run.",
@@ -22007,7 +22034,9 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/document_intelligence_tools",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -24485,7 +24514,8 @@
         "imap",
         "governance",
         "hitl",
-        "gate"
+        "gate",
+        "agentic"
       ],
       "dependencies": {
         "pip": []
@@ -27618,7 +27648,9 @@
       "version": "1.2.0",
       "author": "Dagster Community",
       "path": "sensors/failed_run_agent_sensor",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -30471,7 +30503,9 @@
       "category": "ai",
       "description": "Single-shot LLM agent with MCP tool support, using the Google Gen AI SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
       "path": "assets/ai/gemini_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_agent/schema.json",
       "component_type": "dagster_community_components.GeminiAgentComponent",
       "icon": "si:googlegemini",
@@ -31155,7 +31189,9 @@
       "version": "1.4.0",
       "author": "Dagster Community",
       "path": "assets/ai/github_pr_tools",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -31206,7 +31242,9 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/github_pull_request_agent_sensor",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -33840,7 +33878,9 @@
       "category": "ai",
       "description": "Local stdio MCP server proxying an allow-listed subset of tools from any hosted MCP server that uses OAuth, refreshing the signed-in person's token as needed.",
       "path": "assets/ai/hosted_mcp_server",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/hosted_mcp_server/schema.json",
@@ -34720,7 +34760,9 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/human_approval_gate",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -36612,7 +36654,9 @@
       "category": "ai",
       "description": "Iterative / chained supervisor agent. Planner runs once per step, sees prior steps' tool outputs, and picks the NEXT tool call — or declares done. Each step is its own Dagster asset (full ReAct-loop lineage). Static DAG shape via pre-declared max_iterations, dynamic termination via short-circuit.",
       "path": "assets/ai/iterative_supervisor_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Sparkles",
       "type": "dagster_community_components.IterativeSupervisorAgentComponent",
       "component_type": "dagster_community_components.IterativeSupervisorAgentComponent",
@@ -39258,7 +39302,9 @@
       "category": "ai",
       "description": "Multi-step LangGraph StateGraph as a Dagster asset. Either a declarative prompt-chain DSL (`steps`) or a bring-your-own pre-built graph (`graph_fn`) -- exactly one of the two must be set.",
       "path": "assets/ai/langgraph_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Sparkles",
       "type": "dagster_community_components.LangGraphAgentComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langgraph_agent/README.md",
@@ -40597,7 +40643,9 @@
       "version": "1.2.0",
       "author": "Dagster Community",
       "path": "assets/ai/linear_ticket_tools",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -40817,7 +40865,9 @@
       "category": "ai",
       "description": "Single-shot LLM agent with MCP tool support (via LiteLLM — works against 100+ providers). Runs a tool-calling loop until the model returns a final answer or max_iterations is hit.",
       "path": "assets/ai/litellm_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_agent/schema.json",
       "component_type": "dagster_community_components.LiteLLMAgentComponent",
       "icon": "favicon:litellm.ai",
@@ -42975,7 +43025,9 @@
       "category": "resource",
       "description": "Register one MCP server connection once, referenced by name (server_resource_key) from mcp_tool_call/mcp_tool_picker and the MCP-capable agent components instead of repeating the same connection fields inline in every one of them.",
       "path": "resources/mcp_server_resource",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Network",
       "component_type": "dagster_community_components.MCPServerResourceComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mcp_server_resource/README.md",
@@ -43053,7 +43105,9 @@
       "category": "source",
       "description": "Deterministic single-shot call to one MCP tool — no LLM in the loop. Args templating supports {partition_key}, {partition_keys.<dim>}, {run_id}.",
       "path": "assets/sources/mcp_tool_call",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/schema.json",
       "component_type": "dagster_community_components.MCPToolCallComponent",
       "icon": "Network",
@@ -43095,7 +43149,9 @@
       "category": "ai",
       "description": "Planner LLM picks MCP tools + args to invoke from a bounded YAML-declared set. Each pick becomes a Dagster asset that actually calls the MCP server; a synthesizer LLM writes the grounded final answer. The 'agent picks MCPs' pattern with full lineage.",
       "path": "assets/ai/mcp_tool_picker",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Sparkles",
       "type": "dagster_community_components.MCPToolPickerComponent",
       "component_type": "dagster_community_components.MCPToolPickerComponent",
@@ -45742,7 +45798,8 @@
         "approval",
         "quorum",
         "gate",
-        "hitl"
+        "hitl",
+        "agentic"
       ],
       "dependencies": {
         "pip": []
@@ -47286,7 +47343,9 @@
       "category": "ai",
       "description": "Registers a local stdio MCP server proxying notion-search/notion-fetch to Notion's hosted MCP server, refreshing the signed-in person's OAuth token as needed.",
       "path": "assets/ai/notion_mcp_server",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/notion_mcp_server/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/notion_mcp_server/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/notion_mcp_server/schema.json",
@@ -48456,7 +48515,9 @@
       "category": "ai",
       "description": "Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the OpenAI SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations is hit.",
       "path": "assets/ai/openai_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_agent/schema.json",
       "component_type": "dagster_community_components.OpenAIAgentComponent",
       "icon": "si:openai",
@@ -48719,7 +48780,8 @@
         "agent",
         "mcp",
         "tool",
-        "asset"
+        "asset",
+        "agentic"
       ],
       "icon": "Workflow",
       "component_type": "dagster_community_components.OpenApiToolServerComponent",
@@ -52105,7 +52167,9 @@
       "category": "ai",
       "description": "StateBackedComponent — runs the LLM planner + real materializations once at prepare time (write_state_to_path) and caches the full plan. build_defs_from_state builds REAL Dagster assets from the cached plan on every subsequent load. Zero LLM cost after prepare. Perfect for the 'input a task in Dagster+ UI, real assets appear' UX.",
       "path": "assets/ai/planned_catalog_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Sparkles",
       "type": "dagster_community_components.PlannedCatalogAgentComponent",
       "component_type": "dagster_community_components.PlannedCatalogAgentComponent",
@@ -56262,7 +56326,8 @@
         "feedback",
         "learning loop",
         "csat",
-        "outcomes"
+        "outcomes",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -57060,7 +57125,9 @@
       "category": "ai",
       "icon": "Loop",
       "description": "Sensor that watches an approval-token directory for `approved: false` tokens with a `feedback: \"...\"` field, and re-triggers an upstream job with that feedback captured as new input — letting the agent revise based on the human's specific rejection reason. Bounded by `max_iterations` so a stubborn agent can't loop forever. Composes with HumanApprovalGate / SlackApprovalGate / TeamsApprovalGate via shared `approval_dir`. Writes feedback to `{approval_dir}/.feedback/{partition_key}.txt` — pipeline reads it via a `synthesize` step (typed input `feedback: {from: <file-reader-step>}`) OR a plain `source: {kind: file, path: ...}`. Moves consumed rejection tokens to `.consumed/` so they aren't re-processed. Persists iteration state in `.state/{partition_key}.json`. Optional companion state DataFrame asset for observability into which partitions are mid-loop.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rejection_feedback_loop/README.md",
@@ -57117,7 +57184,8 @@
         "pdf",
         "docx",
         "xlsx",
-        "reporting"
+        "reporting",
+        "agentic"
       ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/report_tools_server/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/report_tools_server/example.yaml",
@@ -57938,7 +58006,8 @@
         "remediation",
         "run failure",
         "human in the loop",
-        "sensor"
+        "sensor",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -62269,7 +62338,9 @@
       "category": "resource",
       "description": "Register a skill (Anthropic Agent Skills format: a SKILL.md file with YAML front matter + markdown body) once, referenced by name (skill_keys) from the MCP-aware agent components instead of repeating the same source fields inline in every one of them. mode='collection' registers every skill in a repo/directory at once (e.g. all of anthropics/skills).",
       "path": "resources/skill_resource",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "BookOpen",
       "component_type": "dagster_community_components.SkillResourceComponent",
       "agent_hints": {
@@ -62357,7 +62428,9 @@
       "category": "sensor",
       "icon": "si:slack",
       "description": "Polls a Slack channel and launches a chat-agent asset for a mention, a DM, or a reply in an already-answered thread -- identifiers only in run tags, never the message text.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_agent_request_sensor/README.md",
@@ -62418,7 +62491,8 @@
         "approval",
         "slack",
         "gate",
-        "quorum"
+        "quorum",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -62521,7 +62595,9 @@
       "category": "ai",
       "icon": "si:slack",
       "description": "MCP server exposing get_thread() -- the live Slack conversation a chat-triggered agent run is answering, fetched fresh every call from the channel/thread identifiers this run's own tags name.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/slack_chat_tools/README.md",
@@ -62777,7 +62853,9 @@
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "sensors/slack_pr_approval_watcher",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "dependencies": {
         "pip": [
           "dagster",
@@ -62827,7 +62905,9 @@
       "category": "sink",
       "icon": "si:slack",
       "description": "Posts a chat agent's answer into the Slack thread named by the run's own tags -- deterministically, plus a run-failure sensor so a crashed run is never silent.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/slack_reply/README.md",
@@ -62931,7 +63011,9 @@
       "category": "sensor",
       "icon": "si:slack",
       "description": "Polls a Slack channel for chat-requested job/asset runs and launches them -- but only for a requester already listed as an owner of the target.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_run_request_sensor/README.md",
@@ -63587,7 +63669,9 @@
       "category": "ai",
       "description": "Single-shot LLM agent backed by Snowflake Cortex COMPLETE REST API + MCP tools. Runs the same tool-calling loop as openai_agent / anthropic_agent / gemini_agent but routes through Snowflake's inference endpoint.",
       "path": "assets/ai/snowflake_cortex_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_agent/schema.json",
       "component_type": "dagster_community_components.SnowflakeCortexAgentComponent",
       "icon": "si:snowflake",
@@ -67355,7 +67439,9 @@
       "category": "ai",
       "description": "Supervisor / planner agent — reads a task, picks tools from a bounded YAML-declared set, and fans out execution across per-tool Dagster assets. Ends with a synthesizer LLM that grounds the final answer in tool outputs. The 'agent of agents' pattern with full lineage.",
       "path": "assets/ai/supervisor_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "Sparkles",
       "type": "dagster_community_components.SupervisorAgentComponent",
       "component_type": "dagster_community_components.SupervisorAgentComponent",
@@ -68353,7 +68439,9 @@
       "category": "sensor",
       "icon": "si:microsoftteams",
       "description": "Polls a Teams channel and launches a chat-agent asset for a mention or a reply in an already-answered thread -- identifiers only in run tags, never the message text.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_agent_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_agent_request_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_agent_request_sensor/README.md",
@@ -68408,7 +68496,9 @@
       "category": "ai",
       "icon": "si:microsoftteams",
       "description": "Microsoft Teams HITL approval gate. Slack analog — same asset + sensor shape, same JSON token format. target: human_approval_gate (default) composes with HumanApprovalGateComponent via shared `approval_dir`; target: agentic_pipeline watches agentic_pipeline's own approve/mode:park review queue directly. Uses MS Graph API with a DELEGATED OAuth token (app-only/client-credentials does not work for sending a channel message, confirmed against Microsoft's own docs) — a one-time interactive consent captures a refresh token, which this component refreshes (and persists if Microsoft rotates it) on every poll, pure outbound HTTPS. Two approval modes: `reactions` (default; approvers react with a built-in Teams emoji — like/heart/laugh/surprised/sad/angry, limited to 6) OR `reply` (approvers post a thread reply containing a configured keyword like APPROVE/REJECT — more flexible, allows context in the same message). Multi-approver quorum + allowlist + timeout policies (escalate / reject / approve). Sensor polls Teams API every `poll_interval_seconds` and writes the standard JSON approval token on quorum. Works without a public webhook (unlike Teams Adaptive Card interactive buttons) — deployable to Dagster+ Serverless with no infra changes.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_approval_gate/README.md",
@@ -68459,7 +68549,9 @@
       "category": "ai",
       "icon": "si:microsoftteams",
       "description": "Gives a chat-triggered agent live read access to the Microsoft Teams thread it's answering, plus (optionally) which knowledge-base receipts a past bot reply in it was built from.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_chat_tools/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_chat_tools/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/teams_chat_tools/README.md",
@@ -68554,7 +68646,9 @@
       "category": "sink",
       "icon": "si:microsoftteams",
       "description": "Posts a chat agent's answer into the Teams thread it's answering, with a run-failure watcher so a crashed run is never silent, plus optional receipt-linking and reaction-based rating.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/teams_reply/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/teams_reply/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/teams_reply/README.md",
@@ -68608,7 +68702,9 @@
       "category": "sensor",
       "icon": "si:microsoftteams",
       "description": "Polls a Microsoft Teams channel for chat-requested job/asset runs and launches them -- but only for a requester already listed as an owner of the target.",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/example.yaml",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/teams_run_request_sensor/README.md",
@@ -71986,7 +72082,8 @@
         "compliance",
         "soc2",
         "iso27001",
-        "grc"
+        "grc",
+        "agentic"
       ],
       "vendor": "Vanta",
       "dependencies": {
@@ -72292,7 +72389,9 @@
       "category": "ai",
       "description": "Single-shot LLM agent via Vercel AI Gateway — OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
       "path": "assets/ai/vercel_ai_gateway_agent",
-      "tags": [],
+      "tags": [
+        "agentic"
+      ],
       "icon": "si:vercel",
       "type": "dagster_community_components.VercelAIGatewayAgentComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/README.md",

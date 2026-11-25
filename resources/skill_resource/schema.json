@@ -123,5 +123,8 @@
       "description": "mode='single' only. Explicit override for whether this skill is markdown-only ('markdown' -- usable via the plain load_skill/read_skill_file tool loop) or needs code execution ('code_execution' -- an anthropic_agent hosted_skills entry, or an openai_agent with hosted_code_execution=true), instead of the auto-detected heuristic (bundled file extensions + a SKILL.md run-hint regex, see _classify_skill_dir). Set this if the heuristic misclassifies this skill, or to answer describe()'s question without walking the skill directory.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

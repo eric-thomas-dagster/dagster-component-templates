@@ -81,5 +81,8 @@
       "label": "Schedule Cron",
       "description": "If set, emit a Dagster schedule that re-materializes this asset on the given cron."
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

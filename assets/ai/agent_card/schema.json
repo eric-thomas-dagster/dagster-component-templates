@@ -122,7 +122,8 @@
     "agent",
     "a2a",
     "mcp",
-    "registry"
+    "registry",
+    "agentic"
   ],
   "name": "Agent Card"
 }

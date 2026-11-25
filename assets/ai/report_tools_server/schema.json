@@ -74,7 +74,8 @@
     "pdf",
     "docx",
     "xlsx",
-    "reporting"
+    "reporting",
+    "agentic"
   ],
   "name": "report_tools_server"
 }

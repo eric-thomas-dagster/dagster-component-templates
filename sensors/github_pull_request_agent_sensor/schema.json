@@ -123,5 +123,8 @@
       "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-announces PRs in Slack and double-launches review runs.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

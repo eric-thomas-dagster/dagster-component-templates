@@ -21,7 +21,9 @@
     },
     "allow": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Allow",
       "description": "Hard allow-list of tools (default: all). Valid: materialize_assets, run_job.",
       "required": false,
@@ -29,7 +31,9 @@
     },
     "allow_assets": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Allow Assets",
       "description": "Hard allow-list of asset keys materialize_assets may target (default: any asset in definitions_module). Recommended in production -- an agent should materialize specific, intended assets, not anything in the repo.",
       "required": false,
@@ -37,7 +41,9 @@
     },
     "allow_jobs": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Allow Jobs",
       "description": "Hard allow-list of job names run_job may target (default: any job in definitions_module).",
       "required": false,
@@ -107,5 +113,8 @@
       "description": "mcp_server_resource_key only. A template string -- typically '{tag.<key>}', e.g. '{tag.slack/user}' -- passed through VERBATIM as this spawned server's DAGSTER_WORKFLOW_TOOLS_REQUESTER env value. This component never resolves the placeholder itself; the CALLING agent component's own generic {tag.*} substitution (applied to every mcp_servers[].env value at run time) resolves it from a real run tag right before spawning the subprocess -- so launch_job's requester identity always comes from a trusted, server-side source, never a model-settable tool argument. For an inline (non-shared) mcp_servers entry instead, just set env.DAGSTER_WORKFLOW_TOOLS_REQUESTER directly in the agent's own YAML -- this field only matters when sharing this component's own mcp_server_resource_key.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

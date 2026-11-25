@@ -170,7 +170,8 @@
     "compliance",
     "soc2",
     "iso27001",
-    "grc"
+    "grc",
+    "agentic"
   ],
   "name": "Vanta Evidence Response Agent"
 }

@@ -81,5 +81,8 @@
       "description": "Allow-list of code location names: when set, ONLY these locations are visible to the tools (everything else is hidden or refused). exclude_locations still applies on top and takes precedence, so a name in both is excluded.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

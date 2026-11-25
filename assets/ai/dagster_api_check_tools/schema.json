@@ -42,5 +42,8 @@
       "description": "mcp_server_resource_key only. Extra env var NAMES to copy into the spawned MCP server's env.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

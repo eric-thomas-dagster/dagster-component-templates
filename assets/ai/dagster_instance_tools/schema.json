@@ -60,7 +60,8 @@
     "mcp",
     "observability",
     "dagster instance",
-    "debugging"
+    "debugging",
+    "agentic"
   ],
   "name": "dagster_instance_tools"
 }

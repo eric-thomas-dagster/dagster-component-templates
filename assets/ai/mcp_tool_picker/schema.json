@@ -176,5 +176,8 @@
       "type": "string",
       "ui:widget": "select"
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

@@ -200,5 +200,8 @@
       "description": "Free text appended to the system prompt under its own heading, naming what's deliberate in the repo/environment this agent reviews -- a demo's artificial flakiness, a test fixture that's supposed to fail, a known limitation that isn't a bug. Without this, an advisor agent has filed 'fix' findings against exactly the things a repo was built to demonstrate. Not a substitute for reading the repo's own README/CONTRIBUTING first (put that instruction in the prompt or system_prompt instead) -- this is for the handful of things worth saying explicitly even after that, or when no such doc exists.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

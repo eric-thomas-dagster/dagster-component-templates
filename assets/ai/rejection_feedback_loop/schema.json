@@ -79,5 +79,8 @@
       "default": false,
       "description": "Emit a DataFrame asset `{sensor_name}_state` with one row per partition currently in a feedback loop."
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

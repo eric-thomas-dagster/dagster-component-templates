@@ -349,7 +349,8 @@
     "imap",
     "governance",
     "hitl",
-    "gate"
+    "gate",
+    "agentic"
   ],
   "name": "Email Approval Gate"
 }

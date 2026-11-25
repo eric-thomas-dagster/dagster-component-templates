@@ -196,5 +196,8 @@
       ],
       "ui:widget": "select"
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

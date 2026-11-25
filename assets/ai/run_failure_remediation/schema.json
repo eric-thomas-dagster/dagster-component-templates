@@ -275,7 +275,8 @@
     "remediation",
     "run failure",
     "human in the loop",
-    "sensor"
+    "sensor",
+    "agentic"
   ],
   "name": "run_failure_remediation"
 }

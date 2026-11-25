@@ -240,5 +240,8 @@
       "description": "Resource key of an MCPServerResource component to use instead of an inline `server:` spec -- lets several components share one registered server. Exactly one of `server`/`server_resource_key` is required.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

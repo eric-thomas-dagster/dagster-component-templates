@@ -222,5 +222,8 @@
       "description": "Strip common markdown syntax a model writes (**bold**, '# Heading', '* item'/'- item', [text](url)) before posting -- a Teams message body is HTML-escaped plain text, not markdown, so posting it as-is shows literal asterisks/brackets rather than formatting. Unlike slack_reply's convert_markdown (which maps markdown onto Slack's own mrkdwn dialect), this STRIPS the syntax rather than converting it, since there's nothing Teams-native to convert bold/links into without risking malformed HTML. Code fences and inline code spans are left untouched. Set False to post verbatim.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

@@ -179,5 +179,8 @@
       "description": "open_issue parses every Python/diff code block in the body and refuses to file (with the specific reason) if a Dagster import, attribute, or call doesn't match the INSTALLED dagster -- e.g. a renamed/removed function, or a call whose arguments don't match the real signature. Catches a wrong suggestion before it's filed, not after a person tries it and it fails. Best-effort: a snippet that doesn't parse as Python at all is checked line by line instead of being skipped.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

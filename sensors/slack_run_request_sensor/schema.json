@@ -26,7 +26,9 @@
         "properties": {
           "phrases": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "description": "Case-insensitive substrings (unless case_sensitive_phrases=true) that identify this trigger in a message's text, e.g. ['run the nightly etl', 'kick off nightly']. The first trigger (in list order) with a phrase appearing anywhere in the message wins -- list more specific triggers first if phrases could overlap."
           },
           "asset_selection": {
@@ -39,11 +41,15 @@
           },
           "owners": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "description": "Email addresses (or literal Slack user ids, e.g. 'U0123ABCD') allowed to trigger `job_name` from chat. Required when job_name is set -- there is no implicit default. Ignored for asset_selection triggers, whose owners come from the matched assets' own catalog metadata instead."
           }
         },
-        "required": ["phrases"]
+        "required": [
+          "phrases"
+        ]
       }
     },
     "slack_bot_token_env_var": {
@@ -146,5 +152,8 @@
       "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-acknowledges the same message and double-launches the matched job/asset selection.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

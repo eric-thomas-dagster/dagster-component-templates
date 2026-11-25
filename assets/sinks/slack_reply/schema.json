@@ -200,5 +200,8 @@
       "description": "Convert common markdown a model writes into Slack's mrkdwn dialect before posting: **x**/__x__ -> *x*, [text](url) -> <url\\|text>, '# Heading' -> *Heading*, '* item'/'- item' -> bullet list items, and a markdown table -> an aligned code block. Code fences and inline code spans are left untouched. Slack otherwise shows raw markdown as literal asterisks/brackets -- a prompt telling the model to write mrkdwn directly cannot be relied on. Set False to post the answer text verbatim.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

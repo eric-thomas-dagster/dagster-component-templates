@@ -259,7 +259,8 @@
     "memory",
     "llm",
     "agents",
-    "rag"
+    "rag",
+    "agentic"
   ],
   "name": "Agent Memory Store"
 }

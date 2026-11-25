@@ -71,5 +71,8 @@
       "description": "Also registers create_canvas(title, markdown): creates a Slack canvas (better than a PDF for a long document people will keep and edit), tabs it into this channel, and returns its link for the agent to include in its own answer. Needs canvases:write -- a NEW scope beyond what this component otherwise needs.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

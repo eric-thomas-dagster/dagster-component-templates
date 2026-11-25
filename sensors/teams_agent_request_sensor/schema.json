@@ -158,5 +158,8 @@
       "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-acknowledges the same message and double-launches a run for it.",
       "required": false
     }
-  }
+  },
+  "tags": [
+    "agentic"
+  ]
 }

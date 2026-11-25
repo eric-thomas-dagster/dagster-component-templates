@@ -77219,9 +77219,76 @@
         "streamsets migration",
         "gtid"
       ]
+    },
+    {
+      "id": "streamsets_engine",
+      "name": "StreamSets Engine",
+      "category": "integration",
+      "description": "Standalone StreamSets Data Collector (SDC) engine pipelines as Dagster assets -- no Control Hub involved. One asset per declared pipeline; action=start starts the pipeline on materialize and polls status until RUNNING. Optional shared polling sensor emits AssetObservation when a pipeline's status changes. Optional pipeline_running asset_check. Optional expose_metrics attaches the engine's real metrics endpoint as asset metadata. demo_mode runs the whole shape with synthetic data and zero real engine instance.",
+      "path": "integrations/streamsets_engine",
+      "tags": [
+        "streamsets",
+        "data-collector",
+        "sdc",
+        "etl",
+        "cdc",
+        "workspace",
+        "streaming",
+        "engine"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_engine/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_engine/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_engine/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_engine/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_engine/requirements.txt",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "component_type": "dagster_community_components.StreamSetsEngineComponent",
+      "icon": "Workflow",
+      "validation": {
+        "level": "component_only",
+        "last_validated": "2026-11-25"
+      },
+      "agent_hints": {
+        "outputs": [
+          "one_asset_per_declared_pipeline",
+          "shared_status_observation_sensor_opt_in",
+          "metrics_metadata_opt_in"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "streamsets_workspace",
+          "snowflake_workspace",
+          "sql_transform"
+        ],
+        "live_verified": "endpoints/auth/status-enum/metrics-endpoint confirmed against a real streamsets/datacollector:6.4.1 Docker container's own /rest/swagger.json; start/stop could not be live-exercised -- this image's no-trial activation gate blocks all write actions regardless of role, see README"
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "stateful": false,
+      "keywords": [
+        "streamsets",
+        "data collector",
+        "sdc",
+        "engine",
+        "standalone",
+        "cdc",
+        "streaming pipeline",
+        "etl"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1470
+  "total": 1471
 }

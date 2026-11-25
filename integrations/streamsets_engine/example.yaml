@@ -1,0 +1,60 @@
+# StreamSetsEngineComponent -- standalone StreamSets Data Collector (SDC)
+# engine pipelines as Dagster assets. Different product/API from
+# StreamSetsWorkspaceComponent (Control Hub's Job Runner API) -- use this
+# one when there is no Control Hub in front of the engine(s) at all. See
+# the component docstring for exactly what's live-verified vs. not about
+# the underlying engine REST API.
+
+type: dagster_community_components.StreamSetsEngineComponent
+attributes:
+  # Set true to smoke-test this whole component (the assets, assets_by_pipeline
+  # overrides, the sensor, the check) with synthetic status responses and
+  # zero real engine dependency.
+  demo_mode: false
+
+  base_url_env_var: STREAMSETS_ENGINE_URL   # e.g. http://localhost:18630
+  username_env_var: STREAMSETS_USERNAME
+  password_env_var: STREAMSETS_PASSWORD
+
+  # Pipelines are declared explicitly. Find pipeline_id via the engine's
+  # Pipelines UI, or GET /rest/v1/pipelines -- a real, working discovery
+  # endpoint on this engine (unlike Control Hub's Job Runner API).
+  pipelines:
+    - pipeline_id: "orders_cdc_pipelineAbCd12"
+      asset_key: streamsets_engine/orders_cdc_pipeline
+      description: "CDC pipeline: Postgres orders table -> Snowflake raw.orders"
+    - pipeline_id: "clickstream_pipelineEfGh34"
+      asset_key: streamsets_engine/clickstream_pipeline
+      deps: [streamsets_engine/orders_cdc_pipeline]
+
+  # Per-pipeline overrides, keyed by pipeline_id.
+  assets_by_pipeline:
+    "orders_cdc_pipelineAbCd12":
+      key: cdc/orders
+      group_name: cdc
+
+  # noop  = external asset (declare-only, materialize does nothing)
+  # start = materialize starts the pipeline, polls status until RUNNING
+  #         (raises if it instead lands on a *_ERROR/KILLED status)
+  # stop  = materialize stops the pipeline, polls status until STOPPED
+  action: start
+  force_stop: false
+  poll_interval_seconds: 5
+  timeout_seconds: 120
+
+  # Opt-in: fetch the real per-pipeline metrics endpoint after a successful
+  # start and attach it as asset metadata -- a capability Control Hub's
+  # sibling component doesn't have (no confirmed metrics endpoint there).
+  expose_metrics: true
+
+  # Opt-in polling sensor -- emits AssetObservation only when a pipeline's
+  # status actually changes since the last tick.
+  polling_sensor: true
+  check_interval_seconds: 60
+
+  # Opt-in per-pipeline asset_check that fails when a pipeline isn't RUNNING.
+  require_running: true
+
+  group_name: streamsets
+  # tags: {tier: production, domain: cdc}
+  # owners: [data-platform@acme.com]

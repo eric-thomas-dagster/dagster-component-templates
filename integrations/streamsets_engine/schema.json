@@ -1,0 +1,150 @@
+{
+  "component_type": "dagster_community_components.StreamSetsEngineComponent",
+  "description": "Standalone StreamSets Data Collector (SDC) engine pipelines as Dagster assets -- no Control Hub involved. One asset per declared pipeline; action=start starts the pipeline on materialize and polls status until RUNNING. Optional shared polling sensor emits AssetObservation when a pipeline's status changes. Optional pipeline_running asset_check. Optional expose_metrics attaches the engine's real metrics endpoint as asset metadata. demo_mode runs the whole shape with synthetic data and zero real engine instance.",
+  "category": "integration",
+  "icon": "Workflow",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One Dagster asset per declared standalone SDC pipeline. With action=noop (default) each asset is declare-only (external asset). With action=start each materialization starts the pipeline via the engine's REST API and polls status to confirm it reached RUNNING; action=stop stops it and polls until STOPPED. Optional polling_sensor emits AssetObservation per pipeline when its status changes; optional require_running check per pipeline; optional expose_metrics attaches the real metrics endpoint's output."
+    }
+  },
+  "attributes": {
+    "base_url_env_var": {
+      "type": "string",
+      "label": "Engine URL Env Var",
+      "description": "Env var holding the SDC engine's base URL, e.g. http://localhost:18630 (no Control Hub involved).",
+      "required": false,
+      "default": "STREAMSETS_ENGINE_URL"
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with the engine login username (HTTP Basic -- confirmed live against this engine's own OpenAPI spec).",
+      "required": false,
+      "default": "STREAMSETS_USERNAME"
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with the engine login password.",
+      "required": false,
+      "default": "STREAMSETS_PASSWORD"
+    },
+    "pipelines": {
+      "type": "array",
+      "label": "Pipelines",
+      "description": "SDC pipelines to wrap as Dagster assets, one entry per pipeline (pipeline_id, asset_key, description, group_name, deps, owners, tags). Find pipeline_id via the engine's Pipelines UI or GET /rest/v1/pipelines -- a real, working discovery endpoint on this engine, unlike Control Hub's Job Runner API.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "assets_by_pipeline": {
+      "type": "object",
+      "label": "Assets By Pipeline",
+      "description": "Override the asset spec for specific pipelines, keyed by pipeline_id. Mirrors StreamSetsWorkspaceComponent's assets_by_job shape.",
+      "required": false,
+      "default": null
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "description": "noop = external asset (declare-only); start = start the pipeline and poll status until RUNNING (raises if it instead lands on a *_ERROR/KILLED status); stop = stop the pipeline (or forceStop if force_stop=true) and poll until STOPPED.",
+      "required": false,
+      "default": "noop",
+      "enum": ["noop", "start", "stop"],
+      "ui:widget": "select"
+    },
+    "force_stop": {
+      "type": "boolean",
+      "label": "Force Stop",
+      "description": "When action=stop, use forceStop instead of a graceful stop. Ignored for action=start/noop.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval (seconds)",
+      "description": "Only used when action=start/stop.",
+      "required": false,
+      "default": 5
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (seconds)",
+      "description": "Max seconds to wait for the target status before failing the run. Only used when action=start/stop.",
+      "required": false,
+      "default": 120
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds ONE sensor (not one per pipeline) that emits AssetObservation per pipeline when its status changed since the last tick.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Only used when polling_sensor=True.",
+      "required": false,
+      "default": "streamsets_engine_observer"
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval (seconds)",
+      "description": "Seconds between sensor polls. Only used when polling_sensor=True.",
+      "required": false,
+      "default": 60
+    },
+    "require_running": {
+      "type": "boolean",
+      "label": "Require Running",
+      "description": "If true, attach a pipeline_running asset_check per pipeline that fails when the pipeline's current status isn't RUNNING.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "expose_metrics": {
+      "type": "boolean",
+      "label": "Expose Metrics",
+      "description": "If true, action=start fetches the real /rest/v1/pipeline/{id}/metrics endpoint after reaching RUNNING and attaches the raw Dropwizard metrics registry as asset metadata -- a confirmed-live capability Control Hub's sibling component lacks.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group for pipelines without their own group_name.",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Catalog tags applied to every pipeline asset (merged with each pipeline's own tags).",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Default asset owners for pipelines without their own.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Skip the real engine connection entirely. Start/stop and status all return synthetic values instead of calling the REST API.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    }
+  },
+  "tags": ["streamsets", "data-collector", "sdc", "etl", "cdc", "workspace", "streaming", "engine"],
+  "name": "StreamSets Engine"
+}

@@ -95,17 +95,42 @@ from dagster import (
 from pydantic import Field, model_validator
 
 
-# BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_asset_key_normalization.py)
+# BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
+from typing import List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
 def normalize_upstream_keys(single, plural=None) -> List[str]:
-    keys: List[str] = []
-    if single:
-        keys.append(single)
-    if plural:
-        keys.extend(plural if isinstance(plural, list) else [plural])
-    return keys
+    """Merge ``upstream_asset_key`` / ``upstream_asset_keys`` into one clean list.
+
+    Each argument may be a str, a list/tuple of str, or None. Entries are
+    stripped, empties dropped, and duplicates removed (order preserved).
+    """
+    out: List[str] = []
+    for value in (single, plural):
+        if value is None:
+            continue
+        items = [value] if isinstance(value, str) else value
+        if not isinstance(items, (list, tuple)):
+            raise ValueError(
+                f"upstream asset key(s) must be a string or a list of strings, got {value!r}"
+            )
+        for item in items:
+            if not isinstance(item, str):
+                raise ValueError(f"upstream asset keys must be strings, got {item!r}")
+            item = item.strip()
+            if item and item not in out:
+                out.append(item)
+    return out
 
 
 def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = True):
+    """Rewrite raw component input so both spellings/shapes land on the declared field(s).
+
+    mode "single": declared field is ``upstream_asset_key`` (str); >1 key is an error.
+    mode "multi":  declared field is ``upstream_asset_keys`` (list).
+    mode "both":   both fields are declared; everything is merged into the plural one.
+    """
     if not isinstance(data, dict):
         return data
     if "upstream_asset_key" not in data and "upstream_asset_keys" not in data:
@@ -120,6 +145,36 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
         out["upstream_asset_keys"] = keys or (None if optional else [])
     return out
 # END upstream-asset-key normalization
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
 
 
 # BEGIN Jython integer-division AST rewrite (inlined per component; keep copies identical — see tests/test_jython_div_rewrite.py)
@@ -452,8 +507,7 @@ class ScriptEvaluatorComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: Optional[str] = Field(default=None, description="Upstream asset providing the input DataFrame")
-    upstream_asset_keys: Optional[List[str]] = Field(default=None, description="Deprecated alias; use upstream_asset_key")
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(default=None, description="Upstream asset providing the input DataFrame")
 
     language: Literal["jython", "javascript"] = Field(
         description="jython: real CPython in a subprocess, with a Java-collection emulation shim and "
@@ -500,8 +554,13 @@ class ScriptEvaluatorComponent(Component, Model, Resolvable):
 
     @model_validator(mode="before")
     @classmethod
-    def _coerce_upstream(cls, data):
+    def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component="ScriptEvaluatorComponent", mode="single", optional=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners',), tags=('tags',))
 
     @classmethod
     def get_form_config(cls):

@@ -536,6 +536,10 @@ def _apply_op(df: pd.DataFrame, op: Dict[str, Any], step_outputs: Dict[str, pd.D
 
 
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
+from typing import List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
 def normalize_upstream_keys(single, plural=None) -> List[str]:
     """Merge ``upstream_asset_key`` / ``upstream_asset_keys`` into one clean list.
 
@@ -584,6 +588,10 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
 def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
     """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
     if not isinstance(data, dict):

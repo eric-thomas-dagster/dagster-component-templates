@@ -69,7 +69,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}` or `{kind: encrypted_file, path, format?, key_source?, raw_key… _(full docs in schema.json + component README)_ |
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to upstream_asset_key OR source. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: upstream\|ref, upstream_asset_key\|ref}, operations: [...]}. |
-| `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv\|encrypted_file\|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, encr… _(full docs in schema.json + component README)_ |
+| `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv\|avro\|encrypted_file\|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?… _(full docs in schema.json + component README)_ |
 | `primary_step` | `str` | — | Step id whose frame is returned as the asset's output (default: last step). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. Must match the sensor's `dynamic_partitions_name`. |
@@ -114,9 +114,9 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 |---|---|---|
 | `filter` | `predicate: "<sql>"` | SQL predicate via polars's SQLContext |
 | `with_columns` | `expressions: {name: <sql_expr>}` | Add/replace columns from SQL expressions |
-| `select` | `columns: [a, b]` | Keep only these columns |
-| `drop` | `columns: [a, b]` | Drop these columns |
-| `rename` | `mapping: {old: new}` | Rename columns |
+| `select` | `columns: [a, b]` | Keep only these columns. A name with `/` or `.` (e.g. `a/b`) is a nested struct-field path — extracted and aliased to a flat top-level column (`a__b`). |
+| `drop` | `columns: [a, b]` | Drop these columns (top-level only — not nested struct paths) |
+| `rename` | `mapping: {old: new}` | Rename columns (top-level only — not nested struct paths; use `select` to extract + alias a nested field to a new name instead) |
 | `group_by` | `group_by: [cols]`, `aggregations: {out: {col, agg}}` | Same agg shape as `summarize` |
 | `sort` | `by: [cols]`, `descending: bool/list` | Sort |
 | `head` / `tail` | `n: int` | Take first/last N rows |
@@ -125,11 +125,27 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 | `drop_nulls` | `subset: [cols]` (optional) | Drop rows with null in subset |
 | `fill_null` | `value: <any>` | Fill nulls |
 | `cast` | `mapping: {col: 'Int64'}` | Type cast |
-| `join` | `right: {ref: <step_id>}`, `how`, `on_columns`/`left_on`+`right_on` | Join against another step's output (multi-step form only) |
+| `join` | `right: {ref: <step_id>}`, `how`, `on_columns`/`left_on`+`right_on`, `suffix` (default `_right`) | Join against another step's output (multi-step form only) |
 | `union` | `other: {ref: <step_id>}`, `mode: by_name\|by_position` (default `by_name`), `distinct: bool` | Stack another step's rows on top (multi-step form only). `by_name` matches columns by name, filling missing ones with null (`dataframe_union`'s own default); `by_position` takes column order from this step and stacks positionally. |
 | `sql` | `sql: "<query>"` | Escape hatch via polars' SQLContext (`self` = current chain; prior steps usable by id) |
+| `explode` | `column: <name>` (or `columns: [...]`) | Explode a list/array column into one row per element |
+| `to_datetime` | `column`, `pattern`, `output_column?`, `pattern_style?` (`java` default \| `polars`), `type?` (`datetime` default \| `date`) | Parse a string column into a datetime. `pattern` is a JAVA SimpleDateFormat/DateTimeFormatter string by default (StreamSets' convention) and is translated to polars' own format automatically — pass `pattern_style: polars` to use a native polars/chrono format as-is. Known limitation: chrono's `%z` needs an explicit numeric offset, not a bare `Z`. |
+| `coalesce` | `columns: [a, b]`, `output_column` | First non-null across the listed columns |
+| `route` | `routes: [{name, predicate}]`, `default?` | Fan one step out into several named lanes by predicate (same SQL dialect as `filter`), with an optional catch-all `default` lane. Reference a lane from a later step via `source: {kind: ref, ref: "<step_id>.<lane>"}` or a sink's `from:`. If `default` is set, the bare step id also resolves to that lane. |
 
 Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / median / std / var / first / last / nunique`.
+
+## `inline` and `sql` sources
+
+`source: {kind: inline, rows: [...]}` or `{kind: inline, text: "...", format: csv|ndjson}` embeds rows or raw delimited text directly in the YAML — no external file, for a StreamSets raw-data/dev-origin-style pipeline.
+
+`source: {kind: sql, resource_key?, url_env_var?, query?, table?, incremental?, offset_column?, initial_offset?}` reads from a SQL database via a Dagster resource exposing `.get_engine()`/`.get_connection()` (`resource_key`) or a raw connection URL in an env var (`url_env_var`). Plain mode runs `query:` once. `incremental: true` gives a resumable `WHERE offset_column > <last stored value> ORDER BY offset_column` read against `table:` (or a base `query:`), with the new high-water mark persisted via this asset's own output metadata (`dagster_community_components/last_offset/<step_id>`) — the same mechanism `mongodb_reader`/`elasticsearch_reader` use, no separate state file. `jdbc` is accepted as an alias for `sql`.
+
+## New sink capabilities
+
+`sinks:` entries of `kind: parquet`/`csv`/`avro` additionally take:
+- `mode: overwrite` (default) \| `append` — append reads the existing file, concatenates, and rewrites (single-writer, not concurrent-write-safe).
+- `partition_by: [col, ...]` (kind: parquet only) — writes a Hive-style directory of part-files via polars' native `write_parquet(partition_by=...)`, instead of one file.
 
 ## Encrypted file I/O
 

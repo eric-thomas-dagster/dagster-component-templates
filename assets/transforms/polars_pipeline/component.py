@@ -82,7 +82,84 @@ from pydantic import Field
 
 _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "head", "tail", "head_per_group", "limit",
-              "unique", "join", "union", "drop_nulls", "fill_null", "cast", "sql"}
+              "unique", "join", "union", "drop_nulls", "fill_null", "cast", "sql",
+              "explode", "to_datetime", "coalesce", "route"}
+
+
+# Java SimpleDateFormat/DateTimeFormatter -> polars (Rust chrono) strptime token
+# translation -- confirmed against the real installed polars 2.0's chrono-strftime
+# syntax (NOT identical to Java's letter-token grammar, e.g. polars uses %-prefixed
+# tokens throughout, Java uses bare letters repeated for width). Longest tokens
+# first so e.g. "yyyy" matches before "yy".
+_JAVA_TO_POLARS_DATE_TOKENS = [
+    ("yyyy", "%Y"), ("yy", "%y"),
+    ("MMMM", "%B"), ("MMM", "%b"), ("MM", "%m"),
+    ("dd", "%d"),
+    ("HH", "%H"), ("hh", "%I"),
+    ("mm", "%M"),
+    ("ss", "%S"),
+    ("SSS", "%3f"),  # millisecond fraction
+    ("a", "%p"),
+    ("XXX", "%:z"), ("XX", "%z"), ("X", "%z"),
+    ("Z", "%z"),
+    ("E", "%a"),
+]
+
+
+def _translate_java_date_pattern(java_pattern: str) -> str:
+    """Translate a Java SimpleDateFormat/DateTimeFormatter pattern (e.g.
+    `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`) into polars' chrono-strftime format string.
+    Literal text quoted with single quotes (Java's escape mechanism, e.g. 'T')
+    is passed through unquoted/unchanged. Unrecognized letter-runs are left
+    as-is (better to surface a clearly-wrong-looking format than silently drop
+    characters)."""
+    out = []
+    i = 0
+    n = len(java_pattern)
+    while i < n:
+        ch = java_pattern[i]
+        if ch == "'":
+            # Quoted literal text — Java's escape for literal characters
+            # (e.g. 'T' in yyyy-MM-dd'T'HH:mm:ss). A doubled '' is a literal quote.
+            j = i + 1
+            lit = []
+            while j < n:
+                if java_pattern[j] == "'":
+                    if j + 1 < n and java_pattern[j + 1] == "'":
+                        lit.append("'")
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                lit.append(java_pattern[j])
+                j += 1
+            out.append("".join(lit))
+            i = j
+            continue
+        matched = False
+        for tok, repl in _JAVA_TO_POLARS_DATE_TOKENS:
+            if java_pattern.startswith(tok, i):
+                out.append(repl)
+                i += len(tok)
+                matched = True
+                break
+        if not matched:
+            out.append(ch)
+            i += 1
+    return "".join(out)
+
+
+def _resolve_struct_path(pl_module, path: str):
+    """StreamSets-style nested field path (`/a/b` or `a.b`) -> a polars Expr
+    drilling into struct columns via chained `.struct.field(...)` calls. A
+    bare name with no separator is just `pl.col(name)`."""
+    parts = [p for p in path.replace("/", ".").split(".") if p]
+    if not parts:
+        raise ValueError(f"empty field path: {path!r}")
+    expr = pl_module.col(parts[0])
+    for p in parts[1:]:
+        expr = expr.struct.field(p)
+    return expr
 
 
 def _apply_partition_template(s: str, partition_key: Optional[str], partition: Optional[Dict[str, str]] = None) -> str:
@@ -191,6 +268,108 @@ def _suffix_for(fmt: str) -> str:
         "csv": ".csv", "parquet": ".parquet", "ndjson": ".ndjson",
         "json": ".json", "ipc": ".ipc", "avro": ".avro",
     }.get(fmt, ".dat")
+
+
+def _read_inline_source(pl_module, src: Dict[str, Any]):
+    """`kind: inline` — rows or raw delimited text embedded directly in the
+    YAML (for StreamSets raw-data/dev-origin-style pipelines with no external
+    file to read). Two shapes: `rows: [{...}, ...]` (list of records, JSON-like)
+    or `text: "..."` + `format: csv|ndjson` (raw delimited text)."""
+    if "rows" in src:
+        rows = src["rows"]
+        if not isinstance(rows, list):
+            raise ValueError("polars_pipeline source kind=inline: 'rows' must be a list of records")
+        return pl_module.DataFrame(rows).lazy()
+    if "text" in src:
+        text = src["text"]
+        fmt = (src.get("format") or "csv").lower()
+        import io as _io
+        if fmt == "csv":
+            delimiter = src.get("delimiter", ",")
+            return pl_module.read_csv(_io.StringIO(text), separator=delimiter).lazy()
+        if fmt == "ndjson":
+            return pl_module.read_ndjson(_io.StringIO(text)).lazy()
+        raise ValueError(f"polars_pipeline source kind=inline: format {fmt!r} not supported for 'text' (use 'csv' or 'ndjson')")
+    raise ValueError("polars_pipeline source kind=inline requires 'rows' (list of records) or 'text' (+ format)")
+
+
+def _resolve_sql_engine(src: Dict[str, Any], context):
+    """Build a SQLAlchemy engine from `resource_key` (a Dagster resource
+    exposing .get_engine()/.get_connection(), same convention as every other
+    SQL-connecting component in this repo) or `url_env_var` (a raw SQLAlchemy
+    URL in an env var) -- mirrors sql_to_database_asset's own resolution
+    pattern, inlined fresh per this repo's house rule (no shared helpers)."""
+    from sqlalchemy import create_engine
+
+    resource_key = src.get("resource_key")
+    url_env_var = src.get("url_env_var")
+    if resource_key:
+        resource = getattr(context.resources, resource_key, None)
+        if resource is None:
+            raise ValueError(f"polars_pipeline source kind=sql: resource {resource_key!r} is not registered in this project's Definitions.")
+        if hasattr(resource, "get_engine"):
+            return resource.get_engine()
+        if hasattr(resource, "get_connection"):
+            return resource.get_connection()
+        raise ValueError(f"polars_pipeline source kind=sql: resource {resource_key!r} ({type(resource).__name__}) does not expose get_engine()/get_connection().")
+    if url_env_var:
+        url = os.environ.get(url_env_var)
+        if not url:
+            raise ValueError(f"polars_pipeline source kind=sql: env var {url_env_var!r} is unset or empty")
+        return create_engine(url)
+    raise ValueError("polars_pipeline source kind=sql requires 'resource_key' or 'url_env_var'")
+
+
+def _read_sql_source(pl_module, src: Dict[str, Any], context, asset_name: str, step_id: str, offset_sink: Dict[str, Any]):
+    """`kind: sql` (alias `jdbc`) — read from a SQL database. Plain mode:
+    `query:` runs once per materialization. `incremental: true` mode:
+    `offset_column` + `initial_offset` give a resumable `WHERE offset_column >
+    <last stored value> ORDER BY offset_column` read, with the new high-water
+    mark computed via a cheap bounded MAX() query (not by scanning the
+    collected result, which may never be materialized if this step feeds a
+    lazily-fused later step) and written into `offset_sink[step_id]` for the
+    caller to persist as output metadata -- same
+    'dagster_community_components/last_offset' mechanism
+    mongodb_reader/elasticsearch_reader already use, no separate state file."""
+    import sqlalchemy
+
+    engine_or_conn = _resolve_sql_engine(src, context)
+    incremental = bool(src.get("incremental"))
+    if not incremental:
+        query = src.get("query")
+        if not query:
+            raise ValueError("polars_pipeline source kind=sql requires 'query' (or incremental: true + 'table'/'offset_column')")
+        return pl_module.read_database(query, engine_or_conn).lazy()
+
+    offset_column = src.get("offset_column")
+    if not offset_column:
+        raise ValueError("polars_pipeline source kind=sql incremental: true requires 'offset_column'")
+    table = src.get("table")
+    base_query = src.get("query")
+    if not table and not base_query:
+        raise ValueError("polars_pipeline source kind=sql incremental: true requires 'table' or a base 'query'")
+
+    from dagster import AssetKey
+    event = context.instance.get_latest_materialization_event(AssetKey.from_user_string(asset_name))
+    prev_offset = None
+    if event is not None and event.asset_materialization is not None:
+        md = event.asset_materialization.metadata.get(f"dagster_community_components/last_offset/{step_id}")
+        prev_offset = getattr(md, "value", None) if md is not None else None
+    current_offset = prev_offset if prev_offset is not None else src.get("initial_offset")
+
+    source_expr = f"({base_query}) AS _t" if base_query else table
+    predicate = f"WHERE {offset_column} > :offset" if current_offset is not None else ""
+    full_query = f"SELECT * FROM {source_expr} {predicate} ORDER BY {offset_column}"
+    max_query = f"SELECT MAX({offset_column}) AS _max_offset FROM {source_expr} {predicate}"
+    params = {"offset": current_offset} if current_offset is not None else {}
+
+    conn = engine_or_conn.connect() if hasattr(engine_or_conn, "connect") else engine_or_conn
+    max_row = conn.execute(sqlalchemy.text(max_query), params).fetchone()
+    new_offset = max_row[0] if max_row else None
+    offset_sink[step_id] = new_offset if new_offset is not None else current_offset
+
+    df = pl_module.read_database(sqlalchemy.text(full_query), engine_or_conn, execute_options={"parameters": params} if params else None)
+    return df.lazy()
 
 
 # BEGIN file-level AWS Encryption SDK I/O (encrypted_file source/sink kinds) --
@@ -581,11 +760,75 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
             lf = lf.with_columns(built_exprs)
         return lf
     if kind == "select":
-        return lf.select(op["columns"])
+        # Plain names pass straight to lf.select(). A name containing '/' or '.'
+        # is a StreamSets-style nested struct path (e.g. '/a/b' or 'a.b') --
+        # resolved via struct.field() and aliased to the path with separators
+        # replaced by '__' so it lands as a flat top-level column (no collision
+        # with a same-named leaf under a different parent).
+        cols = op["columns"]
+        if any(("/" in c or "." in c) for c in cols if isinstance(c, str)):
+            exprs = []
+            for c in cols:
+                if isinstance(c, str) and ("/" in c or "." in c):
+                    exprs.append(_resolve_struct_path(pl, c).alias(c.replace("/", "__").replace(".", "__").strip("_")))
+                else:
+                    exprs.append(pl.col(c))
+            return lf.select(exprs)
+        return lf.select(cols)
     if kind == "drop":
+        # Nested-struct-path drop isn't supported (would require rebuilding the
+        # parent struct) -- top-level column names only. Use `select` to pick
+        # the nested fields you want instead.
         return lf.drop(op["columns"])
     if kind == "rename":
+        # Nested-struct-path rename isn't supported for the same reason as
+        # drop -- top-level column names only. Use `select` (which can extract
+        # + alias a nested path to a new top-level name) instead.
         return lf.rename(op["mapping"])
+    if kind == "explode":
+        return lf.explode(op["columns"] if isinstance(op.get("columns"), list) else op["column"])
+    if kind == "to_datetime":
+        # `pattern` is a JAVA SimpleDateFormat/DateTimeFormatter string (StreamSets'
+        # convention, e.g. yyyy-MM-dd'T'HH:mm:ss.SSSXXX) -- translated to polars'
+        # chrono-strftime format. Pass `pattern_style: polars` to use a native
+        # polars/chrono format string as-is instead.
+        column = op["column"]
+        out_col = op.get("output_column", column)
+        pattern = op["pattern"]
+        if (op.get("pattern_style") or "java").lower() != "polars":
+            pattern = _translate_java_date_pattern(pattern)
+        dtype = pl.Datetime if (op.get("type") or "datetime").lower() == "datetime" else pl.Date
+        return lf.with_columns(
+            pl.col(column).str.strptime(dtype, format=pattern, strict=op.get("strict", False)).alias(out_col)
+        )
+    if kind == "coalesce":
+        return lf.with_columns(
+            pl.coalesce([pl.col(c) for c in op["columns"]]).alias(op["output_column"])
+        )
+    if kind == "route":
+        # Multi-output routing: one input frame -> several named lanes by
+        # predicate (polars-SQL, same dialect `filter` uses), with an optional
+        # default/catch-all lane for rows matching none. Each lane becomes a
+        # referenceable step output under step_outputs[f"{this_step_id}.{lane}"]
+        # -- wired up by the caller (build_defs), not here, since this function
+        # only has access to one LazyFrame's worth of context. Returning a dict
+        # of lane -> LazyFrame signals the caller to fan it out instead of
+        # treating the return value as a single next-lf.
+        routes = op["routes"]  # [{name, predicate}, ...]
+        default_name = op.get("default")
+        ctx = pl.SQLContext({"self": lf, **step_outputs})
+        lanes: Dict[str, Any] = {}
+        matched_any = None
+        for r in routes:
+            name, predicate = r["name"], r["predicate"]
+            lane_lf = ctx.execute(f"SELECT * FROM self WHERE {predicate}", eager=False)
+            lanes[name] = lane_lf
+        if default_name:
+            # Catch-all: rows matching none of the predicates. Built as a SQL
+            # NOT (p1) AND NOT (p2) AND ... over the same dialect.
+            negated = " AND ".join(f"NOT ({r['predicate']})" for r in routes)
+            lanes[default_name] = ctx.execute(f"SELECT * FROM self WHERE {negated}", eager=False) if negated else lf
+        return {"__route__": lanes}
     if kind == "group_by":
         group_by = op["group_by"]
         aggregations = op["aggregations"]
@@ -643,14 +886,19 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
             "right": "right", "full": "left_right", "outer": "left_right",
         }
         _mo = {"maintain_order": _maintain_order_by_how[how]} if how in _maintain_order_by_how else {}
+        # suffix: polars' own default is '_right' on any overlapping non-join
+        # column name; expose it so a converted Spark/StreamSets join that
+        # expects a different disambiguation suffix doesn't have to rename
+        # columns afterward.
+        suffix = op.get("suffix", "_right")
         on_cols = op.get("on_columns") or op.get("on")
         if on_cols:
-            return lf.join(right_lf, on=on_cols, how=how, **_mo)
+            return lf.join(right_lf, on=on_cols, how=how, suffix=suffix, **_mo)
         left_on, right_on = op.get("left_on"), op.get("right_on")
         if left_on and right_on:
-            return lf.join(right_lf, left_on=left_on, right_on=right_on, how=how, **_mo)
+            return lf.join(right_lf, left_on=left_on, right_on=right_on, how=how, suffix=suffix, **_mo)
         if how == "cross":
-            return lf.join(right_lf, how="cross")
+            return lf.join(right_lf, how="cross", suffix=suffix)
         raise ValueError("join op: provide 'on_columns' OR 'left_on' + 'right_on'")
     if kind == "union":
         other = op.get("other")
@@ -776,7 +1024,44 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
 
     Supported ops: filter, with_columns, select, drop, rename, group_by,
     sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null,
-    cast, join, union, sql.
+    cast, join, union, sql, explode, to_datetime, coalesce, route.
+
+    **Converting a Spark/StreamSets Transformer pipeline:**
+      - `select`/`rename` accept a StreamSets-style nested field path
+        (`/a/b` or `a.b`) in addition to plain column names — `select`
+        extracts + flattens a nested struct field to a new top-level column;
+        `drop`/`rename` only work on top-level columns (select the fields
+        you want instead for a nested rename/drop).
+      - `explode: {columns: [...]}` explodes a list/array column into rows.
+      - `to_datetime: {column, pattern, output_column?, pattern_style?}`
+        parses a string column into a datetime. `pattern` is a JAVA
+        SimpleDateFormat/DateTimeFormatter string by default (e.g.
+        `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`) — translated to polars' own format
+        automatically. Pass `pattern_style: polars` to use a native
+        polars/chrono format string as-is. **Known limitation:** chrono's
+        `%z` (what Java's X/Z tokens translate to) requires an explicit
+        numeric offset (`+0000`) — a bare ISO-8601 `Z` (Zulu/UTC) literal in
+        the input string will fail to parse; strip/replace a trailing `Z`
+        with `+0000` upstream (e.g. in a `with_columns.python_expressions:`
+        step) if your source data uses it.
+      - `coalesce: {columns: [...], output_column}` — first non-null across
+        several columns (`pl.coalesce`).
+      - `route: {routes: [{name, predicate}, ...], default?}` fans one step
+        out into several named lanes by predicate (same polars-SQL dialect
+        as `filter`), with an optional `default` catch-all lane for rows
+        matching no predicate. Each lane is referenceable as
+        `source: {kind: ref, ref: "<step_id>.<lane_name>"}` from a later
+        step, or as a sink's `from:`; if `default` is set, the bare step id
+        also resolves to that lane.
+      - `join` accepts `suffix:` (default `_right`, polars' own default) for
+        disambiguating overlapping non-join column names.
+      - Spark-SQL-function compatibility, for converting `with_columns`/
+        `filter` expressions: most string/math/date functions have a direct
+        polars-SQL equivalent (see the SQL reference link below). Functions
+        with NO equivalent — use `python_expressions:` instead, or note the
+        gap: `monotonically_increasing_id()` has no polars equivalent (no
+        built-in monotonic-row-id concept); emulate it with `pl.int_range()`
+        in a `python_expressions:` block if row numbering is all you need.
 
     **Expression syntax is SQL, not Python.** Every string value under
     `filter.predicate`, `with_columns.expressions.<col>`, and `sort.by`
@@ -830,11 +1115,18 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
             "upstream_asset_key}` or `{kind: encrypted_file, path, format?, key_source?, "
             "raw_key_env_var?, kms_key_ids?, key_id?, encryption_context?}` (decrypts the "
             "file's raw bytes via the real AWS Encryption SDK before parsing — same "
-            "mechanism as FieldEncryptionComponent, file-level instead of per-cell). "
-            "`path`/`url` support `{partition_key}` and `{partition.<name>}` templating. "
-            "Format is inferred from extension (.json / .ndjson / .csv / .parquet / .ipc / "
-            "avro — a trailing .enc/.encrypted is stripped first) when unset. "
-            "Mutually exclusive with `upstream_asset_key`."
+            "mechanism as FieldEncryptionComponent, file-level instead of per-cell), or "
+            "`{kind: inline, rows: [...]}` / `{kind: inline, text: '...', format: csv|ndjson}` "
+            "(rows or raw text embedded directly in the YAML — for StreamSets raw-data/dev-"
+            "origin-style pipelines with no external file), or `{kind: sql, resource_key?, "
+            "url_env_var?, query?, table?, offset_column?, incremental?, initial_offset?}` "
+            "(reads via a SQLAlchemy-exposing resource or a raw connection URL env var; "
+            "`incremental: true` gives a resumable `WHERE offset_column > <last stored "
+            "value>` read, high-water mark persisted via output metadata — same mechanism "
+            "mongodb_reader/elasticsearch_reader use). `path`/`url` support `{partition_key}` "
+            "and `{partition.<name>}` templating. Format is inferred from extension (.json / "
+            ".ndjson / .csv / .parquet / .ipc / avro — a trailing .enc/.encrypted is stripped "
+            "first) when unset. Mutually exclusive with `upstream_asset_key`."
         ),
     )
     operations: Optional[List[Dict[str, Any]]] = Field(
@@ -853,12 +1145,16 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     sinks: Optional[List[Dict[str, Any]]] = Field(
         default=None,
         description=(
-            "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|"
+            "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|avro|"
             "encrypted_file|table, path: '...'}. `kind: encrypted_file` additionally takes "
             "`format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, "
             "encryption_context?` — encrypts the serialized bytes via the real AWS "
             "Encryption SDK before writing (same mechanism as FieldEncryptionComponent, "
-            "file-level instead of per-cell). These run after the chain finishes; the "
+            "file-level instead of per-cell). `parquet`/`csv`/`avro` additionally take "
+            "`mode: overwrite|append` (append reads-concats-rewrites; single-writer, not "
+            "concurrent-safe) and, for `kind: parquet` only, `partition_by: [col, ...]` to "
+            "write a Hive-style directory of part-files instead of one file (polars' native "
+            "`write_parquet(partition_by=...)`). These run after the chain finishes; the "
             "asset's return value comes from primary_step."
         ),
     )
@@ -1158,6 +1454,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
             import time as _time
             step_timings: Dict[str, float] = {}
             step_op_counts: Dict[str, int] = {}
+            incremental_offsets: Dict[str, Any] = {}
             for s_idx, step in enumerate(steps):
                 sid = step["id"]
                 _t0 = _time.time()
@@ -1177,19 +1474,43 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                     context.log.info(
                         f"step {sid} source: decrypted encrypted_file → {src.get('path')!r}"
                     )
+                elif src_kind == "inline":
+                    lf = _read_inline_source(pl, src)
+                    context.log.info(f"step {sid} source: inline ({len(src.get('rows') or [])} row(s) or raw text)")
+                elif src_kind in ("sql", "jdbc"):
+                    lf = _read_sql_source(pl, src, context, asset_name, sid, incremental_offsets)
+                    context.log.info(
+                        f"step {sid} source: sql"
+                        + (f" (incremental on {src.get('offset_column')})" if src.get("incremental") else "")
+                    )
                 elif src_kind == "ref":
                     ref = src.get("ref") or ""
                     if ref not in step_outputs:
                         raise ValueError(f"step {sid!r}: source ref={ref!r} not yet defined")
                     lf = step_outputs[ref]
                 else:
-                    raise ValueError(f"step {sid!r}: source.kind={src_kind!r} not supported. Use 'upstream' | 'file' | 'url' | 'encrypted_file' | 'ref'.")
+                    raise ValueError(f"step {sid!r}: source.kind={src_kind!r} not supported. Use 'upstream' | 'file' | 'url' | 'encrypted_file' | 'inline' | 'sql' | 'ref'.")
 
                 ops = step.get("operations") or []
                 context.log.info(f"step {sid} ({s_idx + 1}/{len(steps)}): {len(ops)} op(s)")
                 for op in ops:
                     lf = _apply_op(pl, lf, op, step_outputs)
-                step_outputs[sid] = lf
+                # `op: route` fans one step out into several named lanes instead
+                # of a single next LazyFrame -- each lane becomes referenceable
+                # as step_outputs["<step_id>.<lane>"] (reachable via
+                # source: {kind: ref, ref: "<step_id>.<lane>"} from a later
+                # step, or as a sink's `from:`). If a `default:` catch-all lane
+                # was named, the bare step id also resolves to that lane, so
+                # `primary_step` / an unqualified ref still works.
+                if isinstance(lf, dict) and "__route__" in lf:
+                    lanes = lf["__route__"]
+                    default_name = ops[-1].get("default") if ops and ops[-1].get("op", "").lower() == "route" else None
+                    for lane_name, lane_lf in lanes.items():
+                        step_outputs[f"{sid}.{lane_name}"] = lane_lf
+                    if default_name and default_name in lanes:
+                        step_outputs[sid] = lanes[default_name]
+                else:
+                    step_outputs[sid] = lf
                 # Lazy-plan build time — the actual work happens at .collect()
                 # on the primary step. This measures "how long did it take to
                 # construct the query graph up through this step".
@@ -1225,16 +1546,39 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                 kind = (sink.get("kind") or "parquet").lower()
                 df = step_outputs[from_id].collect()  # materialize side-output
 
-                if kind in ("parquet", "csv"):
+                if kind in ("parquet", "csv", "avro"):
                     path = sink.get("path")
                     if not path:
                         raise ValueError(f"sink from={from_id!r}: 'path' is required")
                     path = _apply_partition_template(path, partition_key, partition_map)
+                    mode = (sink.get("mode") or "overwrite").lower()
+                    partition_by = sink.get("partition_by")
+                    if mode not in ("overwrite", "append"):
+                        raise ValueError(f"sink from={from_id!r}: mode must be 'overwrite' or 'append', got {mode!r}")
+                    if partition_by and kind != "parquet":
+                        raise ValueError(f"sink from={from_id!r}: 'partition_by' (directory/partitioned output) is only supported for kind=parquet")
+                    if mode == "append" and os.path.exists(path):
+                        # Polars has no native append for parquet/csv -- read the
+                        # existing file, concat, rewrite. Single-writer assumption
+                        # (same as every other file sink in this component); not
+                        # concurrent-write-safe.
+                        if kind == "parquet":
+                            existing = pl.read_parquet(path)
+                        else:
+                            existing = pl.read_csv(path)
+                        df = pl.concat([existing, df], how="diagonal_relaxed")
                     if kind == "parquet":
-                        df.write_parquet(path)
-                    else:
+                        if partition_by:
+                            df.write_parquet(path, partition_by=partition_by, mkdir=True)
+                        else:
+                            df.write_parquet(path)
+                    elif kind == "csv":
                         df.write_csv(path)
+                    else:  # avro
+                        df.write_avro(path)
                     sink_metadata[f"polars/sink/{from_id}/path"] = MetadataValue.path(path)
+                    if mode == "append":
+                        sink_metadata[f"polars/sink/{from_id}/mode"] = MetadataValue.text("append")
                 elif kind == "encrypted_file":
                     written_path = _write_encrypted_file_sink(df, sink, partition_key, partition_map)
                     sink_metadata[f"polars/sink/{from_id}/path"] = MetadataValue.path(written_path)
@@ -1413,7 +1757,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                     )
                 else:
                     raise ValueError(
-                        f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'encrypted_file' | 'table'."
+                        f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'avro' | 'encrypted_file' | 'table'."
                     )
                 sink_metadata[f"polars/sink/{from_id}/row_count"] = MetadataValue.int(df.height)
 
@@ -1442,6 +1786,9 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                 "polars/step_op_counts": MetadataValue.json(step_op_counts),
                 "polars/explain": MetadataValue.md(f"```\n{explain_plan}\n```"),
             }
+            for step_id, new_offset in incremental_offsets.items():
+                if new_offset is not None:
+                    metadata[f"dagster_community_components/last_offset/{step_id}"] = MetadataValue.text(str(new_offset))
             metadata.update(sink_metadata)
             if include_preview and row_count > 0:
                 try:

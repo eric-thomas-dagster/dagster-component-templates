@@ -1,0 +1,18 @@
+type: dagster_community_components.Base64TransformComponent
+attributes:
+  asset_name: payloads_encoded
+  upstream_asset_key: payloads_raw
+  mode: encode
+  fields:
+    - origin: payload_bytes
+      result: payload_b64
+    - origin: signature_bytes
+      # result omitted -- overwrites signature_bytes in place
+  url_safe: false
+  group_name: transform
+
+# Decode example:
+# mode: decode
+# fields:
+#   - origin: payload_b64
+#     result: payload_bytes

@@ -1,0 +1,138 @@
+{
+  "component_type": "dagster_community_components.Base64TransformComponent",
+  "description": "Base64 encode or decode one or more DataFrame columns, StreamSets Base64-stage compatible (field pairs, URL-safe variant, string-field record-error semantics).",
+  "category": "transform",
+  "icon": "Binary",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "DataFrame with the column(s) to encode/decode"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Same DataFrame with result column(s) added/overwritten"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output asset name.",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "array",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key.",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "`encode`: bytes/str -> base64 text. `decode`: base64 text/bytes -> raw bytes.",
+      "required": true
+    },
+    "fields": {
+      "type": "array",
+      "label": "Fields",
+      "description": "(origin, result) column pairs to transform — mirrors StreamSets' Base64 stage field-list shape. Each pair processed independently; one call can cover several fields.",
+      "required": true
+    },
+    "url_safe": {
+      "type": "boolean",
+      "label": "Url Safe",
+      "description": "Use the URL-safe alphabet (`-`/`_` instead of `+`/`/`, no padding stripped) — `base64.urlsafe_b64encode`/`urlsafe_b64decode` instead of the standard `base64.b64encode`/`b64decode`.",
+      "required": false
+    },
+    "on_string_field": {
+      "type": "string",
+      "label": "On String Field",
+      "description": "mode='encode' only, when a field's value is a Python str (not bytes): 'error' (default) matches StreamSets' real Base64 stage, which treats a string-typed field as a record error — most of the time this means an upstream step produced text where raw bytes were expected, and silently base64-encoding the text is the wrong fix. 'encode_utf8_first' opts into the more lenient behavior for general ETL (UTF-8 encode the string to bytes, then base64-encode those bytes) when the input genuinely is text that needs to become a base64 string.",
+      "required": false
+    },
+    "on_error": {
+      "type": "string",
+      "label": "On Error",
+      "description": "On a per-row encode/decode failure (e.g. invalid base64 on decode): raise, or write null for that row's result and continue.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "",
+      "required": false
+    },
+    "tags": {
+      "type": "array",
+      "label": "Tags",
+      "description": "",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure.",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale.",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
+      "required": false
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned.",
+      "required": false
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "required": false
+    },
+    "partition_values": {
+      "type": "array",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static partitioning, e.g. 'us,eu,asia'.",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
+      "required": false
+    }
+  }
+}

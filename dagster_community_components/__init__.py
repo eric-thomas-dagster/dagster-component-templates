@@ -1109,6 +1109,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PolytomicAssetComponent": "assets/sinks/polytomic_asset/component.py",
     "PostHogEventsIngestionComponent": "assets/ingestion/posthog_events_ingestion/component.py",
     "PostgresBackupJobComponent": "jobs/postgres_backup_job/component.py",
+    "PostgresCDCMonitorSensorComponent": "sensors/postgres_cdc_monitor/component.py",
     "PostgresIOManagerComponent": "io_managers/postgres_io_manager/component.py",
     "PostgresResource": "resources/postgres_resource/component.py",
     "PostgresResourceComponent": "resources/postgres_resource/component.py",

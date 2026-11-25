@@ -1,0 +1,2 @@
+mysql-replication>=1.0.0
+PyMySQL>=1.0.0

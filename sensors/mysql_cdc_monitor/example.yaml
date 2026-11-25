@@ -1,0 +1,17 @@
+type: dagster_community_components.MySQLCDCMonitorSensorComponent
+attributes:
+  sensor_name: orders_cdc_sensor
+  host: db.internal
+  port: 3306
+  username: repl_user
+  password_env_var: MYSQL_REPL_PASSWORD
+  server_id: 1001
+  database: sales
+  table_patterns:
+    - orders
+    - order_items_*
+  job_name: apply_sales_cdc_job
+  minimum_interval_seconds: 30
+  position_mode: binlog
+  on_first_run: start_now
+  default_status: running

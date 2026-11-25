@@ -1,0 +1,136 @@
+{
+  "component_type": "dagster_community_components.MySQLCDCMonitorSensorComponent",
+  "description": "Component for micro-batch MySQL CDC via the binary log (binlog).",
+  "category": "sensor",
+  "icon": "si:mysql",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests carrying a batch of insert/update/delete row changes"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "required": true
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "MySQL host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "MySQL port",
+      "required": false,
+      "default": 3306
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "MySQL username with REPLICATION SLAVE and REPLICATION CLIENT privileges",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Environment variable holding the MySQL password",
+      "required": false,
+      "default": null
+    },
+    "ssl_disabled": {
+      "type": "boolean",
+      "label": "Ssl Disabled",
+      "description": "Disable TLS for the binlog connection. Default False (TLS required); set True only for trusted local networks.",
+      "required": false,
+      "default": false
+    },
+    "server_id": {
+      "type": "integer",
+      "label": "Server Id",
+      "description": "Unique integer (1 to 2^32-1) this sensor presents to the MySQL server as a replication client id. Must not collide with any other replica or binlog consumer connected to this server -- including another instance of this same sensor, if you ever run more than one against the same database.",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "description": "Which MySQL schema/database to track. This sensor tracks exactly ONE schema -- declare one sensor per schema if you need more than one. (MySQL's own binlog-protocol table/schema filters match on bare names, not schema-qualified ones, so tracking several schemas from one sensor risks a table-name collision silently matching the wrong schema's table.)",
+      "required": true
+    },
+    "table_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Table Patterns",
+      "description": "fnmatch-style glob patterns (e.g. 'orders', 'order_items_*') matched against bare table names within `database`. Resolved against INFORMATION_SCHEMA.TABLES at the start of every tick (not cached), so a new table matching a wildcard is picked up automatically on its next tick -- no restart required.",
+      "required": true
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Name of the job to trigger when changes are detected",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
+      "required": false,
+      "default": 30
+    },
+    "max_events_per_tick": {
+      "type": "integer",
+      "label": "Max Events Per Tick",
+      "description": "Caps how many row-change events this sensor processes in one tick, even if more remain before it would otherwise report 'caught up'. Protects a single run from an enormous backlog (e.g. first run against a server with days of retained binlog). Unset (default): no cap, processes everything available until caught up. When the cap is hit, position is persisted only through the last event actually processed -- the remainder is picked up on the next tick.",
+      "required": false,
+      "default": null
+    },
+    "position_mode": {
+      "type": "string",
+      "label": "Position Mode",
+      "description": "'binlog' (default) -- resume from a stored binlog file+position. 'gtid' -- resume from a stored GTID set via the server's auto-position mechanism. Requires gtid_mode=ON and enforce_gtid_consistency=ON on the MySQL server -- this sensor does NOT auto-detect whether GTID mode is enabled; selecting 'gtid' against a server without it fails loudly via skip_reason instead of silently falling back.",
+      "required": false,
+      "default": "binlog",
+      "enum": ["binlog", "gtid"]
+    },
+    "on_first_run": {
+      "type": "string",
+      "label": "On First Run",
+      "description": "'start_now' (default) -- skip all historical binlog and start capturing changes from the server's CURRENT position on the very first tick. Pair with a separate one-time snapshot/full-load of existing rows (e.g. this registry's own full-table ingestion components) -- this sensor is the ongoing-changes half of a CDC pipeline, not an initial-load mechanism. 'from_beginning' -- start from the EARLIEST binlog file the server still retains. Fails loudly if that file has already aged out under the server's binlog retention settings -- rarely useful outside small/test servers with long retention.",
+      "required": false,
+      "default": "start_now",
+      "enum": ["start_now", "from_beginning"]
+    },
+    "op_name": {
+      "type": "string",
+      "label": "Op Name",
+      "description": "Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat with other sensors in this registry; set to the real op/asset name if it's not literally 'config'.",
+      "required": false,
+      "default": "config"
+    },
+    "source_asset_key": {
+      "type": "string",
+      "label": "Source Asset Key",
+      "description": "Optional asset key to receive an AssetObservation on every tick that yields changes. Metadata includes database, tables, event_count, inserts, updates, deletes, log_file, log_pos.",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
+      "required": false,
+      "default": "running"
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "description": "When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit AssetObservation -- free of Dagster+ credit charges, but downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire.",
+      "required": false,
+      "default": true
+    }
+  }
+}

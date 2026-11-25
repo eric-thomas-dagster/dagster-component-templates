@@ -70,3 +70,14 @@ def test_stdio_server_allow_env_restricts_tools():
 
     names = _run(body, env={"AGENTIC_PIPELINE_AUTHORING_TOOLS_ALLOW": "list_ops,describe_op"})
     assert names == ["describe_op", "list_ops"]
+
+
+def test_stdio_server_bad_op_is_a_real_isError_result_with_the_original_message():
+    """A bad-arguments failure (unknown op) must come back as a REAL isError result, not a quiet non-error
+    {"error": ...} dict an agent loop's failed-call accounting would miss -- see _mcp_call in component.py."""
+    async def body(s):
+        return await s.call_tool("describe_op", {"op": "not_a_real_op"})
+
+    result = _run(body, env={})
+    assert getattr(result, "is_error", None) or getattr(result, "isError", None)
+    assert "not_a_real_op" in result.content[0].text

@@ -233,7 +233,24 @@ class XmlParser(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: Union[str, List[str]] = Field(description="Upstream asset key providing a DataFrame")
     xml_column: Union[str, int] = Field(description="Column containing XML strings")
-    xpath_expressions: Dict[str, str] = Field(description="Mapping of {output_column_name: xpath_expression}")
+    xpath_expressions: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Mapping of {output_column_name: xpath_expression}. Required unless `streamsets_tree_column` is set.",
+    )
+    streamsets_tree_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "When set, parses the ENTIRE xml_column value into one new column holding a nested "
+            "dict matching StreamSets' XML Parser output convention exactly (verified against a "
+            "real StreamSets engine): each attribute becomes a key `attr|<name>`, an element's own "
+            "text becomes a `value` key, and child elements are grouped by tag name into LISTS of "
+            "these same dicts -- even a single child becomes a one-item list, for a consistently "
+            "shaped structure regardless of cardinality. This is a different operation from "
+            "`xpath_expressions` (targeted field extraction) -- it reproduces StreamSets' whole-document "
+            "parse shape for pipelines migrating off a stage that assumed it downstream. Can be used "
+            "together with or instead of `xpath_expressions`."
+        ),
+    )
     namespace: Optional[Dict[str, str]] = Field(default=None, description="XML namespace mapping e.g. {ns: 'http://...'}")
     mode: str = Field(
         default="first",
@@ -414,6 +431,8 @@ class XmlParser(Component, Model, Resolvable):
         return ComponentFormConfig(label='Xml Parser', editable=True)
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        if not self.xpath_expressions and not self.streamsets_tree_column:
+            raise ValueError("XmlParser: set `xpath_expressions`, `streamsets_tree_column`, or both.")
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -436,6 +455,7 @@ class XmlParser(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         xml_column = self.xml_column
         xpath_expressions = self.xpath_expressions
+        streamsets_tree_column = self.streamsets_tree_column
         namespace = self.namespace
         mode = self.mode
         group_name = self.group_name
@@ -565,11 +585,41 @@ group_name=group_name,
                 except Exception:
                     return [] if mode == "findall" else None
 
+            # BEGIN StreamSets XML Parser compatibility tree (verified against a real
+            # StreamSets engine's XML Parser output; see component docstring on
+            # `streamsets_tree_column` for the exact convention this reproduces).
+            def _element_to_streamsets_dict(elem):
+                out: Dict[str, Any] = {}
+                for attr_name, attr_val in elem.attrib.items():
+                    out[f"attr|{attr_name}"] = attr_val
+                text = (elem.text or "").strip()
+                if text:
+                    out["value"] = text
+                children_by_tag: Dict[str, list] = {}
+                for child in elem:
+                    children_by_tag.setdefault(child.tag, []).append(_element_to_streamsets_dict(child))
+                # Even a single child becomes a one-item list — StreamSets' own
+                # convention for a consistently-shaped structure regardless of
+                # how many siblings with that tag exist.
+                out.update(children_by_tag)
+                return out
+
+            def parse_streamsets_tree(xml_str):
+                try:
+                    root = ET.fromstring(xml_str)
+                    return _element_to_streamsets_dict(root)
+                except Exception:
+                    return None
+            # END StreamSets XML Parser compatibility tree
+
             df = upstream.copy()
             ns = namespace or {}
 
-            for col_name, xpath in xpath_expressions.items():
+            for col_name, xpath in (xpath_expressions or {}).items():
                 df[col_name] = df[xml_column].apply(lambda x: extract_xpath(x, xpath, ns))
+
+            if streamsets_tree_column:
+                df[streamsets_tree_column] = df[xml_column].apply(parse_streamsets_tree)
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

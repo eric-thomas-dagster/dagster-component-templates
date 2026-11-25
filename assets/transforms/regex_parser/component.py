@@ -313,6 +313,26 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN Apache log format presets (inlined per component; keep in sync if copied elsewhere)
+# Verified against Apache's own LogFormat directive docs (httpd.apache.org/docs/2.4/logs.html)
+# and the standard Logstash grok patterns (logstash-plugins/logstash-patterns-core,
+# HTTPD_COMMONLOG / HTTPD_COMBINEDLOG) for the field names — these are the de facto
+# standard names used across log-processing tools, not invented here.
+_COMMON_LOG_PATTERN = (
+    r'^(?P<clientip>\S+) (?P<ident>\S+) (?P<auth>\S+) \[(?P<timestamp>[^\]]+)\] '
+    r'"(?:(?P<verb>\S+) (?P<request>\S+)(?: HTTP/(?P<httpversion>\d(?:\.\d)?))?'
+    r'|(?P<rawrequest>[^"]*))" (?P<response>\d{3}|-) (?P<bytes>\d+|-)'
+)
+_COMBINED_LOG_PATTERN = (
+    _COMMON_LOG_PATTERN + r' "(?P<referrer>[^"]*)" "(?P<agent>[^"]*)"'
+)
+_LOG_FORMAT_PATTERNS = {
+    "common": _COMMON_LOG_PATTERN,
+    "combined": _COMBINED_LOG_PATTERN,
+}
+# END Apache log format presets
+
+
 class RegexParser(Component, Model, Resolvable):
     """Use regular expressions to extract, match, or replace text in a column."""
 
@@ -330,8 +350,21 @@ class RegexParser(Component, Model, Resolvable):
         ),
     )
     column: Union[str, int] = Field(description="Column to apply regex to")
-    pattern: str = Field(description="Regex pattern")
+    pattern: Optional[str] = Field(default=None, description="Regex pattern. Required unless `log_format` is set.")
     mode: str = Field(default="extract", description="'extract' (capture groups -> new cols), 'match' (bool column), 'replace' (substitute), 'split' (split into multiple rows)")
+    log_format: Optional[Literal["common", "combined"]] = Field(
+        default=None,
+        description=(
+            "Use a pre-built Apache access-log regex instead of `pattern`/`output_columns` -- "
+            "verified against Apache's own Common/Combined LogFormat spec and the standard "
+            "Logstash grok field names. 'common' extracts clientip, ident, auth, timestamp, "
+            "verb, request, httpversion, response, bytes (rawrequest instead of "
+            "verb/request/httpversion for a malformed request line). 'combined' adds referrer "
+            "and agent. Forces mode='extract'; `pattern` and `output_columns` are ignored when set "
+            "(StreamSets' Log Parser equivalent for these two formats uses these exact field "
+            "names, not generic numbered capture groups)."
+        ),
+    )
     replacement: Optional[str] = Field(default=None, description="Replacement string for mode='replace'")
     output_columns: Optional[List[Union[str, int]]] = Field(default=None, description="Names for extracted capture groups")
     output_column: Optional[Union[str, int]] = Field(default=None, description="Name for match/replace result column")
@@ -514,6 +547,10 @@ class RegexParser(Component, Model, Resolvable):
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("RegexParser: set exactly one of `upstream_asset_key` or `source`.")
+        if self.log_format and self.mode not in (None, "extract"):
+            raise ValueError(f"RegexParser: log_format={self.log_format!r} requires mode='extract' (got mode={self.mode!r}).")
+        if not self.log_format and not self.pattern:
+            raise ValueError("RegexParser: set `pattern`, or `log_format` for a built-in Apache log preset.")
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -537,6 +574,7 @@ class RegexParser(Component, Model, Resolvable):
         column = self.column
         pattern = self.pattern
         mode = self.mode
+        log_format = self.log_format
         replacement = self.replacement
         output_columns = self.output_columns
         output_column = self.output_column
@@ -683,22 +721,30 @@ group_name=group_name,
                 _src_col = _src_col.astype(str)
 
             if mode == "extract":
-                # str.extract requires the pattern to contain at least one
-                # capture group. If the user wrote a flat pattern (no
-                # parentheses), auto-wrap the whole thing as a single group
-                # — matches "extract the whole match" semantics
-                # default semantic.
-                _xpat = pattern
-                try:
-                    if re.compile(pattern).groups == 0:
-                        _xpat = f"({pattern})"
-                except re.error:
-                    pass
-                extracted = _src_col.str.extract(_xpat, flags=re_flags)
-                if output_columns:
-                    extracted.columns = output_columns[: len(extracted.columns)]
+                if log_format:
+                    # Built-in Apache log preset — the pattern's own named groups
+                    # (clientip/ident/auth/timestamp/verb/request/httpversion/
+                    # response/bytes[/referrer/agent]) become the output column
+                    # names directly; `output_columns`/numbered-column naming
+                    # below is bypassed since the names are already meaningful.
+                    extracted = _src_col.str.extract(_LOG_FORMAT_PATTERNS[log_format], flags=re_flags)
                 else:
-                    extracted.columns = [f"{column}_extracted_{i}" for i in range(len(extracted.columns))]
+                    # str.extract requires the pattern to contain at least one
+                    # capture group. If the user wrote a flat pattern (no
+                    # parentheses), auto-wrap the whole thing as a single group
+                    # — matches "extract the whole match" semantics
+                    # default semantic.
+                    _xpat = pattern
+                    try:
+                        if re.compile(pattern).groups == 0:
+                            _xpat = f"({pattern})"
+                    except re.error:
+                        pass
+                    extracted = _src_col.str.extract(_xpat, flags=re_flags)
+                    if output_columns:
+                        extracted.columns = output_columns[: len(extracted.columns)]
+                    else:
+                        extracted.columns = [f"{column}_extracted_{i}" for i in range(len(extracted.columns))]
                 # Name-collision: if the target output name already exists
                 # in `df`, append an `_<N>` suffix (Date1 + Date1 → Date1_2).
                 # This matches the typical ETL-tool convention for chained

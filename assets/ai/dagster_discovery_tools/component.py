@@ -694,6 +694,11 @@ def build_mcp_server(tools: DagsterDiscoveryTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's DiscoveryToolError -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("dagster-discovery-tools")
     allowed = set(tools.tool_names())
 
@@ -702,56 +707,73 @@ def build_mcp_server(tools: DagsterDiscoveryTools):
             mcp.tool()(fn)
         return fn
 
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see module docstring) -- a bad-arguments or failure comes back as a plain
+        {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL (isError=False) tool
+        result indistinguishable from success. Re-raising here lets the `mcp` package's own exception handling
+        (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a registered tool function and
+        turn it into a real isError=True CallToolResult) make the failure visible to whatever's counting failed
+        calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError), not this module's
+        DiscoveryToolError: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a
+        raised exception's own message when it recognizes the exception as ITS OWN ToolError/ResourceError --
+        anything else (including a same-named ToolError class defined elsewhere) is treated as an unexpected
+        crash and replaced with a generic 'Error executing tool <name>' before it reaches the client, throwing
+        away the reason the agent needs to act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def list_locations() -> dict:
         """Every code location in this deployment: load status, load errors, Dagster library versions,
         and per-repository schedule/sensor counts. Call this first -- most other tools need a location_name."""
-        return tools.call("list_locations")
+        return _mcp_call("list_locations", {})
 
     @_tool
     def list_assets(location_name: str = None, group_name: str = None, limit: int = 200) -> dict:
         """Assets across the deployment: group_name, freshness policy, automation condition, whether it has
         asset checks, partition stats. Optionally filter by location_name and/or group_name."""
-        return tools.call("list_assets", {"location_name": location_name, "group_name": group_name, "limit": limit})
+        return _mcp_call("list_assets", {"location_name": location_name, "group_name": group_name, "limit": limit})
 
     @_tool
     def list_components(location_name: str, type: str = None) -> dict:
         """Every UI-created (app-managed) component in location_name, with its id, type, and YAML config.
         Optionally filter to types whose name contains `type` (case-insensitive substring)."""
-        return tools.call("list_components", {"location_name": location_name, "type": type})
+        return _mcp_call("list_components", {"location_name": location_name, "type": type})
 
     @_tool
     def get_component(location_name: str, id: str) -> dict:
         """One component's full config by id (from list_components)."""
-        return tools.call("get_component", {"location_name": location_name, "id": id})
+        return _mcp_call("get_component", {"location_name": location_name, "id": id})
 
     @_tool
     def list_agents(location_name: str = None) -> dict:
         """The agent components in location_name (or every location if omitted), with their configured
         model/server/allowed-tools. Does NOT include 'last outcome' -- read that from the agent's own
         outcome asset's materialization metadata via dagster_instance_tools.asset_status."""
-        return tools.call("list_agents", {"location_name": location_name})
+        return _mcp_call("list_agents", {"location_name": location_name})
 
     @_tool
     def list_mcp_servers(location_name: str = None) -> dict:
         """The MCP-server-shaped components in location_name (or every location if omitted)."""
-        return tools.call("list_mcp_servers", {"location_name": location_name})
+        return _mcp_call("list_mcp_servers", {"location_name": location_name})
 
     @_tool
     def list_schedules_and_sensors(location_name: str = None) -> dict:
         """Schedules and sensors per repository, optionally filtered to one code location."""
-        return tools.call("list_schedules_and_sensors", {"location_name": location_name})
+        return _mcp_call("list_schedules_and_sensors", {"location_name": location_name})
 
     @_tool
     def list_runs(location_name: str, limit: int = 20, statuses: list = None) -> dict:
         """Recent runs in ONE code location (location_name is required -- a deployment-wide list mixes
         concurrent, unrelated runs). Optional statuses, e.g. ['FAILURE']."""
-        return tools.call("list_runs", {"location_name": location_name, "limit": limit, "statuses": statuses})
+        return _mcp_call("list_runs", {"location_name": location_name, "limit": limit, "statuses": statuses})
 
     @_tool
     def list_alert_policies() -> dict:
         """Alert policies configured on this deployment."""
-        return tools.call("list_alert_policies")
+        return _mcp_call("list_alert_policies", {})
 
     return mcp
 

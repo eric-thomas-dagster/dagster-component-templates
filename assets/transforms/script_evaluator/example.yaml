@@ -1,0 +1,31 @@
+# ScriptEvaluatorComponent -- run customer-authored Jython- or JavaScript-style
+# transform scripts, the Dagster analog of StreamSets' Script Evaluator processor.
+#
+# SECURITY: this runs arbitrary script content. javascript mode is sandboxed by
+# construction (QuickJS has no filesystem/network access); jython mode runs real
+# CPython in a subprocess (process isolation + a hard timeout, not a security
+# sandbox). See the component docstring/README for the full model.
+
+type: dagster_community_components.ScriptEvaluatorComponent
+attributes:
+  asset_name: enriched_orders
+  upstream_asset_key: raw_orders
+
+  language: jython   # or: javascript
+  mode: record        # or: batch
+
+  script: |
+    record.put("total", record.get("price") * record.get("qty"))
+    if record.get("total") > 1000:
+        record.put("tier", "gold")
+    state.put("count", state.get("count", 0) + 1)
+    events.add({"kind": "scored", "total": record.get("total")})
+
+  user_params:
+    gold_threshold: 1000
+
+  state_path: ./enriched_orders_state.json
+  on_script_error: record_error
+  timeout_seconds: 60
+
+  group_name: streamsets_migration

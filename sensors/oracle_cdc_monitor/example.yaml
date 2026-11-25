@@ -1,0 +1,16 @@
+type: dagster_community_components.OracleCDCMonitorSensorComponent
+attributes:
+  sensor_name: orders_cdc_sensor
+  host: db.internal
+  port: 1521
+  service_name: ORCLPDB1
+  username: cdc_user
+  password_env_var: ORACLE_CDC_PASSWORD
+  schema_name: SALES
+  table_patterns:
+    - ORDERS
+    - ORDER_ITEMS_*
+  job_name: apply_sales_cdc_job
+  minimum_interval_seconds: 60
+  on_first_run: start_now
+  default_status: running

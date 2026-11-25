@@ -1,0 +1,129 @@
+{
+  "component_type": "dagster_community_components.OracleCDCMonitorSensorComponent",
+  "description": "Component for micro-batch Oracle CDC via LogMiner.",
+  "category": "sensor",
+  "icon": "si:oracle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests carrying a batch of insert/update/delete row changes"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "required": true
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "Oracle host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "Oracle listener port",
+      "required": false,
+      "default": 1521
+    },
+    "service_name": {
+      "type": "string",
+      "label": "Service Name",
+      "description": "Oracle service name. Set this OR sid.",
+      "required": false,
+      "default": null
+    },
+    "sid": {
+      "type": "string",
+      "label": "Sid",
+      "description": "Oracle SID. Set this OR service_name.",
+      "required": false,
+      "default": null
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Oracle username. Needs SELECT_CATALOG_ROLE (or explicit SELECT on V$LOGMNR_CONTENTS/V$ARCHIVED_LOG/V$DATABASE) and EXECUTE on DBMS_LOGMNR, plus LogMiner access to the tracked schema's supplementally-logged columns.",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Environment variable holding the Oracle password",
+      "required": false,
+      "default": null
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "description": "Which Oracle schema (SEG_OWNER) to track. This sensor tracks exactly ONE schema -- declare one sensor per schema if you need more than one.",
+      "required": true
+    },
+    "table_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Table Patterns",
+      "description": "fnmatch-style glob patterns (e.g. 'ORDERS', 'ORDER_ITEMS_*') matched against table names within `schema_name`. Resolved against ALL_TABLES at the start of every tick (not cached).",
+      "required": true
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Name of the job to trigger when changes are detected",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations",
+      "required": false,
+      "default": 60
+    },
+    "max_events_per_tick": {
+      "type": "integer",
+      "label": "Max Events Per Tick",
+      "description": "Caps how many row-change events this sensor processes in one tick. Unset (default): no cap. When the cap is hit, the stored SCN only advances to the last event actually processed.",
+      "required": false,
+      "default": null
+    },
+    "on_first_run": {
+      "type": "string",
+      "label": "On First Run",
+      "description": "'start_now' (default) -- start capturing changes from the database's CURRENT SCN on the very first tick; pair with a separate one-time snapshot/full-load of existing rows. 'from_beginning' -- start from the EARLIEST SCN still covered by an archived log in V$ARCHIVED_LOG. Fails loudly via skip_reason if no archived logs are available at all.",
+      "required": false,
+      "default": "start_now",
+      "enum": ["start_now", "from_beginning"]
+    },
+    "op_name": {
+      "type": "string",
+      "label": "Op Name",
+      "description": "Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`.",
+      "required": false,
+      "default": "config"
+    },
+    "source_asset_key": {
+      "type": "string",
+      "label": "Source Asset Key",
+      "description": "Optional asset key to receive an AssetObservation on every tick that yields changes. Metadata includes schema_name, tables, event_count, inserts, updates, deletes, start_scn, end_scn.",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default status of the sensor (running or stopped)",
+      "required": false,
+      "default": "running"
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "description": "When True (default), emit AssetMaterialization on the target asset key. When False, emit AssetObservation instead -- free of Dagster+ credit charges, but downstream conditions gating on ~any_deps_missing() (including eager()) will not fire.",
+      "required": false,
+      "default": true
+    }
+  }
+}

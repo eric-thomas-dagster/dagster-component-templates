@@ -9017,48 +9017,6 @@
       ]
     },
     {
-      "id": "base64_transform",
-      "name": "Base64 Transform",
-      "category": "transformation",
-      "description": "Base64TransformComponent — base64 encode or decode one or more DataFrame columns, StreamSets Base64-stage compatible.",
-      "version": "1.0.0",
-      "author": "Eric Thomas",
-      "path": "assets/transforms/base64_transform",
-      "tags": [
-        "base64-transform",
-        "transforms"
-      ],
-      "dependencies": {
-        "pip": [
-          "pandas"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/requirements.txt",
-      "validation": {
-        "level": "live",
-        "evidence": "",
-        "last_validated": "2026-11-25"
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "pd.DataFrame",
-        "output_type": "pd.DataFrame"
-      },
-      "keywords": [
-        "transform",
-        "base64",
-        "encode",
-        "decode"
-      ],
-      "icon": "Binary"
-    },
-    {
       "id": "basecamp_ingestion",
       "name": "Basecamp Ingestion",
       "category": "ingestion",
@@ -77418,9 +77376,63 @@
         "lsn",
         "streamsets migration"
       ]
+    },
+    {
+      "id": "oracle_cdc_monitor",
+      "name": "Oracle CDC Monitor",
+      "category": "sensor",
+      "description": "Component for micro-batch Oracle CDC via LogMiner.",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "path": "sensors/oracle_cdc_monitor",
+      "tags": [
+        "sensor",
+        "monitor",
+        "oracle",
+        "cdc",
+        "logminer"
+      ],
+      "dependencies": {
+        "pip": [
+          "oracledb>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/oracle_cdc_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/oracle_cdc_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/oracle_cdc_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/oracle_cdc_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/oracle_cdc_monitor/requirements.txt",
+      "icon": "si:oracle",
+      "validation": {
+        "level": "unverified",
+        "evidence": "Mocked tests only (oracledb/LogMiner mocked at the library boundary via a fake module -- no real Oracle server reachable here) -- not yet validated against a real Oracle database with live LogMiner mining."
+      },
+      "vendor": "Oracle",
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Component for micro-batch Oracle CDC via LogMiner.",
+        "requires_pip": [
+          "oracledb>=2.0.0"
+        ]
+      },
+      "consumes": [
+        "resource:oracle"
+      ],
+      "keywords": [
+        "oracle",
+        "cdc",
+        "change data capture",
+        "logminer",
+        "redo log",
+        "archive log",
+        "scn",
+        "streamsets migration"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1473
+  "total": 1474
 }

@@ -566,6 +566,7 @@ _CLASS_PATHS: dict[str, str] = {
     "FhirResourceNormalizerComponent": "assets/transforms/fhir_resource_normalizer/component.py",
     "FieldEncryptionComponent": "transforms/field_encryption/component.py",
     "FieldMapperComponent": "assets/transforms/field_mapper/component.py",
+    "FieldMergerComponent": "assets/transforms/field_merger/component.py",
     "FigmentResourceComponent": "resources/figment_resource/component.py",
     "FigmentStakingRewardsIngestionComponent": "assets/ingestion/figment_staking_rewards_ingestion/component.py",
     "FileIngestionComponent": "assets/ingestion/file_ingestion/component.py",

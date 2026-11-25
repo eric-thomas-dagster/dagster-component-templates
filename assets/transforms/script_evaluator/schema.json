@@ -1,0 +1,126 @@
+{
+  "component_type": "dagster_community_components.ScriptEvaluatorComponent",
+  "description": "Run a customer-authored Jython- or JavaScript-style transform script per record or per batch against an upstream DataFrame.",
+  "category": "transformation",
+  "icon": "Code",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": false,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Transformed DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset providing the input DataFrame",
+      "required": false
+    },
+    "upstream_asset_keys": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Upstream Asset Keys",
+      "description": "Deprecated alias; use upstream_asset_key",
+      "required": false
+    },
+    "language": {
+      "type": "string",
+      "enum": ["jython", "javascript"],
+      "label": "Language",
+      "description": "jython: real CPython in a subprocess, with a Java-collection emulation shim and Jython-style integer division. javascript: QuickJS (quickjs-ng) -- no filesystem/network/process access by construction. Groovy is not supported.",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["record", "batch"],
+      "label": "Mode",
+      "description": "record: script runs once per row, sees `record`. batch: script runs once, sees `records` (a list of all rows this materialization is processing).",
+      "required": false,
+      "default": "record"
+    },
+    "script": {
+      "type": "string",
+      "label": "Script",
+      "description": "The transform script body.",
+      "required": true
+    },
+    "init_script": {
+      "type": "string",
+      "label": "Init Script",
+      "description": "Runs once before the first record/batch.",
+      "required": false
+    },
+    "destroy_script": {
+      "type": "string",
+      "label": "Destroy Script",
+      "description": "Runs once after the last record/batch.",
+      "required": false
+    },
+    "user_params": {
+      "type": "object",
+      "label": "User Params",
+      "description": "Exposed to the script as `userParams` (a dict/JMap).",
+      "required": false
+    },
+    "state_path": {
+      "type": "string",
+      "label": "State Path",
+      "description": "Where `state` is persisted across RUNS as JSON (same pattern as s3_monitor's dynamic-partition pruning state). Unset: state starts empty every run and isn't persisted.",
+      "required": false
+    },
+    "on_script_error": {
+      "type": "string",
+      "enum": ["record_error", "fail"],
+      "label": "On Script Error",
+      "description": "record_error: a script exception is caught per record (mode: record) or for the whole batch (mode: batch) and recorded in this asset's metadata; the run continues. fail: the exception propagates and fails the run.",
+      "required": false,
+      "default": "record_error"
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "description": "Hard wall-clock timeout for the WHOLE materialization's script execution (not per record) -- the subprocess is terminated if it doesn't finish in time.",
+      "required": false,
+      "default": 60.0
+    },
+    "javascript_memory_limit_mb": {
+      "type": "integer",
+      "label": "Javascript Memory Limit Mb",
+      "description": "QuickJS heap limit in MB (javascript mode only) -- a real, enforced backstop, not documentation-only.",
+      "required": false,
+      "default": 64
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "description": "Asset owners",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Asset tags",
+      "required": false
+    }
+  },
+  "tags": ["transformation", "script", "custom-code"],
+  "name": "Script Evaluator"
+}

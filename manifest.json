@@ -9017,6 +9017,48 @@
       ]
     },
     {
+      "id": "base64_transform",
+      "name": "Base64 Transform",
+      "category": "transformation",
+      "description": "Base64TransformComponent — base64 encode or decode one or more DataFrame columns, StreamSets Base64-stage compatible.",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "path": "assets/transforms/base64_transform",
+      "tags": [
+        "base64-transform",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/base64_transform/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "",
+        "last_validated": "2026-11-25"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "keywords": [
+        "transform",
+        "base64",
+        "encode",
+        "decode"
+      ],
+      "icon": "Binary"
+    },
+    {
       "id": "basecamp_ingestion",
       "name": "Basecamp Ingestion",
       "category": "ingestion",
@@ -77257,6 +77299,66 @@
       ]
     },
     {
+      "id": "postgres_cdc_monitor",
+      "name": "Postgres CDC Monitor",
+      "category": "sensor",
+      "description": "Component for micro-batch PostgreSQL CDC via logical replication (pgoutput).",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "path": "sensors/postgres_cdc_monitor",
+      "tags": [
+        "sensor",
+        "monitor",
+        "postgres",
+        "postgresql",
+        "cdc",
+        "logical replication",
+        "pgoutput"
+      ],
+      "dependencies": {
+        "pip": [
+          "psycopg2-binary>=2.9.0",
+          "pgoutput>=0.1.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/postgres_cdc_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/postgres_cdc_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/postgres_cdc_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/postgres_cdc_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/postgres_cdc_monitor/requirements.txt",
+      "icon": "si:postgresql",
+      "validation": {
+        "level": "unverified",
+        "evidence": "Mocked tests only (psycopg2.connect and pgoutput.sql.read_changes mocked at the library boundary; event classification exercises the real pgoutput Insert/Update/Delete/Converter) -- not yet validated against a real PostgreSQL server with live logical replication."
+      },
+      "vendor": "PostgreSQL",
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Component for micro-batch PostgreSQL CDC via logical replication (pgoutput).",
+        "requires_pip": [
+          "psycopg2-binary>=2.9.0",
+          "pgoutput>=0.1.0"
+        ]
+      },
+      "consumes": [
+        "resource:postgres"
+      ],
+      "keywords": [
+        "postgres",
+        "postgresql",
+        "cdc",
+        "change data capture",
+        "logical replication",
+        "pgoutput",
+        "wal2json",
+        "replication slot",
+        "publication",
+        "streamsets migration"
+      ]
+    },
+    {
       "id": "streamsets_engine",
       "name": "StreamSets Engine",
       "category": "integration",
@@ -77378,6 +77480,57 @@
       ]
     },
     {
+      "id": "script_evaluator",
+      "name": "Script Evaluator",
+      "category": "transformation",
+      "description": "Run a customer-authored Jython- or JavaScript-style transform script per record or per batch against an upstream DataFrame.",
+      "path": "assets/transforms/script_evaluator",
+      "tags": [
+        "transformation",
+        "script",
+        "custom-code"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/script_evaluator/schema.json",
+      "component_type": "dagster_community_components.ScriptEvaluatorComponent",
+      "icon": "Code",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/script_evaluator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/script_evaluator/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/script_evaluator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/script_evaluator/requirements.txt",
+      "validation": {
+        "level": "unit",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/assets/transforms/script_evaluator/tests/test_script_evaluator.py",
+        "last_validated": "2026-11-25"
+      },
+      "agent_hints": {
+        "inputs": "Optional upstream DataFrame (one row per record).",
+        "outputs": "Transformed DataFrame; error/event info in MaterializeResult metadata, not a second output.",
+        "side_effects": "Runs arbitrary script content in a real OS subprocess (jython) or a QuickJS sandbox (javascript) -- not a security boundary against a malicious script author in jython mode. See README's Security model section before use.",
+        "anti_uses": "jython mode uses Java-collection method-call syntax (record.get/put, not record['x']) and Jython-style floored integer division -- plain Python dict/list syntax on record fields will raise, by design. Groovy is not supported (needs a non-pip-installable JVM+Groovy install).",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "quickjs-ng"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "streamsets",
+        "script-evaluator",
+        "jython",
+        "javascript",
+        "transform"
+      ]
+    },
+    {
       "id": "oracle_cdc_monitor",
       "name": "Oracle CDC Monitor",
       "category": "sensor",
@@ -77430,9 +77583,57 @@
         "scn",
         "streamsets migration"
       ]
+    },
+    {
+      "id": "field_merger",
+      "name": "Field Merger",
+      "category": "transformation",
+      "description": "Merge one field's list/map value into another's, per row -- the source field is moved, not copied (StreamSets Field Merger semantics).",
+      "path": "assets/transforms/field_merger",
+      "tags": [
+        "transformation",
+        "merge",
+        "streamsets"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_merger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_merger/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_merger/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_merger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_merger/requirements.txt",
+      "icon": "ArrowsRightLeft",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-25"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a source_field (list or map column) and a target_field (list or map column).",
+        "outputs": "Same DataFrame; source_field dropped, target_field holds the merged result.",
+        "side_effects": "Drops source_field from the output (StreamSets 'moves' it, doesn't copy it).",
+        "anti_uses": "For row-level joining two DataFrames on a key, use document_merger or lookup, not this -- Field Merger operates WITHIN one DataFrame's rows on two existing list/map columns.",
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "merge",
+        "transform",
+        "list",
+        "map",
+        "streamsets"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1474
+  "total": 1478
 }

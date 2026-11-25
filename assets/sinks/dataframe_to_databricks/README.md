@@ -95,6 +95,7 @@ upsert_key_columns: [id]
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upsert_key_columns` | `List[str]` | — | Key columns identifying a row for mode='upsert' (ADF's SQL sink writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table then MERGEs into the target by these keys (Databricks SQL/Delta's native upsert mec… _(full docs in schema.json + component README)_ |
+| `delete_column` | `str` | — | Column whose truthy value (True, 1, 'true', 'yes', 'y', 'd', 'delete', 'deleted' -- case-insensitive) marks a row for DELETE by upsert_key_columns, instead of upsert -- true CDC apply (insert + update + delete), not just… _(full docs in schema.json + component README)_ |
 | `merge_schema` | `bool` | `true` | Allow schema evolution when appending |
 | `cluster_id` | `str` | — | SQL warehouse or cluster ID (None = auto) |
 | `drop_timezone` | `bool` | `true` | Drop tz from tz-aware datetime columns before INSERT. Default True because the parameterized INSERT path doesn't bind tz cleanly. Set False if your tables use TIMESTAMP and you've handled tz upstream. |

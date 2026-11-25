@@ -8,9 +8,10 @@ Differs from `dataframe_to_databricks` (Databricks-specific, Unity Catalog
 focused) and from the official `dagster_deltalake.DeltaLakePyarrowIOManager`
 (which OWNS the table as an IO manager).
 
-Modes: `append`, `overwrite`, `merge` (basic MERGE — match-then-update by key).
-For complex MERGE logic (when-matched-update / when-not-matched-insert /
-when-matched-delete), use Spark/Databricks SQL.
+Modes: `append`, `overwrite`, `merge` (MERGE by key: when-matched-update,
+when-not-matched-insert, and — with `delete_column` set — when-matched-delete,
+i.e. real CDC apply). `merge` auto-creates the target table on first write
+(via an initial insert-only append) rather than requiring it to exist.
 """
 
 import os
@@ -246,6 +247,21 @@ def _write_each_partition_key(context, upstream, write_one, can_split_rows):
 
 
 
+# BEGIN CDC delete-flag coercion (inlined per component; keep copies identical — see tests/test_cdc_delete_semantics.py)
+def _is_delete_flag(value) -> bool:
+    """True when a delete_column's raw value marks a row for CDC delete. Accepts a real
+    bool, a numeric truthy value, or a case-insensitive string marker -- CDC sources vary
+    widely in how they encode "this row was deleted" (bool column, 0/1, 'D'/'DELETE', ...)."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() in ("true", "1", "yes", "y", "d", "delete", "deleted")
+# END CDC delete-flag coercion
+
+
 class DataframeToDeltaTableComponent(Component, Model, Resolvable):
     """Sink — write a DataFrame to an existing Delta Lake table.
 
@@ -302,6 +318,21 @@ class DataframeToDeltaTableComponent(Component, Model, Resolvable):
         description=(
             "When mode='merge': SQL predicate matching target ↔ source rows by key, "
             "e.g. 'target.id = source.id'. Required for merge mode."
+        ),
+    )
+
+    delete_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "When mode='merge': column whose truthy value (True, 1, 'true', 'yes', 'y', "
+            "'d', 'delete', 'deleted' -- case-insensitive) marks a row for DELETE by "
+            "merge_predicate's key, instead of upsert -- true CDC apply (insert + update "
+            "+ delete), not just insert+update. A delete-flagged row is removed from the "
+            "target if matched, and never inserted if unmatched (e.g. a delete arriving "
+            "for a key the target never had, or for a table that doesn't exist yet -- see "
+            "auto-create below). The column is coerced to a real boolean before the merge "
+            "and is written into the target table like any other column (a CDC audit "
+            "trail), not stripped."
         ),
     )
 
@@ -488,19 +519,52 @@ class DataframeToDeltaTableComponent(Component, Model, Resolvable):
             if mode == "merge":
                 if not component.merge_predicate:
                     raise ValueError("mode='merge' requires merge_predicate.")
-                dt = DeltaTable(component.table_uri, storage_options=storage_opts or None)
-                # delta-rs MERGE API: TableMerger.execute()
-                merge = (
-                    dt.merge(
+                delete_col = component.delete_column
+                if delete_col:
+                    if delete_col not in df.columns:
+                        raise ValueError(
+                            f"delete_column={delete_col!r} is not a column in the upstream DataFrame."
+                        )
+                    df = df.copy()
+                    df[delete_col] = df[delete_col].apply(_is_delete_flag)
+
+                from deltalake.exceptions import TableNotFoundError
+
+                try:
+                    dt = DeltaTable(component.table_uri, storage_options=storage_opts or None)
+                    table_exists = True
+                except TableNotFoundError:
+                    table_exists = False
+
+                if not table_exists:
+                    # Nothing to merge against yet -- auto-create via an initial
+                    # insert-only write. Rows flagged for delete have nothing to
+                    # delete and must never be inserted.
+                    init_df = df[~df[delete_col]] if delete_col else df
+                    init_kwargs = dict(kwargs)
+                    init_kwargs["mode"] = "append"
+                    write_deltalake(component.table_uri, init_df, **init_kwargs)
+                else:
+                    # delta-rs MERGE API: TableMerger.execute()
+                    merge = dt.merge(
                         source=df,
                         predicate=component.merge_predicate,
                         source_alias="source",
                         target_alias="target",
                     )
-                    .when_matched_update_all()
-                    .when_not_matched_insert_all()
-                )
-                merge.execute()
+                    if delete_col:
+                        _q = f"`{delete_col}`"
+                        _delete_pred = f"source.{_q} = true"
+                        _keep_pred = f"source.{_q} = false"
+                        merge = (
+                            merge
+                            .when_matched_delete(predicate=_delete_pred)
+                            .when_matched_update_all(predicate=_keep_pred)
+                            .when_not_matched_insert_all(predicate=_keep_pred)
+                        )
+                    else:
+                        merge = merge.when_matched_update_all().when_not_matched_insert_all()
+                    merge.execute()
             elif mode == "overwrite" and component.overwrite_partition_filter:
                 # Partition-level overwrite via predicate
                 pfilters = []

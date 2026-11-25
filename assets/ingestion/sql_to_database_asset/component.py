@@ -26,6 +26,30 @@ def _require_env(name: str) -> str:
     return value
 
 
+# BEGIN CDC delete-flag coercion (inlined per component; keep copies identical — see tests/test_cdc_delete_semantics.py)
+def _is_delete_flag(value) -> bool:
+    """True when a delete_column's raw value marks a row for CDC delete. Accepts a real
+    bool, a numeric truthy value, or a case-insensitive string marker -- CDC sources vary
+    widely in how they encode "this row was deleted" (bool column, 0/1, 'D'/'DELETE', ...)."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() in ("true", "1", "yes", "y", "d", "delete", "deleted")
+
+
+def _coerce_delete_column(df, delete_column):
+    """Returns a copy of df with delete_column coerced to 0/1 ints -- a boolean literal
+    that's portable across every SQL dialect this component supports, unlike `true`/`TRUE`
+    (rejected by some engines in this comparison position)."""
+    df = df.copy()
+    df[delete_column] = df[delete_column].apply(_is_delete_flag).astype(int)
+    return df
+# END CDC delete-flag coercion
+
+
 # BEGIN upsert-merge-sql (inlined per component; keep copies identical — see tests/test_upsert_merge_sql_drift.py)
 def build_merge_sql(schema, table, staging_table, columns, key_columns, quote='"'):
     """Standard-SQL MERGE INTO statement moving staged rows into `table`, updating matched
@@ -110,10 +134,17 @@ def build_dialect_upsert_sql(dialect, schema, table, staging_table, columns, key
     )
 
 
-def write_or_upsert(df, dest_table, dst_engine, schema, if_exists, upsert_key_columns, chunksize, run_id):
+def write_or_upsert(df, dest_table, dst_engine, schema, if_exists, upsert_key_columns, chunksize, run_id, delete_column=None):
     """Write `df` to `dest_table`, or -- when if_exists='upsert' -- write it to a staging
     table and upsert from there by `upsert_key_columns`. Shared by every write call site in
-    this component (a normal tick and a combined-range backfill both write once)."""
+    this component (a normal tick and a combined-range backfill both write once).
+
+    delete_column (CDC apply): when set, rows flagged for delete are removed from the
+    TARGET (by key, via a portable DELETE...WHERE EXISTS correlated subquery against
+    staging -- plain ANSI SQL, not a dialect extension) and dropped from staging before the
+    normal upsert runs, so they're never re-inserted -- including a delete for a key the
+    target never had (it's simply absent from staging afterward, so the upsert below has
+    nothing to insert for it)."""
     if if_exists != "upsert":
         df.to_sql(dest_table, con=dst_engine, schema=schema, if_exists=if_exists, index=False, method="multi", chunksize=chunksize)
         return
@@ -121,15 +152,27 @@ def write_or_upsert(df, dest_table, dst_engine, schema, if_exists, upsert_key_co
         raise ValueError("sql_to_database_asset: if_exists='upsert' requires upsert_key_columns.")
     import sqlalchemy
 
-    stage_table = f"{dest_table}_stage_{run_id.replace('-', '')[:12]}"
-    df.to_sql(stage_table, con=dst_engine, schema=schema, if_exists="replace", index=False, method="multi", chunksize=chunksize)
+    if delete_column:
+        if delete_column not in df.columns:
+            raise ValueError(f"delete_column={delete_column!r} is not a column in the DataFrame.")
+        df = _coerce_delete_column(df, delete_column)
+
     dialect = dst_engine.dialect.name
-    target_exists = sqlalchemy.inspect(dst_engine).has_table(dest_table, schema=schema)
     quote = _UPSERT_DIALECT_QUOTE.get(dialect, '"')
     full_target = f"{quote}{schema}{quote}.{quote}{dest_table}{quote}" if schema else f"{quote}{dest_table}{quote}"
+    target_exists = sqlalchemy.inspect(dst_engine).has_table(dest_table, schema=schema)
+
+    stage_table = f"{dest_table}_stage_{run_id.replace('-', '')[:12]}"
+    full_stage = f"{quote}{schema}{quote}.{quote}{stage_table}{quote}" if schema else f"{quote}{stage_table}{quote}"
+
+    # Auto-create path (target doesn't exist yet): a delete-flagged row has nothing to
+    # delete and must never be inserted -- strip it before it ever reaches the table
+    # that becomes the target via rename below.
+    stage_df = df[df[delete_column] == 0] if (delete_column and not target_exists) else df
+    stage_df.to_sql(stage_table, con=dst_engine, schema=schema, if_exists="replace", index=False, method="multi", chunksize=chunksize)
+
     with dst_engine.begin() as conn:
         if not target_exists:
-            full_stage = f"{quote}{schema}{quote}.{quote}{stage_table}{quote}" if schema else f"{quote}{stage_table}{quote}"
             conn.execute(sqlalchemy.text(f"ALTER TABLE {full_stage} RENAME TO {quote}{dest_table}{quote}"))
             if dialect in ("postgresql", "sqlite", "duckdb", "mysql", "mariadb"):
                 # ON CONFLICT / ON DUPLICATE KEY UPDATE both require a UNIQUE index on the
@@ -147,9 +190,20 @@ def write_or_upsert(df, dest_table, dst_engine, schema, if_exists, upsert_key_co
                     f"ON {full_target} ({key_cols_sql})"
                 ))
         else:
-            merge_sql = build_dialect_upsert_sql(dialect, schema, dest_table, stage_table, list(df.columns), upsert_key_columns)
+            if delete_column:
+                on_clause = " AND ".join(
+                    f"{full_target}.{quote}{c}{quote} = {full_stage}.{quote}{c}{quote}"
+                    for c in upsert_key_columns
+                )
+                conn.execute(sqlalchemy.text(
+                    f"DELETE FROM {full_target} WHERE EXISTS (SELECT 1 FROM {full_stage} "
+                    f"WHERE {on_clause} AND {full_stage}.{quote}{delete_column}{quote} = 1)"
+                ))
+                conn.execute(sqlalchemy.text(
+                    f"DELETE FROM {full_stage} WHERE {quote}{delete_column}{quote} = 1"
+                ))
+            merge_sql = build_dialect_upsert_sql(dialect, schema, dest_table, stage_table, list(stage_df.columns), upsert_key_columns)
             conn.execute(sqlalchemy.text(merge_sql))
-            full_stage = f"{quote}{schema}{quote}.{quote}{stage_table}{quote}" if schema else f"{quote}{stage_table}{quote}"
             conn.execute(sqlalchemy.text(f"DROP TABLE IF EXISTS {full_stage}"))
 
 
@@ -354,6 +408,20 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "postgresql:// URL is treated as Postgres (ON CONFLICT), which Redshift does "
             "NOT support -- use dataframe_to_redshift's own upsert for a Redshift "
             "destination instead. The target table is auto-created on first write."
+        ),
+    )
+    delete_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column whose truthy value (True, 1, 'true', 'yes', 'y', 'd', 'delete', "
+            "'deleted' -- case-insensitive) marks a row for DELETE by upsert_key_columns, "
+            "instead of upsert -- true CDC apply (insert + update + delete), not just "
+            "insert+update. Only used with if_exists='upsert'. A delete-flagged row is "
+            "removed from the destination if matched, and never inserted if unmatched "
+            "(e.g. a delete arriving for a key the destination never had, or for a table "
+            "that doesn't exist yet -- auto-create then skips it entirely). The column is "
+            "written into the destination table like any other column (a CDC audit "
+            "trail), not stripped."
         ),
     )
     watermark_column: Optional[Union[str, int]] = Field(default=None, description="Incremental watermark column (e.g. updated_at, id)")
@@ -714,6 +782,7 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 write_or_upsert(
                     df, dest_table, dst_engine, _self.destination_schema, _self.if_exists,
                     _self.upsert_key_columns, _self.chunksize, context.run.run_id,
+                    delete_column=_self.delete_column,
                 )
 
                 qualified = f"{_self.destination_schema + '.' if _self.destination_schema else ''}{dest_table}"
@@ -782,6 +851,7 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     write_or_upsert(
                         df, dest_table, dst_engine, _self.destination_schema, _self.if_exists,
                         _self.upsert_key_columns, _self.chunksize, context.run.run_id,
+                        delete_column=_self.delete_column,
                     )
                     qualified = f"{_self.destination_schema + '.' if _self.destination_schema else ''}{dest_table}"
                     context.log.info(f"Wrote {len(df)} rows to {qualified}")

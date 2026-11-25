@@ -332,6 +332,12 @@
       "label": "Upsert Key Columns",
       "description": "Key columns identifying a row for mode='upsert' (ADF's SQL sink writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table then MERGEs into the target by these keys (Databricks SQL/Delta's native upsert mechanism); non-key columns are updated on a match and new rows are inserted. The target table is auto-created on first write.",
       "required": false
+    },
+    "delete_column": {
+      "type": "string",
+      "label": "Delete Column",
+      "description": "Column whose truthy value (True, 1, 'true', 'yes', 'y', 'd', 'delete', 'deleted' -- case-insensitive) marks a row for DELETE by upsert_key_columns, instead of upsert -- true CDC apply (insert + update + delete), not just insert+update. Only used with mode='upsert'. A delete-flagged row is removed from the target if matched, and never inserted if unmatched (e.g. a delete arriving for a key the target never had, or for a table that doesn't exist yet -- auto-create then skips it entirely). The column is written into the target table like any other column (a CDC audit trail), not stripped.",
+      "required": false
     }
   },
   "tags": [

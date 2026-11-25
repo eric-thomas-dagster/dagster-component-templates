@@ -389,6 +389,12 @@
       "label": "Upsert Key Columns",
       "description": "Key columns identifying a row for if_exists='upsert' (ADF's SQL sink writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table, then upserts by these keys using syntax chosen by the destination's SQLAlchemy dialect: INSERT...ON CONFLICT (postgresql/sqlite/duckdb), INSERT...ON DUPLICATE KEY UPDATE (mysql/mariadb), or MERGE INTO (mssql/oracle/snowflake). A Redshift destination connected via a plain postgresql:// URL is treated as Postgres (ON CONFLICT), which Redshift does NOT support -- use dataframe_to_redshift's own upsert for a Redshift destination instead. The target table is auto-created on first write.",
       "required": false
+    },
+    "delete_column": {
+      "type": "string",
+      "label": "Delete Column",
+      "description": "Column whose truthy value (True, 1, 'true', 'yes', 'y', 'd', 'delete', 'deleted' -- case-insensitive) marks a row for DELETE by upsert_key_columns, instead of upsert -- true CDC apply (insert + update + delete), not just insert+update. Only used with if_exists='upsert'. A delete-flagged row is removed from the destination if matched, and never inserted if unmatched (e.g. a delete arriving for a key the destination never had, or for a table that doesn't exist yet -- auto-create then skips it entirely). The column is written into the destination table like any other column (a CDC audit trail), not stripped.",
+      "required": false
     }
   },
   "tags": [

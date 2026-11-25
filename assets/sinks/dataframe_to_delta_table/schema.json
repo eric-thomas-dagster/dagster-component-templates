@@ -265,6 +265,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "delete_column": {
+      "type": "string",
+      "label": "Delete Column",
+      "description": "When mode='merge': column whose truthy value (True, 1, 'true', 'yes', 'y', 'd', 'delete', 'deleted' -- case-insensitive) marks a row for DELETE by merge_predicate's key, instead of upsert -- true CDC apply (insert + update + delete), not just insert+update. A delete-flagged row is removed from the target if matched, and never inserted if unmatched (e.g. a delete arriving for a key the target never had, or for a table that doesn't exist yet -- see auto-create below). The column is coerced to a real boolean before the merge and is written into the target table like any other column (a CDC audit trail), not stripped.",
+      "required": false
     }
   },
   "tags": [

@@ -117,6 +117,7 @@ sqlalchemy>=2.0.0
 | `destination_resource_key` | `str` | — | Key of a registered SQL resource to use for the destination connection instead of destination_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do. |
 | `destination_schema` | `str` | — | Destination schema name |
 | `upsert_key_columns` | `List[str]` | — | Key columns identifying a row for if_exists='upsert' (ADF's SQL sink writeBehavior='upsert' + upsertSettings.keys). Writes to a staging table, then upserts by these keys using syntax chosen by the destination's SQLAlchem… _(full docs in schema.json + component README)_ |
+| `delete_column` | `str` | — | Column whose truthy value (True, 1, 'true', 'yes', 'y', 'd', 'delete', 'deleted' -- case-insensitive) marks a row for DELETE by upsert_key_columns, instead of upsert -- true CDC apply (insert + update + delete), not just… _(full docs in schema.json + component README)_ |
 | `watermark_column` | `Union[str, int]` | — | Incremental watermark column (e.g. updated_at, id) |
 | `watermark_env_var` | `str` | — | Env var storing the last watermark value |
 | `chunksize` | `int` | `10000` | Rows to read/write per chunk |

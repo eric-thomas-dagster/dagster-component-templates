@@ -36,6 +36,30 @@ def _require_env(name: str) -> str:
     return value
 
 
+# BEGIN CDC delete-flag coercion (inlined per component; keep copies identical — see tests/test_cdc_delete_semantics.py)
+def _is_delete_flag(value) -> bool:
+    """True when a delete_column's raw value marks a row for CDC delete. Accepts a real
+    bool, a numeric truthy value, or a case-insensitive string marker -- CDC sources vary
+    widely in how they encode "this row was deleted" (bool column, 0/1, 'D'/'DELETE', ...)."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() in ("true", "1", "yes", "y", "d", "delete", "deleted")
+
+
+def _coerce_delete_column(df, delete_column):
+    """Returns a copy of df with delete_column coerced to 0/1 ints for the staging
+    table's CREATE DDL (this component always types columns via _databricks_type, which
+    has no bool-literal special case -- 0/1 ints avoid any TRUE/true literal ambiguity)."""
+    df = df.copy()
+    df[delete_column] = df[delete_column].apply(_is_delete_flag).astype(int)
+    return df
+# END CDC delete-flag coercion
+
+
 def _databricks_merge_sql(full_table, full_staging, columns, key_columns):
     """Delta MERGE INTO statement moving staged rows into `full_table`, updating matched
     rows by `key_columns` and inserting the rest -- Databricks SQL/Delta's native upsert
@@ -291,6 +315,19 @@ class DataframeToDatabricksComponent(Component, Model, Resolvable):
             "inserted. The target table is auto-created on first write."
         ),
     )
+    delete_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column whose truthy value (True, 1, 'true', 'yes', 'y', 'd', 'delete', "
+            "'deleted' -- case-insensitive) marks a row for DELETE by upsert_key_columns, "
+            "instead of upsert -- true CDC apply (insert + update + delete), not just "
+            "insert+update. Only used with mode='upsert'. A delete-flagged row is removed "
+            "from the target if matched, and never inserted if unmatched (e.g. a delete "
+            "arriving for a key the target never had, or for a table that doesn't exist "
+            "yet -- auto-create then skips it entirely). The column is written into the "
+            "target table like any other column (a CDC audit trail), not stripped."
+        ),
+    )
     merge_schema: bool = Field(default=True, description="Allow schema evolution when appending")
     cluster_id: Optional[str] = Field(default=None, description="SQL warehouse or cluster ID (None = auto)")
     drop_timezone: bool = Field(
@@ -509,6 +546,7 @@ class DataframeToDatabricksComponent(Component, Model, Resolvable):
         mode = self.mode
         merge_schema = self.merge_schema
         upsert_key_columns = self.upsert_key_columns
+        delete_column = self.delete_column
         cluster_id = self.cluster_id
         drop_timezone = self.drop_timezone
         group_name = self.group_name
@@ -715,28 +753,55 @@ group_name=group_name,
                     if mode == "upsert":
                         if not upsert_key_columns:
                             raise ValueError("dataframe_to_databricks: mode='upsert' requires upsert_key_columns.")
+                        if delete_column:
+                            if delete_column not in upstream.columns:
+                                raise ValueError(f"delete_column={delete_column!r} is not a column in the upstream DataFrame.")
+                            upstream = _coerce_delete_column(upstream, delete_column)
                         stage_table = f"{table}_stage_{context.run.run_id.replace('-', '')[:12]}"
                         full_stage = f"{catalog}.{schema}.{stage_table}"
-                        cols = ", ".join(
-                            f"`{c}` {_databricks_type(upstream[c].dtype)}"
-                            for c in upstream.columns
-                        )
-                        cursor.execute(f"CREATE OR REPLACE TABLE {full_stage} ({cols})")
-                        batch_size = 1000
-                        for i in range(0, len(upstream), batch_size):
-                            batch = upstream.iloc[i : i + batch_size]
-                            placeholders = ", ".join(["?" for _ in range(len(batch.columns))])
-                            values = [tuple(row) for row in batch.itertuples(index=False)]
-                            cursor.executemany(f"INSERT INTO {full_stage} VALUES ({placeholders})", values)
+
                         cursor.execute(
                             f"SELECT COUNT(*) FROM information_schema.tables "
                             f"WHERE table_catalog='{catalog}' AND table_schema='{schema}' AND table_name='{table}'"
                         )
                         target_exists = cursor.fetchone()[0] > 0
+
+                        # Auto-create path (target doesn't exist yet): a delete-flagged
+                        # row has nothing to delete and must never be inserted -- strip
+                        # it before it ever reaches the table that becomes the target
+                        # via rename below.
+                        stage_df = upstream[upstream[delete_column] == 0] if (delete_column and not target_exists) else upstream
+
+                        cols = ", ".join(
+                            f"`{c}` {_databricks_type(upstream[c].dtype)}"
+                            for c in stage_df.columns
+                        )
+                        cursor.execute(f"CREATE OR REPLACE TABLE {full_stage} ({cols})")
+                        batch_size = 1000
+                        for i in range(0, len(stage_df), batch_size):
+                            batch = stage_df.iloc[i : i + batch_size]
+                            placeholders = ", ".join(["?" for _ in range(len(batch.columns))])
+                            values = [tuple(row) for row in batch.itertuples(index=False)]
+                            cursor.executemany(f"INSERT INTO {full_stage} VALUES ({placeholders})", values)
+
                         if not target_exists:
                             cursor.execute(f"ALTER TABLE {full_stage} RENAME TO {full_table}")
                         else:
-                            merge_sql = _databricks_merge_sql(full_table, full_stage, list(upstream.columns), upsert_key_columns)
+                            if delete_column:
+                                # True CDC apply: delete matched target rows flagged for
+                                # delete, then drop those rows from staging so the merge
+                                # below never re-inserts them (also covers a delete for a
+                                # key the target never had -- simply absent from staging
+                                # afterward).
+                                on_clause = " AND ".join(
+                                    f"{full_table}.`{c}` = {full_stage}.`{c}`" for c in upsert_key_columns
+                                )
+                                cursor.execute(
+                                    f"DELETE FROM {full_table} WHERE EXISTS (SELECT 1 FROM {full_stage} "
+                                    f"WHERE {on_clause} AND {full_stage}.`{delete_column}` = 1)"
+                                )
+                                cursor.execute(f"DELETE FROM {full_stage} WHERE `{delete_column}` = 1")
+                            merge_sql = _databricks_merge_sql(full_table, full_stage, list(stage_df.columns), upsert_key_columns)
                             cursor.execute(merge_sql)
                             cursor.execute(f"DROP TABLE IF EXISTS {full_stage}")
                         total_rows = len(upstream)

@@ -92,6 +92,8 @@ The component does `when_matched_update_all()` + `when_not_matched_insert_all()`
 | `partition_type` | `str` | — | — |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `Union[str, List[str]]` | — | — |
 
@@ -116,6 +118,7 @@ The component does `when_matched_update_all()` + `when_not_matched_insert_all()`
 | `storage_options` | `Dict[str, str]` | — | Cloud creds + config. ${ENV_VAR} expansion supported. |
 | `overwrite_partition_filter` | `List[List[str]]` | — | When mode='overwrite': replace only the rows matching these partition predicates (format same as delta_ingestion's partition_filters). Supports {partition_key}. |
 | `merge_predicate` | `str` | — | When mode='merge': SQL predicate matching target ↔ source rows by key, e.g. 'target.id = source.id'. Required for merge mode. |
+| `delete_column` | `str` | — | When mode='merge': column whose truthy value (True, 1, 'true', 'yes', 'y', 'd', 'delete', 'deleted' -- case-insensitive) marks a row for DELETE by merge_predicate's key, instead of upsert -- true CDC apply (insert + upda… _(full docs in schema.json + component README)_ |
 | `schema_mode` | `str` | — | Schema evolution. 'merge' allows new columns to be added; None enforces the existing schema. Use 'merge' cautiously — it can mask upstream bugs. |
 | `skip_columns` | `List[str]` | — | — |
 | `dynamic_partition_name` | `str` | — | — |

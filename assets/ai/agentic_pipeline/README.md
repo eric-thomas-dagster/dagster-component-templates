@@ -696,6 +696,9 @@ Direct MCP tool call — no LLM, deterministic step. Use for the "fetch groundin
 | `mcp_tool_name` | ✅ | — | Tool name as the MCP server exposes it (e.g. `get_issue`). |
 | `tool_args` |  | `{}` | `{arg_name: value}`. String values support `{text}` (source) + `{port_name}` (typed inputs) substitution. |
 | `parse_as` |  | `auto` | `auto` (try JSON, fall back to text) / `json` / `text`. |
+| `per_item` |  | `false` | Call the tool once per item in a list source instead of once for the whole batch — the "file one thing per finding" pattern. Source is parsed the same way `map`/`route`/`invoke_component` parse a list (JSON array, a dict with a `data`/`items`/`results`/`values` list, else non-empty lines); `{item}` substitutes into string `tool_args` for each call. One item's call raising doesn't abort the rest — that item's entry carries `is_error: true` + `error` instead; an empty list makes zero calls (`n_items: 0`), not an error. |
+| `max_concurrent` |  | `1` | `per_item` only: thread-pool workers for the per-item tool calls. `1` = sequential. |
+| `output_join` |  | `newlines` | `per_item` only: how to join per-item results into `text` — same meaning as `map`'s/`route`'s `output_join` (`newlines` \| `jsonl` \| `none` \| `records`). |
 
 Result text: text parts are joined in order; an embedded *text* resource is returned as text; images, audio, binary resources and resource links become one-line placeholders (`[image omitted: image/png, ~3009 bytes]`) and are listed in the `content_parts` output field; a structured-only result becomes its JSON. A tool-level failure (`isError`) is a normal result with `is_error: true` on every transport. `mcp_call` returns the full text (no truncation).
 | `source` |  | Most recent step | Legacy — feeds `{text}` in string `tool_args`. |
@@ -725,8 +728,10 @@ The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach f
 | `reasoning_effort` |  | — | Reasoning-model effort level (`low`/`medium`/`high`). |
 | `thinking_budget` |  | — | Max reasoning-trace tokens (Gemini 2.5+/Anthropic thinking models). |
 | `prompt_caching` |  | `false` | Anthropic models only: `cache_control: ephemeral` on the system message (the one confirmed real effect of this field today). |
+| `required_tool_calls` |  | — | Tool name(s)/fnmatch patterns the model MUST call at least once before the loop is allowed to finish (by `finalize` or by stopping without a tool call). Each entry is a single pattern (required) or a list of patterns (an "any of" group). When the model tries to stop without having called every required entry, it gets ONE reminder (consuming one of `max_iterations`' own rounds) and a chance to call them before finishing; whether a call itself succeeded or errored doesn't matter, only whether it was attempted. |
+| `on_required_tool_calls_missing` |  | `fail` | What happens when `required_tool_calls` is set and still unsatisfied after the one reminder. `fail` raises (the run fails, naming what's missing); `warn` never raises — the result carries `required_tools_missing` instead (empty list when everything required was called). |
 
-Emitted metadata includes `tool_call_trace`, `n_llm_calls`, `n_tool_calls`, `stop_reason` (`finalize_called` | `final_answer_no_tool` | `max_iterations`), plus per-turn latency + cost.
+Emitted metadata includes `tool_call_trace`, `n_llm_calls`, `n_tool_calls`, `stop_reason` (`finalize_called` | `final_answer_no_tool` | `max_iterations`), plus per-turn latency + cost. When `required_tool_calls` is set, also `required_tools_missing`.
 
 #### `skill_keys` — Agent Skills (progressive disclosure)
 

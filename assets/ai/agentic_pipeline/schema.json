@@ -210,6 +210,30 @@
       "label": "Run Input Tag",
       "description": "Run tag name carrying a per-run input value for this pipeline's prompts -- a `{input}` placeholder (usable anywhere {partition_key} is: prompt_template, system_prompt, tool_args, source.text/path/url, sink paths, ...) substitutes with `context.run.tags[run_input_tag]` when that tag is set on the run, else `{input}` is left unsubstituted. This is the first-class way to give an agent a different question each run WITHOUT the dynamic-partition-per-question workaround (no partition-key sanitization of commas/brackets, no ~200-char cap, no id suffix to avoid collisions on a repeated question) -- launch the run with this tag set (Launchpad tags, `dg launch --tags`, or a sensor/job that sets it) instead of creating a partition. `{partition_key}` keeps working exactly as it does today; the two are independent and may both be used in the same pipeline. Set to null to disable (frees `{input}` to mean nothing special, e.g. for a pipeline that gets real per-run data some other way).",
       "required": false
+    },
+    "context_notes": {
+      "type": "string",
+      "label": "Context Notes",
+      "description": "Free text appended to the system prompt of every LLM-calling step in this pipeline (llm_call, route, conditional_route, debate, critique_loop, synthesize, map, classify, extract, reduce, self_reflect, best_of_n, cascade, plan, decide, delegate's picker, tool_use_loop) under its own heading, naming what's deliberate in the repo/environment this pipeline reviews -- a demo's artificial flakiness, a test fixture that's supposed to fail, a known limitation that isn't a bug. Without this, an advisor pipeline has filed 'fix' findings against exactly the things a repo was built to demonstrate. Not a substitute for reading the repo's own README/CONTRIBUTING first (put that instruction in a step's own prompt instead) -- this is for the handful of things worth saying explicitly even after that, or when no such doc exists. Also surfaced on every emitted step's own asset metadata (as context_notes) so a person reading one step's output can see why it was told. mcp_call and verify never call an LLM, so this never reaches them.",
+      "required": false
+    },
+    "outcome_ledger_path": {
+      "type": "string",
+      "label": "Outcome Ledger Path",
+      "description": "Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own ledger_path field pointed at this SAME directory) writes this run's consequential actions into, keyed by run_id -- read by the companion outcome asset (see emit_outcome_asset). A deterministic mcp_call step that files via such a server works the same way a litellm_agent/tool_use_loop step would. Unset: the outcome asset still emits (when enabled), just with empty filed/would_file/refused/decisions_for_you.",
+      "required": false
+    },
+    "decisions_marker": {
+      "type": "string",
+      "label": "Decisions Marker",
+      "description": "Heading (case-insensitive) that starts the pipeline's final step's 'decisions for a person' section at the end of its text. The lines under it fill the outcome asset's decisions_for_you (\"none\" gives nothing), and the text before it becomes the outcome's `summary` metadata (700 chars). Empty disables both.",
+      "required": false
+    },
+    "emit_outcome_asset": {
+      "type": "boolean",
+      "label": "Emit Outcome Asset",
+      "description": "Build a companion '{asset_name_prefix}_outcome' asset (same partitions_def as this pipeline) that collapses this run's outcome-ledger entries (see outcome_ledger_path) plus the pipeline's own LAST declared output (outputs.assets[-1])'s text into {status, filed, would_file, refused, decisions_for_you, text} -- matched by run_id, not a wall-clock time window (which mixes concurrent runs together). Shaped to feed agent_fixture_check directly, same as litellm_agent's own emit_outcome_asset. A tool_use_loop step's required_tools_missing (see ToolUseLoopStep.required_tool_calls) is passed through when the last declared output is a tool_use_loop step.",
+      "required": false
     }
   },
   "tags": [

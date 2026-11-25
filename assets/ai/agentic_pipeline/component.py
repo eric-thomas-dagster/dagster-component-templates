@@ -107,6 +107,139 @@ if _BaseExceptionGroup is None:
 
 
 
+# BEGIN agent outcome ledger (inlined per component; keep copies identical -- see tests/test_agent_outcome_ledger_drift.py)
+# A tool server (github_pr_tools/linear_ticket_tools) WRITES one JSON-lines entry per consequential
+# action it takes, keyed by the Dagster run_id an agent component threads through MCP's out-of-band
+# request _meta (see each agent component's own `meta={"dagster_run_id": ...}` call in session.call_tool).
+# An agent's own companion outcome asset READS that run's entries and collapses them into four buckets:
+# filed (a real write happened), would_file (practice mode -- would have, but didn't), refused (a
+# guardrail declined it -- e.g. a duplicate, a protected path), decisions_for_you (flagged for a human,
+# e.g. an APPROVE a risk rule refuses). Matched by run_id, not a wall-clock time window -- a window
+# mixes concurrent runs together.
+import json as _oal_json
+import os as _oal_os
+import threading as _oal_threading
+from datetime import datetime as _oal_datetime, timezone as _oal_timezone
+
+_OUTCOME_LEDGER_LOCK = _oal_threading.Lock()
+
+
+def _outcome_ledger_file(ledger_path: str, run_id: str) -> str:
+    return _oal_os.path.join(_oal_os.path.expanduser(ledger_path), f"{run_id}.jsonl")
+
+
+def write_outcome_ledger_entry(ledger_path: Optional[str], run_id: Optional[str], entry: Dict[str, Any]) -> None:
+    """No-op unless both ledger_path and run_id are set -- zero behavior change for a tool server that
+    hasn't configured a ledger_path, and zero entries for a call made with no run_id behind it (e.g. a
+    human using `claude mcp add` directly, outside any Dagster run)."""
+    if not ledger_path or not run_id:
+        return
+    path = _outcome_ledger_file(ledger_path, run_id)
+    record = dict(entry)
+    record.setdefault("ts", _oal_datetime.now(_oal_timezone.utc).isoformat(timespec="seconds"))
+    record.setdefault("run_id", run_id)
+    with _OUTCOME_LEDGER_LOCK:
+        _oal_os.makedirs(_oal_os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(_oal_json.dumps(record, default=str) + "\n")
+
+
+def read_outcome_ledger_entries(ledger_path: Optional[str], run_id: Optional[str]) -> List[Dict[str, Any]]:
+    if not ledger_path or not run_id:
+        return []
+    path = _outcome_ledger_file(ledger_path, run_id)
+    if not _oal_os.path.isfile(path):
+        return []
+    entries: List[Dict[str, Any]] = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(_oal_json.loads(line))
+            except ValueError:
+                continue
+    return entries
+
+
+def _answer_decisions(answer: Any, marker: str) -> List[str]:
+    """The lines under a trailing "<marker>:" heading in an agent's final answer (the LAST occurrence, any case),
+    as plain strings. "none" / an empty section yields []. Capped at 10."""
+    import re
+    if not marker or not isinstance(answer, str):
+        return []
+    idx = answer.lower().rfind(marker.lower())
+    if idx < 0:
+        return []
+    items = []
+    for line in re.sub(r"^[\s:*_#]+", "", answer[idx + len(marker):]).splitlines():
+        item = re.sub(r"^\s*(?:[-*\u2022]+|\d+[.)])\s*", "", line).strip()
+        if re.search(r"\w", item) and item.strip(" .*_").lower() != "none":
+            items.append(item)
+    return items[:10]
+
+
+def _answer_summary(answer: Any, marker: str, limit: int = 700) -> str:
+    """The agent's final answer up to (not including) its "<marker>" section, trimmed to `limit` characters."""
+    text = answer if isinstance(answer, str) else ""
+    idx = text.lower().rfind(marker.lower()) if marker else -1
+    if idx >= 0:
+        text = text[:idx].rstrip("#*_:\t\n ")
+    text = text.strip()
+    return text[:limit] + ("\u2026" if len(text) > limit else "")
+
+
+def summarize_outcome_ledger(entries: List[Dict[str, Any]], answer: Any = "",
+                             decisions_marker: str = "decisions for you") -> Dict[str, Any]:
+    """Collapse one run's ledger entries (+ the agent's final answer) into {status, filed, would_file, refused,
+    decisions_for_you, summary}. status: needs_human (a decision_needed ledger entry) > filed (anything filed) >
+    practice (only would_file entries: practice mode drafted, nothing was filed) > refused > nothing_new (no entries).
+    decisions_for_you = decision_needed ledger entries (objects) then lines under the answer's `decisions_marker`
+    section (strings); the answer's own decisions never change `status`."""
+    filed, would_file, refused, decisions_for_you = [], [], [], []
+    for e in entries:
+        bucket = e.get("bucket")
+        detail = {k: v for k, v in e.items() if k not in ("bucket", "run_id")}
+        if bucket == "filed":
+            filed.append(detail)
+        elif bucket == "would_file":
+            would_file.append(detail)
+        elif bucket == "refused":
+            refused.append(detail)
+        elif bucket == "decision_needed":
+            decisions_for_you.append(detail)
+    if decisions_for_you:
+        status = "needs_human"
+    elif filed:
+        status = "filed"
+    elif would_file:
+        status = "practice"
+    elif refused:
+        status = "refused"
+    else:
+        status = "nothing_new"
+    return {
+        "status": status, "filed": filed, "would_file": would_file,
+        "refused": refused, "decisions_for_you": decisions_for_you + _answer_decisions(answer, decisions_marker),
+        "summary": _answer_summary(answer, decisions_marker),
+    }
+# END agent outcome ledger
+
+
+def _drafts_markdown(filed: List[Dict[str, Any]], would_file: List[Dict[str, Any]]) -> str:
+    """The full text of what was filed, or what would have been filed in practice mode, as one
+    markdown blob readable in the Dagster UI without digging through the run's own tool-call
+    logs -- a readable outcome, not just counts."""
+    parts = []
+    for row in would_file:
+        parts.append(f"## {row.get('title', '(untitled)')}\n\n_Practice mode, not filed ({row.get('component', '')})._\n\n{row.get('body', '')}")
+    for row in filed:
+        link = f" {row['url']}" if row.get("url") else ""
+        parts.append(f"## {row.get('title', row.get('kind', 'filed'))}\n\n_Filed ({row.get('kind', '')}).{link}_\n\n{row.get('body', '')}")
+    return "\n\n---\n\n".join(parts) or "Nothing was filed or drafted."
+
+
 def _require_env(name: str, purpose: Optional[str] = None) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -766,10 +899,27 @@ def _policy_scope(cfg: Optional[Dict[str, Any]], usage: Dict[str, Any]):
 
 _ACTIVE_POLICY: "contextvars.ContextVar[Optional[_Policy]]" = contextvars.ContextVar("agentic_policy", default=None)
 _REASONING_TRACE: "contextvars.ContextVar[Optional[list]]" = contextvars.ContextVar("agentic_reasoning", default=None)
+_CONTEXT_NOTES: "contextvars.ContextVar[Optional[str]]" = contextvars.ContextVar("agentic_context_notes", default=None)
 
 
 def _pol() -> Optional[_Policy]:
     return _ACTIVE_POLICY.get()
+
+
+def _ctx_notes() -> Optional[str]:
+    return _CONTEXT_NOTES.get()
+
+
+def _with_context_notes(system_prompt: Optional[str]) -> Optional[str]:
+    """Append the active pipeline's context_notes (what's deliberate in the repo/environment
+    this pipeline reviews) to a system prompt under its own heading -- same block shape
+    litellm_agent uses, so every LLM-calling op in a pipeline gets the same guidance with no
+    copy-paste. No-op when context_notes isn't configured."""
+    notes = _ctx_notes()
+    if not notes:
+        return system_prompt
+    block = f"## What's deliberate here (not a problem)\n{notes}"
+    return (system_prompt + "\n\n" + block) if system_prompt else block
 
 
 def _env_get(name: str, default: Optional[str] = None) -> Optional[str]:
@@ -1236,6 +1386,7 @@ def _completion(
         or m_lower.startswith(("anthropic/", "bedrock/anthropic."))
     )
 
+    system_prompt = _with_context_notes(system_prompt)
     messages: List[Dict[str, Any]] = []
     if system_prompt:
         # Anthropic prompt caching: wrap the system prompt with a
@@ -3328,6 +3479,17 @@ async def _call_mcp_tool_async(
     return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text", **extra}
 
 
+def _mcp_call_first_leaf(eg: "_BaseExceptionGroup") -> BaseException:
+    """Recursively unwrap nested anyio ExceptionGroups (mcp lib nests session-level and
+    stdio_client-level task groups) so the real underlying error -- subprocess exit, MCP
+    protocol error, tool-arg validation -- surfaces instead of a generic "unhandled errors
+    in a TaskGroup"."""
+    exc: BaseException = eg
+    while isinstance(exc, _BaseExceptionGroup) and exc.exceptions:
+        exc = exc.exceptions[0]
+    return exc
+
+
 def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Direct MCP tool call — no LLM, deterministic step in the pipeline.
 
@@ -3336,12 +3498,27 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             one registered server across steps/components instead of declaring it inline --
             exactly one of the two is required.
     mcp_tool_name: <tool name as the MCP server exposes it>
-    tool_args: {arg_name: value}      (string values are `{text}`-templated against source)
+    tool_args: {arg_name: value}      (string values are `{text}`-templated against source,
+               plus `{item}` per-item below)
     parse_as: 'auto' | 'json' | 'text'  (default 'auto')
 
     Use for the "fetch grounding data before the LLM specialists fan out"
     pattern — swap a URL/file `source:` for a first-class MCP step so the
-    fetch is a Dagster asset with lineage + metadata.
+    fetch is a Dagster asset with lineage + metadata. Also the deterministic
+    "file one thing per finding" pattern: a step upstream decides on 0-N
+    items (e.g. an LLM step whose output is a JSON array of findings); this
+    step calls the tool once per item, so filing can never be skipped the
+    way a free-text prompt instruction can be.
+
+    per_item (default false): source's text is parsed as a list (same rule map/route/
+    invoke_component use: a JSON array, a dict with a data/items/results/values list, else
+    non-empty lines) and this calls the tool once PER ITEM instead of once for the whole
+    batch, substituting `{item}` into tool_args for each. max_concurrent thread-pools the
+    per-item calls (default 1, sequential); output_join ('newlines' default | 'jsonl' |
+    'none' | 'records') shapes the joined `text`, same meaning as map's/route's. A single
+    item's call raising doesn't abort the rest -- that item's entry carries is_error: true +
+    error instead, and n_errors on the overall result counts them; an empty list makes zero
+    calls (n_items: 0), not an error.
     """
     import asyncio
     import os
@@ -3359,86 +3536,144 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     tool_name = step.get("mcp_tool_name")
     if not tool_name:
         raise ValueError("mcp_call requires `mcp_tool_name: <name-on-the-server>`")
+    parse_as = step.get("parse_as", "auto")
+    per_item = bool(step.get("per_item", False))
 
     # {partition_key} + {partition.<name>} were already substituted deep in
-    # `step` at dispatch time (see _run_step). {text} + {port_name} are per-op.
-    raw_args = step.get("tool_args") or {}
-    resolved_args: Dict[str, Any] = {}
-    for k, v in raw_args.items():
-        if isinstance(v, str):
-            v = v.replace("{text}", src_text)
-            v = _substitute_ports(v, inputs)
-            resolved_args[k] = v
-        else:
-            resolved_args[k] = v
+    # `step` at dispatch time (see _run_step). {text} + {port_name} (+ {item}
+    # for per_item) are per-op.
+    def _resolve_args(item_str: Optional[str]) -> Dict[str, Any]:
+        raw_args = step.get("tool_args") or {}
+        resolved: Dict[str, Any] = {}
+        for k, v in raw_args.items():
+            if isinstance(v, str):
+                v = v.replace("{text}", src_text)
+                if item_str is not None:
+                    v = v.replace("{item}", item_str)
+                v = _substitute_ports(v, inputs)
+                resolved[k] = v
+            else:
+                resolved[k] = v
+        return resolved
 
-    parse_as = step.get("parse_as", "auto")
-
-    context.log.info(
-        f"[mcp_call:{step.get('id')}] tool={tool_name} args={resolved_args}"
-    )
-
-    _p = _pol()
-    if _p is not None:
-        _refusal = _p.guard_tool(f"{server_cfg.get('name', 'mcp')}__{tool_name}", tool_name, resolved_args)
-        if _refusal:
-            raise PolicyViolation(f"[policy:tools] mcp_call step {step.get('id')!r}: {_refusal}")
-    _note_tool_call()
-
-    t0 = time.time()
-    try:
+    def _call_once(tool_args: Dict[str, Any]) -> Dict[str, Any]:
+        _p = _pol()
+        if _p is not None:
+            _refusal = _p.guard_tool(f"{server_cfg.get('name', 'mcp')}__{tool_name}", tool_name, tool_args)
+            if _refusal:
+                raise PolicyViolation(f"[policy:tools] mcp_call step {step.get('id')!r}: {_refusal}")
+        _note_tool_call()
+        t0 = time.time()
         result = asyncio.run(
             _call_mcp_tool_async(
                 log=context.log,
                 server_cfg=server_cfg,
                 tool_name=tool_name,
-                tool_args=resolved_args,
+                tool_args=tool_args,
                 parse_as=parse_as,
             )
         )
-    except _BaseExceptionGroup as eg:
-        # Recursively unwrap nested anyio ExceptionGroups (mcp lib nests
-        # session-level and stdio_client-level task groups) so the real
-        # underlying error — subprocess exit, MCP protocol error, tool-arg
-        # validation — surfaces in the Dagster UI instead of a generic
-        # "unhandled errors in a TaskGroup".
-        def _first_leaf(exc):
-            while isinstance(exc, _BaseExceptionGroup) and exc.exceptions:
-                exc = exc.exceptions[0]
-            return exc
+        latency_ms = int((time.time() - t0) * 1000)
+        # Stringify JSON value so downstream steps' `source: <this step id>`
+        # can consume it as text.
+        text = json.dumps(result["value"], indent=2, default=str) if result["kind"] == "json" else result["raw"]
+        if result["is_error"]:
+            context.log.warning(
+                f"[mcp_call:{step.get('id')}] server returned isError=True; treating as failure"
+            )
+        return {
+            "text": text,
+            "raw": result["raw"],
+            "value": result["value"],
+            "kind": result["kind"],
+            "is_error": result["is_error"],
+            "content_parts": result.get("content_parts", []),
+            "tool_args_resolved": tool_args,
+            "latency_ms": latency_ms,
+        }
 
-        inner = _first_leaf(eg)
-        context.log.error(
-            f"[mcp_call:{step.get('id')}] failed: {type(inner).__name__}: {inner}"
+    if not per_item:
+        resolved_args = _resolve_args(None)
+        context.log.info(
+            f"[mcp_call:{step.get('id')}] tool={tool_name} args={resolved_args}"
         )
-        raise inner from eg
-    latency_ms = int((time.time() - t0) * 1000)
+        try:
+            out = _call_once(resolved_args)
+        except _BaseExceptionGroup as eg:
+            inner = _mcp_call_first_leaf(eg)
+            context.log.error(
+                f"[mcp_call:{step.get('id')}] failed: {type(inner).__name__}: {inner}"
+            )
+            raise inner from eg
+        return {
+            "text": out["text"],
+            "raw": out["raw"],
+            "value": out["value"],
+            "kind": out["kind"],
+            "is_error": out["is_error"],
+            "content_parts": out["content_parts"],
+            "tool_name": tool_name,
+            "server_name": server_cfg.get("name") or "server",
+            "transport": server_cfg.get("type", "stdio"),
+            "tool_args_resolved": out["tool_args_resolved"],
+            "materialized_at": materialized_at,
+            "latency_ms": out["latency_ms"],
+            "op": "mcp_call",
+        }
 
-    # Stringify JSON value so downstream steps' `source: <this step id>`
-    # can consume it as text.
-    if result["kind"] == "json":
-        text = json.dumps(result["value"], indent=2, default=str)
+    # ── per_item ──────────────────────────────────────────────────────────
+    items = _parse_items(src_text)
+    if not items:
+        context.log.warning(f"[mcp_call:{step.get('id', '?')}] per_item: no items parsed from source")
+    max_concurrent = int(step.get("max_concurrent", 1))
+    output_join = step.get("output_join", "newlines")
+
+    def _process_item(index_and_item):
+        i, item = index_and_item
+        item_str = json.dumps(item) if not isinstance(item, str) else item
+        resolved_args = _resolve_args(item_str)
+        try:
+            out = _call_once(resolved_args)
+            return i, {
+                "item": item,
+                "text": out["text"],
+                "is_error": out["is_error"],
+                "value": out["value"],
+                "kind": out["kind"],
+                "tool_args_resolved": out["tool_args_resolved"],
+            }
+        except _BaseExceptionGroup as eg:
+            inner = _mcp_call_first_leaf(eg)
+            context.log.error(f"[mcp_call:{step.get('id', '?')}] item {item!r} failed: {type(inner).__name__}: {inner}")
+            return i, {"item": item, "text": "", "is_error": True, "error": f"{type(inner).__name__}: {inner}", "tool_args_resolved": resolved_args}
+        except Exception as e:
+            context.log.error(f"[mcp_call:{step.get('id', '?')}] item {item!r} failed: {type(e).__name__}: {e}")
+            return i, {"item": item, "text": "", "is_error": True, "error": f"{type(e).__name__}: {e}", "tool_args_resolved": resolved_args}
+
+    results: List[Any] = [None] * len(items)
+    context.log.info(f"[mcp_call:{step.get('id', '?')}] per_item: {len(items)} item(s) × max_concurrent={max_concurrent} tool={tool_name}")
+
+    if max_concurrent > 1 and len(items) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        _cctx = contextvars.copy_context()  # workers must see the active policy + spend counters
+        with ThreadPoolExecutor(max_workers=max_concurrent) as pool:
+            for i, entry in pool.map(lambda pair: _cctx.copy().run(_process_item, pair), enumerate(items)):
+                results[i] = entry
     else:
-        text = result["raw"]
+        for pair in enumerate(items):
+            i, entry = _process_item(pair)
+            results[i] = entry
 
-    if result["is_error"]:
-        context.log.warning(
-            f"[mcp_call:{step.get('id')}] server returned isError=True; treating as failure"
-        )
-
+    n_errors = sum(1 for r in results if r and r.get("is_error"))
     return {
-        "text": text,
-        "raw": result["raw"],
-        "value": result["value"],
-        "kind": result["kind"],
-        "is_error": result["is_error"],
-        "content_parts": result.get("content_parts", []),
+        "text": _join_per_item_route_results(results, output_join),
+        "items": results,
+        "n_items": len(items),
+        "n_errors": n_errors,
         "tool_name": tool_name,
         "server_name": server_cfg.get("name") or "server",
         "transport": server_cfg.get("type", "stdio"),
-        "tool_args_resolved": resolved_args,
         "materialized_at": materialized_at,
-        "latency_ms": latency_ms,
         "op": "mcp_call",
     }
 
@@ -3545,6 +3780,31 @@ def _mcp_tools_to_openai_schema(
     return schemas
 
 
+def _tool_name_allowed_for_required(name: str, patterns: List[str]) -> bool:
+    """fnmatch '*'-wildcard match of a called tool name against required_tool_calls patterns."""
+    return any(fnmatch.fnmatch(name, pattern) for pattern in patterns)
+
+
+def _missing_required_tool_groups(called_names: List[str], required_tool_calls: List[Any]) -> List[Any]:
+    """required_tool_calls: each entry is a single pattern (required) or a list of patterns (an
+    'any of' group). Returns the entries never satisfied by any name in called_names -- whether a
+    matched call itself errored doesn't matter, only whether it was attempted."""
+    missing = []
+    for entry in required_tool_calls:
+        patterns = entry if isinstance(entry, list) else [entry]
+        if not any(_tool_name_allowed_for_required(name, patterns) for name in called_names):
+            missing.append(entry)
+    return missing
+
+
+def _required_tools_reminder_text(missing: List[Any]) -> str:
+    parts = [("one of: " + ", ".join(g)) if isinstance(g, list) else g for g in missing]
+    return (
+        "Before finishing, you still need to call: " + "; ".join(parts) + ". "
+        "Call the required tool(s) now, then give your final answer."
+    )
+
+
 def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Open-ended tool-use loop. LLM picks tools, executes them via MCP,
     sees results, picks next tool — bounded by `max_iterations` OR the
@@ -3594,6 +3854,8 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     # never stored in the trajectory either way (tool_result_preview is 600 chars + tool_result_chars gives the real size)
     max_result_chars = step.get("tool_result_max_chars", 20000)
     max_result_chars = int(max_result_chars) if max_result_chars else 0
+    required_tool_calls = step.get("required_tool_calls")
+    on_required_tool_calls_missing = step.get("on_required_tool_calls_missing", "fail")
 
     system_prompt = step.get("system_prompt") or (
         "You are a tool-using agent. You have access to MCP tools. "
@@ -3655,6 +3917,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             "\n\nAvailable skills (call load_skill with the skill's name to load its full "
             f"instructions before using it):\n{skills_block}"
         )
+    system_prompt = _with_context_notes(system_prompt)
 
     context.log.info(
         f"[tool_use_loop:{step.get('id', '?')}] discovering tools across "
@@ -3772,6 +4035,10 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     stop_reason = "max_iterations"
     loaded_skill_names: "set[str]" = set()
     skill_load_count = 0
+    required_tools_reminder_sent = False
+
+    def _called_tool_names() -> List[str]:
+        return [t["tool_name"] for t in trajectory if str(t.get("phase", "")).startswith("tool_call") and t.get("tool_name")]
 
     for iteration in range(1, max_iterations + 1):
         kwargs: Dict[str, Any] = {
@@ -3845,8 +4112,20 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                 ]
 
         if not tool_calls:
-            # LLM emitted content without a tool call — treat as final answer.
+            # LLM emitted content without a tool call — treat as final answer,
+            # unless required_tool_calls is still unsatisfied and it hasn't had
+            # its one reminder yet.
             content = _content_clean
+            if required_tool_calls and not required_tools_reminder_sent:
+                _missing = _missing_required_tool_groups(_called_tool_names(), required_tool_calls)
+                if _missing:
+                    required_tools_reminder_sent = True
+                    messages.append({"role": "assistant", "content": content})
+                    messages.append({"role": "user", "content": _required_tools_reminder_text(_missing)})
+                    context.log.info(
+                        f"[tool_use_loop iter={iteration}] required_tool_calls unsatisfied {_missing}; sending one reminder instead of stopping."
+                    )
+                    continue
             trajectory.append({
                 "iteration": iteration,
                 "phase": "final_answer_no_tool",
@@ -3889,6 +4168,25 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
             # finalize → capture answer + stop
             if tool_name == finalize_name:
                 answer = tool_args.get("answer", "")
+                if required_tool_calls and not required_tools_reminder_sent:
+                    _missing = _missing_required_tool_groups(_called_tool_names(), required_tool_calls)
+                    if _missing:
+                        required_tools_reminder_sent = True
+                        messages.append({
+                            "role": "tool", "tool_call_id": tc.id,
+                            "content": "Not yet — " + _required_tools_reminder_text(_missing),
+                        })
+                        trajectory.append({
+                            "iteration": iteration,
+                            "phase": "finalize_rejected",
+                            "tool_name": finalize_name,
+                            "tool_args": tool_args,
+                            "error": _required_tools_reminder_text(_missing),
+                        })
+                        context.log.info(
+                            f"[tool_use_loop iter={iteration}] finalize called but required_tool_calls unsatisfied {_missing}; rejecting, one reminder sent."
+                        )
+                        continue
                 trajectory.append({
                     "iteration": iteration,
                     "phase": "finalize",
@@ -4128,6 +4426,14 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         result["skills_available"] = [res.describe() for res in skill_resources.values()]
         result["skills_loaded"] = sorted(loaded_skill_names)
         result["skill_load_count"] = skill_load_count
+    if required_tool_calls:
+        required_tools_missing = _missing_required_tool_groups(_called_tool_names(), required_tool_calls)
+        result["required_tools_missing"] = required_tools_missing
+        if required_tools_missing and on_required_tool_calls_missing == "fail":
+            raise RuntimeError(
+                f"[tool_use_loop:{step.get('id', '?')}] required_tool_calls not satisfied: "
+                + _required_tools_reminder_text(required_tools_missing)
+            )
     return result
 
 
@@ -8026,11 +8332,15 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
         n_before = len(usage["violations"])
         p_token = _ACTIVE_POLICY.set(policy)
     r_token = _REASONING_TRACE.set([])
+    _notes = state.get("__context_notes__")
+    cn_token = _CONTEXT_NOTES.set(_notes) if _notes else None
     try:
         result = _OPS[op](step, state, context)
         trace = _REASONING_TRACE.get()
     finally:
         _REASONING_TRACE.reset(r_token)
+        if cn_token is not None:
+            _CONTEXT_NOTES.reset(cn_token)
         if p_token is not None:
             _ACTIVE_POLICY.reset(p_token)
         _STEP_SPEND.reset(_sp_token)
@@ -8048,6 +8358,8 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
         if trace:
             result["reasoning"] = trace
             result["reasoning_chars"] = sum(len(r["text"]) for r in trace)
+        if _notes:
+            result["context_notes"] = _notes
         if policy_cfg or step_policy_cfg:
             u = state["__policy_usage__"]
             result["policy_violations"] = len(u["violations"]) - n_before
@@ -8829,12 +9141,20 @@ class SynthesizeStep(_StepBase):
 
 
 class McpCallStep(_StepBase):
-    """Direct MCP tool call -- no LLM, deterministic step."""
+    """Direct MCP tool call -- no LLM, deterministic step.
+
+    Batch-level by default: one call for the whole source. Set `per_item: true` to parse a
+    list source (same rule map/route/invoke_component use) and call the tool once per item
+    instead -- the tool a pipeline files N findings/tickets through, one call each, rather
+    than one call that has to somehow represent all of them at once."""
     op: Literal["mcp_call"]
     server: _MCPServerSpec = Field(description="MCP server spec.")
     mcp_tool_name: str = Field(description="Tool name as the MCP server exposes it.")
-    tool_args: Optional[Dict[str, Any]] = Field(default=None, description="{arg_name: value}. String values support {text}+{port_name} substitution.")
+    tool_args: Optional[Dict[str, Any]] = Field(default=None, description="{arg_name: value}. String values support {text}+{port_name} substitution (+ {item} when per_item is set).")
     parse_as: Literal["auto", "json", "text"] = Field(default="auto", description="auto tries JSON, falls back to text.")
+    per_item: bool = Field(default=False, description="Call the tool once per item in a list source instead of once for the whole batch. Source is parsed the same way map/route/invoke_component parse a list (JSON array, a dict with a data/items/results/values list, else non-empty lines). One item's call failing doesn't abort the others -- that item's entry carries is_error: true + error instead; an empty list makes zero calls and says so in the result rather than raising.")
+    max_concurrent: int = Field(default=1, description="per_item only: thread-pool workers for the per-item tool calls. 1 = sequential.")
+    output_join: Literal["newlines", "jsonl", "none", "records"] = Field(default="newlines", description="per_item only: how to join per-item results into `text` -- same meaning as map's/route's output_join.")
 
 
 class ToolUseLoopStep(_StepBase):
@@ -8856,6 +9176,29 @@ class ToolUseLoopStep(_StepBase):
     reasoning_effort: Optional[Literal["low", "medium", "high"]] = Field(default=None, description="Reasoning-model effort level.")
     thinking_budget: Optional[int] = Field(default=None, description="Max reasoning-trace tokens.")
     prompt_caching: bool = Field(default=False, description="Anthropic models only: cache_control: ephemeral on the system message.")
+    required_tool_calls: Optional[List[Union[str, List[str]]]] = Field(
+        default=None,
+        description=(
+            "Tool name(s)/fnmatch patterns the model MUST call at least once before the loop is allowed to "
+            "finish (by finalize or by stopping without a tool call) -- a model that drafts a finding and then "
+            "says 'filed' without having actually called the filing tool is a real, repeatedly observed "
+            "failure mode prompt wording alone doesn't reliably prevent. Each entry is either a single pattern "
+            "(that exact tool required) or a list of patterns (an 'any of' group -- satisfied by calling any "
+            "one of them). When the model tries to stop without having called every required entry, it gets "
+            "ONE reminder (consuming one of max_iterations' own rounds, not extra budget) and a chance to call "
+            "them before finishing; whether a call itself succeeded or errored doesn't matter, only whether it "
+            "was attempted. See on_required_tool_calls_missing for what happens if it still hasn't after that."
+        ),
+    )
+    on_required_tool_calls_missing: Literal["fail", "warn"] = Field(
+        default="fail",
+        description=(
+            "What happens when required_tool_calls is set and still unsatisfied after the one reminder. 'fail' "
+            "(default) raises, so the run fails and the reason is in the run's own failure message. 'warn' "
+            "never raises; the result (and the asset's own metadata) instead carries required_tools_missing, "
+            "the list of entries that were never satisfied (empty list when everything required was called)."
+        ),
+    )
 
 
 class HandoffStep(_StepBase):
@@ -9118,6 +9461,49 @@ StepUnion = Annotated[
     Field(discriminator="op"),
 ]
 # ── END step models ───────────────────────────────────────────────────────────────────────────────────────────────
+
+
+def _build_outcome_asset_defs(*, prefix: str, asset_ids: List[str], partitions_def, group_name: str,
+                              outcome_ledger_path: Optional[str], decisions_marker: str) -> dg.Definitions:
+    """The `<prefix>_outcome` companion asset (see AgenticPipelineComponent.emit_outcome_asset) -- same
+    read-the-ledger-and-summarize shape as litellm_agent's own `_agent_outcome_asset`, depending on the
+    pipeline's LAST declared output (outputs.assets[-1] -- the pipeline's natural final step, the same
+    convention `_last_step_id` already uses for sub_pipeline's default return value)."""
+    last_aid = asset_ids[-1]
+    upstream_key = dg.AssetKey([f"{prefix}_{last_aid}"])
+
+    @dg.asset(
+        key=dg.AssetKey([f"{prefix}_outcome"]),
+        partitions_def=partitions_def,
+        group_name=group_name,
+        ins={"pipeline_result": dg.AssetIn(key=upstream_key)},
+        description=(
+            f"Structured outcome for {prefix} -- status, filed, would_file, refused, decisions_for_you -- "
+            "from its outcome ledger, matched by this run's own run_id."
+        ),
+    )
+    def _pipeline_outcome_asset(context: dg.AssetExecutionContext, pipeline_result: Dict[str, Any]) -> Dict[str, Any]:
+        entries = read_outcome_ledger_entries(outcome_ledger_path, context.run_id)
+        final_text = pipeline_result.get("text", "") if isinstance(pipeline_result, dict) else ""
+        outcome = summarize_outcome_ledger(entries, final_text, decisions_marker)
+        outcome["text"] = final_text
+        if isinstance(pipeline_result, dict) and "required_tools_missing" in pipeline_result:
+            outcome["required_tools_missing"] = pipeline_result["required_tools_missing"]
+        md = {
+            "status": dg.MetadataValue.text(outcome["status"]),
+            "filed_count": dg.MetadataValue.int(len(outcome["filed"])),
+            "would_file_count": dg.MetadataValue.int(len(outcome["would_file"])),
+            "refused_count": dg.MetadataValue.int(len(outcome["refused"])),
+            "decisions_for_you_count": dg.MetadataValue.int(len(outcome["decisions_for_you"])),
+            "summary": dg.MetadataValue.md(outcome["summary"]),
+            "drafts": dg.MetadataValue.md(_drafts_markdown(outcome["filed"], outcome["would_file"])),
+        }
+        if "required_tools_missing" in outcome:
+            md["required_tools_missing"] = dg.MetadataValue.json(outcome["required_tools_missing"])
+        context.add_output_metadata(md)
+        return outcome
+
+    return dg.Definitions(assets=[_pipeline_outcome_asset])
 
 
 class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -9490,6 +9876,55 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "special, e.g. for a pipeline that gets real per-run data some other way)."
         ),
     )
+    context_notes: Optional[str] = Field(
+        default=None,
+        description=(
+            "Free text appended to the system prompt of every LLM-calling step in this pipeline "
+            "(llm_call, route, conditional_route, debate, critique_loop, synthesize, map, classify, "
+            "extract, reduce, self_reflect, best_of_n, cascade, plan, decide, delegate's picker, "
+            "tool_use_loop) under its own heading, naming what's deliberate in the repo/environment "
+            "this pipeline reviews -- a demo's artificial flakiness, a test fixture that's supposed "
+            "to fail, a known limitation that isn't a bug. Without this, an advisor pipeline has "
+            "filed 'fix' findings against exactly the things a repo was built to demonstrate. Not a "
+            "substitute for reading the repo's own README/CONTRIBUTING first (put that instruction "
+            "in a step's own prompt instead) -- this is for the handful of things worth saying "
+            "explicitly even after that, or when no such doc exists. Also surfaced on every emitted "
+            "step's own asset metadata (as context_notes) so a person reading one step's output can "
+            "see why it was told. mcp_call and verify never call an LLM, so this never reaches them."
+        ),
+    )
+    outcome_ledger_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Directory a ledger-aware tool server (github_pr_tools/linear_ticket_tools, its own "
+            "ledger_path field pointed at this SAME directory) writes this run's consequential "
+            "actions into, keyed by run_id -- read by the companion outcome asset (see "
+            "emit_outcome_asset). A deterministic mcp_call step that files via such a server works "
+            "the same way a litellm_agent/tool_use_loop step would. Unset: the outcome asset still "
+            "emits (when enabled), just with empty filed/would_file/refused/decisions_for_you."
+        ),
+    )
+    decisions_marker: str = Field(
+        default="decisions for you",
+        description=(
+            "Heading (case-insensitive) that starts the pipeline's final step's 'decisions for a person' "
+            "section at the end of its text. The lines under it fill the outcome asset's decisions_for_you "
+            "(\"none\" gives nothing), and the text before it becomes the outcome's `summary` metadata (700 "
+            "chars). Empty disables both."
+        ),
+    )
+    emit_outcome_asset: bool = Field(
+        default=False,
+        description=(
+            "Build a companion '{asset_name_prefix}_outcome' asset (same partitions_def as this pipeline) "
+            "that collapses this run's outcome-ledger entries (see outcome_ledger_path) plus the pipeline's "
+            "own LAST declared output (outputs.assets[-1])'s text into {status, filed, would_file, refused, "
+            "decisions_for_you, text} -- matched by run_id, not a wall-clock time window (which mixes "
+            "concurrent runs together). Shaped to feed agent_fixture_check directly, same as litellm_agent's "
+            "own emit_outcome_asset. A tool_use_loop step's required_tools_missing (see ToolUseLoopStep."
+            "required_tool_calls) is passed through when the last declared output is a tool_use_loop step."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -9826,6 +10261,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             _base_state: Dict[str, Any] = {
                 "__personas__": self.personas or {}, "__policy__": self.policy or {}, "__agents__": self.agents or {},
                 "__sibling_agent_cards__": discovered_sibling_cards, "__pipeline__": {"prefix": prefix, "asset": _receipt_asset},
+                "__context_notes__": self.context_notes,
             }
             _pver = _code_version({"steps": steps, "source": source_config, "outputs": outputs, "personas": self.personas,
                                    "agents": self.agents, "policy": _policy_for_version(self.policy)})
@@ -10064,7 +10500,16 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     def _with_park(self, defs: dg.Definitions, *, steps: List[Dict[str, Any]], prefix: str, asset_ids: List[str], partitions_def) -> dg.Definitions:
         """Add `<prefix>_approval_resume_job` + `<prefix>_approval_resume_sensor` when any approve step is `mode: park`.
         The job is defined from THIS component's own assets (a sensor may only request runs of jobs it targets, and
-        `AssetSelection.all()` fails when assets carry different partitions)."""
+        `AssetSelection.all()` fails when assets carry different partitions). Also folds in the companion
+        `<prefix>_outcome` asset (see emit_outcome_asset) -- done here, the one spot both the single-op and
+        per_step_ops build paths funnel through on their way out, rather than duplicated in each."""
+        if self.emit_outcome_asset:
+            defs = dg.Definitions.merge(defs, _build_outcome_asset_defs(
+                prefix=prefix, asset_ids=asset_ids, partitions_def=partitions_def,
+                group_name=self.group_name or "agents",
+                outcome_ledger_path=self.outcome_ledger_path,
+                decisions_marker=self.decisions_marker,
+            ))
         dirs = _park_dirs(steps)
         if not dirs:
             return defs
@@ -10163,7 +10608,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
 
         def _base_state() -> Dict[str, Any]:
             return {"__personas__": _self.personas or {}, "__policy__": _self.policy or {}, "__agents__": _self.agents or {},
-                    "__sibling_agent_cards__": discovered_sibling_cards, "__pipeline__": {"prefix": prefix, "asset": receipt_asset}}
+                    "__sibling_agent_cards__": discovered_sibling_cards, "__pipeline__": {"prefix": prefix, "asset": receipt_asset},
+                    "__context_notes__": _self.context_notes}
 
         def _fo_op_guard(step_label: str):
             """Per-step op wrapper: when the op raises, log the failure observation for every selected asset (in per-step mode all

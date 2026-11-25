@@ -1,9 +1,9 @@
 """The "agent outcome ledger" block (write_outcome_ledger_entry/read_outcome_ledger_entries/
 summarize_outcome_ledger) is inlined byte-identical into every component that touches it: the two
-tool servers that WRITE entries (github_pr_tools/linear_ticket_tools) and the four agent components
-that READ and summarize them into a companion outcome asset (openai_agent/anthropic_agent/
-litellm_agent/gemini_agent). Kept in sync via a real AST comparison (not a text-diff of surrounding
-BEGIN/END markers) so a fix to the ledger shape in one component lands everywhere."""
+tool servers that WRITE entries (github_pr_tools/linear_ticket_tools) and the five agent/pipeline
+components that READ and summarize them into a companion outcome asset (openai_agent/anthropic_agent/
+litellm_agent/gemini_agent/agentic_pipeline). Kept in sync via a real AST comparison (not a text-diff of
+surrounding BEGIN/END markers) so a fix to the ledger shape in one component lands everywhere."""
 import ast
 import pathlib
 
@@ -11,7 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent / "assets" / "ai"
 
 COMPONENTS = [
     "github_pr_tools", "linear_ticket_tools",
-    "openai_agent", "anthropic_agent", "litellm_agent", "gemini_agent",
+    "openai_agent", "anthropic_agent", "litellm_agent", "gemini_agent", "agentic_pipeline",
 ]
 SHARED_FUNCS = (
     "_outcome_ledger_file", "write_outcome_ledger_entry", "read_outcome_ledger_entries", "summarize_outcome_ledger",

@@ -266,6 +266,75 @@ def test_transport_seam_is_a_swappable_class(fake_server):
     assert transport.get_job_status("job-1")["status"] == "INACTIVE"
 
 
+def test_pipeline_id_and_commit_id_surface_as_asset_metadata(fake_server, monkeypatch):
+    comp = _component(
+        fake_server,
+        monkeypatch,
+        jobs=[
+            StreamSetsJobSpec(
+                job_id="job-1",
+                asset_key="streamsets/orders_cdc",
+                pipeline_id="orders_cdc_pipeline-abc123",
+                pipeline_commit_id="commit-456",
+            ),
+        ],
+    )
+    defs = comp.build_defs(None)
+    spec = next(iter(defs.assets)).get_asset_spec(dg.AssetKey(["streamsets", "orders_cdc"]))
+    assert spec.metadata["streamsets/pipeline_id"] == "orders_cdc_pipeline-abc123"
+    assert spec.metadata["streamsets/pipeline_commit_id"] == "commit-456"
+
+
+def test_no_pipeline_metadata_when_unset(fake_server, monkeypatch):
+    comp = _component(fake_server, monkeypatch)
+    defs = comp.build_defs(None)
+    spec = next(iter(defs.assets)).get_asset_spec(dg.AssetKey(["streamsets", "orders_cdc"]))
+    assert "streamsets/pipeline_id" not in spec.metadata
+    assert "streamsets/pipeline_commit_id" not in spec.metadata
+
+
+def test_schedule_cron_generates_a_schedule_targeting_that_jobs_asset(fake_server, monkeypatch):
+    comp = _component(
+        fake_server,
+        monkeypatch,
+        jobs=[
+            StreamSetsJobSpec(job_id="job-1", asset_key="streamsets/orders_cdc", schedule_cron="0 6 * * *"),
+            StreamSetsJobSpec(job_id="job-2", asset_key="streamsets/clickstream"),
+        ],
+    )
+    defs = comp.build_defs(None)
+    schedules = list(defs.schedules)
+    assert len(schedules) == 1
+    sched = schedules[0]
+    assert sched.cron_schedule == "0 6 * * *"
+    assert sched.name == "streamsets_orders_cdc_schedule"
+    assert sched.job.selection.resolve(list(defs.assets)) == {dg.AssetKey(["streamsets", "orders_cdc"])}
+
+
+def test_schedule_default_status_running_enables_it(fake_server, monkeypatch):
+    comp = _component(
+        fake_server,
+        monkeypatch,
+        jobs=[
+            StreamSetsJobSpec(
+                job_id="job-1",
+                asset_key="streamsets/orders_cdc",
+                schedule_cron="0 * * * *",
+                schedule_default_status="running",
+            ),
+        ],
+    )
+    defs = comp.build_defs(None)
+    sched = next(iter(defs.schedules))
+    assert sched.default_status == dg.DefaultScheduleStatus.RUNNING
+
+
+def test_no_schedules_when_schedule_cron_unset(fake_server, monkeypatch):
+    comp = _component(fake_server, monkeypatch)
+    defs = comp.build_defs(None)
+    assert list(defs.schedules) == []
+
+
 def test_missing_env_vars_raise_clear_error(monkeypatch):
     monkeypatch.delenv("STREAMSETS_CONTROL_HUB_URL", raising=False)
     monkeypatch.delenv("STREAMSETS_COMPONENT_ID", raising=False)

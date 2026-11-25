@@ -34,7 +34,7 @@
     "jobs": {
       "type": "array",
       "label": "Jobs",
-      "description": "Control Hub Jobs to wrap as Dagster assets, one entry per job (job_id, asset_key, description, group_name, deps, owners, tags). Declared explicitly -- there's no independently-confirmed 'list all jobs' endpoint to discover them from.",
+      "description": "Control Hub Jobs to wrap as Dagster assets, one entry per job (job_id, asset_key, description, group_name, deps, owners, tags, pipeline_id, pipeline_commit_id, schedule_cron, schedule_timezone, schedule_default_status). Declared explicitly -- there's no independently-confirmed 'list all jobs' endpoint to discover them from.",
       "required": false,
       "ui:widget": "list"
     },

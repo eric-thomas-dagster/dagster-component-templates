@@ -34,12 +34,17 @@ Multiple independent third-party sources (an MCP-server implementation guide, a 
 
 There's also no independently-confirmed "list all jobs" endpoint, so jobs are declared explicitly via `jobs:`, not discovered. Similarly, no officially-confirmed metrics/throughput field exists on `currentStatus`, so the polling sensor below tracks **status changes only** — a deliberate scope limit, not an oversight.
 
+**Researched for `schedule_cron`/`pipeline_id` (same honesty standard):** Control Hub DOES have its own native "Scheduled Task" subsystem (cron-driven, fires start/stop/upgrade against a job) — but its REST surface is a separate API family (`/scheduler/rest/v2/...`) whose literal shape is only corroborated by a single multi-year-old community forum post (whose own author suggested reverse-engineering the payload from browser devtools) — weaker corroboration than this component already requires, so it isn't called. A real "Job Runner Metrics" API category is independently confirmed to exist (IBM's Control Hub release notes describe per-job-run input/output/error record counts), but no literal endpoint path could be confirmed from an official reference — so metrics polling isn't implemented, a known gap rather than an oversight. A job's `pipeline_id` (and pipeline commit reference) IS confirmed, independently, on StreamSets' own Platform SDK's `Job` model.
+
 ## Jobs — explicit list, per-job overrides
 
 ```yaml
 jobs:
   - job_id: "8f6e1f2a-1234-5678-9abc-def012345678:acme-org"
     asset_key: streamsets/orders_cdc_pipeline
+    pipeline_id: orders_cdc_pipeline-abc123   # carried through as asset metadata -- job-to-pipeline binding
+    pipeline_commit_id: commit-456
+    schedule_cron: "0 6 * * *"                # see "Scheduling" below
   - job_id: "1a2b3c4d-1234-5678-9abc-def012345678:acme-org"
     asset_key: streamsets/clickstream_pipeline
     deps: [streamsets/orders_cdc_pipeline]
@@ -51,6 +56,19 @@ assets_by_job:
 ```
 
 `assets_by_job` is keyed by `job_id`, mirroring the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape: `key`/`group_name`/`description`/`kinds`/`owners` replace; `deps`/`metadata`/`tags` merge.
+
+## Scheduling
+
+```yaml
+jobs:
+  - job_id: "8f6e1f2a-...:acme-org"
+    asset_key: streamsets/orders_cdc_pipeline
+    schedule_cron: "0 6 * * *"
+    schedule_timezone: America/New_York   # optional, defaults to UTC
+    schedule_default_status: running      # optional, defaults to stopped
+```
+
+When `schedule_cron` is set on a job, this component adds a plain Dagster `ScheduleDefinition` that re-materializes that job's asset on the given cron cadence — i.e. it re-runs `action: start`'s already-verified "ensure running" path, the Dagster-native way. This is **not** a call into Control Hub's own Scheduled Task subsystem — see the research note above for why. It also fits the "continuously-running streaming pipeline" model better: Control Hub's own scheduler examples (start/stop/upgrade) read as built for less-continuous jobs, where periodically re-confirming an already-running streaming job is less of a fit.
 
 ## Actions
 

@@ -58,6 +58,45 @@ throughput field at any officially-confirmed path, so the optional polling
 sensor tracks STATUS CHANGES only (e.g. an externally-stopped job, an
 error transition) rather than inventing an unverified metrics call --
 documented as a deliberate scope limit, not an oversight.
+
+SCHEDULES AND METRICS -- what was researched for this component's
+`schedule_cron`/`pipeline_id` fields below (same honesty standard as above):
+
+  - Control Hub DOES have its own native "Scheduled Task" subsystem (its UI
+    takes a UNIX cron expression via a `crontab_mask`-shaped field and
+    periodically fires one action -- start/stop/upgrade -- against a job).
+    But its REST surface is a SEPARATE API family from Job Runner (a
+    `/scheduler/rest/v2/...` path), and the only corroboration found for its
+    literal endpoint shape was a single multi-year-old community forum post
+    whose own author recommended reverse-engineering the payload from
+    browser devtools rather than trusting a documented reference -- weaker
+    corroboration than this component already requires (see above), so this
+    component does NOT call Control Hub's own scheduler. Recurring
+    "ensure this job is running" is instead done the Dagster-native way:
+    `schedule_cron` on a `StreamSetsJobSpec` builds a plain
+    `dg.ScheduleDefinition` that periodically re-materializes that job's
+    asset (re-running the already-verified `action: start` path above).
+    This also fits the "continuously-running streaming pipeline" model
+    better than Control Hub's own task scheduler, whose example actions
+    (start/stop/upgrade) read as built for less-continuous use.
+
+  - A real "Job Runner Metrics" API category is independently corroborated
+    to exist (IBM's own Control Hub release notes describe retrieving a
+    job run's input/output/error record counts and last-reported-metric
+    time via the REST API) -- but no literal endpoint path for it could be
+    confirmed from an official reference or from the kind of multi-source
+    third-party corroboration this component already accepts elsewhere.
+    Rather than guess a path, metrics polling is NOT implemented here --
+    flagged as a known, deliberate gap, not an oversight.
+
+  - A job's `pipeline_id` (and a pipeline commit reference) ARE documented,
+    independently of the above, on StreamSets' own Platform SDK for
+    Python's `Job` model (`pipeline_id`: "Id of the pipeline that is
+    running the job"; a `commit_id`/`commit` pipeline-commit reference).
+    `StreamSetsJobSpec.pipeline_id`/`pipeline_commit_id` below are declared
+    the same way `job_id` already is (no discovery endpoint exists, per
+    above) -- just carried through as asset metadata for the job-to-pipeline
+    binding the brief asked for.
 """
 import time
 from typing import Any, Dict, List, Optional, Union
@@ -170,6 +209,37 @@ class StreamSetsJobSpec(dg.Model, dg.Resolvable):
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
     tags: Optional[Dict[str, str]] = Field(default=None, description="Catalog tags, merged onto the component's defaults.")
 
+    pipeline_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "StreamSets pipeline ID this job runs (Control Hub's own Job model carries this "
+            "as its own `pipeline_id` attribute, per StreamSets' Platform SDK docs). No "
+            "discovery endpoint exists (see module docstring), so this is declared by hand, "
+            "same as job_id -- carried through as asset metadata for job-to-pipeline binding."
+        ),
+    )
+    pipeline_commit_id: Optional[str] = Field(
+        default=None,
+        description="The specific pipeline commit this job runs (Control Hub's `commit_id` on the Job model). Declared by hand; carried through as asset metadata.",
+    )
+
+    schedule_cron: Optional[str] = Field(
+        default=None,
+        description=(
+            "When set, adds a Dagster-native schedule that re-materializes this job's asset "
+            "(re-running action=start -- 'ensure running') on this cron cadence. Not a call "
+            "into Control Hub's own Scheduled Task subsystem -- see module docstring for why."
+        ),
+    )
+    schedule_timezone: Optional[str] = Field(
+        default=None,
+        description="IANA timezone for schedule_cron (e.g. 'America/New_York'). Defaults to UTC. Ignored unless schedule_cron is set.",
+    )
+    schedule_default_status: str = Field(
+        default="stopped",
+        description="running|stopped -- whether the generated schedule starts enabled. Ignored unless schedule_cron is set.",
+    )
+
 
 class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
     """N StreamSets Control Hub Jobs as Dagster assets from one component
@@ -190,6 +260,8 @@ class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
           jobs:
             - job_id: 8f6e1f2a-...:org
               asset_key: streamsets/orders_cdc_pipeline
+              pipeline_id: orders_cdc_pipeline-abc123
+              schedule_cron: "0 6 * * *"   # re-ensure running every morning
             - job_id: 1a2b3c4d-...:org
               asset_key: streamsets/clickstream_pipeline
           action: start
@@ -336,6 +408,10 @@ class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         for job in self.jobs:
 
             def _make_asset(_job=job):
+                static_metadata = {
+                    **({"streamsets/pipeline_id": _job.pipeline_id} if _job.pipeline_id else {}),
+                    **({"streamsets/pipeline_commit_id": _job.pipeline_commit_id} if _job.pipeline_commit_id else {}),
+                }
                 base_kwargs: Dict[str, Any] = {
                     "key": dg.AssetKey.from_user_string(_job.asset_key),
                     "group_name": _job.group_name or _self.group_name,
@@ -344,6 +420,7 @@ class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                     "owners": _job.owners or _self.owners,
                     "tags": {**(_self.tags or {}), **(_job.tags or {})} or None,
                     "kinds": {"streamsets"},
+                    "metadata": static_metadata or None,
                 }
                 kwargs = _self._apply_asset_overrides(_job.job_id, base_kwargs)
 
@@ -366,6 +443,30 @@ class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                 return _job_asset
 
             assets_list.append(_make_asset())
+
+        schedules_list: List[Any] = []
+        for job in self.jobs:
+            if not job.schedule_cron:
+                continue
+            sanitized = job.asset_key.replace("/", "_").replace("-", "_")
+            schedule_job = dg.define_asset_job(
+                name=f"{sanitized}_schedule_job",
+                selection=[dg.AssetKey.from_user_string(job.asset_key)],
+            )
+            schedules_list.append(
+                dg.ScheduleDefinition(
+                    name=f"{sanitized}_schedule",
+                    job=schedule_job,
+                    cron_schedule=job.schedule_cron,
+                    execution_timezone=job.schedule_timezone,
+                    default_status=(
+                        dg.DefaultScheduleStatus.RUNNING
+                        if (job.schedule_default_status or "stopped").lower() == "running"
+                        else dg.DefaultScheduleStatus.STOPPED
+                    ),
+                    description=f"Re-materializes {job.asset_key} ('ensure running') on a cron cadence -- see module docstring for why this isn't Control Hub's own Scheduled Task subsystem.",
+                )
+            )
 
         sensors_list: List[Any] = []
         if self.polling_sensor and self.jobs:
@@ -446,4 +547,4 @@ class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
 
                 checks_list.append(_make_active_check())
 
-        return dg.Definitions(assets=assets_list, sensors=sensors_list, asset_checks=checks_list)
+        return dg.Definitions(assets=assets_list, sensors=sensors_list, asset_checks=checks_list, schedules=schedules_list)

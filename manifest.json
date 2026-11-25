@@ -67397,7 +67397,8 @@
       "agent_hints": {
         "outputs": [
           "one_asset_per_declared_job",
-          "shared_status_observation_sensor_opt_in"
+          "shared_status_observation_sensor_opt_in",
+          "optional_per_job_cron_schedule"
         ],
         "requires_pip": [
           "requests"

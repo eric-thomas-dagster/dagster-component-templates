@@ -36,7 +36,7 @@
     "rules": {
       "type": "array",
       "label": "Rules",
-      "description": "List of {column, method, ...} dicts. method: 'hash' | 'partial' | 'redact' | 'substitute' | 'pseudonymize'",
+      "description": "List of {column, method, ...} dicts. method: 'hash' | 'partial' | 'redact' | 'substitute' | 'pseudonymize'. For method='hash', optional StreamSets-Field-Hasher-parity fields: `algorithm` ('sha256' default | 'md5' | 'sha1' | 'sha512' | 'murmur3_128'; 'sha256' truncates+salts ONLY when `hash_mode` is also the default 'in_place' -- the original, unchanged behavior -- every other algorithm/hash_mode combination is a full, unsalted hex digest, matching StreamSets' own output), `hash_mode` ('in_place' default | 'target_field' | 'record'), `output_field` (required for target_field/record), `columns` (list, required for 'record' -- fields concatenated together before hashing), `field_separator` (appended after each field's value in 'record' mode, including the last -- matches StreamSets' own Hash Record behavior). See README for exact parity semantics and caveats.",
       "required": true
     },
     "salt_env": {

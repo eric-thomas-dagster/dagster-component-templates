@@ -1,1 +1,2 @@
 pandas
+mmh3>=4.0  # optional — only imported when a rule's algorithm='murmur3_128'

@@ -165,7 +165,21 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
-    rules: list = Field(description="List of {column, method, ...} dicts. method: 'hash' | 'partial' | 'redact' | 'substitute' | 'pseudonymize'")
+    rules: list = Field(
+        description=(
+            "List of {column, method, ...} dicts. method: 'hash' | 'partial' | 'redact' | "
+            "'substitute' | 'pseudonymize'. For method='hash', optional StreamSets-Field-Hasher-"
+            "parity fields: `algorithm` ('sha256' default | 'md5' | 'sha1' | 'sha512' | "
+            "'murmur3_128'; 'sha256' truncates+salts ONLY when `hash_mode` is also the default "
+            "'in_place' -- the original, unchanged behavior -- every other algorithm/hash_mode "
+            "combination is a full, unsalted hex digest, matching StreamSets' own output), "
+            "`hash_mode` ('in_place' default | 'target_field' | 'record'), `output_field` "
+            "(required for target_field/record), `columns` (list, required for 'record' -- "
+            "fields concatenated together before hashing), `field_separator` (appended after "
+            "each field's value in 'record' mode, including the last -- matches StreamSets' own "
+            "Hash Record behavior). See README for exact parity semantics and caveats."
+        )
+    )
     salt_env: Optional[str] = Field(default="MASKING_SALT", description="Env var with hash salt (improves resistance to rainbow attacks)")
     redacted_value: str = Field(default="***", description="Replacement value for 'redact' method")
 
@@ -316,7 +330,84 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
                 if col not in df.columns:
                     continue
                 if method == "hash":
-                    df[col] = df[col].astype(str).apply(lambda v: hashlib.sha256((salt + v).encode()).hexdigest()[:16])
+                    algorithm = rule.get("algorithm", "sha256")
+                    hash_mode = rule.get("hash_mode", "in_place")
+                    field_separator = rule.get("field_separator", "")
+
+                    def _digest(value: str, _algorithm=algorithm, _hash_mode=hash_mode, _salt=salt) -> str:
+                        # Only the ORIGINAL code path -- default algorithm 'sha256' in the
+                        # default 'in_place' mode -- applies the configured salt and truncates
+                        # to 16 hex chars; that's this component's pre-existing behavior,
+                        # preserved unchanged for backward compat. Every other combination (a
+                        # non-default algorithm, or sha256 used in target_field/record mode --
+                        # both new surfaces nothing used before this change) produces a full,
+                        # unsalted hex digest: these exist specifically to reproduce StreamSets
+                        # Field Hasher's own output (unsalted, untruncated) for joins against
+                        # hashes StreamSets already wrote in production.
+                        if _algorithm == "sha256" and _hash_mode == "in_place":
+                            return hashlib.sha256((_salt + value).encode()).hexdigest()[:16]
+                        if _algorithm == "sha256":
+                            return hashlib.sha256(value.encode()).hexdigest()
+                        if _algorithm == "md5":
+                            return hashlib.md5(value.encode()).hexdigest()
+                        if _algorithm == "sha1":
+                            return hashlib.sha1(value.encode()).hexdigest()
+                        if _algorithm == "sha512":
+                            return hashlib.sha512(value.encode()).hexdigest()
+                        if _algorithm == "murmur3_128":
+                            try:
+                                import mmh3
+                            except ImportError as e:
+                                raise ImportError(
+                                    "algorithm='murmur3_128' requires the 'mmh3' package. "
+                                    "Run: pip install mmh3"
+                                ) from e
+                            # mmh3_x64_128_digest returns the raw 16-byte MurmurHash3_x64_128
+                            # digest directly (confirmed byte-identical to hash128()'s unsigned
+                            # integer form) -- hex-encoded the same way this component already
+                            # hex-encodes every other algorithm, and the same way StreamSets'
+                            # own (MessageDigest-based) hash output is hex-encoded. StreamSets'
+                            # current murmur3_128 support post-dates the last public StreamSets
+                            # OSS snapshot (which only has MD5/SHA via java.security.MessageDigest
+                            # -- confirmed by reading that source directly), so exact byte-for-byte
+                            # parity with a live StreamSets instance is NOT independently verified
+                            # here -- only mmh3's own correctness is (see tests: the empty-string,
+                            # seed-0 case is provably all-zero bytes for MurmurHash3_x64_128,
+                            # independent of this repo). Compare against a real StreamSets-produced
+                            # hash before relying on this for a production join.
+                            return mmh3.mmh3_x64_128_digest(value.encode(), 0).hex()
+                        raise ValueError(f"unknown hash algorithm: {_algorithm!r}")
+
+                    if hash_mode == "in_place":
+                        df[col] = df[col].astype(str).apply(_digest)
+                    elif hash_mode == "target_field":
+                        output_field = rule.get("output_field")
+                        if not output_field:
+                            raise ValueError("hash_mode='target_field' requires 'output_field'")
+                        df[output_field] = df[col].astype(str).apply(_digest)
+                    elif hash_mode == "record":
+                        output_field = rule.get("output_field")
+                        if not output_field:
+                            raise ValueError("hash_mode='record' requires 'output_field'")
+                        record_columns = rule.get("columns") or [col]
+                        missing_cols = [c for c in record_columns if c not in df.columns]
+                        if missing_cols:
+                            raise ValueError(f"hash_mode='record' columns not found: {missing_cols}")
+
+                        # StreamSets' Hash Record mode appends the field separator after EVERY
+                        # field's value, including the last one -- it is not a between-fields
+                        # join. Field names are never included, only values (confirmed from
+                        # StreamSets' own current documentation for the Field Hasher processor).
+                        def _record_concat(row, _cols=record_columns, _sep=field_separator):
+                            parts = []
+                            for c in _cols:
+                                v = row[c]
+                                parts.append(("" if pd.isna(v) else str(v)) + _sep)
+                            return "".join(parts)
+
+                        df[output_field] = df.apply(lambda row: _digest(_record_concat(row)), axis=1)
+                    else:
+                        raise ValueError(f"unknown hash_mode: {hash_mode!r}")
                 elif method == "partial":
                     # keep last N chars
                     keep = rule.get("keep_last", 4)

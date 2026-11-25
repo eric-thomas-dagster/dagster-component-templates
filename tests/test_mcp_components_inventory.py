@@ -47,6 +47,9 @@ MCP_COMPONENTS = {
     "assets/ai/linear_ticket_tools": "server",
     "assets/ai/dagster_evidence_tools": "server",
     "assets/ai/document_intelligence_tools": "server",
+    "assets/ai/stripe_mcp_server": "server (local stdio proxy to Stripe's hosted MCP server)",
+    "assets/ai/cloudflare_mcp_server": "server (local stdio proxy to Cloudflare's hosted MCP server)",
+    "assets/ai/atlassian_mcp_server": "server (local stdio proxy to Atlassian's hosted MCP server)",
 }
 SKIP_DIRS = {".git", ".claude", "node_modules", ".venv", "venv", "site-packages", "__pycache__"}
 

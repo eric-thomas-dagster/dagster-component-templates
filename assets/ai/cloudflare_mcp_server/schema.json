@@ -1,0 +1,62 @@
+{
+  "component_type": "dagster_community_components.CloudflareMcpServerComponent",
+  "description": "Registers a local stdio MCP server proxying arbitrary Cloudflare MCP tools to Cloudflare's hosted MCP server, authenticated with a static Cloudflare API token -- no OAuth, no token refresh.",
+  "category": "ai",
+  "icon": "si:cloudflare",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "None",
+      "description": "No asset -- registers a Dagster resource (a stdio MCP server) for other components to reference via server_resource_key."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key other components reference via server_resource_key.",
+      "required": false,
+      "default": "cloudflare_mcp"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "description": "Env var holding a Cloudflare API token (My Profile > API Tokens), scoped to the permissions this run needs.",
+      "required": false,
+      "default": "CLOUDFLARE_API_TOKEN"
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "Optional hard allow-list of Cloudflare MCP tool names (e.g. search/execute). Default: every tool Cloudflare's hosted server exposes.",
+      "required": false,
+      "default": null
+    },
+    "max_requests_per_second": {
+      "type": "number",
+      "label": "Max Requests Per Second",
+      "description": "Shared by every tool call this server process makes.",
+      "required": false,
+      "default": 5.0
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retries on a transient error before returning {'error': ...} to the agent.",
+      "required": false,
+      "default": 3
+    },
+    "instructions": {
+      "type": "string",
+      "label": "Instructions",
+      "description": "Free-text usage guidance for this server -- read by the litellm/openai/anthropic/gemini agent components and appended to their system prompt under a heading with this resource's name, so every agent referencing it via server_resource_key gets the same guidance with no copy-paste.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "agentic"
+  ]
+}

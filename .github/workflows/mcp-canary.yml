@@ -45,6 +45,9 @@ on:
       - "assets/ai/linear_ticket_tools/**"
       - "assets/ai/dagster_evidence_tools/**"
       - "assets/ai/document_intelligence_tools/**"
+      - "assets/ai/stripe_mcp_server/**"
+      - "assets/ai/cloudflare_mcp_server/**"
+      - "assets/ai/atlassian_mcp_server/**"
       - "tests/test_mcp_*.py"
       - ".github/workflows/mcp-canary.yml"
 
@@ -86,6 +89,9 @@ env:
     assets/ai/linear_ticket_tools/tests
     assets/ai/dagster_evidence_tools/tests
     assets/ai/document_intelligence_tools/tests
+    assets/ai/stripe_mcp_server/tests
+    assets/ai/cloudflare_mcp_server/tests
+    assets/ai/atlassian_mcp_server/tests
 
 jobs:
   mcp:

@@ -1,0 +1,69 @@
+{
+  "component_type": "dagster_community_components.StripeMcpServerComponent",
+  "description": "Registers a local stdio MCP server proxying arbitrary Stripe MCP tools to Stripe's hosted MCP server, authenticated with a static Agent API key -- no OAuth, no token refresh.",
+  "category": "ai",
+  "icon": "si:stripe",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "None",
+      "description": "No asset -- registers a Dagster resource (a stdio MCP server) for other components to reference via server_resource_key."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key other components reference via server_resource_key.",
+      "required": false,
+      "default": "stripe_mcp"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var holding an 'Agent'-badged Stripe API key (Dashboard > Developers > API keys, identified by the Agent badge). Plain secret/restricted keys are rejected by Stripe's hosted MCP server.",
+      "required": false,
+      "default": "STRIPE_AGENT_API_KEY"
+    },
+    "stripe_account_env_var": {
+      "type": "string",
+      "label": "Stripe Account Env Var",
+      "description": "Optional env var holding a connected account id (acct_...) sent as the Stripe-Account header, for acting on behalf of a connected account.",
+      "required": false,
+      "default": null
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "Optional hard allow-list of Stripe MCP tool names. Default: every tool Stripe's hosted server exposes.",
+      "required": false,
+      "default": null
+    },
+    "max_requests_per_second": {
+      "type": "number",
+      "label": "Max Requests Per Second",
+      "description": "Shared by every tool call this server process makes.",
+      "required": false,
+      "default": 5.0
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retries on a transient error before returning {'error': ...} to the agent.",
+      "required": false,
+      "default": 3
+    },
+    "instructions": {
+      "type": "string",
+      "label": "Instructions",
+      "description": "Free-text usage guidance for this server -- read by the litellm/openai/anthropic/gemini agent components and appended to their system prompt under a heading with this resource's name, so every agent referencing it via server_resource_key gets the same guidance with no copy-paste.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "agentic"
+  ]
+}

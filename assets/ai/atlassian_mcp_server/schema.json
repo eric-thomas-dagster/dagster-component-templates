@@ -1,0 +1,84 @@
+{
+  "component_type": "dagster_community_components.AtlassianMcpServerComponent",
+  "description": "Registers a local stdio MCP server proxying arbitrary Jira/Confluence/JSM MCP tools to Atlassian's hosted MCP server, authenticated with a static personal API token or service-account key -- no OAuth. Requires an org admin to have enabled token-based MCP auth.",
+  "category": "ai",
+  "icon": "si:atlassian",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "None",
+      "description": "No asset -- registers a Dagster resource (a stdio MCP server) for other components to reference via server_resource_key."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key other components reference via server_resource_key.",
+      "required": false,
+      "default": "atlassian_mcp"
+    },
+    "auth_mode": {
+      "type": "string",
+      "enum": ["personal_api_token", "service_account"],
+      "label": "Auth Mode",
+      "description": "'personal_api_token': Authorization: Basic base64(email:api_token), acting as that person. 'service_account': Authorization: Bearer <key>, acting as a service account. Both require an org admin to have enabled token-based MCP auth.",
+      "required": false,
+      "default": "personal_api_token"
+    },
+    "atlassian_email_env_var": {
+      "type": "string",
+      "label": "Atlassian Email Env Var",
+      "description": "auth_mode='personal_api_token': env var holding the token owner's Atlassian account email.",
+      "required": false,
+      "default": "ATLASSIAN_EMAIL"
+    },
+    "atlassian_api_token_env_var": {
+      "type": "string",
+      "label": "Atlassian Api Token Env Var",
+      "description": "auth_mode='personal_api_token': env var holding the personal API token (id.atlassian.com/manage-profile/security/api-tokens).",
+      "required": false,
+      "default": "ATLASSIAN_API_TOKEN"
+    },
+    "atlassian_service_account_key_env_var": {
+      "type": "string",
+      "label": "Atlassian Service Account Key Env Var",
+      "description": "auth_mode='service_account': env var holding the service-account API key.",
+      "required": false,
+      "default": "ATLASSIAN_SERVICE_ACCOUNT_KEY"
+    },
+    "allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allow",
+      "description": "Optional hard allow-list of Atlassian MCP tool names. Default: every tool your granted apps/scopes expose.",
+      "required": false,
+      "default": null
+    },
+    "max_requests_per_second": {
+      "type": "number",
+      "label": "Max Requests Per Second",
+      "description": "Shared by every tool call this server process makes.",
+      "required": false,
+      "default": 5.0
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retries on a transient error before returning {'error': ...} to the agent.",
+      "required": false,
+      "default": 3
+    },
+    "instructions": {
+      "type": "string",
+      "label": "Instructions",
+      "description": "Free-text usage guidance for this server -- read by the litellm/openai/anthropic/gemini agent components and appended to their system prompt under a heading with this resource's name, so every agent referencing it via server_resource_key gets the same guidance with no copy-paste.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "agentic"
+  ]
+}

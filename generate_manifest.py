@@ -227,7 +227,7 @@ def sync(check_only: bool) -> int:
         else:
             entry = dict(derived)
             entry["version"] = "1.0.0"
-            entry["author"] = "Dagster Community"
+            entry["author"] = "Eric Thomas"
             entry["dependencies"] = {"pip": pip_deps}
             new_ids.append(component_id)
 

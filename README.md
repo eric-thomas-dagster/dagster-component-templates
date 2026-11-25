@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of **1,335 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
+A library of **1,461 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 Field naming conventions across the registry are documented in [`FIELD_CONVENTIONS.md`](./FIELD_CONVENTIONS.md).
 

@@ -287,6 +287,18 @@ class StreamSetsEngineComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     sensor_name: str = Field(default="streamsets_engine_observer", description="Sensor name. Only used when polling_sensor=True.")
     check_interval_seconds: int = Field(default=60, description="Seconds between sensor polls. Only used when polling_sensor=True.")
+    observe_metrics_in_sensor: bool = Field(
+        default=False,
+        description=(
+            "If true (only used when polling_sensor=True), the sensor ALSO emits an AssetObservation "
+            "carrying a live metrics snapshot (streamsets/metrics, same Dropwizard registry shape as "
+            "expose_metrics) on every tick for each pipeline currently RUNNING -- independent of whether "
+            "its status changed. Status-change observations (above) only fire when status actually "
+            "changes, which would otherwise miss the common case of watching throughput climb while a "
+            "pipeline stays RUNNING tick after tick. Fetches GET /rest/v1/pipeline/{id}/metrics (a "
+            "read-only call, confirmed live without engine activation) once per RUNNING pipeline per tick."
+        ),
+    )
 
     require_running: bool = Field(
         default=False,
@@ -462,20 +474,27 @@ class StreamSetsEngineComponent(dg.Component, dg.Model, dg.Resolvable):
                     status = str(payload.get("status") or "")
                     previous = last_status.get(pipeline.pipeline_id)
                     new_status[pipeline.pipeline_id] = status
+                    status_changed = previous is not None and status != previous
 
-                    if previous is None:
-                        continue  # first sighting -- record baseline, nothing to diff against yet
-                    if status == previous:
-                        continue
+                    metadata: Dict[str, Any] = {"streamsets/pipeline_id": pipeline.pipeline_id, "streamsets/status": status}
+                    if status_changed:
+                        metadata["streamsets/previous_status"] = previous
+
+                    metrics_fetched = False
+                    if _self.observe_metrics_in_sensor and status == _RUNNING_STATUS and not _self.demo_mode:
+                        try:
+                            metadata["streamsets/metrics"] = dg.MetadataValue.json(_transport().get_pipeline_metrics(pipeline.pipeline_id))
+                            metrics_fetched = True
+                        except Exception as e:
+                            context.log.warning(f"Could not fetch metrics for {pipeline.pipeline_id}: {e}")
+
+                    if not status_changed and not metrics_fetched:
+                        continue  # nothing changed and nothing new to report (includes first sighting)
 
                     events.append(
                         dg.AssetObservation(
                             asset_key=dg.AssetKey.from_user_string(pipeline.asset_key),
-                            metadata={
-                                "streamsets/pipeline_id": pipeline.pipeline_id,
-                                "streamsets/status": status,
-                                "streamsets/previous_status": previous,
-                            },
+                            metadata=metadata,
                         )
                     )
 

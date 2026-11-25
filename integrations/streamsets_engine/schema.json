@@ -143,6 +143,12 @@
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
+    },
+    "observe_metrics_in_sensor": {
+      "type": "boolean",
+      "label": "Observe Metrics In Sensor",
+      "description": "If true (only used when polling_sensor=True), the sensor ALSO emits an AssetObservation carrying a live metrics snapshot (streamsets/metrics, same Dropwizard registry shape as expose_metrics) on every tick for each pipeline currently RUNNING -- independent of whether its status changed. Status-change observations (above) only fire when status actually changes, which would otherwise miss the common case of watching throughput climb while a pipeline stays RUNNING tick after tick. Fetches GET /rest/v1/pipeline/{id}/metrics (a read-only call, confirmed live without engine activation) once per RUNNING pipeline per tick.",
+      "required": false
     }
   },
   "tags": ["streamsets", "data-collector", "sdc", "etl", "cdc", "workspace", "streaming", "engine"],

@@ -231,3 +231,43 @@ def test_fake_server_rejects_missing_or_wrong_credentials(fake_server):
         timeout=5,
     )
     assert resp.status_code == 200
+
+
+def test_observe_metrics_in_sensor_fetches_metrics_every_tick_while_running(fake_server, monkeypatch):
+    # pipeline-2 starts RUNNING per the fake_server fixture; pipeline-1 starts STOPPED.
+    comp = _component(fake_server, monkeypatch, polling_sensor=True, observe_metrics_in_sensor=True)
+    defs = comp.build_defs(None)
+    sensor = defs.sensors[0]
+
+    ctx1 = dg.build_sensor_context(cursor=None)
+    result1 = sensor(ctx1)
+    # Unlike status-change-only observation, a RUNNING pipeline's metrics are observed
+    # on the very first tick too -- there's nothing to "change" from, but there IS a
+    # live metrics snapshot worth reporting.
+    assert len(result1.asset_events) == 1
+    ev1 = result1.asset_events[0]
+    assert ev1.asset_key == dg.AssetKey(["streamsets_engine", "clickstream"])
+    assert ev1.metadata["streamsets/metrics"].data["counters"]["pipeline.batchCount.counter"]["count"] == 5
+    assert "streamsets/previous_status" not in ev1.metadata  # no status change happened
+
+    # Bump the live metrics between ticks -- proves each tick does a real fetch, not a cached one.
+    _FakeEngine.metrics["pipeline-2"] = {"counters": {"pipeline.batchCount.counter": {"count": 42}}}
+    ctx2 = dg.build_sensor_context(cursor=result1.cursor)
+    result2 = sensor(ctx2)
+    assert len(result2.asset_events) == 1
+    assert result2.asset_events[0].metadata["streamsets/metrics"].data["counters"]["pipeline.batchCount.counter"]["count"] == 42
+
+    # A STOPPED pipeline with unchanged status and observe_metrics_in_sensor on should NOT be
+    # observed every tick -- metrics are only fetched/reported for RUNNING pipelines.
+    assert all(e.asset_key != dg.AssetKey(["streamsets_engine", "orders_cdc"]) for e in result2.asset_events)
+
+
+def test_observe_metrics_in_sensor_off_by_default_matches_status_only_behavior(fake_server, monkeypatch):
+    comp = _component(fake_server, monkeypatch, polling_sensor=True)  # observe_metrics_in_sensor defaults False
+    defs = comp.build_defs(None)
+    sensor = defs.sensors[0]
+
+    ctx1 = dg.build_sensor_context(cursor=None)
+    result1 = sensor(ctx1)
+    # Default behavior unchanged: first tick is baseline-only, even for an already-RUNNING pipeline.
+    assert result1.asset_events == []

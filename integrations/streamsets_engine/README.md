@@ -51,14 +51,19 @@ expose_metrics: true
 
 When set, a successful `action: start` also fetches the real metrics endpoint and attaches the raw Dropwizard registry as asset metadata. Exact metric names depend on the pipeline's own stages — this passes them through best-effort rather than parsing specific counters, since real populated values couldn't be observed live (see the honest limitation above).
 
-## Observing status changes
+## Observing status changes — and, optionally, live metrics
 
 ```yaml
 polling_sensor: true
 check_interval_seconds: 60
+observe_metrics_in_sensor: true   # optional
 ```
 
 One shared sensor polls every declared pipeline's `status` and emits `AssetObservation` only when it actually changed since the last tick (first sighting is baseline-only).
+
+With `observe_metrics_in_sensor: true`, the sensor ALSO fetches a live metrics snapshot (the same Dropwizard registry `expose_metrics` attaches at start time) and attaches it to the observation for every pipeline currently `RUNNING` **on every tick**, regardless of whether status changed — status-change-only observation would otherwise miss the common case of watching throughput climb while a pipeline stays `RUNNING` tick after tick. A `STOPPED` pipeline with unchanged status still isn't observed every tick; only a `RUNNING` one gets the continuous metrics feed.
+
+Live-verified: the status/metrics GET calls themselves are read-only and confirmed to work without engine activation (unlike `action: start`/`stop`, see above) — the sensor's real transport code was run against a genuinely live bare engine and correctly handled a real (non-mocked) error response without crashing. The actual metrics-growing-over-time behavior (confirmed in this component's test suite against a real local HTTP server, not a plain mock) could not be observed against a truly live, running pipeline, since creating/starting one on a bare unregistered engine needs the same real activation code `action: start`/`stop` are blocked on.
 
 ## Health check
 
@@ -115,6 +120,7 @@ Attaches a `pipeline_running` asset_check per pipeline that fails when the pipel
 | `force_stop` | `bool` | `false` | When action=stop, use forceStop instead of a graceful stop. Ignored for action=start/noop. |
 | `polling_sensor` | `bool` | `false` | If true, adds ONE sensor (not one per pipeline) that polls each pipeline's status and emits AssetObservation only when the status changed since the last tick. |
 | `check_interval_seconds` | `int` | `60` | Seconds between sensor polls. Only used when polling_sensor=True. |
+| `observe_metrics_in_sensor` | `bool` | `false` | If true (only used when polling_sensor=True), the sensor ALSO emits an AssetObservation carrying a live metrics snapshot (streamsets/metrics, same Dropwizard registry shape as expose_metrics) on every tick for each pipel… _(full docs in schema.json + component README)_ |
 | `require_running` | `bool` | `false` | If true, attach a `pipeline_running` asset_check per pipeline that fails when the pipeline's current status isn't RUNNING. |
 | `expose_metrics` | `bool` | `false` | If true, action=start fetches /rest/v1/pipeline/{id}/metrics after reaching RUNNING and attaches the raw Dropwizard metrics registry (gauges/counters/histograms/meters/timers, keyed by metric name) as asset metadata. A r… _(full docs in schema.json + component README)_ |
 | `demo_mode` | `bool` | `false` | Skip the real engine connection entirely. Start/stop and status all return synthetic, deterministic values instead of calling the REST API. Use to smoke-test the whole shape with no SDC engine available. `pipelines:` is… _(full docs in schema.json + component README)_ |

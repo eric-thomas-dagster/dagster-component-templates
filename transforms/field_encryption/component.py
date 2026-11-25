@@ -216,6 +216,85 @@ def _deserialize_plaintext(payload: bytes) -> Any:
     return v
 
 
+# ---------------------------------------------------------------------------
+# `compatibility: streamsets` -- matches StreamSets' "Encrypt and Decrypt
+# Fields" processor's real AWS Encryption SDK plaintext/context layout,
+# verified against a real Data Collector 6.4.1 and 3.18.1 (both directions)
+# by the migrating-streamsets-to-dagster skill's own test suite
+# (tests/test_sdc_crypto_parity.py) and reference implementation
+# (streamsets_to_dagster.runtime.encrypt_value/decrypt_value). This is a
+# DIFFERENT plaintext/context layout from this component's own `native`
+# mode above -- native mode is NOT StreamSets-compatible, and this mode is
+# NOT what native mode produces. Do not mix ciphertext between the two.
+#
+# Verified behavior:
+#   - plaintext is the value's text in UTF-8 ("42", "2.5", "true"); a
+#     byte-array field stays raw bytes, not UTF-8 text of anything;
+#   - the type is NOT in the plaintext (no JSON wrapper) -- it's in the
+#     encryption context under SDC_FIELD_TYPE (STRING/INTEGER/LONG/DOUBLE/
+#     BOOLEAN/DECIMAL/BYTE_ARRAY), alongside the user's own context entries
+#     -- and ONLY those; this component's native-mode habit of adding a
+#     `field: <column>` context entry is NOT done here, because StreamSets
+#     never adds that entry either, and adding it would make ciphertext
+#     this component writes undecryptable by a real engine (and vice versa);
+#   - Data Collector uses the AWS Encryption SDK's older, non-committing
+#     algorithm suites, so CommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT is
+#     required (the SDK's default policy refuses to decrypt them);
+#   - output is raw bytes, not base64 text, matching the real stage;
+#   - the raw-key provider id is "JceMasterKeyProvider" (StreamSets' "User
+#     Supplied Key" option), with wrapping algorithm selected by actual key
+#     length (16/24/32 bytes), not hardcoded to AES-256 the way native
+#     mode's raw-key provider is;
+#   - AWS KMS uses StrictAwsKmsMasterKeyProvider with the same plaintext/
+#     context shape -- NOT independently exercised against a real AWS
+#     account by the skill either; treat it as corroborated, not verified.
+def _sdc_serialize_plaintext(value: Any):
+    """Returns (kind, plaintext_bytes) per StreamSets' real type->bytes mapping, or
+    (None, None) for a null value (the caller skips encryption for nulls)."""
+    import decimal
+
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None, None
+    if isinstance(value, bool):
+        return "BOOLEAN", (b"true" if value else b"false")
+    if isinstance(value, int):
+        kind = "INTEGER" if -(2**31) <= value < 2**31 else "LONG"
+        return kind, str(value).encode()
+    if isinstance(value, float):
+        return "DOUBLE", repr(value).encode()
+    if isinstance(value, decimal.Decimal):
+        return "DECIMAL", str(value).encode()
+    if isinstance(value, (bytes, bytearray)):
+        return "BYTE_ARRAY", bytes(value)
+    if isinstance(value, str):
+        return "STRING", value.encode()
+    raise TypeError(
+        f"cannot encrypt a value of type {type(value).__name__} in compatibility='streamsets' "
+        "mode (dates and times are not verified against a real engine yet)"
+    )
+
+
+def _sdc_deserialize_plaintext(kind: str, plain: bytes) -> Any:
+    import decimal
+
+    text = plain.decode() if kind != "BYTE_ARRAY" else ""
+    conv = {
+        "STRING": lambda: text,
+        "INTEGER": lambda: int(text),
+        "LONG": lambda: int(text),
+        "SHORT": lambda: int(text),
+        "BYTE": lambda: int(text),
+        "DOUBLE": lambda: float(text),
+        "FLOAT": lambda: float(text),
+        "BOOLEAN": lambda: text == "true",
+        "DECIMAL": lambda: decimal.Decimal(text),
+        "BYTE_ARRAY": lambda: plain,
+    }
+    if kind not in conv:
+        raise ValueError(f"field type {kind!r} is not supported yet")
+    return conv[kind]()
+
+
 class FieldEncryptionComponent(dg.Component, dg.Model, dg.Resolvable):
     """Field-level encrypt/decrypt using the real AWS Encryption SDK — raw-key
     or KMS-backed, type-preserving, per-field encryption-context binding."""
@@ -238,6 +317,23 @@ class FieldEncryptionComponent(dg.Component, dg.Model, dg.Resolvable):
     fields: Union[str, List[str]] = Field(
         description="DataFrame column(s) to encrypt (mode='encrypt') or decrypt (mode='decrypt'). "
                      "Comma-separated string or a YAML list."
+    )
+
+    compatibility: str = Field(
+        default="native",
+        description=(
+            "'native' (default) -- this component's own type-preserving scheme: plaintext is a "
+            "JSON {\"t\": type, \"v\": value} wrapper, ciphertext is base64-encoded text, and an "
+            "auto-added `field: <column>` encryption-context entry stops ciphertext being silently "
+            "swapped between columns. NOT StreamSets-compatible. "
+            "'streamsets' -- matches StreamSets' \"Encrypt and Decrypt Fields\" processor's real AWS "
+            "Encryption SDK layout byte-for-byte (verified against a real Data Collector 6.4.1 and "
+            "3.18.1, both directions, by the migrating-streamsets-to-dagster skill): plaintext is the "
+            "value's UTF-8 text (byte-array fields stay raw bytes), the type goes in the encryption "
+            "context as SDC_FIELD_TYPE instead of a plaintext wrapper, output is raw bytes not base64, "
+            "and no `field` context entry is auto-added (StreamSets doesn't add one either). Use this "
+            "mode to read ciphertext StreamSets wrote, or write ciphertext StreamSets can read."
+        ),
     )
 
     key_source: str = Field(
@@ -370,6 +466,8 @@ class FieldEncryptionComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("key_source='raw_key' requires raw_key_env_var.")
         if self.key_source == "kms" and not self.kms_key_ids:
             raise ValueError("key_source='kms' requires kms_key_ids.")
+        if self.compatibility not in ("native", "streamsets"):
+            raise ValueError(f"compatibility must be 'native' or 'streamsets', got {self.compatibility!r}")
 
         partitions_def = None
         if self.partition_type:
@@ -456,8 +554,17 @@ class FieldEncryptionComponent(dg.Component, dg.Model, dg.Resolvable):
             field_list = self.fields if isinstance(self.fields, list) else [self.fields]
             base_encryption_context = dict(self.encryption_context or {})
 
+            sdc_mode = self.compatibility == "streamsets"
             esdk_client = aws_encryption_sdk.EncryptionSDKClient(
-                commitment_policy=aws_encryption_sdk.CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT
+                commitment_policy=(
+                    aws_encryption_sdk.CommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT
+                    if sdc_mode
+                    # Data Collector writes (and expects) the AWS Encryption SDK's older,
+                    # non-committing algorithm suites -- the SDK's default policy refuses
+                    # to decrypt them, so compatibility='streamsets' needs the weaker
+                    # policy. Verified against a real Data Collector 6.4.1 and 3.18.1.
+                    else aws_encryption_sdk.CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT
+                )
             )
 
             if self.key_source == "raw_key":
@@ -466,24 +573,57 @@ class FieldEncryptionComponent(dg.Component, dg.Model, dg.Resolvable):
                     raise ValueError(f"raw_key_env_var {self.raw_key_env_var!r} is unset or empty.")
                 raw_key_bytes = base64.b64decode(raw_key_b64)
 
-                class _StaticRawMasterKeyProvider(RawMasterKeyProvider):
-                    provider_id = "field-encryption-raw"
-
-                    def __new__(cls, *args, **kwargs):
-                        return super(RawMasterKeyProvider, cls).__new__(cls)
-
-                    def __init__(self_mk, **kwargs):
-                        RawMasterKeyProvider.__init__(self_mk, **kwargs)
-
-                    def _get_raw_key(self_mk, key_id):
-                        return WrappingKey(
-                            wrapping_algorithm=WrappingAlgorithm.AES_256_GCM_IV12_TAG16_NO_PADDING,
-                            wrapping_key=raw_key_bytes,
-                            wrapping_key_type=EncryptionKeyType.SYMMETRIC,
+                if sdc_mode:
+                    _sdc_wrap_alg = {
+                        16: WrappingAlgorithm.AES_128_GCM_IV12_TAG16_NO_PADDING,
+                        24: WrappingAlgorithm.AES_192_GCM_IV12_TAG16_NO_PADDING,
+                        32: WrappingAlgorithm.AES_256_GCM_IV12_TAG16_NO_PADDING,
+                    }.get(len(raw_key_bytes))
+                    if _sdc_wrap_alg is None:
+                        raise ValueError(
+                            f"compatibility='streamsets' requires a 16, 24, or 32-byte raw key, "
+                            f"got {len(raw_key_bytes)} bytes."
                         )
 
-                key_provider = _StaticRawMasterKeyProvider()
-                key_provider.add_master_key(self.key_id)
+                    class _JceMasterKeyProvider(RawMasterKeyProvider):
+                        # Provider id StreamSets' "User Supplied Key" option uses -- must
+                        # match exactly for cross-engine ciphertext interop.
+                        provider_id = "JceMasterKeyProvider"
+
+                        def __new__(cls, *args, **kwargs):
+                            return super(RawMasterKeyProvider, cls).__new__(cls)
+
+                        def __init__(self_mk, **kwargs):
+                            RawMasterKeyProvider.__init__(self_mk, **kwargs)
+
+                        def _get_raw_key(self_mk, key_id):
+                            return WrappingKey(
+                                wrapping_algorithm=_sdc_wrap_alg,
+                                wrapping_key=raw_key_bytes,
+                                wrapping_key_type=EncryptionKeyType.SYMMETRIC,
+                            )
+
+                    key_provider = _JceMasterKeyProvider()
+                    key_provider.add_master_key(self.key_id)
+                else:
+                    class _StaticRawMasterKeyProvider(RawMasterKeyProvider):
+                        provider_id = "field-encryption-raw"
+
+                        def __new__(cls, *args, **kwargs):
+                            return super(RawMasterKeyProvider, cls).__new__(cls)
+
+                        def __init__(self_mk, **kwargs):
+                            RawMasterKeyProvider.__init__(self_mk, **kwargs)
+
+                        def _get_raw_key(self_mk, key_id):
+                            return WrappingKey(
+                                wrapping_algorithm=WrappingAlgorithm.AES_256_GCM_IV12_TAG16_NO_PADDING,
+                                wrapping_key=raw_key_bytes,
+                                wrapping_key_type=EncryptionKeyType.SYMMETRIC,
+                            )
+
+                    key_provider = _StaticRawMasterKeyProvider()
+                    key_provider.add_master_key(self.key_id)
             else:
                 kms_ids = self.kms_key_ids if isinstance(self.kms_key_ids, list) else [self.kms_key_ids]
                 key_provider = aws_encryption_sdk.StrictAwsKmsMasterKeyProvider(key_ids=kms_ids)
@@ -493,31 +633,47 @@ class FieldEncryptionComponent(dg.Component, dg.Model, dg.Resolvable):
 
             def _encrypt_cell(value, column_name):
                 nonlocal rows_processed
-                plaintext = _serialize_plaintext(value)
-                if plaintext is None:
-                    return None
-                ctx = {**base_encryption_context, "field": column_name}
+                if sdc_mode:
+                    kind, plaintext = _sdc_serialize_plaintext(value)
+                    if plaintext is None:
+                        return None
+                    # StreamSets never adds a `field` context entry -- adding one here
+                    # would make this component's own streamsets-mode ciphertext
+                    # undecryptable by a real engine, defeating the point of this mode.
+                    ctx = {"SDC_FIELD_TYPE": kind, **base_encryption_context}
+                else:
+                    plaintext = _serialize_plaintext(value)
+                    if plaintext is None:
+                        return None
+                    ctx = {**base_encryption_context, "field": column_name}
                 ciphertext, _header = esdk_client.encrypt(
                     source=plaintext, key_provider=key_provider, encryption_context=ctx,
                 )
                 rows_processed += 1
-                return base64.b64encode(ciphertext).decode("ascii")
+                return ciphertext if sdc_mode else base64.b64encode(ciphertext).decode("ascii")
 
             def _decrypt_cell(value, column_name):
                 nonlocal rows_processed, rows_decrypt_failed
                 if value is None or (isinstance(value, float) and pd.isna(value)):
                     return None
                 try:
-                    ciphertext = base64.b64decode(value)
+                    ciphertext = value if sdc_mode else base64.b64decode(value)
                     plaintext, header = esdk_client.decrypt(source=ciphertext, key_provider=key_provider)
-                    expected_field = {**base_encryption_context, "field": column_name}
-                    for k, v in expected_field.items():
+                    expected = (
+                        dict(base_encryption_context)
+                        if sdc_mode
+                        else {**base_encryption_context, "field": column_name}
+                    )
+                    for k, v in expected.items():
                         if header.encryption_context.get(k) != v:
                             raise ValueError(
                                 f"encryption_context mismatch for column {column_name!r}: "
                                 f"expected {k}={v!r}, got {header.encryption_context.get(k)!r}"
                             )
                     rows_processed += 1
+                    if sdc_mode:
+                        kind = header.encryption_context.get("SDC_FIELD_TYPE", "STRING")
+                        return _sdc_deserialize_plaintext(kind, plaintext)
                     return _deserialize_plaintext(plaintext)
                 except Exception as e:  # noqa: BLE001 — real crypto/format failures, not a bug in this component
                     rows_decrypt_failed += 1

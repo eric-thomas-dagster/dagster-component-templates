@@ -3,30 +3,34 @@
 Field-level encrypt/decrypt using the real AWS Encryption SDK — raw-key or
 KMS-backed, type-preserving, per-field encryption-context binding.
 
-## ⚠️ StreamSets ciphertext interop is UNVERIFIED
+## Two modes: `native` (default) and `streamsets`
 
-StreamSets' "Encrypt and Decrypt Fields" processor also uses the AWS
-Encryption SDK, so the ciphertext *wire format* it writes is readable by any
-correct AWS ESDK client, including this component. **But that is not the
-same as this component being able to read StreamSets' existing ciphertext
-correctly.** What actually gets encrypted — the plaintext payload this
-component wraps around each value so a decrypted value comes back as the
-right Python type (int/float/bool/datetime/str), not just a bare string —
-is **this component's own scheme** (see "Type preservation" below), not a
-documented StreamSets format. StreamSets' own plaintext layout inside its
-ciphertext is not publicly documented, so interop with ciphertext StreamSets
-already wrote has not been verified and should not be assumed to work.
+- **`compatibility: native`** (default) — this component's own type-preserving
+  scheme (see "Type preservation" below). Base64-encoded ciphertext, an
+  auto-added `field: <column>` encryption-context entry so ciphertext can't be
+  silently swapped between columns. **Not StreamSets-compatible** — see below.
+- **`compatibility: streamsets`** — matches StreamSets' "Encrypt and Decrypt
+  Fields" processor's real AWS Encryption SDK layout byte-for-byte: plaintext
+  is the value's UTF-8 text (not a JSON wrapper), the type goes in the
+  encryption context as `SDC_FIELD_TYPE` instead, output is raw bytes not
+  base64, and no `field` context entry is auto-added (StreamSets doesn't add
+  one either — adding it would break real interop). Verified against a real
+  Data Collector 6.4.1 and 3.18.1, both directions, by the
+  `migrating-streamsets-to-dagster` skill's own test suite
+  (`tests/test_sdc_crypto_parity.py`) and reference implementation
+  (`streamsets_to_dagster.runtime.encrypt_value`/`decrypt_value`) — this
+  component's own tests include a real cross-implementation check against
+  that reference implementation (`tests/test_sdc_compatibility.py`), proving
+  the two agree on the wire format. The AWS KMS path uses the same
+  plaintext/context shape but was not independently exercised against a real
+  AWS account by the skill either — treat KMS mode as corroborated, not
+  engine-verified.
 
-To verify real interop you would need:
-1. A real ciphertext sample StreamSets produced.
-2. The exact "Encrypt and Decrypt Fields" stage configuration used to
-   produce it (master-key mode — KMS alias/ARN or a raw key — and any
-   `encryption context` set on the stage).
-
-Without both of those, treat this as a genuine, correct AWS Encryption SDK
-component for **new** data — interoperable with any other correct ESDK
-client — not a drop-in reader for existing StreamSets-encrypted production
-data.
+Use `compatibility: streamsets` to read ciphertext StreamSets wrote, or write
+ciphertext StreamSets can read. Don't mix ciphertext between the two modes —
+they are genuinely different wire-adjacent layouts (same AWS ESDK envelope,
+different plaintext/context contents) and neither mode's output is readable
+by the other.
 
 ## Type preservation
 
@@ -132,6 +136,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 |---|---|---|---|
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
+| `compatibility` | `str` | `"native"` | 'native' (default) -- this component's own type-preserving scheme: plaintext is a JSON {"t": type, "v": value} wrapper, ciphertext is base64-encoded text, and an auto-added `field: <column>` encryption-context entry stop… _(full docs in schema.json + component README)_ |
 | `key_source` | `str` | `"raw_key"` | 'raw_key' (a user-supplied symmetric key via AWS ESDK's RawMasterKeyProvider) or 'kms' (an AWS KMS CMK via AWS ESDK's StrictAwsKmsMasterKeyProvider). |
 | `raw_key_env_var` | `str` | — | Env var holding a base64-encoded 256-bit (32-byte) symmetric key. Required when key_source='raw_key'. Generate one with: python3 -c "import os,base64; print(base64.b64encode(os.urandom(32)).decode())" |
 | `kms_key_ids` | `Union[str, List[str]]` | — | KMS key ARN(s) for StrictAwsKmsMasterKeyProvider. Required when key_source='kms'. For mode='encrypt' any valid KMS key identifier works (ARN, key id, alias name/ARN); for mode='decrypt' AWS requires the full key ARN -- k… _(full docs in schema.json + component README)_ |

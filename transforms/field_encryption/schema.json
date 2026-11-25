@@ -220,6 +220,12 @@
       "label": "Dynamic Partition Name",
       "required": false,
       "type": "string"
+    },
+    "compatibility": {
+      "type": "string",
+      "label": "Compatibility",
+      "description": "'native' (default) -- this component's own type-preserving scheme: plaintext is a JSON {\"t\": type, \"v\": value} wrapper, ciphertext is base64-encoded text, and an auto-added `field: <column>` encryption-context entry stops ciphertext being silently swapped between columns. NOT StreamSets-compatible. 'streamsets' -- matches StreamSets' \"Encrypt and Decrypt Fields\" processor's real AWS Encryption SDK layout byte-for-byte (verified against a real Data Collector 6.4.1 and 3.18.1, both directions, by the migrating-streamsets-to-dagster skill): plaintext is the value's UTF-8 text (byte-array fields stay raw bytes), the type goes in the encryption context as SDC_FIELD_TYPE instead of a plaintext wrapper, output is raw bytes not base64, and no `field` context entry is auto-added (StreamSets doesn't add one either). Use this mode to read ciphertext StreamSets wrote, or write ciphertext StreamSets can read.",
+      "required": false
     }
   }
 }

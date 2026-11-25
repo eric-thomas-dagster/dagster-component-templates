@@ -298,11 +298,13 @@ def test_build_defs_run_id_template_can_be_disabled(mod, tmp_path):
     assert "HYBRID_KG_SEARCH_RUN_ID" not in defs.resources["hybrid_mcp"].env
 
 
-# ─── MCP tool wrapper: errors surface as data, never crash the agent loop ──
+# ─── MCP tool wrapper: a resource-level {"error": ...} or a raised exception both become a
+# ─── real MCP ToolError, so a failed call is never mistaken for a successful one ───────────
 
-def test_safe_wrapper_returns_error_dict(mod, resource):
-    res = mod._safe(resource.get_entity, "Nobody")
-    assert res == {"error": "entity 'Nobody' not found"}
+def test_safe_wrapper_raises_sdk_tool_error_for_a_resource_error_dict(mod, resource):
+    assert resource.get_entity("Nobody") == {"error": "entity 'Nobody' not found"}  # resource's own direct contract, unchanged
+    with pytest.raises(mod._sdk_tool_error_cls(), match="entity 'Nobody' not found"):
+        mod._safe(resource.get_entity, "Nobody")
 
 
 # ─── graph.provider='sql_tables': recursive-CTE graph traversal over knowledge_graph_builder's

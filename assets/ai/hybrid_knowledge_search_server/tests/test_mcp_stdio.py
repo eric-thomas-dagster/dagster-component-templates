@@ -68,3 +68,23 @@ def test_stdio_server_requires_collection_name():
     env = {k: v for k, v in os.environ.items() if k != "HYBRID_KG_SEARCH_VECTOR_COLLECTION_NAME"}
     p = subprocess.run([sys.executable, SERVER], env=env, capture_output=True, text=True, timeout=60)
     assert p.returncode != 0 and "HYBRID_KG_SEARCH_VECTOR_COLLECTION_NAME" in p.stderr
+
+
+def test_stdio_server_unknown_entity_is_a_real_isError_result_with_the_original_message(paths):
+    """A tool-level failure (unknown entity name) must come back as a REAL isError result, not a
+    quiet non-error {"error": ...} dict an agent loop's failed-call accounting would miss -- see
+    _safe in component.py. Also confirms the original message (not a generic "Error executing
+    tool X") survives end-to-end, which only holds when the SDK recognizes the raised exception
+    as its own ToolError."""
+    chroma_path, graph_path = paths
+
+    async def body(s):
+        return await s.call_tool("get_entity", {"name": "Nobody"})
+
+    res = _run(body, {
+        "HYBRID_KG_SEARCH_VECTOR_PROVIDER": "chromadb", "HYBRID_KG_SEARCH_VECTOR_CONNECTION_STRING": chroma_path,
+        "HYBRID_KG_SEARCH_VECTOR_COLLECTION_NAME": "support_kb",
+        "HYBRID_KG_SEARCH_GRAPH_PROVIDER": "networkx", "HYBRID_KG_SEARCH_GRAPH_PATH": graph_path,
+    })
+    assert getattr(res, "is_error", None) or getattr(res, "isError", None)
+    assert "Nobody" in res.content[0].text and "not found" in res.content[0].text

@@ -36,6 +36,12 @@ There's also no independently-confirmed "list all jobs" endpoint, so jobs are de
 
 **Researched for `schedule_cron`/`pipeline_id` (same honesty standard):** Control Hub DOES have its own native "Scheduled Task" subsystem (cron-driven, fires start/stop/upgrade against a job) — but its REST surface is a separate API family (`/scheduler/rest/v2/...`) whose literal shape is only corroborated by a single multi-year-old community forum post (whose own author suggested reverse-engineering the payload from browser devtools) — weaker corroboration than this component already requires, so it isn't called. A real "Job Runner Metrics" API category is independently confirmed to exist (IBM's Control Hub release notes describe per-job-run input/output/error record counts), but no literal endpoint path could be confirmed from an official reference — so metrics polling isn't implemented, a known gap rather than an oversight. A job's `pipeline_id` (and pipeline commit reference) IS confirmed, independently, on StreamSets' own Platform SDK's `Job` model.
 
+**Live-verified** (2026-11-25), on top of the Job Runner start/stop/status round trip above — every other moving part of this component, exercised for real against the same trial org, not just in isolation:
+- `pipeline_id`/`pipeline_commit_id` metadata: built from the real job's actual `job.pipeline_id`/`job.commit_id` values (confirmed real attributes on the Platform SDK's `Job` model, read directly off the live job) and confirmed they land correctly as asset metadata.
+- `schedule_cron`: confirmed the generated `ScheduleDefinition` carries the exact configured cron expression, timezone, and default status.
+- `require_active` asset check: confirmed `passed=True` with `status=ACTIVE` while the real job was running, and `passed=False` with `status=INACTIVE` after a real `stop_job` call — both the pass and fail path, not just the happy path.
+- `polling_sensor`: confirmed it correctly detects a real `ACTIVE → INACTIVE` transition (and back) across two real `stop_job`/`start_job` round trips, and correctly emits nothing on a tick where nothing changed.
+
 ## Jobs — explicit list, per-job overrides
 
 ```yaml

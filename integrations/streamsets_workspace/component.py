@@ -35,23 +35,30 @@ not glossed over):
     DEACTIVATING are pure transition states -- no job actions are valid
     while in either.
 
-  WELL-CORROBORATED BUT NOT FROM AN OFFICIAL REFERENCE this component's
-  author could independently verify (multiple independent third-party
-  integration write-ups -- an MCP-server implementation guide and a
-  SoftwareAG webMethods connector's documented service names -- agree on
-  the *shape*, but no literal endpoint-path string could be confirmed
-  against an official StreamSets/IBM REST reference page):
+  LIVE-VERIFIED against a real Control Hub trial org + a real registered
+  Data Collector engine (2026-11-25) -- not secondhand corroboration, an
+  actual end-to-end run: created a pipeline and job via the real
+  `streamsets` Python SDK, then exercised this file's own
+  `StreamSetsTransport.start_job`/`stop_job`/`get_job_status` directly
+  (the literal shipped code, imported and called, not a reimplementation)
+  against that live job. Confirmed exact paths, headers, and status/color
+  transitions all match what's documented below:
     POST {base}/jobrunner/rest/v1/job/{jobId}/start
     POST {base}/jobrunner/rest/v1/job/{jobId}/stop
     GET  {base}/jobrunner/rest/v1/job/{jobId}/currentStatus
+  Observed transition sequence: ACTIVE (color=GREEN) -> stop_job ->
+  DEACTIVATING (color=GREEN) -> INACTIVE (color=GRAY) -> start_job ->
+  ACTIVATING (color=GREEN) -> ACTIVE (color=GREEN) -- exactly the status
+  vocabulary and color semantics claimed above, confirmed live rather than
+  assumed.
 
-  Because of this, every Job Runner call in `StreamSetsTransport` below
-  goes through three small methods (`start_job`/`stop_job`/`get_job_status`)
-  with the literal path baked into exactly one place each -- if your
-  Control Hub install uses a different path (version-specific APIs do
-  shift), patch these three methods, not the asset/sensor logic around
-  them. There is no independently-confirmed "list all jobs" endpoint, so
-  jobs are declared explicitly via `jobs:`, not discovered.
+  Because version-specific Control Hub installs can still shift these
+  paths, every Job Runner call in `StreamSetsTransport` below goes through
+  three small methods (`start_job`/`stop_job`/`get_job_status`) with the
+  literal path baked into exactly one place each -- if your install uses a
+  different path, patch these three methods, not the asset/sensor logic
+  around them. There is no independently-confirmed "list all jobs"
+  endpoint, so jobs are declared explicitly via `jobs:`, not discovered.
 
 A job's `currentStatus` response is not documented to expose a metrics/
 throughput field at any officially-confirmed path, so the optional polling

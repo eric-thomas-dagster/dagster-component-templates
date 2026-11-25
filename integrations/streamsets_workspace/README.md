@@ -22,7 +22,7 @@ This component is upfront about the gap between what's independently confirmed a
 
 **Verified** against StreamSets/IBM's own Job Status documentation: job status is one of `ACTIVE` / `INACTIVE` / `ACTIVATING` / `DEACTIVATING`, each with an "... with error" variant surfaced via a `color` field. `ACTIVATING`/`DEACTIVATING` are pure transition states — no job action is valid while in either.
 
-**Well-corroborated but not independently confirmed** against an official reference: the literal Job Runner endpoint paths —
+**Live-verified** (2026-11-25) against a real Control Hub trial org + a real registered Data Collector engine — the literal Job Runner endpoint paths:
 
 ```
 POST {base}/jobrunner/rest/v1/job/{jobId}/start
@@ -30,7 +30,7 @@ POST {base}/jobrunner/rest/v1/job/{jobId}/stop
 GET  {base}/jobrunner/rest/v1/job/{jobId}/currentStatus
 ```
 
-Multiple independent third-party sources (an MCP-server implementation guide, a SoftwareAG webMethods connector's documented service names) agree on this shape, but no official StreamSets/IBM reference page's literal path string could be confirmed. Each path lives in exactly one method on `StreamSetsTransport` (`start_job`/`stop_job`/`get_job_status`) — if your Control Hub install uses a different path, patch those three methods, not the asset/sensor logic around them.
+This wasn't a documentation cross-check — a real pipeline and job were created with the official `streamsets` Python SDK, then this file's own `StreamSetsTransport.start_job`/`stop_job`/`get_job_status` were imported and called directly against that live job. Observed transitions matched the documented vocabulary exactly: `ACTIVE` (green) → `stop_job` → `DEACTIVATING` (green) → `INACTIVE` (gray) → `start_job` → `ACTIVATING` (green) → `ACTIVE` (green). Each path still lives in exactly one method on `StreamSetsTransport` (`start_job`/`stop_job`/`get_job_status`) — if your Control Hub install uses a different path (version-specific APIs do shift), patch those three methods, not the asset/sensor logic around them.
 
 There's also no independently-confirmed "list all jobs" endpoint, so jobs are declared explicitly via `jobs:`, not discovered. Similarly, no officially-confirmed metrics/throughput field exists on `currentStatus`, so the polling sensor below tracks **status changes only** — a deliberate scope limit, not an oversight.
 

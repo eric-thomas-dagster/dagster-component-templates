@@ -1,0 +1,4 @@
+dagster
+pandas
+duckdb
+aws-encryption-sdk

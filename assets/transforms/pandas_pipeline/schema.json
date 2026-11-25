@@ -1,0 +1,230 @@
+{
+  "component_type": "dagster_community_components.PandasPipelineComponent",
+  "description": "Multi-step pandas DataFrame pipeline in a single Dagster asset — the pandas-engine sibling to polars_pipeline.",
+  "category": "transformation",
+  "icon": "si:pandas",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "Upstream DataFrame(s) — one or more, depending on shape; accepts pandas or polars"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame after the chain (last step / primary_step)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Output Dagster asset name",
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Flat shape (one source, one ops chain, one sink)"
+    },
+    "operations": {
+      "type": "array",
+      "label": "Operations",
+      "items": {
+        "type": "object"
+      },
+      "description": "Flat shape: ordered list of pandas ops applied to upstream_asset_key. Supported: filter, with_columns, select, drop, rename, group_by, sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null, cast, join, union, sql."
+    },
+    "steps": {
+      "label": "Steps",
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Multi-step form. Each step: {id, source: {kind: upstream|ref|file|url|encrypted_file, ...}, operations: [...]}. Use 'op: sql' to drop into an in-memory DuckDB connection (current frame = 'self'; prior steps usable by id)."
+    },
+    "sinks": {
+      "label": "Sinks",
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|table|encrypted_file, path/table: '...'}. These run after the chain finishes; the asset's return value comes from primary_step."
+    },
+    "primary_step": {
+      "label": "Primary Step",
+      "type": "string",
+      "description": "Step id whose frame is the asset's return value (default: last step)"
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "File / URL / encrypted-file source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}` or `{kind: encrypted_file, path, format?}` (see key_source/raw_key_env_var/kms_key_ids/key_id/encryption_context below). `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. Format is inferred from extension (.json / .ndjson / .csv / .parquet) when unset. Mutually exclusive with `upstream_asset_key`.",
+      "required": false
+    },
+    "key_source": {
+      "type": "string",
+      "label": "Encryption Key Source",
+      "description": "'raw_key' (a user-supplied symmetric key via AWS ESDK's RawMasterKeyProvider) or 'kms' (an AWS KMS CMK via AWS ESDK's StrictAwsKmsMasterKeyProvider). Only used when a source or sink kind is 'encrypted_file'.",
+      "default": "raw_key",
+      "enum": ["raw_key", "kms"],
+      "ui:widget": "select"
+    },
+    "raw_key_env_var": {
+      "type": "string",
+      "label": "Raw Key Env Var",
+      "description": "Env var holding a base64-encoded 256-bit (32-byte) symmetric key. Required when key_source='raw_key' and an encrypted_file source/sink is used.",
+      "required": false
+    },
+    "kms_key_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "KMS Key IDs",
+      "description": "KMS key ARN(s) for StrictAwsKmsMasterKeyProvider. Required when key_source='kms'.",
+      "required": false
+    },
+    "key_id": {
+      "type": "string",
+      "label": "Key ID",
+      "description": "Logical wrapping-key identifier for raw_key mode. Must match between the encrypt run and the decrypt run.",
+      "default": "pandas-pipeline-file-key"
+    },
+    "encryption_context": {
+      "type": "object",
+      "label": "Encryption Context",
+      "description": "Additional authenticated data (AAD) for the AWS Encryption SDK. Must match exactly between encrypt and decrypt.",
+      "required": false
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Asset Group"
+    },
+    "description": {
+      "label": "Description",
+      "description": "Asset description.",
+      "type": "string"
+    },
+    "asset_tags": {
+      "label": "Asset Tags",
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
+      "type": "object"
+    },
+    "kinds": {
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog.",
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "owners": {
+      "label": "Owners",
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "deps": {
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "include_preview_metadata": {
+      "label": "Include Preview Metadata",
+      "description": "Include a preview of the output data in metadata (sample rows) for builder UIs.",
+      "type": "boolean",
+      "default": false
+    },
+    "preview_rows": {
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True.",
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 500
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly', 'cron' for time-based; 'static' for a fixed set of values; 'dynamic' for a DynamicPartitionsDefinition. Leave empty for unpartitioned. Use `partition_dimensions` instead for multi-dimensional partitioning.",
+      "enum": ["daily", "weekly", "monthly", "hourly", "cron", "static", "dynamic"],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static partitioning, e.g. 'acme_corp,globex,initech'.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts — e.g. a (bank, batch_day) shape. Overrides flat fields when set.",
+      "items": {"type": "object"},
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "metadata": {
+      "type": "object",
+      "label": "Metadata",
+      "description": "Asset-level metadata dict — passed straight through to `@asset(metadata=...)`.",
+      "required": false
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset).",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run. 'multi_run' launches one run per partition. Leave empty for Dagster's default.",
+      "required": false,
+      "default": null,
+      "enum": ["single_run", "multi_run"],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    }
+  }
+}

@@ -1,0 +1,69 @@
+# The pandas-engine sibling to PolarsPipelineComponent — same YAML shape,
+# same op menu, same partitioning. Pick this one when your team already
+# standardizes on pandas; pick polars_pipeline for the lazy-query-plan-
+# fusion performance story on large data / long op chains.
+
+# ── Shape (a): flat shape — one source, one ops chain, one sink.
+
+type: dagster_community_components.PandasPipelineComponent
+attributes:
+  asset_name: top_customers_by_region
+  upstream_asset_key: raw_orders
+  operations:
+    - op: filter
+      predicate: "status = 'paid'"
+    - op: with_columns
+      # `expressions:` is SQL, evaluated via an in-memory DuckDB connection
+      # (DuckDB reads a pandas DataFrame natively, zero-copy). If you need
+      # the full Python/pandas API instead, use `python_expressions:` — it
+      # runs with `pd` and `df` (the frame so far) bound.
+      expressions:
+        total_amount: "amount * quantity + shipping"     # unambiguously SQL
+      python_expressions:
+        ingest_ts: "pd.Timestamp.utcnow()"               # ← pandas Python API
+    - op: group_by
+      group_by: [region, customer_id]
+      aggregations:
+        total:       {col: net_amount, agg: sum}
+        order_count: {col: order_id,   agg: count}
+    - op: sort
+      by: [region, total]
+      descending: true
+    - op: head_per_group
+      group_by: [region]
+      n: 5
+  group_name: analytics
+
+# ── Shape (b): multi-step with (bank, batch_day) partitioning, an
+#               encrypted file source, and an encrypted file sink —
+#               the file-level decrypt → transform → re-encrypt → stage
+#               pattern, one op, one asset materialization.
+# ────────────────────────────────────────────────────────────────────────────
+#
+# type: dagster_community_components.PandasPipelineComponent
+# attributes:
+#   asset_name: bank_batch_staged
+#   steps:
+#     - id: decrypted
+#       source:
+#         kind: encrypted_file
+#         path: "incoming/{partition.bank}/{partition_key}.csv.enc"
+#         format: csv
+#       operations:
+#         - op: rename
+#           mapping: {acct: account_id}
+#         - op: cast
+#           mapping: {amount: float}
+#   sinks:
+#     - from: decrypted
+#       kind: encrypted_file
+#       path: "staged/{partition.bank}/{partition_key}.csv.enc"
+#       format: csv
+#   key_source: raw_key
+#   raw_key_env_var: BANK_FILE_ENCRYPTION_KEY
+#   key_id: bank-batch-pipeline
+#   encryption_context: {purpose: bank-batch-staging}
+#   partition_dimensions:
+#     - {name: bank, type: static, values: [acme_bank, globex_bank]}
+#     - {name: batch_day, type: daily, start: "2026-01-01", end_offset: 1}
+#   group_name: bank_ingestion

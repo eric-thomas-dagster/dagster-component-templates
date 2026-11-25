@@ -24,7 +24,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.186"
+__version__ = "0.10.187"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 
@@ -1049,6 +1049,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PandaDocIngestionComponent": "assets/ingestion/pandadoc_ingestion/component.py",
     "PandaDocResourceComponent": "resources/pandadoc_resource/component.py",
     "PandasDataframeCheckComponent": "asset_checks/pandas_dataframe_check/component.py",
+    "PandasPipelineComponent": "assets/transforms/pandas_pipeline/component.py",
     "PanderaAssetCheckComponent": "asset_checks/pandera_asset_check/component.py",
     "PapertrailResourceComponent": "resources/papertrail_resource/component.py",
     "ParametricDataGeneratorComponent": "assets/source/parametric_data_generator/component.py",

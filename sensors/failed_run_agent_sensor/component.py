@@ -17,10 +17,10 @@ import re
 import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
@@ -315,7 +315,20 @@ def _already_triaged_retry_chain_root(instance, root_run_id: str) -> bool:
     return bool(instance.get_run_records(filters=dg.RunsFilter(tags={"eng/retry_chain_root": root_run_id}), limit=1))
 
 
-def _get_slack_client(bot_token_env_var: str):
+# BEGIN announcement notifier (inlined per component; keep copies identical -- see
+# tests/test_announcement_notifier_drift.py). Posts one announcement to either Slack or Microsoft
+# Teams and returns the thread-identifying tags the matching reply asset (slack_reply / teams_reply)
+# already reads -- platform dispatch only, no new auth: Slack uses slack_sdk's WebClient (unchanged
+# from this component's own prior behavior); Teams uses the same delegated-OAuth2 refresh-token
+# Graph bearer flow teams_agent_request_sensor/teams_approval_gate already use, minus refresh-token-
+# rotation persistence (an announcement-only sensor has no existing state directory to put it in --
+# a rotated token is simply re-derived from the seed on the next call, same as teams_approval_gate's
+# own behavior when no approval_dir is configured).
+class AnnouncementPostError(Exception):
+    pass
+
+
+def _get_slack_client_for_announcement(bot_token_env_var: str):
     try:
         from slack_sdk import WebClient
     except ImportError as e:
@@ -324,6 +337,84 @@ def _get_slack_client(bot_token_env_var: str):
     if not token:
         raise RuntimeError(f"Slack bot token env var {bot_token_env_var!r} not set.")
     return WebClient(token=token)
+
+
+def _get_teams_bearer_for_announcement(tenant_id_env: str, client_id_env: str, client_secret_env: str, refresh_token_env: str) -> str:
+    import requests
+    tenant_id = os.environ.get(tenant_id_env)
+    client_id = os.environ.get(client_id_env)
+    client_secret = os.environ.get(client_secret_env)
+    refresh_token = os.environ.get(refresh_token_env)
+    if not (tenant_id and client_id and client_secret and refresh_token):
+        raise RuntimeError(
+            f"Teams auth env vars not all set: {tenant_id_env}={'present' if tenant_id else 'missing'}, "
+            f"{client_id_env}={'present' if client_id else 'missing'}, "
+            f"{client_secret_env}={'present' if client_secret else 'missing'}, "
+            f"{refresh_token_env}={'present' if refresh_token else 'missing'}."
+        )
+    r = requests.post(
+        f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+        data={
+            "client_id": client_id, "client_secret": client_secret,
+            "scope": "https://graph.microsoft.com/.default offline_access",
+            "grant_type": "refresh_token", "refresh_token": refresh_token,
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json()["access_token"]
+
+
+def _post_teams_channel_message_for_announcement(bearer: str, team_id: str, channel_id: str, html_body: str) -> Dict[str, Any]:
+    import requests
+    r = requests.post(
+        f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/messages",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": "application/json"},
+        json={"body": {"contentType": "html", "content": html_body}},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def _announcement_text_to_html(text: str) -> str:
+    escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return escaped.replace("\n", "<br>")
+
+
+def post_announcement(
+    platform: str, text: str, *,
+    slack_channel: Optional[str] = None, slack_bot_token_env_var: str = "SLACK_BOT_TOKEN",
+    teams_team_id: Optional[str] = None, teams_channel_id: Optional[str] = None,
+    teams_tenant_id_env_var: str = "TEAMS_TENANT_ID", teams_client_id_env_var: str = "TEAMS_CLIENT_ID",
+    teams_client_secret_env_var: str = "TEAMS_CLIENT_SECRET", teams_refresh_token_env_var: str = "TEAMS_REFRESH_TOKEN",
+) -> Dict[str, str]:
+    """Posts one announcement via the given platform's client and returns the thread-identifying
+    tags the matching reply asset (slack_reply / teams_reply) reads. Raises AnnouncementPostError
+    with a platform-specific message on any failure."""
+    if platform == "teams":
+        if not (teams_team_id and teams_channel_id):
+            raise AnnouncementPostError("platform='teams' requires teams_team_id and teams_channel_id.")
+        try:
+            bearer = _get_teams_bearer_for_announcement(
+                teams_tenant_id_env_var, teams_client_id_env_var, teams_client_secret_env_var, teams_refresh_token_env_var,
+            )
+            posted = _post_teams_channel_message_for_announcement(bearer, teams_team_id, teams_channel_id, _announcement_text_to_html(text))
+        except Exception as e:  # noqa: BLE001
+            raise AnnouncementPostError(f"Teams post failed: {e}") from e
+        return {"teams/team_id": teams_team_id, "teams/channel_id": teams_channel_id, "teams/thread_id": posted["id"]}
+
+    if not slack_channel:
+        raise AnnouncementPostError("platform='slack' requires slack_channel.")
+    try:
+        client = _get_slack_client_for_announcement(slack_bot_token_env_var)
+        posted = client.chat_postMessage(channel=slack_channel, text=text)
+    except Exception as e:  # noqa: BLE001
+        raise AnnouncementPostError(f"Slack post failed: {e}") from e
+    if not posted.get("ok"):
+        raise AnnouncementPostError(f"Slack post failed: {posted.get('error')}")
+    return {"slack/channel": posted["channel"], "slack/thread_ts": posted["ts"]}
+# END announcement notifier
 
 
 class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -347,8 +438,22 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     job_names: Optional[List[str]] = Field(default=None, description="Only trigger for these job names. Leave unset to monitor every job.")
     required_tags: Optional[Dict[str, Any]] = Field(default=None, description="Only trigger when the failed run carries ALL of these tags (key=value).")
 
-    slack_channel: str = Field(description="Channel to announce a failed run in (either `C123ABC456` id or `#channel-name`).")
-    slack_bot_token_env_var: str = Field(default="SLACK_BOT_TOKEN", description="Env var holding the bot's `xoxb-...` token. Needs `chat:write`.")
+    platform: Literal["slack", "teams"] = Field(
+        default="slack",
+        description=(
+            "Chat platform to announce a failed run in. 'teams' posts via Microsoft Graph instead "
+            "of Slack and sets teams/team_id + teams/channel_id + teams/thread_id run tags instead "
+            "of slack/channel + slack/thread_ts (so teams_reply answers in it instead of slack_reply)."
+        ),
+    )
+    slack_channel: Optional[str] = Field(default=None, description="platform='slack' (required then). Channel to announce a failed run in (either `C123ABC456` id or `#channel-name`).")
+    slack_bot_token_env_var: str = Field(default="SLACK_BOT_TOKEN", description="platform='slack'. Env var holding the bot's `xoxb-...` token. Needs `chat:write`.")
+    teams_team_id: Optional[str] = Field(default=None, description="platform='teams' (required then). Teams team id (Teams client -> team -> ... -> Get link).")
+    teams_channel_id: Optional[str] = Field(default=None, description="platform='teams' (required then). Teams channel id inside the team (e.g. '19:xxx@thread.tacv2').")
+    teams_tenant_id_env_var: str = Field(default="TEAMS_TENANT_ID", description="platform='teams'. Env var holding the Azure AD tenant id.")
+    teams_client_id_env_var: str = Field(default="TEAMS_CLIENT_ID", description="platform='teams'. Env var holding the Azure AD app registration client id.")
+    teams_client_secret_env_var: str = Field(default="TEAMS_CLIENT_SECRET", description="platform='teams'. Env var holding the Azure AD app registration client secret.")
+    teams_refresh_token_env_var: str = Field(default="TEAMS_REFRESH_TOKEN", description="platform='teams'. Env var holding the OAuth refresh token (see teams_agent_request_sensor's README, 'Auth').")
     message_template: Optional[str] = Field(
         default=None,
         description="Optional custom message template. Placeholders: {run_id} (short, 8 chars), {job_name}, {url}. Default: ':beetle: Run <{url}|{run_id}> of `{job_name}` failed. Looking into the cause.'",
@@ -411,6 +516,15 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("asset_keys", "code_location_names", "exclude_code_location_names", "job_names"), csv=(), tags=("required_tags",))
 
+    @model_validator(mode="after")
+    def _validate_platform_fields(self):
+        if self.platform == "teams":
+            if not (self.teams_team_id and self.teams_channel_id):
+                raise ValueError("FailedRunAgentSensorComponent: platform='teams' requires teams_team_id and teams_channel_id.")
+        elif not self.slack_channel:
+            raise ValueError("FailedRunAgentSensorComponent: platform='slack' requires slack_channel.")
+        return self
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -424,8 +538,15 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         exclude_code_location_names = set(self.exclude_code_location_names) if self.exclude_code_location_names else None
         job_names = set(self.job_names) if self.job_names else None
         required_tags = dict(self.required_tags or {})
+        platform = self.platform
         slack_channel = self.slack_channel
         slack_bot_token_env_var = self.slack_bot_token_env_var
+        teams_team_id = self.teams_team_id
+        teams_channel_id = self.teams_channel_id
+        teams_tenant_id_env_var = self.teams_tenant_id_env_var
+        teams_client_id_env_var = self.teams_client_id_env_var
+        teams_client_secret_env_var = self.teams_client_secret_env_var
+        teams_refresh_token_env_var = self.teams_refresh_token_env_var
         message_template = self.message_template or ":beetle: Run <{url}|{run_id}> of `{job_name}` failed. Looking into the cause."
         dagster_url = (self.dagster_url or "").rstrip("/")
         evidence_dir = self.evidence_dir
@@ -484,15 +605,20 @@ class FailedRunAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
             run_url = f"{dagster_url}/runs/{run.run_id}" if dagster_url else run.run_id
             text = message_template.format(run_id=run.run_id[:8], job_name=run.job_name, url=run_url)
-            client = _get_slack_client(slack_bot_token_env_var)
             try:
-                posted = client.chat_postMessage(channel=slack_channel, text=text)
-            except Exception as e:  # noqa: BLE001
-                return dg.SkipReason(f"Slack post failed: {e}")
+                thread_tags = post_announcement(
+                    platform, text,
+                    slack_channel=slack_channel, slack_bot_token_env_var=slack_bot_token_env_var,
+                    teams_team_id=teams_team_id, teams_channel_id=teams_channel_id,
+                    teams_tenant_id_env_var=teams_tenant_id_env_var, teams_client_id_env_var=teams_client_id_env_var,
+                    teams_client_secret_env_var=teams_client_secret_env_var, teams_refresh_token_env_var=teams_refresh_token_env_var,
+                )
+            except AnnouncementPostError as e:
+                return dg.SkipReason(str(e))
 
             tags = {
                 "eng/failed_run_id": run.run_id, "eng/error_signature": sig, "eng/sensor_name": sensor_name,
-                "slack/channel": posted["channel"], "slack/thread_ts": posted["ts"],
+                **thread_tags,
             }
             if use_retry_rule:
                 tags["eng/retry_chain_root"] = chain_root

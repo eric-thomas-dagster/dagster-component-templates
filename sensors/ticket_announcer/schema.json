@@ -15,7 +15,7 @@
       "type": "string",
       "label": "Slack Channel",
       "description": "Channel to announce new tickets in (either `C123ABC456` id or `#channel-name`).",
-      "required": true
+      "required": false
     },
     "slack_bot_token_env_var": {
       "type": "string",
@@ -83,6 +83,52 @@
       "default": "RUNNING",
       "label": "Default Status",
       "description": "'RUNNING' or 'STOPPED'.",
+      "required": false
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "slack",
+        "teams"
+      ],
+      "label": "Platform",
+      "description": "Chat platform to announce new tickets in. 'teams' posts via Microsoft Graph instead of Slack.",
+      "required": false
+    },
+    "teams_team_id": {
+      "type": "string",
+      "label": "Teams Team Id",
+      "description": "platform='teams' (required then). Teams team id (Teams client -> team -> ... -> Get link).",
+      "required": false
+    },
+    "teams_channel_id": {
+      "type": "string",
+      "label": "Teams Channel Id",
+      "description": "platform='teams' (required then). Teams channel id inside the team (e.g. '19:xxx@thread.tacv2').",
+      "required": false
+    },
+    "teams_tenant_id_env_var": {
+      "type": "string",
+      "label": "Teams Tenant Id Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD tenant id.",
+      "required": false
+    },
+    "teams_client_id_env_var": {
+      "type": "string",
+      "label": "Teams Client Id Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD app registration client id.",
+      "required": false
+    },
+    "teams_client_secret_env_var": {
+      "type": "string",
+      "label": "Teams Client Secret Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD app registration client secret.",
+      "required": false
+    },
+    "teams_refresh_token_env_var": {
+      "type": "string",
+      "label": "Teams Refresh Token Env Var",
+      "description": "platform='teams'. Env var holding the OAuth refresh token.",
       "required": false
     }
   }

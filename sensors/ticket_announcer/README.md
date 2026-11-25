@@ -20,12 +20,6 @@ Without a filter, every issue in a busy repo/team would get announced. `github_i
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `slack_channel` | `str` | Channel to announce new tickets in (either `C123ABC456` id or `#channel-name`). |
-
 ### Sensor configuration
 
 | Field | Type | Default | Description |
@@ -38,8 +32,16 @@ Without a filter, every issue in a busy repo/team would get announced. `github_i
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's `xoxb-...` token. Needs `chat:write`. |
-| `excerpt_chars` | `int` | `320` | Max characters of the ticket body quoted in the Slack message. |
+| `platform` | `Literal['slack', 'teams']` | `"slack"` | Chat platform to announce new tickets in. 'teams' posts via Microsoft Graph instead of Slack. |
+| `slack_channel` | `str` | — | platform='slack' (required then). Channel to announce new tickets in (either `C123ABC456` id or `#channel-name`). |
+| `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | platform='slack'. Env var holding the bot's `xoxb-...` token. Needs `chat:write`. |
+| `teams_team_id` | `str` | — | platform='teams' (required then). Teams team id (Teams client -> team -> ... -> Get link). |
+| `teams_channel_id` | `str` | — | platform='teams' (required then). Teams channel id inside the team (e.g. '19:xxx@thread.tacv2'). |
+| `teams_tenant_id_env_var` | `str` | `"TEAMS_TENANT_ID"` | platform='teams'. Env var holding the Azure AD tenant id. |
+| `teams_client_id_env_var` | `str` | `"TEAMS_CLIENT_ID"` | platform='teams'. Env var holding the Azure AD app registration client id. |
+| `teams_client_secret_env_var` | `str` | `"TEAMS_CLIENT_SECRET"` | platform='teams'. Env var holding the Azure AD app registration client secret. |
+| `teams_refresh_token_env_var` | `str` | `"TEAMS_REFRESH_TOKEN"` | platform='teams'. Env var holding the OAuth refresh token. |
+| `excerpt_chars` | `int` | `320` | Max characters of the ticket body quoted in the announcement. |
 | `repo` | `str` | — | GitHub repository to watch for agent-filed issues, 'owner/repo'. Leave unset to skip GitHub. |
 | `github_token_env_var` | `str` | `"GITHUB_TOKEN"` | Env var holding a GitHub token with read access to issues. |
 | `github_issue_label` | `str` | `"engineering-agent"` | Only issues carrying this label are announced. |

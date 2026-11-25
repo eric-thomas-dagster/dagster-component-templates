@@ -1,0 +1,224 @@
+{
+  "component_type": "dagster_community_components.TeamsPrApprovalWatcherComponent",
+  "description": "Watch a GitHub-pull-request Teams message for a reaction; record a GitHub review through a second identity, refuse to approve while checks fail, and optionally merge once approved and checks pass.",
+  "category": "sensor",
+  "icon": "MicrosoftTeams",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "default": "teams_pr_approval_watcher",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": false
+    },
+    "repo": {
+      "type": "string",
+      "label": "Repo",
+      "description": "GitHub repository to act on, 'owner/repo'. Must match the repo sensors/github_pull_request_agent_sensor watches.",
+      "required": true
+    },
+    "token_env_var": {
+      "type": "string",
+      "default": "GITHUB_TOKEN",
+      "label": "Token Env Var",
+      "description": "Env var holding the primary GitHub token (reads, checks CI).",
+      "required": false
+    },
+    "reviewer_token_env_var": {
+      "type": "string",
+      "label": "Reviewer Token Env Var",
+      "description": "Env var holding a SECOND GitHub token (a distinct bot/user identity with write access) -- required to actually record an approval. GitHub blocks a PR's own author approving it.",
+      "required": false
+    },
+    "reviewer_login": {
+      "type": "string",
+      "label": "Reviewer Login",
+      "description": "The reviewer (second) identity's GitHub username -- checked before merging, to confirm THAT identity (not just anyone) approved.",
+      "required": false
+    },
+    "api_base_url": {
+      "type": "string",
+      "default": "https://api.github.com",
+      "label": "Api Base Url",
+      "description": "API base URL. Change for GitHub Enterprise Server.",
+      "required": false
+    },
+    "branch_prefix": {
+      "type": "string",
+      "default": "agent/",
+      "label": "Branch Prefix",
+      "description": "Only branches with this prefix are ever merged automatically.",
+      "required": false
+    },
+    "teams_team_id": {
+      "type": "string",
+      "label": "Teams Team Id",
+      "description": "The SAME Teams team id sensors/github_pull_request_agent_sensor (platform='teams') posts to.",
+      "required": true
+    },
+    "teams_channel_id": {
+      "type": "string",
+      "label": "Teams Channel Id",
+      "description": "The SAME Teams channel id sensors/github_pull_request_agent_sensor (platform='teams') posts to.",
+      "required": true
+    },
+    "teams_tenant_id_env_var": {
+      "type": "string",
+      "default": "TEAMS_TENANT_ID",
+      "label": "Teams Tenant Id Env Var",
+      "description": "Env var holding the Azure AD tenant id.",
+      "required": false
+    },
+    "teams_client_id_env_var": {
+      "type": "string",
+      "default": "TEAMS_CLIENT_ID",
+      "label": "Teams Client Id Env Var",
+      "description": "Env var holding the Azure AD app registration client id.",
+      "required": false
+    },
+    "teams_client_secret_env_var": {
+      "type": "string",
+      "default": "TEAMS_CLIENT_SECRET",
+      "label": "Teams Client Secret Env Var",
+      "description": "Env var holding the Azure AD app registration client secret.",
+      "required": false
+    },
+    "teams_refresh_token_env_var": {
+      "type": "string",
+      "default": "TEAMS_REFRESH_TOKEN",
+      "label": "Teams Refresh Token Env Var",
+      "description": "Env var holding the OAuth refresh token.",
+      "required": false
+    },
+    "history_lookback_hours": {
+      "type": "number",
+      "default": 168.0,
+      "label": "History Lookback Hours",
+      "description": "How far back (hours) to scan the channel for still-open PR-review messages.",
+      "required": false
+    },
+    "post_branch_deployment_link": {
+      "type": "boolean",
+      "default": true,
+      "label": "Post Branch Deployment Link",
+      "description": "Post 'A branch deployment of this change is ready to test: <link>' once in a PR's Teams thread, when the PR has a Dagster+ branch deployment link and is NOT low risk (per protected_paths / low_risk_paths / low_risk_max_files / low_risk_max_lines), so a person approving in Teams can try the change first.",
+      "required": false
+    },
+    "protected_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        ".github/",
+        "pyproject.toml",
+        "requirements",
+        "Dockerfile",
+        "setup."
+      ],
+      "label": "Protected Paths",
+      "description": "Risk assessment for post_branch_deployment_link: a PR touching one of these paths is not low risk. Same matching convention and defaults as github_pr_tools' protected_paths.",
+      "required": false
+    },
+    "low_risk_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "src/",
+        "tests/",
+        "docs/",
+        "README"
+      ],
+      "label": "Low Risk Paths",
+      "description": "Risk assessment for post_branch_deployment_link: a PR changing only these paths (within the size limits, checks passing) is low risk and gets no link. Same convention and defaults as github_pr_tools' low_risk_paths.",
+      "required": false
+    },
+    "low_risk_max_files": {
+      "type": "integer",
+      "default": 2,
+      "label": "Low Risk Max Files",
+      "description": "Risk assessment for post_branch_deployment_link: max changed files for a low-risk PR.",
+      "required": false
+    },
+    "low_risk_max_lines": {
+      "type": "integer",
+      "default": 30,
+      "label": "Low Risk Max Lines",
+      "description": "Risk assessment for post_branch_deployment_link: max changed lines (additions + deletions) for a low-risk PR.",
+      "required": false
+    },
+    "auto_merge": {
+      "type": "boolean",
+      "default": false,
+      "label": "Auto Merge",
+      "description": "When True, squash-merge automatically once the reviewer identity has approved and checks pass (still gated by branch_prefix).",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "default": 30,
+      "label": "Minimum Interval Seconds",
+      "description": "Sensor cadence -- how often to poll Teams + GitHub.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "default": "RUNNING",
+      "label": "Default Status",
+      "description": "'RUNNING' or 'STOPPED'.",
+      "required": false
+    },
+    "skip_in_branch_deployments": {
+      "type": "boolean",
+      "default": true,
+      "label": "Skip In Branch Deployments",
+      "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-posts Teams replies and double-records GitHub reviews/merges for the same vote.",
+      "required": false
+    },
+    "refresh_other_agent_prs_after_merge": {
+      "type": "boolean",
+      "default": true,
+      "label": "Refresh Other Agent Prs After Merge",
+      "description": "After auto_merge successfully merges a PR, bring every OTHER open branch_prefix PR up to date with the new base_branch (GitHub's update-branch API) so their CI runs against the just-merged code instead of a stale base, the same reconciliation github_pr_tools' refresh_open_agent_prs tool does manually. Best-effort -- a PR that can't be updated (e.g. a real merge conflict) is skipped, never raised. Ignored when auto_merge is false.",
+      "required": false
+    },
+    "verify_after_merge": {
+      "type": "boolean",
+      "default": false,
+      "label": "Verify After Merge",
+      "description": "After auto_merge merges a PR, look for 'Fixes failed run <uuid>' or 'Run ID: <uuid>' in the PR body (the same convention failed_run_agent_sensor's launched fixer asset should put there) and re-execute that failed run (Dagster's launchRunReexecution, ALL_STEPS strategy) against the just-merged code, then post pass/fail/timeout in the PR's Teams thread once it resolves -- 'the fix worked' is then something this sensor confirms, not something it assumes. Requires dagster_url and dagster_cloud_api_token_env_var. Ignored when auto_merge is false, since there's nothing to verify until a merge actually happens.",
+      "required": false
+    },
+    "post_merge_command": {
+      "type": "string",
+      "label": "Post Merge Command",
+      "description": "Only used when verify_after_merge is true. An optional shell command run once, right before launching the verification re-run -- e.g. a deploy/redeploy step so the re-run actually executes against the just-merged code instead of whatever was already running. A non-zero exit skips verification and reports the failure in the thread instead.",
+      "required": false
+    },
+    "dagster_url": {
+      "type": "string",
+      "label": "Dagster Url",
+      "description": "Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod'). Required when verify_after_merge is true -- both for the GraphQL endpoint (<dagster_url>/graphql) and for building run links in Teams messages.",
+      "required": false
+    },
+    "dagster_cloud_api_token_env_var": {
+      "type": "string",
+      "default": "DAGSTER_CLOUD_API_TOKEN",
+      "label": "Dagster Cloud Api Token Env Var",
+      "description": "Only used when verify_after_merge is true. Env var holding a Dagster+ API token with permission to launch runs in this deployment.",
+      "required": false
+    },
+    "verify_timeout_minutes": {
+      "type": "integer",
+      "default": 30,
+      "label": "Verify Timeout Minutes",
+      "description": "Only used when verify_after_merge is true. Give up waiting for the verification re-run after this many minutes and report a timeout instead of a pass/fail.",
+      "required": false
+    }
+  },
+  "tags": [
+    "agentic"
+  ]
+}

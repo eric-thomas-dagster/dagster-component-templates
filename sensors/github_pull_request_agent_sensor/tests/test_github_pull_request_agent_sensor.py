@@ -226,3 +226,48 @@ def test_skip_in_branch_deployments_false_still_runs(mod, monkeypatch):
     slack = FakeSlackClient()
     result = _run(mod, monkeypatch, comp, github, slack)
     assert len(result.run_requests) == 1
+
+
+def test_platform_teams_posts_an_adaptive_card_and_tags_the_run(mod, monkeypatch):
+    import requests
+
+    class _Resp:
+        def __init__(self, body):
+            self._body = body
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._body
+
+    posts = []
+
+    def fake_post(url, **kwargs):
+        posts.append((url, kwargs))
+        if "oauth2/v2.0/token" in url:
+            return _Resp({"access_token": "BEARER123"})
+        return _Resp({"id": "msg1"})
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setenv("TEAMS_TENANT_ID", "tid")
+    monkeypatch.setenv("TEAMS_CLIENT_ID", "cid")
+    monkeypatch.setenv("TEAMS_CLIENT_SECRET", "sec")
+    monkeypatch.setenv("TEAMS_REFRESH_TOKEN", "seed")
+
+    comp = _component(mod, platform="teams", slack_channel=None, teams_team_id="T1", teams_channel_id="Ch1", teams_approver_allowlist=["aad-1"])
+    github = FakeGithubPulls()
+    github.add(42, "abcdef123456", title="Fix the thing")
+    result = _run(mod, monkeypatch, comp, github, slack=None)
+
+    [rr] = result.run_requests
+    assert rr.tags["teams/team_id"] == "T1" and rr.tags["teams/channel_id"] == "Ch1" and rr.tags["teams/thread_id"] == "msg1"
+    channel_post = next(kwargs for url, kwargs in posts if not url.endswith("/token"))
+    card = json.loads(channel_post["json"]["attachments"][0]["content"])
+    assert card["_dagster_pr_review"]["pr_number"] == 42
+    assert card["_dagster_pr_review"]["approver_allowlist"] == ["aad-1"]
+
+
+def test_platform_teams_requires_team_and_channel_id(mod):
+    with pytest.raises(ValueError, match="teams_team_id"):
+        _component(mod, platform="teams", slack_channel=None)

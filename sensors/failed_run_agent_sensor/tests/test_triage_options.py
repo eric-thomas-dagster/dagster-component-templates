@@ -81,7 +81,7 @@ def _env(mod, monkeypatch, slack, tmp_path=None, **overrides):
         kwargs["evidence_dir"] = str(tmp_path / "evidence")
     kwargs.update(overrides)
     comp = mod.FailedRunAgentSensorComponent(**kwargs)
-    monkeypatch.setattr(mod, "_get_slack_client", lambda token_env_var: slack)
+    monkeypatch.setattr(mod, "_get_slack_client_for_announcement", lambda token_env_var: slack)
     cdefs = comp.build_defs(None)
     defs = dg.Definitions.merge(
         cdefs, dg.Definitions(assets=[upstream, flaky, bug_fixer], jobs=[nightly, mapped_job]),

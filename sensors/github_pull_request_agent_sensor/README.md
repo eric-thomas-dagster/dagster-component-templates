@@ -35,7 +35,6 @@ The two sensors need to agree on "which Slack message reviews which PR", but the
 |---|---|---|
 | `asset_keys` | `List[str]` | Agent asset(s) to launch for each new/updated pull request (e.g. a PR-reviewer asset + its Slack-reply asset). |
 | `repo` | `str` | GitHub repository to watch, 'owner/repo'. |
-| `slack_channel` | `str` | Channel to announce new/updated pull requests in (either `C123ABC456` id or `#channel-name`). |
 
 ### Connection
 
@@ -59,12 +58,23 @@ The two sensors need to agree on "which Slack message reviews which PR", but the
 | `branch_prefix` | `str` | `"agent/"` | Only pull requests whose head branch starts with this prefix are ever announced in Slack or launched as a review run -- never a human's PR or a bot's (e.g. dependabot's). Matches the branch_prefix assets/ai/github_pr_too… _(full docs in schema.json + component README)_ |
 | `announcements_per_tick` | `int` | `5` | Max new/updated PRs announced (Slack post + RunRequest) in one sensor tick. A Dagster+ sensor tick times out at 60 seconds; a backlog of many PRs (e.g. the first tick after turning this sensor on) posts one Slack message… _(full docs in schema.json + component README)_ |
 | `skip_in_branch_deployments` | `bool` | `true` | Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch de… _(full docs in schema.json + component README)_ |
-| `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's `xoxb-...` token. Needs `chat:write` + `reactions:read` + `reactions:write` + `channels:history`/`groups:history`. |
-| `approve_emoji` | `str` | `"white_check_mark"` | Emoji name (no colons) a reaction-based approval uses. |
-| `reject_emoji` | `str` | `"x"` | Emoji name (no colons) a reaction-based rejection uses. |
-| `approver_allowlist` | `List[str]` | — | Slack user IDs (`U123...`) allowed to vote on the posted thread (enforced by sensors/slack_pr_approval_watcher, which reads this from the message's own metadata). Leave unset to allow anyone in the channel to vote. |
+| `platform` | `Literal['slack', 'teams']` | `"slack"` | Chat platform to announce new/updated pull requests on. 'teams' posts via Microsoft Graph (an Adaptive Card attachment carries the PR-review correlation metadata instead of Slack's hidden message metadata) and pairs with… _(full docs in schema.json + component README)_ |
+| `slack_channel` | `str` | — | platform='slack' (required then). Channel to announce new/updated pull requests in (either `C123ABC456` id or `#channel-name`). |
+| `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | platform='slack'. Env var holding the bot's `xoxb-...` token. Needs `chat:write` + `reactions:read` + `reactions:write` + `channels:history`/`groups:history`. |
+| `approve_emoji` | `str` | `"white_check_mark"` | platform='slack'. Emoji name (no colons) a reaction-based approval uses. |
+| `reject_emoji` | `str` | `"x"` | platform='slack'. Emoji name (no colons) a reaction-based rejection uses. |
+| `approver_allowlist` | `List[str]` | — | platform='slack'. Slack user IDs (`U123...`) allowed to vote on the posted thread (enforced by sensors/slack_pr_approval_watcher, which reads this from the message's own metadata). Leave unset to allow anyone in the channel to vote. |
+| `teams_team_id` | `str` | — | platform='teams' (required then). Teams team id (Teams client -> team -> ... -> Get link). |
+| `teams_channel_id` | `str` | — | platform='teams' (required then). Teams channel id inside the team (e.g. '19:xxx@thread.tacv2'). |
+| `teams_tenant_id_env_var` | `str` | `"TEAMS_TENANT_ID"` | platform='teams'. Env var holding the Azure AD tenant id. |
+| `teams_client_id_env_var` | `str` | `"TEAMS_CLIENT_ID"` | platform='teams'. Env var holding the Azure AD app registration client id. |
+| `teams_client_secret_env_var` | `str` | `"TEAMS_CLIENT_SECRET"` | platform='teams'. Env var holding the Azure AD app registration client secret. |
+| `teams_refresh_token_env_var` | `str` | `"TEAMS_REFRESH_TOKEN"` | platform='teams'. Env var holding the OAuth refresh token. |
+| `teams_approve_reaction` | `str` | `"like"` | platform='teams'. Reaction type for a reaction-based approval. One of: like, heart, laugh, surprised, sad, angry (Graph's full reaction set). |
+| `teams_reject_reaction` | `str` | `"angry"` | platform='teams'. Reaction type for a reaction-based rejection. |
+| `teams_approver_allowlist` | `List[str]` | — | platform='teams'. Azure AD object IDs (GUIDs) allowed to vote on the posted card (enforced by sensors/teams_pr_approval_watcher). Leave unset to allow anyone in the channel to vote. |
 | `message_template` | `str` | — | Optional custom message template. Placeholders: {number}, {title}, {url}, {author}, {approve_emoji}, {reject_emoji}. Default: ':mag: Pull request <{url}\|#{number} {title}> by {author}. Reviewing now. React :{approve_emo… _(full docs in schema.json + component README)_ |
-| `ping_users_on_post` | `List[str]` | — | Optional Slack user IDs to @-mention in the initial post. |
+| `ping_users_on_post` | `List[str]` | — | platform='slack' only. Optional Slack user IDs to @-mention in the initial post. |
 
 [//]: # (FIELDS:END)
 

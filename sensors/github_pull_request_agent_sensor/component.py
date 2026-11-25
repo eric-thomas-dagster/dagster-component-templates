@@ -17,7 +17,7 @@ on rewriting.
 """
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -461,6 +461,158 @@ def _fetch_reactions(client, channel_id: str, message_ts: str) -> Dict[str, List
 # END slack PR review metadata
 
 
+# BEGIN teams PR review metadata (inlined per component; keep copies identical -- see
+# tests/test_teams_pr_review_metadata_drift.py)
+# Posting + discovering PR-review Teams messages, with no shared file between the posting sensor
+# (github_pull_request_agent_sensor) and the watching sensor (teams_pr_approval_watcher) -- the
+# correlation (which PR a message is reviewing, and who's allowed to vote) rides inside an Adaptive
+# Card attachment's content, since a plain Teams chatMessage has no hidden-metadata field the way
+# Slack's chat.postMessage metadata param does (confirmed against Graph's own chatMessage resource
+# reference, whose property list is closed) -- same mechanism teams_approval_gate's own
+# message_metadata correlation mode uses. No reaction seeding on post (unlike the Slack version):
+# a delegated Teams token has no bot-only identity to exclude from vote-counting the way Slack's
+# bot_user_id does, so this mirrors teams_approval_gate's own choice not to pre-react either --
+# reviewers pick their own reaction from Teams' native picker.
+_TEAMS_PR_REVIEW_METADATA_KEY = "_dagster_pr_review"
+
+
+def _get_teams_bearer_for_pr_review(tenant_id_env: str, client_id_env: str, client_secret_env: str, refresh_token_env: str) -> str:
+    import requests
+    tenant_id = os.environ.get(tenant_id_env)
+    client_id = os.environ.get(client_id_env)
+    client_secret = os.environ.get(client_secret_env)
+    refresh_token = os.environ.get(refresh_token_env)
+    if not (tenant_id and client_id and client_secret and refresh_token):
+        raise RuntimeError(
+            f"Teams auth env vars not all set: {tenant_id_env}={'present' if tenant_id else 'missing'}, "
+            f"{client_id_env}={'present' if client_id else 'missing'}, "
+            f"{client_secret_env}={'present' if client_secret else 'missing'}, "
+            f"{refresh_token_env}={'present' if refresh_token else 'missing'}."
+        )
+    r = requests.post(
+        f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+        data={
+            "client_id": client_id, "client_secret": client_secret,
+            "scope": "https://graph.microsoft.com/.default offline_access",
+            "grant_type": "refresh_token", "refresh_token": refresh_token,
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json()["access_token"]
+
+
+def _teams_pr_review_html(text: str) -> str:
+    escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return escaped.replace("\n", "<br>")
+
+
+def _post_teams_pr_review_message(bearer: str, team_id: str, channel_id: str, text: str, event_payload: Dict[str, Any]) -> Dict[str, Any]:
+    import requests
+    card = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [{"type": "TextBlock", "text": "Dagster PR review metadata", "isVisible": False}],
+        _TEAMS_PR_REVIEW_METADATA_KEY: event_payload,
+    }
+    r = requests.post(
+        f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/messages",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": "application/json"},
+        json={
+            "body": {"contentType": "html", "content": _teams_pr_review_html(text)},
+            "attachments": [{
+                "id": "1",
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": json.dumps(card),
+            }],
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+    body = r.json()
+    return {"message_id": body["id"], "team_id": team_id, "channel_id": channel_id}
+
+
+def _post_teams_pr_review_reply(bearer: str, team_id: str, channel_id: str, message_id: str, html_body: str) -> None:
+    import requests
+    r = requests.post(
+        f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/messages/{message_id}/replies",
+        headers={"Authorization": f"Bearer {bearer}", "Content-Type": "application/json"},
+        json={"body": {"contentType": "html", "content": html_body}},
+        timeout=30,
+    )
+    r.raise_for_status()
+
+
+def _extract_teams_pr_review_metadata(message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    for att in message.get("attachments") or []:
+        if att.get("contentType") != "application/vnd.microsoft.card.adaptive":
+            continue
+        try:
+            card = json.loads(att.get("content") or "{}")
+        except Exception:  # noqa: BLE001
+            continue
+        if _TEAMS_PR_REVIEW_METADATA_KEY in card:
+            return card[_TEAMS_PR_REVIEW_METADATA_KEY]
+    return None
+
+
+def _iter_teams_pr_review_messages(bearer: str, team_id: str, channel_id: str, lookback_hours: float, max_pages: int = 10):
+    """Yields {message_id, payload} for every PR-review-tagged message in the channel, newest
+    first, stopping once messages fall outside the lookback window or max_pages is hit -- same
+    shape as teams_approval_gate's own _iter_teams_approval_messages."""
+    import requests
+    from datetime import datetime, timedelta, timezone
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
+    url = f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/messages?$top=50"
+    pages = 0
+    while url and pages < max_pages:
+        r = requests.get(url, headers={"Authorization": f"Bearer {bearer}"}, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        stop = False
+        for m in body.get("value", []) or []:
+            created = m.get("createdDateTime")
+            if created and datetime.fromisoformat(created.replace("Z", "+00:00")) < cutoff:
+                stop = True
+                break
+            payload = _extract_teams_pr_review_metadata(m)
+            if payload is not None:
+                yield {"message_id": m["id"], "payload": payload}
+        if stop:
+            return
+        url = body.get("@odata.nextLink")
+        pages += 1
+
+
+def _fetch_teams_pr_review_votes(bearer: str, team_id: str, channel_id: str, message_id: str, approve_reaction: str, reject_reaction: str, allowlist: Optional[List[str]]) -> Dict[str, List[str]]:
+    """Reactions live inline on the message itself (confirmed against Graph's own chatMessage
+    reference -- no separate reactions.get call the way Slack needs)."""
+    import requests
+    r = requests.get(
+        f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/messages/{message_id}",
+        headers={"Authorization": f"Bearer {bearer}"},
+        timeout=30,
+    )
+    r.raise_for_status()
+    message = r.json()
+    allowset = set(allowlist) if allowlist else None
+    approvers: List[str] = []
+    rejecters: List[str] = []
+    for reaction in message.get("reactions") or []:
+        rtype = reaction.get("reactionType") or ""
+        user_id = ((reaction.get("user") or {}).get("user") or {}).get("id") or ""
+        if not user_id or (allowset is not None and user_id not in allowset):
+            continue
+        if rtype == approve_reaction:
+            approvers.append(user_id)
+        elif rtype == reject_reaction:
+            rejecters.append(user_id)
+    return {"approve": sorted(set(approvers)), "reject": sorted(set(rejecters))}
+# END teams PR review metadata
+
+
 class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """On each new pull request or new head commit, launches `asset_keys` with the PR number on the run's tags,
     and announces it in Slack with approve/reject reactions seeded. Pair with
@@ -500,19 +652,40 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
         ),
     )
 
-    slack_channel: str = Field(description="Channel to announce new/updated pull requests in (either `C123ABC456` id or `#channel-name`).")
-    slack_bot_token_env_var: str = Field(default="SLACK_BOT_TOKEN", description="Env var holding the bot's `xoxb-...` token. Needs `chat:write` + `reactions:read` + `reactions:write` + `channels:history`/`groups:history`.")
-    approve_emoji: str = Field(default="white_check_mark", description="Emoji name (no colons) a reaction-based approval uses.")
-    reject_emoji: str = Field(default="x", description="Emoji name (no colons) a reaction-based rejection uses.")
+    platform: Literal["slack", "teams"] = Field(
+        default="slack",
+        description=(
+            "Chat platform to announce new/updated pull requests on. 'teams' posts via Microsoft "
+            "Graph (an Adaptive Card attachment carries the PR-review correlation metadata instead "
+            "of Slack's hidden message metadata) and pairs with sensors/teams_pr_approval_watcher "
+            "instead of sensors/slack_pr_approval_watcher."
+        ),
+    )
+    slack_channel: Optional[str] = Field(default=None, description="platform='slack' (required then). Channel to announce new/updated pull requests in (either `C123ABC456` id or `#channel-name`).")
+    slack_bot_token_env_var: str = Field(default="SLACK_BOT_TOKEN", description="platform='slack'. Env var holding the bot's `xoxb-...` token. Needs `chat:write` + `reactions:read` + `reactions:write` + `channels:history`/`groups:history`.")
+    approve_emoji: str = Field(default="white_check_mark", description="platform='slack'. Emoji name (no colons) a reaction-based approval uses.")
+    reject_emoji: str = Field(default="x", description="platform='slack'. Emoji name (no colons) a reaction-based rejection uses.")
     approver_allowlist: Optional[List[str]] = Field(
         default=None,
-        description="Slack user IDs (`U123...`) allowed to vote on the posted thread (enforced by sensors/slack_pr_approval_watcher, which reads this from the message's own metadata). Leave unset to allow anyone in the channel to vote.",
+        description="platform='slack'. Slack user IDs (`U123...`) allowed to vote on the posted thread (enforced by sensors/slack_pr_approval_watcher, which reads this from the message's own metadata). Leave unset to allow anyone in the channel to vote.",
+    )
+    teams_team_id: Optional[str] = Field(default=None, description="platform='teams' (required then). Teams team id (Teams client -> team -> ... -> Get link).")
+    teams_channel_id: Optional[str] = Field(default=None, description="platform='teams' (required then). Teams channel id inside the team (e.g. '19:xxx@thread.tacv2').")
+    teams_tenant_id_env_var: str = Field(default="TEAMS_TENANT_ID", description="platform='teams'. Env var holding the Azure AD tenant id.")
+    teams_client_id_env_var: str = Field(default="TEAMS_CLIENT_ID", description="platform='teams'. Env var holding the Azure AD app registration client id.")
+    teams_client_secret_env_var: str = Field(default="TEAMS_CLIENT_SECRET", description="platform='teams'. Env var holding the Azure AD app registration client secret.")
+    teams_refresh_token_env_var: str = Field(default="TEAMS_REFRESH_TOKEN", description="platform='teams'. Env var holding the OAuth refresh token.")
+    teams_approve_reaction: str = Field(default="like", description="platform='teams'. Reaction type for a reaction-based approval. One of: like, heart, laugh, surprised, sad, angry (Graph's full reaction set).")
+    teams_reject_reaction: str = Field(default="angry", description="platform='teams'. Reaction type for a reaction-based rejection.")
+    teams_approver_allowlist: Optional[List[str]] = Field(
+        default=None,
+        description="platform='teams'. Azure AD object IDs (GUIDs) allowed to vote on the posted card (enforced by sensors/teams_pr_approval_watcher). Leave unset to allow anyone in the channel to vote.",
     )
     message_template: Optional[str] = Field(
         default=None,
-        description="Optional custom message template. Placeholders: {number}, {title}, {url}, {author}, {approve_emoji}, {reject_emoji}. Default: ':mag: Pull request <{url}|#{number} {title}> by {author}. Reviewing now. React :{approve_emoji}: to approve or :{reject_emoji}: to request changes.'",
+        description="Optional custom message template. Placeholders: {number}, {title}, {url}, {author}, {approve_emoji}, {reject_emoji}. Default: ':mag: Pull request <{url}|#{number} {title}> by {author}. Reviewing now. React :{approve_emoji}: to approve or :{reject_emoji}: to request changes.' (platform='teams' posts the same text, HTML-escaped; Slack-style link/emoji markup is not converted.)",
     )
-    ping_users_on_post: Optional[List[str]] = Field(default=None, description="Optional Slack user IDs to @-mention in the initial post.")
+    ping_users_on_post: Optional[List[str]] = Field(default=None, description="platform='slack' only. Optional Slack user IDs to @-mention in the initial post.")
 
     minimum_interval_seconds: int = Field(default=60, description="Minimum seconds between sensor evaluations.")
     default_status: str = Field(default="STOPPED", description="'RUNNING' or 'STOPPED'.")
@@ -520,7 +693,16 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=("asset_keys", "approver_allowlist", "ping_users_on_post"), csv=(), tags=())
+        return coerce_field_shapes(data, lists=("asset_keys", "approver_allowlist", "ping_users_on_post", "teams_approver_allowlist"), csv=(), tags=())
+
+    @model_validator(mode="after")
+    def _validate_platform_fields(self):
+        if self.platform == "teams":
+            if not (self.teams_team_id and self.teams_channel_id):
+                raise ValueError("GithubPullRequestAgentSensorComponent: platform='teams' requires teams_team_id and teams_channel_id.")
+        elif not self.slack_channel:
+            raise ValueError("GithubPullRequestAgentSensorComponent: platform='slack' requires slack_channel.")
+        return self
 
     @classmethod
     def get_form_config(cls):
@@ -535,12 +717,22 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
         branch_prefix = self.branch_prefix or None
         announcements_per_tick = max(1, int(self.announcements_per_tick))
         skip_in_branch_deployments = self.skip_in_branch_deployments
+        platform = self.platform
         slack_channel = self.slack_channel
         slack_bot_token_env_var = self.slack_bot_token_env_var
         approve_emoji = self.approve_emoji
         reject_emoji = self.reject_emoji
         approver_allowlist = list(self.approver_allowlist) if self.approver_allowlist else None
         ping_users = list(self.ping_users_on_post or [])
+        teams_team_id = self.teams_team_id
+        teams_channel_id = self.teams_channel_id
+        teams_tenant_id_env_var = self.teams_tenant_id_env_var
+        teams_client_id_env_var = self.teams_client_id_env_var
+        teams_client_secret_env_var = self.teams_client_secret_env_var
+        teams_refresh_token_env_var = self.teams_refresh_token_env_var
+        teams_approve_reaction = self.teams_approve_reaction
+        teams_reject_reaction = self.teams_reject_reaction
+        teams_approver_allowlist = list(self.teams_approver_allowlist) if self.teams_approver_allowlist else None
         message_template = self.message_template or (
             ":mag: Pull request <{url}|#{number} {title}> by {author}. Reviewing now. "
             "React :{approve_emoji}: to approve or :{reject_emoji}: to request changes."
@@ -577,7 +769,16 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
             if deferred_count:
                 context.log.info(f"{deferred_count} more pull request(s) deferred to a later tick (announcements_per_tick={announcements_per_tick})")
 
-            client = _get_slack_client(slack_bot_token_env_var)
+            client = _get_slack_client(slack_bot_token_env_var) if platform == "slack" else None
+            teams_bearer = None
+            if platform == "teams":
+                try:
+                    teams_bearer = _get_teams_bearer_for_pr_review(
+                        teams_tenant_id_env_var, teams_client_id_env_var, teams_client_secret_env_var, teams_refresh_token_env_var,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    return dg.SkipReason(f"Teams auth failed: {e}")
+
             run_requests: List[dg.RunRequest] = []
             problems: List[str] = []
             for pr in new_or_updated:
@@ -585,6 +786,22 @@ class GithubPullRequestAgentSensorComponent(dg.Component, dg.Model, dg.Resolvabl
                     number=pr["number"], title=pr["title"], url=pr["url"], author=pr["author"],
                     approve_emoji=approve_emoji, reject_emoji=reject_emoji,
                 )
+                if platform == "teams":
+                    event_payload = {"pr_number": pr["number"], "head_sha": pr["head_sha"], "approve_emoji": teams_approve_reaction, "reject_emoji": teams_reject_reaction}
+                    if teams_approver_allowlist:
+                        event_payload["approver_allowlist"] = teams_approver_allowlist
+                    try:
+                        posted = _post_teams_pr_review_message(teams_bearer, teams_team_id, teams_channel_id, body, event_payload)
+                    except Exception as e:  # noqa: BLE001
+                        problems.append(f"PR #{pr['number']}: Teams post failed: {e}")
+                        continue
+                    seen[str(pr["number"])] = pr["head_sha"]
+                    run_requests.append(dg.RunRequest(
+                        run_key=f"pr-{pr['number']}-{pr['head_sha'][:7]}",
+                        asset_selection=targets,
+                        tags={"eng/pr_number": str(pr["number"]), "teams/team_id": teams_team_id, "teams/channel_id": teams_channel_id, "teams/thread_id": posted["message_id"]},
+                    ))
+                    continue
                 event_payload: Dict[str, Any] = {"pr_number": pr["number"], "head_sha": pr["head_sha"], "approve_emoji": approve_emoji, "reject_emoji": reject_emoji}
                 if approver_allowlist:
                     event_payload["approver_allowlist"] = approver_allowlist

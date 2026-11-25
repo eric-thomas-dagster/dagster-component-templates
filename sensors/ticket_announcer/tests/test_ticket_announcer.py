@@ -26,7 +26,7 @@ class FakeSlackClient:
         if any(f in text for f in self.fail_for):
             raise RuntimeError("Slack is down")
         self.posted.append({"channel": channel, "text": text})
-        return {"ok": True, "ts": "1.0"}
+        return {"ok": True, "ts": "1.0", "channel": channel}
 
 
 def _component(mod, **overrides):
@@ -40,7 +40,7 @@ def _run(mod, monkeypatch, comp, slack, github_issues=None, linear_issues=None, 
     monkeypatch.setenv("LINEAR_API_KEY", "tok")
     monkeypatch.setattr(mod, "_gh_list_agent_issues", lambda *a, **k: github_issues or [])
     monkeypatch.setattr(mod, "_linear_list_agent_issues", lambda *a, **k: linear_issues or [])
-    monkeypatch.setattr(mod, "_get_slack_client", lambda token_env_var: slack)
+    monkeypatch.setattr(mod, "_get_slack_client_for_announcement", lambda token_env_var: slack)
     defs = comp.build_defs(None)
     [sensor_def] = defs.sensors
     return sensor_def(dg.build_sensor_context(cursor=cursor))
@@ -110,8 +110,47 @@ def test_missing_github_token_reports_a_problem_without_crashing(mod, monkeypatc
     comp = _component(mod, repo="acme/widgets")
     slack = FakeSlackClient()
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    monkeypatch.setattr(mod, "_get_slack_client", lambda token_env_var: slack)
+    monkeypatch.setattr(mod, "_get_slack_client_for_announcement", lambda token_env_var: slack)
     defs = comp.build_defs(None)
     [sensor_def] = defs.sensors
     result = sensor_def(dg.build_sensor_context())
     assert "GITHUB_TOKEN" in result.skip_reason.skip_message
+
+
+def test_platform_teams_posts_via_graph(mod, monkeypatch):
+    import requests
+
+    posts = []
+
+    class _Resp:
+        def __init__(self, body):
+            self._body = body
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._body
+
+    def fake_post(url, **kwargs):
+        posts.append(url)
+        if "oauth2/v2.0/token" in url:
+            return _Resp({"access_token": "BEARER123"})
+        return _Resp({"id": "msg1"})
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setenv("TEAMS_TENANT_ID", "tid")
+    monkeypatch.setenv("TEAMS_CLIENT_ID", "cid")
+    monkeypatch.setenv("TEAMS_CLIENT_SECRET", "sec")
+    monkeypatch.setenv("TEAMS_REFRESH_TOKEN", "seed")
+
+    comp = mod.TicketAnnouncerComponent(repo="acme/widgets", platform="teams", teams_team_id="T1", teams_channel_id="Ch1")
+    issues = [{"number": 7, "title": "Flaky asset", "url": "https://github.com/acme/widgets/issues/7", "body": "Analysis\nit's flaky."}]
+    result = _run(mod, monkeypatch, comp, slack=None, github_issues=issues)
+    assert json.loads(result.cursor) == ["GitHub:7"]
+    assert any(not u.endswith("/token") for u in posts)
+
+
+def test_platform_teams_requires_team_and_channel_id(mod):
+    with pytest.raises(ValueError, match="teams_team_id"):
+        mod.TicketAnnouncerComponent(repo="acme/widgets", platform="teams")

@@ -1441,6 +1441,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TeamsApprovalGateComponent": "assets/ai/teams_approval_gate/component.py",
     "TeamsChatToolsComponent": "assets/ai/teams_chat_tools/component.py",
     "TeamsNotificationJobComponent": "jobs/teams_notification_job/component.py",
+    "TeamsPrApprovalWatcherComponent": "sensors/teams_pr_approval_watcher/component.py",
     "TeamsReplyComponent": "assets/sinks/teams_reply/component.py",
     "TeamsRunRequestSensorComponent": "sensors/teams_run_request_sensor/component.py",
     "TectonAssetComponent": "assets/analytics/tecton_asset/component.py",

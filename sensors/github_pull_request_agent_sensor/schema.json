@@ -44,7 +44,7 @@
       "type": "string",
       "label": "Slack Channel",
       "description": "Channel to announce new/updated pull requests in (either `C123ABC456` id or `#channel-name`).",
-      "required": true
+      "required": false
     },
     "slack_bot_token_env_var": {
       "type": "string",
@@ -121,6 +121,73 @@
       "type": "boolean",
       "label": "Skip In Branch Deployments",
       "description": "Skip every tick while running inside a Dagster+ branch deployment (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=1). A branch deployment runs its own copy of every sensor alongside the full deployment's -- without this, a branch deployment double-announces PRs in Slack and double-launches review runs.",
+      "required": false
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "slack",
+        "teams"
+      ],
+      "label": "Platform",
+      "description": "Chat platform to announce new/updated pull requests on. 'teams' posts via Microsoft Graph (an Adaptive Card attachment carries the PR-review correlation metadata instead of Slack's hidden message metadata) and pairs with sensors/teams_pr_approval_watcher instead of sensors/slack_pr_approval_watcher.",
+      "required": false
+    },
+    "teams_team_id": {
+      "type": "string",
+      "label": "Teams Team Id",
+      "description": "platform='teams' (required then). Teams team id (Teams client -> team -> ... -> Get link).",
+      "required": false
+    },
+    "teams_channel_id": {
+      "type": "string",
+      "label": "Teams Channel Id",
+      "description": "platform='teams' (required then). Teams channel id inside the team (e.g. '19:xxx@thread.tacv2').",
+      "required": false
+    },
+    "teams_tenant_id_env_var": {
+      "type": "string",
+      "label": "Teams Tenant Id Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD tenant id.",
+      "required": false
+    },
+    "teams_client_id_env_var": {
+      "type": "string",
+      "label": "Teams Client Id Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD app registration client id.",
+      "required": false
+    },
+    "teams_client_secret_env_var": {
+      "type": "string",
+      "label": "Teams Client Secret Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD app registration client secret.",
+      "required": false
+    },
+    "teams_refresh_token_env_var": {
+      "type": "string",
+      "label": "Teams Refresh Token Env Var",
+      "description": "platform='teams'. Env var holding the OAuth refresh token.",
+      "required": false
+    },
+    "teams_approve_reaction": {
+      "type": "string",
+      "label": "Teams Approve Reaction",
+      "description": "platform='teams'. Reaction type for a reaction-based approval. One of: like, heart, laugh, surprised, sad, angry (Graph's full reaction set).",
+      "required": false
+    },
+    "teams_reject_reaction": {
+      "type": "string",
+      "label": "Teams Reject Reaction",
+      "description": "platform='teams'. Reaction type for a reaction-based rejection.",
+      "required": false
+    },
+    "teams_approver_allowlist": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Teams Approver Allowlist",
+      "description": "platform='teams'. Azure AD object IDs (GUIDs) allowed to vote on the posted card (enforced by sensors/teams_pr_approval_watcher). Leave unset to allow anyone in the channel to vote.",
       "required": false
     }
   },

@@ -48,7 +48,7 @@
       "type": "string",
       "label": "Slack Channel",
       "description": "Channel to announce a failed run in (either `C123ABC456` id or `#channel-name`).",
-      "required": true
+      "required": false
     },
     "slack_bot_token_env_var": {
       "type": "string",
@@ -134,6 +134,52 @@
       },
       "label": "Exclude Code Location Names",
       "description": "Trigger for every code location EXCEPT these -- same naming convention as dagster_discovery_tools' own exclude_locations. The usual case is excluding the agents' own code location, so a fixer run's own failures don't trigger more fixer runs. Checked independently of code_location_names (an allow-list); set whichever shape fits -- an 'allow only these' list, or a 'watch everything except these' one.",
+      "required": false
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "slack",
+        "teams"
+      ],
+      "label": "Platform",
+      "description": "Chat platform to announce a failed run in. 'teams' posts via Microsoft Graph instead of Slack and sets teams/team_id + teams/channel_id + teams/thread_id run tags instead of slack/channel + slack/thread_ts (so teams_reply answers in it instead of slack_reply).",
+      "required": false
+    },
+    "teams_team_id": {
+      "type": "string",
+      "label": "Teams Team Id",
+      "description": "platform='teams' (required then). Teams team id (Teams client -> team -> ... -> Get link).",
+      "required": false
+    },
+    "teams_channel_id": {
+      "type": "string",
+      "label": "Teams Channel Id",
+      "description": "platform='teams' (required then). Teams channel id inside the team (e.g. '19:xxx@thread.tacv2').",
+      "required": false
+    },
+    "teams_tenant_id_env_var": {
+      "type": "string",
+      "label": "Teams Tenant Id Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD tenant id.",
+      "required": false
+    },
+    "teams_client_id_env_var": {
+      "type": "string",
+      "label": "Teams Client Id Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD app registration client id.",
+      "required": false
+    },
+    "teams_client_secret_env_var": {
+      "type": "string",
+      "label": "Teams Client Secret Env Var",
+      "description": "platform='teams'. Env var holding the Azure AD app registration client secret.",
+      "required": false
+    },
+    "teams_refresh_token_env_var": {
+      "type": "string",
+      "label": "Teams Refresh Token Env Var",
+      "description": "platform='teams'. Env var holding the OAuth refresh token (see teams_agent_request_sensor's README, 'Auth').",
       "required": false
     }
   },

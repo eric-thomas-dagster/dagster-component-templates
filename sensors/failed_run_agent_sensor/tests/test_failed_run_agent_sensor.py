@@ -58,7 +58,7 @@ def _env(mod, tmp_path, monkeypatch, slack, **overrides):
     )
     kwargs.update(overrides)
     comp = mod.FailedRunAgentSensorComponent(**kwargs)
-    monkeypatch.setattr(mod, "_get_slack_client", lambda token_env_var: slack)
+    monkeypatch.setattr(mod, "_get_slack_client_for_announcement", lambda token_env_var: slack)
     cdefs = comp.build_defs(None)
     defs = dg.Definitions.merge(cdefs, dg.Definitions(assets=[upstream, flaky, bug_fixer], jobs=[nightly]))
     return defs.get_sensor_def(kwargs["sensor_name"]), defs
@@ -187,3 +187,57 @@ def test_cooldown_rate_limiter_writes_files_under_evidence_dir(mod, tmp_path, mo
     assert rl_dir.exists()
     assert any(f.name.endswith("-triage.json") for f in rl_dir.iterdir())
     assert any(f.name.endswith("-cooldown.json") for f in rl_dir.iterdir())
+
+
+def test_platform_teams_posts_via_graph_and_tags_the_run(mod, tmp_path, monkeypatch, inst):
+    import requests
+
+    posts = []
+
+    class _Resp:
+        def __init__(self, body):
+            self._body = body
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._body
+
+    def fake_post(url, **kwargs):
+        posts.append((url, kwargs))
+        if "oauth2/v2.0/token" in url:
+            return _Resp({"access_token": "BEARER123"})
+        return _Resp({"id": "msg1"})
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setenv("TEAMS_TENANT_ID", "tid")
+    monkeypatch.setenv("TEAMS_CLIENT_ID", "cid")
+    monkeypatch.setenv("TEAMS_CLIENT_SECRET", "sec")
+    monkeypatch.setenv("TEAMS_REFRESH_TOKEN", "seed")
+
+    slack = FakeSlackClient()
+    sensor_def, defs, cursor = _primed(
+        mod, tmp_path, monkeypatch, inst, slack,
+        platform="teams", slack_channel=None, teams_team_id="T1", teams_channel_id="Ch1",
+    )
+    run = _fail(inst, defs)
+    res = _tick(sensor_def, inst, defs, cursor=cursor)
+
+    assert not slack.posted
+    assert len(res.run_requests) == 1
+    rr = res.run_requests[0]
+    assert rr.tags["teams/team_id"] == "T1"
+    assert rr.tags["teams/channel_id"] == "Ch1"
+    assert rr.tags["teams/thread_id"] == "msg1"
+    assert any(not url.endswith("/token") for url, _ in posts)  # the actual channel-message post happened
+
+
+def test_platform_teams_requires_team_and_channel_id(mod):
+    with pytest.raises(ValueError, match="teams_team_id"):
+        mod.FailedRunAgentSensorComponent(asset_keys=["bug_fixer"], platform="teams")
+
+
+def test_platform_slack_requires_slack_channel(mod):
+    with pytest.raises(ValueError, match="slack_channel"):
+        mod.FailedRunAgentSensorComponent(asset_keys=["bug_fixer"])

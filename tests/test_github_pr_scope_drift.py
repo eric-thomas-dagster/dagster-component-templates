@@ -12,6 +12,7 @@ COMPONENTS = [
     "assets/ai/github_pr_tools/component.py",
     "sensors/github_pull_request_agent_sensor/component.py",
     "sensors/slack_pr_approval_watcher/component.py",
+    "sensors/teams_pr_approval_watcher/component.py",
 ]
 REF = ROOT / COMPONENTS[0]
 

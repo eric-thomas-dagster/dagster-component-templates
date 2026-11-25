@@ -36,7 +36,6 @@ A skipped failure always says why in the sensor tick, e.g. `Same failure analyze
 | Field | Type | Description |
 |---|---|---|
 | `asset_keys` | `List[str]` | Agent asset(s) to launch on a failure (e.g. a bug-fixer asset + its Slack-reply asset). |
-| `slack_channel` | `str` | Channel to announce a failed run in (either `C123ABC456` id or `#channel-name`). |
 
 ### Sensor configuration
 
@@ -54,7 +53,15 @@ A skipped failure always says why in the sensor tick, e.g. `Same failure analyze
 | `exclude_code_location_names` | `List[str]` | — | Trigger for every code location EXCEPT these -- same naming convention as dagster_discovery_tools' own exclude_locations. The usual case is excluding the agents' own code location, so a fixer run's own failures don't tri… _(full docs in schema.json + component README)_ |
 | `job_names` | `List[str]` | — | Only trigger for these job names. Leave unset to monitor every job. |
 | `required_tags` | `Dict[str, Any]` | — | Only trigger when the failed run carries ALL of these tags (key=value). |
-| `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | Env var holding the bot's `xoxb-...` token. Needs `chat:write`. |
+| `platform` | `Literal['slack', 'teams']` | `"slack"` | Chat platform to announce a failed run in. 'teams' posts via Microsoft Graph instead of Slack and sets teams/team_id + teams/channel_id + teams/thread_id run tags instead of slack/channel + slack/thread_ts (so teams_repl… _(full docs in schema.json + component README)_ |
+| `slack_channel` | `str` | — | platform='slack' (required then). Channel to announce a failed run in (either `C123ABC456` id or `#channel-name`). |
+| `slack_bot_token_env_var` | `str` | `"SLACK_BOT_TOKEN"` | platform='slack'. Env var holding the bot's `xoxb-...` token. Needs `chat:write`. |
+| `teams_team_id` | `str` | — | platform='teams' (required then). Teams team id (Teams client -> team -> ... -> Get link). |
+| `teams_channel_id` | `str` | — | platform='teams' (required then). Teams channel id inside the team (e.g. '19:xxx@thread.tacv2'). |
+| `teams_tenant_id_env_var` | `str` | `"TEAMS_TENANT_ID"` | platform='teams'. Env var holding the Azure AD tenant id. |
+| `teams_client_id_env_var` | `str` | `"TEAMS_CLIENT_ID"` | platform='teams'. Env var holding the Azure AD app registration client id. |
+| `teams_client_secret_env_var` | `str` | `"TEAMS_CLIENT_SECRET"` | platform='teams'. Env var holding the Azure AD app registration client secret. |
+| `teams_refresh_token_env_var` | `str` | `"TEAMS_REFRESH_TOKEN"` | platform='teams'. Env var holding the OAuth refresh token (see teams_agent_request_sensor's README, 'Auth'). |
 | `message_template` | `str` | — | Optional custom message template. Placeholders: {run_id} (short, 8 chars), {job_name}, {url}. Default: ':beetle: Run <{url}\|{run_id}> of `{job_name}` failed. Looking into the cause.' |
 | `dagster_url` | `str` | — | Base Dagster(+) URL (e.g. 'https://org.dagster.cloud/prod') used to build the run link in the Slack message. Leave unset to link just the run id with no URL. |
 | `evidence_dir` | `str` | — | Directory the cooldown rate-limiter's small per-event files live under (local or NFS-shared path -- not a cloud URI; exclusive-create needs a real filesystem). Leave unset to track cooldown/rate-limit state purely from p… _(full docs in schema.json + component README)_ |

@@ -57,7 +57,8 @@ def _upstream(rows):
 def _sink(**kw):
     kw.setdefault("asset_name", "orders_to_kafka")
     kw.setdefault("upstream_asset_key", "orders_raw")
-    kw.setdefault("topic", "orders")
+    if "topic" not in kw and "topic_column" not in kw:
+        kw["topic"] = "orders"
     return DataframeToKafkaComponent(**kw).build_defs(None).assets[0]
 
 
@@ -181,3 +182,50 @@ def test_resource_key_missing_from_definitions_raises():
     up = _upstream([{"id": 1}])
     with pytest.raises(dg.DagsterInvalidDefinitionError):
         dg.materialize([up, sink])
+
+
+def test_topic_and_topic_column_both_set_raises():
+    with pytest.raises(ValueError, match="exactly one of 'topic' or 'topic_column'"):
+        _sink(bootstrap_servers="broker1:9092", topic="orders", topic_column="event_type")
+
+
+def test_topic_and_topic_column_both_unset_raises():
+    with pytest.raises(ValueError, match="exactly one of 'topic' or 'topic_column'"):
+        _sink(bootstrap_servers="broker1:9092", topic=None)
+
+
+def test_topic_column_routes_each_row_to_its_own_topic(monkeypatch):
+    _install_fake_kafka(monkeypatch)
+    sink = _sink(bootstrap_servers="broker1:9092", topic_column="event_type")
+    rows = [
+        {"id": 1, "event_type": "orders"},
+        {"id": 2, "event_type": "refunds"},
+        {"id": 3, "event_type": "orders"},
+    ]
+    r = _materialize(sink, rows)
+    assert r.success
+
+    producer = _FakeKafkaProducer.instances[-1]
+    assert [t for t, _, _ in producer.sent] == ["orders", "refunds", "orders"]
+
+    md = r.asset_materializations_for_node("orders_to_kafka")[0].metadata
+    assert md["messages_sent"].value == 3
+    assert md["messages_skipped"].value == 0
+    assert md["topics_used_count"].value == 2
+
+
+def test_topic_column_skips_rows_with_null_topic(monkeypatch):
+    _install_fake_kafka(monkeypatch)
+    sink = _sink(bootstrap_servers="broker1:9092", topic_column="event_type")
+    rows = [
+        {"id": 1, "event_type": "orders"},
+        {"id": 2, "event_type": None},
+    ]
+    r = _materialize(sink, rows)
+    assert r.success
+
+    producer = _FakeKafkaProducer.instances[-1]
+    assert len(producer.sent) == 1
+    md = r.asset_materializations_for_node("orders_to_kafka")[0].metadata
+    assert md["messages_sent"].value == 1
+    assert md["messages_skipped"].value == 1

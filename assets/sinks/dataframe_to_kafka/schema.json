@@ -29,8 +29,8 @@
     "topic": {
       "type": "string",
       "label": "Topic",
-      "description": "Kafka topic to publish to",
-      "required": true
+      "description": "Fixed Kafka topic to publish every row to. Set this OR topic_column, not both.",
+      "required": false
     },
     "bootstrap_servers": {
       "type": "string",
@@ -213,6 +213,12 @@
       "required": false,
       "type": "string",
       "x-dagster-widget": "cron"
+    },
+    "topic_column": {
+      "type": "string",
+      "label": "Topic Column",
+      "description": "Column whose value is this row's destination topic, so different rows can publish to different topics (e.g. a StreamSets Kafka Producer 'topic expression' migrated from a per-record field). Set this OR topic, not both. A row whose column value is null/missing is skipped with a logged warning, not sent to a 'None' topic.",
+      "required": false
     }
   }
 }

@@ -22,7 +22,6 @@ Producer destination, or seeding a topic with synthetic/replay events).
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
 | `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
-| `topic` | `str` | Kafka topic to publish to |
 
 ### Connection
 
@@ -69,6 +68,13 @@ Producer destination, or seeding a topic with synthetic/replay events).
 | `retry_policy_max_retries` | `int` | — | Max retries on asset failure. Useful for transient errors like broker unavailability. |
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `topic` | `str` | — | Fixed Kafka topic to publish every row to. Set this OR topic_column, not both. |
+| `topic_column` | `str` | — | Column whose value is this row's destination topic, so different rows can publish to different topics (e.g. a StreamSets Kafka Producer 'topic expression' migrated from a per-record field). Set this OR topic, not both. A… _(full docs in schema.json + component README)_ |
 
 ### Other
 

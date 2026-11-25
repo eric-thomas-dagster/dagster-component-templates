@@ -144,11 +144,37 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
           batch_size: 500
           group_name: producers
         ```
+
+        Or route each row to a different topic (e.g. migrating a StreamSets Kafka
+        Producer destination's per-record "topic expression"):
+
+        ```yaml
+        type: dagster_community_components.DataframeToKafkaComponent
+        attributes:
+          asset_name: events_to_kafka
+          upstream_asset_key: events_raw
+          bootstrap_servers: localhost:9092
+          topic_column: event_type   # each row's event_type value IS its topic
+          group_name: producers
+        ```
     """
 
     asset_name: str = Field(description="Dagster asset name")
     upstream_asset_key: Union[str, List[str]] = Field(description="Asset key of upstream DataFrame")
-    topic: str = Field(description="Kafka topic to publish to")
+    topic: Optional[str] = Field(
+        default=None,
+        description="Fixed Kafka topic to publish every row to. Set this OR topic_column, not both.",
+    )
+    topic_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column whose value is this row's destination topic, so different rows can "
+            "publish to different topics (e.g. a StreamSets Kafka Producer 'topic expression' "
+            "migrated from a per-record field). Set this OR topic, not both. A row whose "
+            "column value is null/missing is skipped with a logged warning, not sent to a "
+            "'None' topic."
+        ),
+    )
 
     bootstrap_servers: Optional[str] = Field(
         default=None,
@@ -272,6 +298,8 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
             raise ValueError(
                 "Set one of 'bootstrap_servers', 'bootstrap_servers_env_var', or 'resource_key'."
             )
+        if bool(self.topic) == bool(self.topic_column):
+            raise ValueError("Set exactly one of 'topic' or 'topic_column', not both and not neither.")
 
         partitions_def = None
         if self.partition_type:
@@ -324,6 +352,7 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         topic = self.topic
+        topic_column = self.topic_column
         bootstrap_servers = self.bootstrap_servers
         bootstrap_servers_env_var = self.bootstrap_servers_env_var
         security_protocol = self.security_protocol
@@ -334,7 +363,11 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
         key_column = self.key_column
         batch_size = self.batch_size
         group_name = self.group_name
-        description = self.description or f"Send DataFrame rows to Kafka topic '{topic}' as JSON messages."
+        description = self.description or (
+            f"Send DataFrame rows to Kafka topic '{topic}' as JSON messages."
+            if topic else
+            f"Send DataFrame rows to Kafka, topic per row from column '{topic_column}'."
+        )
 
         kinds = self.kinds or ["kafka"]
         tags = dict(self.asset_tags or {})
@@ -386,15 +419,31 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
                 producer = KafkaProducer(**producer_config)
 
             records = upstream.to_dict(orient="records")
-            context.log.info(f"Sending {len(records)} message(s) to Kafka topic '{topic}'")
+            dest_desc = topic if topic else f"per-row via column '{topic_column}'"
+            context.log.info(f"Sending {len(records)} message(s) to Kafka ({dest_desc})")
 
             sent = 0
+            skipped = 0
+            topics_used: set = set()
             try:
                 for i, row in enumerate(records):
+                    if topic_column is not None:
+                        row_topic = row.get(topic_column)
+                        if row_topic is None or (isinstance(row_topic, float) and row_topic != row_topic):
+                            context.log.warning(
+                                f"row {i}: '{topic_column}' is null/missing -- skipping, not sending to a 'None' topic."
+                            )
+                            skipped += 1
+                            continue
+                        row_topic = str(row_topic)
+                    else:
+                        row_topic = topic
+                    topics_used.add(row_topic)
+
                     key = None
                     if key_column is not None and key_column in row:
                         key = str(row[key_column]).encode("utf-8")
-                    producer.send(topic, value=json.dumps(row, default=str).encode("utf-8"), key=key)
+                    producer.send(row_topic, value=json.dumps(row, default=str).encode("utf-8"), key=key)
                     sent += 1
                     if (i + 1) % batch_size == 0:
                         producer.flush()
@@ -403,11 +452,13 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
                 if hasattr(producer, "close"):
                     producer.close()
 
-            context.log.info(f"Sent {sent}/{len(records)} message(s) to '{topic}'")
+            context.log.info(f"Sent {sent}/{len(records)} message(s) across {len(topics_used)} topic(s); skipped {skipped}")
             return MaterializeResult(
                 metadata={
                     "messages_sent": MetadataValue.int(sent),
-                    "topic": MetadataValue.text(topic),
+                    "messages_skipped": MetadataValue.int(skipped),
+                    "topic": MetadataValue.text(topic or f"(per-row via '{topic_column}')"),
+                    "topics_used_count": MetadataValue.int(len(topics_used)),
                     "key_column": MetadataValue.text(
                         str(key_column) if key_column is not None else "(none — round-robin partitioning)"
                     ),

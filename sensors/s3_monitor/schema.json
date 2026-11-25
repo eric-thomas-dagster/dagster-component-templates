@@ -132,6 +132,39 @@
       "label": "Dynamic Partition State Path",
       "description": "Where dynamic_partition_keep_days persists its {partition_key: first_seen} state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored when dynamic_partition_keep_days is unset.",
       "required": false
+    },
+    "business_key_template": {
+      "type": "string",
+      "label": "Business Key Template",
+      "description": "Required when partition_mode='business_key_batch'. Template extracting a business-key value (e.g. a bank code) from each detected object's key -- same template fields as `partition_key_template` (`{bucket}`, `{key}`, `{prefix}`, `{file_stem}`, `{file_name}`, `{key_stem}`), plus `{key_parts[N]}` (0-indexed path components of the key relative to `prefix`, e.g. `{key_parts[0]}` is `bank_alpha` for key `incoming/bank_alpha/file.enc` with prefix `incoming/`). Default `{key_parts[0]}` covers the common `<prefix>/<business_key>/<file>` layout.",
+      "required": false
+    },
+    "business_key_dimension_name": {
+      "type": "string",
+      "label": "Business Key Dimension Name",
+      "description": "Name of the business-key dimension in the downstream asset's `MultiPartitionsDefinition` (e.g. 'bank'). Only used when partition_mode='business_key_batch'.",
+      "required": false
+    },
+    "batch_dimension_name": {
+      "type": "string",
+      "label": "Batch Dimension Name",
+      "description": "Name of the time-window dimension in the downstream asset's `MultiPartitionsDefinition` (e.g. 'batch_day'). Only used when partition_mode='business_key_batch'.",
+      "required": false
+    },
+    "batch_window": {
+      "type": "string",
+      "label": "Batch Window",
+      "description": "Time-window granularity for the batch dimension when partition_mode='business_key_batch'. Only 'daily' is supported today (pair with a `DailyPartitionsDefinition(..., end_offset=1)` on the downstream asset). Hourly batching is possible via the same mechanism but isn't exposed yet -- at real multi-tenant scale (e.g. 100 keys) hourly batching reaches Dagster's partition-count guidance in months (100 x 24 x 365 = 876,000/year) where daily stays comfortably under it for years (100 x 365 = 36,500/year); daily is the recommended default, not just the only option today.",
+      "required": false
+    },
+    "business_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Business Keys",
+      "description": "Required when partition_mode='business_key_batch'. The FIXED list of valid business-key values -- must match the downstream asset's `StaticPartitionsDefinition` values exactly. Unlike dynamic partitions, static partition values can't be registered at runtime, so this is declared, not discovered. An object whose extracted business key isn't in this list is SKIPPED (logged as a warning, not a sensor failure) rather than raising, so one unexpected object doesn't block every other key's batch this tick.",
+      "required": false
     }
   },
   "tags": [

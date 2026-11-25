@@ -8,7 +8,7 @@ import json
 import os
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import List, Optional
 
 from dagster import (
     AssetKey,
@@ -17,6 +17,7 @@ from dagster import (
     Component,
     ComponentLoadContext,
     Definitions,
+    MultiPartitionKey,
     RunRequest,
     SensorEvaluationContext,
     SensorResult,
@@ -141,7 +142,28 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
             "any specific one on demand from the UI.\n"
             "  'both' — does both: registers a dynamic partition AND embeds the "
             "S3 metadata in run_config. Most info but the asset's config class "
-            "must accept those fields."
+            "must accept those fields.\n"
+            "  'business_key_batch' — for many-tenant file drops (e.g. ~100 banks "
+            "each dropping files every few minutes) where one dynamic partition "
+            "per file would blow past Dagster's documented partition-count "
+            "guidance (~100k OSS-recommended, ~250k Dagster+ soft ceiling — "
+            "https://github.com/dagster-io/dagster/discussions/17809) within "
+            "months. Extracts a business-key value per object via "
+            "`business_key_template`, groups this tick's new objects by that key, "
+            "and yields ONE RunRequest per key-with-new-objects-this-tick, "
+            "targeting a MultiPartitionKey of (business_key_dimension_name, "
+            "batch_dimension_name) with run_config listing exactly that tick's "
+            "objects for that key under `{'ops': {op_name: {'config': {'files': "
+            "[...]}}}}`. Pair with an asset on a matching "
+            "`MultiPartitionsDefinition({business_key_dimension_name: "
+            "StaticPartitionsDefinition(business_keys), batch_dimension_name: "
+            "DailyPartitionsDefinition(..., end_offset=1)})` — the `end_offset=1` "
+            "is required so the in-progress day is a valid, re-materializable "
+            "partition key, not just completed days. File-level visibility comes "
+            "from each tick's own materialization metadata (every tick "
+            "re-materializes the same (business_key, batch) partition — Dagster "
+            "caps partition KEYS, not materialization EVENTS per key), not from "
+            "a partition per file."
         ),
     )
     dynamic_partitions_name: Optional[str] = Field(
@@ -182,6 +204,64 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
             "(may contain slashes — valid but awkward for asset selectors). "
             "For a slash-free key parity with FilesystemMonitorSensorComponent, "
             "use `{file_stem}`."
+        ),
+    )
+
+    business_key_template: str = Field(
+        default="{key_parts[0]}",
+        description=(
+            "Required when partition_mode='business_key_batch'. Template "
+            "extracting a business-key value (e.g. a bank code) from each "
+            "detected object's key -- same template fields as "
+            "`partition_key_template` (`{bucket}`, `{key}`, `{prefix}`, "
+            "`{file_stem}`, `{file_name}`, `{key_stem}`), plus `{key_parts[N]}` "
+            "(0-indexed path components of the key relative to `prefix`, e.g. "
+            "`{key_parts[0]}` is `bank_alpha` for key `incoming/bank_alpha/"
+            "file.enc` with prefix `incoming/`). Default `{key_parts[0]}` covers "
+            "the common `<prefix>/<business_key>/<file>` layout."
+        ),
+    )
+    business_key_dimension_name: str = Field(
+        default="business_key",
+        description=(
+            "Name of the business-key dimension in the downstream asset's "
+            "`MultiPartitionsDefinition` (e.g. 'bank'). Only used when "
+            "partition_mode='business_key_batch'."
+        ),
+    )
+    business_keys: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Required when partition_mode='business_key_batch'. The FIXED list "
+            "of valid business-key values -- must match the downstream asset's "
+            "`StaticPartitionsDefinition` values exactly. Unlike dynamic "
+            "partitions, static partition values can't be registered at "
+            "runtime, so this is declared, not discovered. An object whose "
+            "extracted business key isn't in this list is SKIPPED (logged as a "
+            "warning, not a sensor failure) rather than raising, so one "
+            "unexpected object doesn't block every other key's batch this tick."
+        ),
+    )
+    batch_dimension_name: str = Field(
+        default="batch_day",
+        description=(
+            "Name of the time-window dimension in the downstream asset's "
+            "`MultiPartitionsDefinition` (e.g. 'batch_day'). Only used when "
+            "partition_mode='business_key_batch'."
+        ),
+    )
+    batch_window: str = Field(
+        default="daily",
+        description=(
+            "Time-window granularity for the batch dimension when "
+            "partition_mode='business_key_batch'. Only 'daily' is supported "
+            "today (pair with a `DailyPartitionsDefinition(..., end_offset=1)` "
+            "on the downstream asset). Hourly batching is possible via the same "
+            "mechanism but isn't exposed yet -- at real multi-tenant scale (e.g. "
+            "100 keys) hourly batching reaches Dagster's partition-count "
+            "guidance in months (100 x 24 x 365 = 876,000/year) where daily "
+            "stays comfortably under it for years (100 x 365 = 36,500/year); "
+            "daily is the recommended default, not just the only option today."
         ),
     )
 
@@ -245,17 +325,39 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         partition_key_template = self.partition_key_template or "{key}"
         op_name = self.op_name or "config"
         source_asset_key = self.source_asset_key
+        business_key_template = self.business_key_template or "{key_parts[0]}"
+        business_key_dimension_name = self.business_key_dimension_name or "business_key"
+        business_keys = self.business_keys
+        batch_dimension_name = self.batch_dimension_name or "batch_day"
+        batch_window = (self.batch_window or "daily").lower()
 
-        if partition_mode not in ("run_config", "dynamic_partition", "both"):
+        if partition_mode not in ("run_config", "dynamic_partition", "both", "business_key_batch"):
             raise ValueError(
                 f"partition_mode must be 'run_config' | 'dynamic_partition' | "
-                f"'both', got {partition_mode!r}"
+                f"'both' | 'business_key_batch', got {partition_mode!r}"
             )
         if partition_mode in ("dynamic_partition", "both") and not dynamic_partitions_name:
             raise ValueError(
                 f"partition_mode={partition_mode!r} requires dynamic_partitions_name "
                 "to match the downstream asset's dynamic_partition_name field."
             )
+        if partition_mode == "business_key_batch":
+            if not business_keys:
+                raise ValueError(
+                    "partition_mode='business_key_batch' requires a non-empty "
+                    "business_keys list matching the downstream asset's "
+                    "StaticPartitionsDefinition values."
+                )
+            if dynamic_partitions_name:
+                raise ValueError(
+                    "partition_mode='business_key_batch' uses a static business-key "
+                    "dimension, not dynamic partitions -- dynamic_partitions_name "
+                    "doesn't apply here and must be left unset."
+                )
+            if batch_window != "daily":
+                raise ValueError(
+                    f"batch_window currently only supports 'daily', got {batch_window!r}."
+                )
 
         default_status = (
             DefaultSensorStatus.RUNNING
@@ -306,6 +408,8 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
             # List and process objects
             run_requests = []
             new_partition_keys: list = []
+            new_files_by_business_key: dict = {}
+            skipped_unknown_keys: dict = {}
             latest_time = last_processed_time
             last_key: Optional[str] = None
             last_modified_iso: Optional[str] = None
@@ -342,7 +446,31 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                             "region": region_name or "",
                         }
 
-                        if partition_mode in ("dynamic_partition", "both"):
+                        if partition_mode == "business_key_batch":
+                            from pathlib import PurePosixPath as _PP
+                            _p = _PP(key)
+                            _rel = key[len(prefix):] if prefix and key.startswith(prefix) else key
+                            _rel_parts = _PP(_rel).parts
+                            try:
+                                business_key = business_key_template.format(
+                                    bucket=bucket_name, key=key, prefix=prefix,
+                                    file_stem=_p.stem,
+                                    file_name=_p.name,
+                                    key_stem=str(_PP(_rel).with_suffix("")),
+                                    key_parts=_rel_parts,
+                                )
+                            except (IndexError, KeyError) as e:
+                                context.log.warning(
+                                    f"business_key_template {business_key_template!r} could not "
+                                    f"be applied to key {key!r}: {e}. Skipping this object."
+                                )
+                                business_key = None
+                            if business_key is not None and business_key not in business_keys:
+                                skipped_unknown_keys[key] = business_key
+                                business_key = None
+                            if business_key is not None:
+                                new_files_by_business_key.setdefault(business_key, []).append(config_block)
+                        elif partition_mode in ("dynamic_partition", "both"):
                             from pathlib import PurePosixPath as _PP
                             _p = _PP(key)
                             _rel = key[len(prefix):] if prefix and key.startswith(prefix) else key
@@ -378,6 +506,36 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
             except Exception as e:
                 context.log.error(f"Error listing S3 objects in {bucket_name}/{prefix}: {e}")
                 return SensorResult(skip_reason=f"Error listing S3 objects: {e}")
+
+            if skipped_unknown_keys:
+                context.log.warning(
+                    f"Skipped {len(skipped_unknown_keys)} object(s) whose business key "
+                    f"wasn't in business_keys: {skipped_unknown_keys}"
+                )
+
+            if partition_mode == "business_key_batch" and new_files_by_business_key:
+                # One RunRequest per business key that has new objects THIS TICK --
+                # never one per file. batch_window='daily' is the only supported
+                # value today (validated above), so the batch value is simply
+                # today's UTC date; the downstream asset's DailyPartitionsDefinition
+                # must set end_offset=1 so "today" (in progress) is a valid,
+                # re-materializable partition key rather than only completed days.
+                batch_value = datetime.now(timezone.utc).date().isoformat()
+                tick_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+                for business_key, files in new_files_by_business_key.items():
+                    partition_key = MultiPartitionKey(
+                        {
+                            business_key_dimension_name: business_key,
+                            batch_dimension_name: batch_value,
+                        }
+                    )
+                    run_requests.append(
+                        RunRequest(
+                            run_key=f"{bucket_name}/{business_key}/{batch_value}-{tick_id}",
+                            partition_key=partition_key,
+                            run_config={"ops": {op_name: {"config": {"files": files}}}},
+                        )
+                    )
 
             dynamic_partitions_requests = (
                 [AddDynamicPartitionsRequest(

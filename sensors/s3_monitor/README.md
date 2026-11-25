@@ -60,6 +60,11 @@ Perfect for:
 | `dynamic_partitions_name` | `str` | — | Required when partition_mode is 'dynamic_partition' or 'both'. Must match the asset's `dynamic_partition_name:` field. |
 | `dynamic_partition_keep_days` | `int` | — | When set (partition_mode='dynamic_partition' or 'both'), partitions this sensor registered are deleted once older than this many days -- dynamic partitions otherwise accumulate forever. Tracked via a small local JSON sta… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_state_path` | `str` | — | Where dynamic_partition_keep_days persists its {partition_key: first_seen} state. Defaults to './{sensor_name}_dynamic_partition_state.json'. Ignored when dynamic_partition_keep_days is unset. |
+| `business_key_template` | `str` | `"{key_parts[0]}"` | Required when partition_mode='business_key_batch'. Template extracting a business-key value (e.g. a bank code) from each detected object's key -- same template fields as `partition_key_template` (`{bucket}`, `{key}`, `{p… _(full docs in schema.json + component README)_ |
+| `business_key_dimension_name` | `str` | `"business_key"` | Name of the business-key dimension in the downstream asset's `MultiPartitionsDefinition` (e.g. 'bank'). Only used when partition_mode='business_key_batch'. |
+| `business_keys` | `List[str]` | — | Required when partition_mode='business_key_batch'. The FIXED list of valid business-key values -- must match the downstream asset's `StaticPartitionsDefinition` values exactly. Unlike dynamic partitions, static partition… _(full docs in schema.json + component README)_ |
+| `batch_dimension_name` | `str` | `"batch_day"` | Name of the time-window dimension in the downstream asset's `MultiPartitionsDefinition` (e.g. 'batch_day'). Only used when partition_mode='business_key_batch'. |
+| `batch_window` | `str` | `"daily"` | Time-window granularity for the batch dimension when partition_mode='business_key_batch'. Only 'daily' is supported today (pair with a `DailyPartitionsDefinition(..., end_offset=1)` on the downstream asset). Hourly batch… _(full docs in schema.json + component README)_ |
 | `op_name` | `str` | `"config"` | Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat, but if the target job's op is not named 'config' (e.g. an @asset or @multi_asset with a c… _(full docs in schema.json + component README)_ |
 | `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit… _(full docs in schema.json + component README)_ |
 
@@ -362,6 +367,7 @@ aws sts get-caller-identity
 | `run_config` (default) | Embed full S3 metadata (bucket/key/etag/size/last_modified) in `RunRequest.run_config`. One ephemeral run per detected object. | `file_ingestion` with `from_run_config: {uri_template: "s3://{bucket}/{key}"}` |
 | `dynamic_partition` | Register each new key as a dynamic partition via `instance.add_dynamic_partitions(...)`, then yield `RunRequest(partition_key=<key>)`. **Every processed file becomes a tracked, named partition you can reprocess from the UI.** | `file_ingestion` with `partition_type: dynamic`, `dynamic_partition_name:` matching, and `from_run_config: {uri_template: "s3://my-bucket/{partition_key}"}` |
 | `both` | Does both — most info, but the downstream asset's Config class must accept the RunConfig fields. | Mixed flows |
+| `business_key_batch` | For many-tenant file drops (e.g. ~100 banks each dropping files every few minutes). Extracts a business-key value per object (`business_key_template`), groups this tick's new objects by that key, and yields **one `RunRequest` per key-with-new-objects-this-tick** — never one per file. | An asset on a matching `MultiPartitionsDefinition({bank: StaticPartitionsDefinition(...), batch_day: DailyPartitionsDefinition(..., end_offset=1)})` |
 
 Required extras for `dynamic_partition` / `both`:
 
@@ -373,6 +379,45 @@ partition_key_template: "{key}"               # default — bare S3 key as parti
 ```
 
 See `examples/setup_s3_pipeline_demo.sh` + `examples/s3_pipeline.md` in `dagster-community-components-cli` for an end-to-end Minio-backed demo.
+
+### `business_key_batch` mode — many-tenant file drops without a partition blowup
+
+A natural first instinct for "N tenants each drop files every few minutes, process per-tenant, file-level visibility" is `dynamic_partition` mode — one partition per file. That breaks at real multi-tenant volume: Dagster's own docs recommend capping an asset at **100,000 partitions** (a maintainer has said Dagster+ tolerates up to ~250,000) — a soft limit tied to UI responsiveness, not a hard wall, but real slowdowns show up well before it ([dagster-io/dagster#17809](https://github.com/dagster-io/dagster/discussions/17809), [partitioning-assets.md](https://github.com/dagster-io/dagster/blob/master/docs/docs/guides/build/partitions-and-backfills/partitioning-assets.md)). At 100 tenants x 100 files x 12 ticks/hour x 24 hours, one dynamic partition per file adds **288,000 partitions in a single day**.
+
+`business_key_batch` mode fixes this the same way the `bank_file_batch_ingestion` walkthrough does (`dagster-community-components-cli`'s `examples/` — read it for the full math and a live-validated end-to-end run): partition on `(business_key, batch_day)` instead of per file. Each `(business_key, day)` partition gets re-materialized once per sensor tick that finds new objects for that key — Dagster caps partition **keys**, not materialization **events** per key, so file-level visibility comes from each tick's own `run_config` + materialization metadata, not from the partition count. At 100 keys: 100 x 365 = 36,500 partitions/year (~7 years of headroom before the 250k ceiling), with zero pruning maintenance — unlike dynamic partitions, daily partition keys aren't individually registered, so there's nothing to delete.
+
+```yaml
+partition_mode: business_key_batch
+prefix: "incoming/"
+business_key_template: "{key_parts[0]}"        # default — first path segment under prefix, e.g. "bank_alpha" for incoming/bank_alpha/file.enc
+business_key_dimension_name: "bank"            # must match the asset's MultiPartitionsDefinition dimension name
+business_keys: ["bank_alpha", "bank_beta", "..."]  # fixed list -- must match the asset's StaticPartitionsDefinition values exactly
+batch_dimension_name: "batch_day"              # must match the asset's MultiPartitionsDefinition dimension name
+batch_window: daily                            # only value supported today
+op_name: "bank_batch_staged"                   # the target asset's op name
+```
+
+Pair with an asset like:
+
+```python
+bank_batch_partitions = dg.MultiPartitionsDefinition({
+    "bank": dg.StaticPartitionsDefinition(["bank_alpha", "bank_beta", "..."]),
+    # end_offset=1 is required, not cosmetic -- with the default (0), a daily
+    # partition set only includes COMPLETED days, so "today" isn't a valid
+    # partition key until tomorrow and a same-day sensor tick would raise
+    # trying to target it.
+    "batch_day": dg.DailyPartitionsDefinition(start_date="2025-01-01", end_offset=1),
+})
+
+class BankBatchConfig(dg.Config):
+    files: list[dict] = []  # exactly this tick's new objects for this bank
+
+@dg.asset(name="bank_batch_staged", partitions_def=bank_batch_partitions)
+def bank_batch_staged(context: dg.AssetExecutionContext, config: BankBatchConfig):
+    ...  # decrypt -> transform -> re-encrypt -> stage, one callable, not three
+```
+
+An object whose extracted business key isn't in `business_keys` is skipped (logged as a warning), not a sensor failure — one unexpected object shouldn't block every other key's batch for the tick.
 
 ### Pruning registered partitions (`dynamic_partition_keep_days`)
 

@@ -77322,9 +77322,63 @@
         "streaming pipeline",
         "etl"
       ]
+    },
+    {
+      "id": "sqlserver_cdc_monitor",
+      "name": "SQL Server CDC Monitor",
+      "category": "sensor",
+      "description": "Component for micro-batch SQL Server CDC via `cdc.fn_cdc_get_all_changes_*`.",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "path": "sensors/sqlserver_cdc_monitor",
+      "tags": [
+        "sensor",
+        "monitor",
+        "sqlserver",
+        "mssql",
+        "cdc"
+      ],
+      "dependencies": {
+        "pip": [
+          "pymssql>=2.2.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqlserver_cdc_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqlserver_cdc_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqlserver_cdc_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqlserver_cdc_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqlserver_cdc_monitor/requirements.txt",
+      "icon": "si:microsoftsqlserver",
+      "validation": {
+        "level": "unverified",
+        "evidence": "Mocked tests only (pymssql's connection/cursor surface faked via sys.modules injection, the module isn't installed in this environment) -- not yet validated against a real SQL Server instance with live CDC enabled."
+      },
+      "vendor": "Microsoft SQL Server",
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Component for micro-batch SQL Server CDC via `cdc.fn_cdc_get_all_changes_*`.",
+        "requires_pip": [
+          "pymssql>=2.2.0"
+        ]
+      },
+      "consumes": [
+        "resource:mssql"
+      ],
+      "keywords": [
+        "sql server",
+        "mssql",
+        "azure sql",
+        "cdc",
+        "change data capture",
+        "change tracking",
+        "lsn",
+        "streamsets migration"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1472
+  "total": 1473
 }

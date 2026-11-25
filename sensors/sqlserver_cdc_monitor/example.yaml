@@ -1,0 +1,16 @@
+type: dagster_community_components.SQLServerCDCMonitorSensorComponent
+attributes:
+  sensor_name: orders_cdc_sensor
+  host: db.internal
+  port: 1433
+  username: cdc_reader
+  password_env_var: MSSQL_CDC_PASSWORD
+  driver: pymssql
+  database: sales
+  table_patterns:
+    - dbo.orders
+    - dbo.order_items_*
+  job_name: apply_sales_cdc_job
+  minimum_interval_seconds: 30
+  on_first_run: start_now
+  default_status: running

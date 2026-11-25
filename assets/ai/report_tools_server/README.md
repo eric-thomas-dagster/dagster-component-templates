@@ -7,7 +7,7 @@ server renders it.
 
 | Tool | Use it for |
 |---|---|
-| `make_chart(kind, title, series \| labels+values \| timestamps+bucket, ...)` | a PNG chart (line/bar/barh/area/scatter/pie) |
+| `make_chart(kind, title, series \| labels+values \| timestamps+bucket \| records+time_field, ...)` | a PNG chart (line/bar/barh/area/scatter/pie) |
 | `make_pdf(title, sections, ...)` | a PDF report |
 | `make_docx(title, sections, ...)` | a Word document (same `sections` shape as make_pdf) |
 | `make_xlsx(sheets)` | an Excel workbook |
@@ -19,7 +19,7 @@ manifest after the run and post every file into the thread (see those components
 "Delivering generated files") -- the same deterministic pattern this repo already uses so a
 model can never forget to post an answer.
 
-## `make_chart`: three ways to give it data
+## `make_chart`: four ways to give it data
 
 Pass **exactly one** of:
 
@@ -30,6 +30,16 @@ Pass **exactly one** of:
   itself, so a chart never has a hole where nothing happened. `group_by` (a parallel list, same
   length as `timestamps`) splits into one series per group -- e.g. one failure count line per
   `job_name`.
+- `records` (+ `time_field`, optional `group_field`) + `bucket`: the same bucket-and-zero-fill
+  behavior as `timestamps`/`group_by`, but fed straight from another tool's own list of objects
+  (e.g. `list_recent_runs`'s result, or the Dagster+ MCP server's `list_runs`) instead of hand-
+  copying two columns out of it into separate `timestamps`/`group_by` lists. `time_field`/
+  `group_field` just name which key in each record to read (e.g. `time_field: "created_at"`,
+  `group_field: "status"`). **Prefer this over `timestamps`+`group_by` whenever the data already
+  came back as a list of objects** -- in production, a model manually transcribing a run history
+  of 65-100+ rows into two parallel lists reliably drifted them out of sync (`group_by has 65
+  entries but timestamps has 67`) well before anyone noticed; deriving both from the same records
+  by index makes that mismatch structurally impossible.
 
 `kind: "auto"` (default) picks a line for a time series, a sorted-descending horizontal bar for
 ranked categories, and a stacked bar for more than one series/group. `kind: "pie"` with more
@@ -40,7 +50,12 @@ labels when there are 12 or fewer of them; axes are always labelled (`unit` is a
 legend for a single series.
 
 Bad input comes back as `{"error": "..."}` with a reason an agent can act on (e.g. `"series[1]
-('failures') y has 7 values but x has 6"`), never an exception.
+('failures') y has 7 values but x has 6"`) when you call `ReportTools.call(...)` directly from an
+asset/op -- that path never raises (see the component docstring). Through the stdio MCP server
+(`mcp_server_resource_key`, the path a chat agent actually uses), the SAME bad input instead
+raises, which the `mcp` package turns into a real `isError: true` tool result -- so an agent
+loop's own failed-call accounting (retries, backoff, "don't trust this answer") actually counts
+it, instead of silently reading `{"error": "..."}` back as ordinary successful content.
 
 ## `make_pdf` / `make_docx`: shared `sections` shape
 
@@ -98,10 +113,12 @@ feed it data straight from the standard Dagster+ MCP server instead of needing
 
 - **`list_runs(deployment_name, status, limit<=100)`** returns items with `id`, `status`,
   `created_at`, `started_at`, `ended_at` (epoch seconds), `job_name` and `tags` (including
-  `dagster/failure_reason`). A list of failed runs' `created_at` values goes straight into
-  `timestamps`; their `job_name` (or `tags["dagster/failure_reason"]`) values go into
-  `group_by` for a per-job (or per-reason) breakdown -- `make_chart` buckets and zero-fills the
-  rest itself, so failures on a day nothing failed still show up as a true `0`, not a gap.
+  `dagster/failure_reason`). Pass that list straight through as `records` with
+  `time_field: "created_at"` and `group_field: "job_name"` (or `"tags"` keyed further by the
+  model, if it needs `dagster/failure_reason` specifically) for a per-job (or per-reason)
+  breakdown -- `make_chart` buckets and zero-fills the rest itself, so failures on a day nothing
+  failed still show up as a true `0`, not a gap. Don't hand-copy `created_at`/`job_name` out into
+  separate `timestamps`/`group_by` lists first; see the `records` note above for why.
 - **`get_deployment_metrics`/`get_job_metrics`/`get_asset_metrics`** take a metric name, a
   window (`after`/`before`), and a `granularity` (`HOURLY`/`DAILY`/`WEEKLY`/`MONTHLY`), and
   return a time series as a list of `{period` or `timestamp, value}` per entity -- reshape that

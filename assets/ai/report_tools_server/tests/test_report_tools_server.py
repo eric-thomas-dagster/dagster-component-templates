@@ -99,6 +99,99 @@ def test_make_chart_unknown_kind_is_an_error(mod, files_dir):
     assert "error" in result
 
 
+# ── make_chart: records (list_recent_runs-shaped input) ─────────────────────────────────────────────────────────
+def test_make_chart_records_matches_equivalent_timestamps_group_by(mod, files_dir):
+    tools = mod.ReportTools(files_dir)
+    runs = [
+        {"run_id": "a", "created_at": 1735689600, "status": "SUCCESS"},
+        {"run_id": "b", "created_at": 1735689600, "status": "FAILURE"},
+        {"run_id": "c", "created_at": 1735689600 + 86400, "status": "SUCCESS"},
+    ]
+    via_records = tools.call("make_chart", {
+        "records": runs, "bucket": "day", "time_field": "created_at", "group_field": "status",
+    })
+    assert "error" not in via_records
+    assert via_records["kind_used"] == "bar"
+
+    via_lists = tools.call("make_chart", {
+        "timestamps": [r["created_at"] for r in runs], "bucket": "day",
+        "group_by": [r["status"] for r in runs],
+    })
+    assert via_records["kind_used"] == via_lists["kind_used"]
+
+
+def test_make_chart_records_without_group_field_is_ungrouped(mod, files_dir):
+    tools = mod.ReportTools(files_dir)
+    runs = [{"created_at": 1735689600 + i * 3600} for i in range(3)]
+    result = tools.call("make_chart", {"records": runs, "bucket": "hour", "time_field": "created_at"})
+    assert "error" not in result
+    assert result["kind_used"] == "line"
+
+
+def test_make_chart_records_requires_time_field(mod, files_dir):
+    tools = mod.ReportTools(files_dir)
+    result = tools.call("make_chart", {"records": [{"created_at": 1735689600}], "bucket": "day"})
+    assert "time_field" in result["error"]
+
+
+def test_make_chart_records_missing_time_field_key_is_a_clear_error(mod, files_dir):
+    tools = mod.ReportTools(files_dir)
+    result = tools.call("make_chart", {
+        "records": [{"created_at": 1735689600}, {"status": "oops"}],
+        "bucket": "day", "time_field": "created_at",
+    })
+    assert "records[1]" in result["error"] and "created_at" in result["error"]
+
+
+def test_make_chart_records_missing_group_field_key_is_a_clear_error(mod, files_dir):
+    tools = mod.ReportTools(files_dir)
+    result = tools.call("make_chart", {
+        "records": [{"created_at": 1735689600, "status": "ok"}, {"created_at": 1735689600}],
+        "bucket": "day", "time_field": "created_at", "group_field": "status",
+    })
+    assert "records[1]" in result["error"] and "status" in result["error"]
+
+
+def test_make_chart_records_rejects_empty_list(mod, files_dir):
+    tools = mod.ReportTools(files_dir)
+    result = tools.call("make_chart", {"records": [], "bucket": "day", "time_field": "created_at"})
+    assert "error" in result
+
+
+def test_make_chart_records_and_timestamps_together_is_rejected(mod, files_dir):
+    tools = mod.ReportTools(files_dir)
+    result = tools.call("make_chart", {
+        "records": [{"created_at": 1735689600}], "timestamps": [1735689600],
+        "bucket": "day", "time_field": "created_at",
+    })
+    assert "error" in result
+
+
+# ── MCP server layer: bad arguments surface as isError, not a quiet {"error": ...} success ──────────────────────
+def test_mcp_tool_function_raises_on_tool_error_so_sdk_sets_isError(mod, files_dir):
+    """The registered tool function (not tools.call() directly -- see tests above, which keep returning
+    {"error": ...} for the resource-call path) must raise so the mcp SDK turns this into isError=True; a plain
+    non-exceptional return would otherwise be indistinguishable from success to an agent loop's failure count."""
+    tools = mod.ReportTools(files_dir)
+    mcp = mod.build_mcp_server(tools)
+    make_chart_fn = mcp._tool_manager.get_tool("make_chart").fn if hasattr(mcp, "_tool_manager") else None
+    if make_chart_fn is None:
+        pytest.skip("mcp SDK shape without _tool_manager.get_tool().fn introspection")
+    with pytest.raises(Exception, match="bucket"):  # the SDK's own ToolError, not mod.ToolError -- see _mcp_call
+        make_chart_fn(timestamps=[1735689600])
+
+
+def test_mcp_tool_function_succeeds_normally_on_good_args(mod, files_dir):
+    tools = mod.ReportTools(files_dir)
+    mcp = mod.build_mcp_server(tools)
+    make_chart_fn = mcp._tool_manager.get_tool("make_chart").fn if hasattr(mcp, "_tool_manager") else None
+    if make_chart_fn is None:
+        pytest.skip("mcp SDK shape without _tool_manager.get_tool().fn introspection")
+    result = make_chart_fn(labels=["a", "b"], values=[1, 2])
+    assert "error" not in result
+    assert result["kind_used"] == "barh"
+
+
 def test_make_chart_group_by_length_mismatch_is_an_error(mod, files_dir):
     tools = mod.ReportTools(files_dir)
     result = tools.call("make_chart", {"timestamps": [1, 2], "bucket": "day", "group_by": ["a"]})
@@ -312,3 +405,34 @@ def test_build_mcp_server_only_exposes_allowed_tools(mod, files_dir):
     if names is not None:
         assert "make_chart" in names
         assert "make_pdf" not in names
+
+
+def test_stdio_server_bad_args_is_a_real_isError_result_with_the_original_message(files_dir):
+    """Full round trip through a real subprocess (same transport agentic_pipeline/slack_chat_tools etc. use) --
+    not just calling the registered function in-process -- since the SDK's tool dispatch only preserves a
+    raised exception's own message when it recognizes the exception as ITS OWN ToolError (see _mcp_call);
+    getting this wrong (e.g. raising this module's own ToolError instead) still produces isError=True but
+    replaces the message with a useless generic 'Error executing tool <name>' -- caught by this test once
+    already, mirroring dagster_instance_tools/tests/test_mcp_stdio.py's identical check."""
+    import asyncio
+    import os
+    import sys
+
+    pytest.importorskip("mcp")
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    server = str((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + "/component.py")
+    params = StdioServerParameters(
+        command=sys.executable, args=[server], env={**os.environ, "REPORT_TOOLS_FILES_DIR": files_dir},
+    )
+
+    async def go():
+        async with stdio_client(params) as (r, w):
+            async with ClientSession(r, w) as s:
+                await s.initialize()
+                return await s.call_tool("make_chart", {"timestamps": [1735689600]})  # missing required bucket
+
+    result = asyncio.run(asyncio.wait_for(go(), 60))
+    assert getattr(result, "is_error", None) or getattr(result, "isError", None)
+    assert "bucket" in result.content[0].text

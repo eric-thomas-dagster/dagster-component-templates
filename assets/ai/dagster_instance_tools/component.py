@@ -1085,6 +1085,11 @@ def build_mcp_server(tools: DagsterInstanceTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("dagster-instance-tools")
     allowed = set(tools.tool_names())
 
@@ -1093,57 +1098,74 @@ def build_mcp_server(tools: DagsterInstanceTools):
             mcp.tool()(fn)
         return fn
 
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see module docstring) -- a bad-arguments or lookup failure comes back as
+        a plain {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL
+        (isError=False) tool result indistinguishable from success. Re-raising here lets the `mcp` package's
+        own exception handling (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a
+        registered tool function and turn it into a real isError=True CallToolResult) make the failure visible
+        to whatever's counting failed calls in the agent loop -- see report_tools_server's identical fix. MUST
+        be the SDK's own ToolError (_SdkToolError), not this module's: the SDK's tool dispatch (mcp/server/
+        mcpserver/tools/base.py `Tool.run`) only keeps a raised exception's own message when it recognizes the
+        exception as ITS OWN ToolError/ResourceError -- anything else (including a same-named ToolError class
+        defined elsewhere, confirmed live) is treated as an unexpected crash and replaced with a generic 'Error
+        executing tool <name>' before it reaches the client, throwing away the reason the agent needs to act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def list_recent_failures(hours: float = 24, limit: int = 10) -> dict:
         """Recent FAILED Dagster runs (newest first) with failed step keys, error class + first message line, and asset keys."""
-        return tools.call("list_recent_failures", {"hours": hours, "limit": limit})
+        return _mcp_call("list_recent_failures", {"hours": hours, "limit": limit})
 
     @_tool
     def list_recent_runs(hours: float = 24, status: Optional[str] = None, limit: int = 20) -> dict:
         """Recent Dagster runs (newest first), any status -- not restricted to FAILURE like
         list_recent_failures. Optional status filter (e.g. 'SUCCESS', 'FAILURE', 'STARTED')."""
-        return tools.call("list_recent_runs", {"hours": hours, "status": status, "limit": limit})
+        return _mcp_call("list_recent_runs", {"hours": hours, "status": status, "limit": limit})
 
     @_tool
     def run_counts(hours: float = 24, limit: int = 500) -> dict:
         """Counts of runs by status in the window -- the direct answer to 'how many runs
         succeeded/failed today', e.g. {"counts": {"SUCCESS": 12, "FAILURE": 1}, "total": 13}."""
-        return tools.call("run_counts", {"hours": hours, "limit": limit})
+        return _mcp_call("run_counts", {"hours": hours, "limit": limit})
 
     @_tool
     def get_run_summary(run_id: str) -> dict:
         """One run: status, timings, steps, failed-step error detail (truncated, redacted), tags."""
-        return tools.call("get_run_summary", {"run_id": run_id})
+        return _mcp_call("get_run_summary", {"run_id": run_id})
 
     @_tool
     def get_run_logs(run_id: str, level: str = "INFO", max_lines: int = 100) -> dict:
         """Tail of a run's event-log messages at or above `level` (secrets redacted)."""
-        return tools.call("get_run_logs", {"run_id": run_id, "level": level, "max_lines": max_lines})
+        return _mcp_call("get_run_logs", {"run_id": run_id, "level": level, "max_lines": max_lines})
 
     @_tool
     def asset_status(asset_key: str) -> dict:
         """Asset health: last materialization (time/run/data+code version), partition counts, later failed run, latest check results."""
-        return tools.call("asset_status", {"asset_key": asset_key})
+        return _mcp_call("asset_status", {"asset_key": asset_key})
 
     @_tool
     def asset_lineage(asset_key: str, depth: int = 2, direction: str = "upstream") -> dict:
         """Upstream/downstream assets (downstream needs definitions_module; upstream falls back to event-log provenance)."""
-        return tools.call("asset_lineage", {"asset_key": asset_key, "depth": depth, "direction": direction})
+        return _mcp_call("asset_lineage", {"asset_key": asset_key, "depth": depth, "direction": direction})
 
     @_tool
     def stale_assets(limit: int = 20, max_age_hours: float = 24) -> dict:
         """Assets that are stale (data-version staleness with definitions; else older than max_age_hours or with a later failed run)."""
-        return tools.call("stale_assets", {"limit": limit, "max_age_hours": max_age_hours})
+        return _mcp_call("stale_assets", {"limit": limit, "max_age_hours": max_age_hours})
 
     @_tool
     def list_assets_owned_by(identity: str) -> dict:
         """Assets whose own `owners` metadata contains `identity` exactly (an email address, or a literal 'team:<name>')."""
-        return tools.call("list_assets_owned_by", {"identity": identity})
+        return _mcp_call("list_assets_owned_by", {"identity": identity})
 
     @_tool
     def receipt_stats(asset_key: str, window_hours: float = 168) -> dict:
         """How answers built from this asset turned out (ContextReceiptStore): usage + mean outcome per code version."""
-        return tools.call("receipt_stats", {"asset_key": asset_key, "window_hours": window_hours})
+        return _mcp_call("receipt_stats", {"asset_key": asset_key, "window_hours": window_hours})
 
     return mcp
 

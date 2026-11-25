@@ -39,7 +39,7 @@ def test_stdio_server_lists_and_serves_tools(world):
         names = sorted(t.name for t in (await s.list_tools()).tools)
         fail = _json(await s.call_tool("list_recent_failures", {"hours": 1}))
         logs = _json(await s.call_tool("get_run_logs", {"run_id": world["bad_run"], "level": "INFO"}))
-        bad = _json(await s.call_tool("get_run_summary", {"run_id": "nope"}))
+        bad = await s.call_tool("get_run_summary", {"run_id": "nope"})
         return names, fail, logs, bad
     names, fail, logs, bad = _run(world, body)
     assert names == sorted([
@@ -48,7 +48,11 @@ def test_stdio_server_lists_and_serves_tools(world):
     ])
     assert {r["run_id"] for r in fail["runs"]} == {world["bad_run"], world["part_b_run"]}
     assert "FAKEFAKEFAKE" not in json.dumps(logs) and "Bearer [REDACTED]" in "\n".join(logs["lines"])
-    assert "run not found" in bad["error"]
+    # A tool-level failure (bad run_id) must come back as a REAL isError result, not a quiet
+    # non-error {"error": ...} dict an agent loop's failed-call accounting would miss -- see
+    # _mcp_call in component.py.
+    assert getattr(bad, "is_error", None) or getattr(bad, "isError", None)
+    assert "run not found" in bad.content[0].text
 
 
 def test_stdio_server_allow_env_and_definitions_module(world):

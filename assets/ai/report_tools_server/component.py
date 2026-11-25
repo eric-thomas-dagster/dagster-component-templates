@@ -20,6 +20,11 @@ since it's still sitting in this run's manifest.
 
 Tools (all return compact JSON-able dicts; errors come back as {"error": ...}, never exceptions):
   make_chart, make_pdf, make_docx, make_xlsx.
+This is the contract for `ReportTools.call()` (used directly by assets/ops). The stdio MCP server built by
+build_mcp_server() wraps every tool in `_mcp_call`, which re-raises that {"error": ...} as an exception instead
+-- the `mcp` package turns a raised exception into a real isError=True tool result on both 1.x and 2.x, which an
+agent loop's own failed-call accounting keys off; a plain non-exceptional {"error": ...} return is otherwise
+indistinguishable from a successful result to that accounting (confirmed: it was silently treated as data).
 
 Requirements: matplotlib, reportlab, python-docx, openpyxl (see requirements.txt / manifest.json's
 dependencies.pip -- a code location missing one of these fails importing this module, same as any other
@@ -216,16 +221,48 @@ def _bucket_series(timestamps: List[Any], bucket: str, group_by: Optional[List[s
     return [{"name": name, "x": x_labels, "y": [counts[name][a] for a in axis]} for name in names]
 
 
-def _resolve_chart_series(kind, series, labels, values, timestamps, bucket, group_by):
+def _records_to_timestamps_group(
+    records: List[Any], time_field: Optional[str], group_field: Optional[str]
+) -> tuple:
+    """Lets a model pass a list_recent_runs/list_recent_failures-shaped result straight through instead of
+    hand-copying two parallel lists -- the exact failure mode this mode exists to remove: a long run history
+    (60-100+ entries) transcribed by hand into separate `timestamps`/`group_by` lists reliably drifts out of
+    sync (one list a couple of entries longer/shorter than the other) long before a human would notice, and
+    `_bucket_series` only ever sees that mismatch after the fact. Deriving both lists from the same `records`
+    by index makes a length mismatch between them structurally impossible."""
+    if not isinstance(records, list) or not records:
+        raise ToolError("records must be a non-empty list of objects")
+    if not time_field:
+        raise ToolError("time_field is required with records -- the key in each record holding its timestamp")
+    timestamps: List[Any] = []
+    for i, r in enumerate(records):
+        if not isinstance(r, dict):
+            raise ToolError(f"records[{i}] must be an object, got {type(r).__name__}")
+        if time_field not in r:
+            raise ToolError(f"records[{i}] is missing time_field {time_field!r}")
+        timestamps.append(r[time_field])
+    group_by: Optional[List[Any]] = None
+    if group_field:
+        group_by = []
+        for i, r in enumerate(records):
+            if group_field not in r:
+                raise ToolError(f"records[{i}] is missing group_field {group_field!r}")
+            group_by.append(r[group_field])
+    return timestamps, group_by
+
+
+def _resolve_chart_series(kind, series, labels, values, timestamps, bucket, group_by, records=None, time_field=None, group_field=None):
     modes = []
     if series is not None:
         modes.append("series")
+    if records is not None:
+        modes.append("records")
     if timestamps is not None:
         modes.append("timestamps")
     if labels is not None or values is not None:
         modes.append("labels_values")
     if not modes:
-        raise ToolError("provide one of: series, timestamps (+bucket), or labels+values")
+        raise ToolError("provide one of: series, records (+time_field), timestamps (+bucket), or labels+values")
     if len(modes) > 1:
         raise ToolError(f"provide exactly one data shape, got {modes}")
     mode = modes[0]
@@ -233,9 +270,13 @@ def _resolve_chart_series(kind, series, labels, values, timestamps, bucket, grou
     is_time = False
     is_categorical = False
 
+    if mode == "records":
+        timestamps, group_by = _records_to_timestamps_group(records, time_field, group_field)
+        mode = "timestamps"
+
     if mode == "timestamps":
         if not bucket:
-            raise ToolError("bucket is required with timestamps: 'hour', 'day', or 'week'")
+            raise ToolError("bucket is required with timestamps/records: 'hour', 'day', or 'week'")
         series = _bucket_series(timestamps, bucket, group_by)
         is_time = True
     elif mode == "labels_values":
@@ -617,11 +658,13 @@ class ReportTools:
         y_label: Optional[str] = None, unit: Optional[str] = None, series: Optional[List[Dict[str, Any]]] = None,
         labels: Optional[List[Any]] = None, values: Optional[List[Any]] = None, timestamps: Optional[List[Any]] = None,
         bucket: Optional[str] = None, group_by: Optional[List[str]] = None,
+        records: Optional[List[Dict[str, Any]]] = None, time_field: Optional[str] = None, group_field: Optional[str] = None,
     ) -> Dict[str, Any]:
         if kind not in ("auto", "line", "bar", "barh", "area", "scatter", "pie"):
             raise ToolError(f"kind must be one of auto/line/bar/barh/area/scatter/pie, got {kind!r}")
         resolved_kind, resolved_series, warnings, is_time_x = _resolve_chart_series(
-            kind, series, labels, values, timestamps, bucket, group_by
+            kind, series, labels, values, timestamps, bucket, group_by,
+            records=records, time_field=time_field, group_field=group_field,
         )
         png = _render_chart_png(resolved_kind, title, subtitle, x_label, y_label, unit, resolved_series, is_time_x)
         entry = self._write_file("make_chart", "chart.png", "image/png", png)
@@ -832,6 +875,11 @@ def build_mcp_server(tools: ReportTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("report-tools")
     allowed = set(tools.tool_names())
 
@@ -840,24 +888,46 @@ def build_mcp_server(tools: ReportTools):
             mcp.tool()(fn)
         return fn
 
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see module docstring) -- a bad-arguments or render failure comes back as
+        a plain {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL
+        (isError=False) tool result indistinguishable from success. Re-raising here lets the `mcp` package's
+        own exception handling (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a
+        registered tool function and turn it into a real isError=True CallToolResult) make the failure visible
+        to whatever's counting failed calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError),
+        not this module's: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a
+        raised exception's own message when it recognizes the exception as ITS OWN ToolError/ResourceError --
+        anything else (including a same-named ToolError class defined elsewhere, confirmed live) is treated as
+        an unexpected crash and replaced with a generic 'Error executing tool <name>' before it reaches the
+        client, which would throw away the whole reason the agent needs to read and act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def make_chart(
         kind: str = "auto", title: str = "", subtitle: Optional[str] = None, x_label: Optional[str] = None,
         y_label: Optional[str] = None, unit: Optional[str] = None, series: Optional[list] = None,
         labels: Optional[list] = None, values: Optional[list] = None, timestamps: Optional[list] = None,
         bucket: Optional[str] = None, group_by: Optional[list] = None,
+        records: Optional[list] = None, time_field: Optional[str] = None, group_field: Optional[str] = None,
     ) -> dict:
         """Use this when the person asks for a chart, graph, or to visualize data. Pass exactly ONE data shape:
         `series` (a list of {name, x, y} -- for line/bar/area/scatter), `labels` + `values` (one ranked/
-        categorical series -- also the shape for a pie), or `timestamps` (+ `bucket`: 'hour'|'day'|'week',
-        optional `group_by`) to have this tool bucket and zero-fill raw event timestamps itself -- e.g. straight
-        from a list of run creation times. kind='auto' (default) picks a line for a time series, a sorted
-        horizontal bar for ranked categories, and a stacked bar for more than one series/group. Returns
-        {file_id, name, media_type, bytes, kind_used} (and 'warnings' if a request had to be adjusted, e.g. a
-        pie with too many slices)."""
-        return tools.call("make_chart", dict(
+        categorical series -- also the shape for a pie), `timestamps` (+ `bucket`: 'hour'|'day'|'week',
+        optional `group_by`) to have this tool bucket and zero-fill raw event timestamps itself, or -- the
+        easiest shape when the data came from another tool call, e.g. list_recent_runs -- `records` (that
+        tool's own list of objects, unmodified) + `time_field` (the key in each record holding its timestamp,
+        e.g. 'created_at') and optional `group_field` (e.g. 'status') instead of copying those two columns out
+        into separate `timestamps`/`group_by` lists by hand. kind='auto' (default) picks a line for a time
+        series, a sorted horizontal bar for ranked categories, and a stacked bar for more than one series/
+        group. Returns {file_id, name, media_type, bytes, kind_used} (and 'warnings' if a request had to be
+        adjusted, e.g. a pie with too many slices)."""
+        return _mcp_call("make_chart", dict(
             kind=kind, title=title, subtitle=subtitle, x_label=x_label, y_label=y_label, unit=unit, series=series,
             labels=labels, values=values, timestamps=timestamps, bucket=bucket, group_by=group_by,
+            records=records, time_field=time_field, group_field=group_field,
         ))
 
     @_tool
@@ -865,19 +935,19 @@ def build_mcp_server(tools: ReportTools):
         """Use this when the person asks for a PDF or a document. `sections` is a list of {heading, text,
         bullets, table: {columns, rows}, chart_file_id} -- pass a chart_file_id returned by an earlier
         make_chart call IN THIS SAME RUN to embed that chart. Returns {file_id, name, media_type, bytes, pages}."""
-        return tools.call("make_pdf", dict(title=title, subtitle=subtitle, footer=footer, sections=sections))
+        return _mcp_call("make_pdf", dict(title=title, subtitle=subtitle, footer=footer, sections=sections))
 
     @_tool
     def make_docx(title: str = "Report", subtitle: Optional[str] = None, footer: Optional[str] = None, sections: Optional[list] = None) -> dict:
         """Use this when the person asks for a Word document. Same `sections` shape as make_pdf. Returns
         {file_id, name, media_type, bytes}."""
-        return tools.call("make_docx", dict(title=title, subtitle=subtitle, footer=footer, sections=sections))
+        return _mcp_call("make_docx", dict(title=title, subtitle=subtitle, footer=footer, sections=sections))
 
     @_tool
     def make_xlsx(sheets: Optional[list] = None) -> dict:
         """Use this when the person asks for a spreadsheet or Excel file. `sheets` is a list of {name, columns,
         rows}. Returns {file_id, name, media_type, bytes}."""
-        return tools.call("make_xlsx", dict(sheets=sheets))
+        return _mcp_call("make_xlsx", dict(sheets=sheets))
 
     return mcp
 

@@ -94,3 +94,44 @@ def test_component_build_defs_registers_resource(mod):
 def test_component_rejects_unknown_tool_in_allow(mod):
     with pytest.raises(ValueError, match="unknown tool"):
         mod.DagsterWorkflowToolsComponent(definitions_module="fixture_defs:defs", allow=["not_real"]).build_defs(context=None)
+
+
+def test_stdio_server_bad_args_is_a_real_isError_result_with_the_original_message(tmp_path):
+    """Full round trip through a real subprocess (same transport agentic_pipeline/slack_chat_tools etc. use) --
+    not just calling the registered function in-process -- since the SDK's tool dispatch only preserves a
+    raised exception's own message when it recognizes the exception as ITS OWN ToolError (see _mcp_call in
+    component.py); getting this wrong (e.g. raising this module's own ToolError instead, which this component
+    happens to also define under the same name for its t_* methods) still produces isError=True but replaces
+    the message with a useless generic 'Error executing tool <name>', mirroring
+    dagster_instance_tools/tests/test_mcp_stdio.py's identical check.
+
+    The failure here is a real, deterministic one -- allow_jobs rejects a job name before touching
+    definitions_module at all, so no real Dagster run or even an importable defs module is needed, only a
+    DAGSTER_HOME directory for DagsterInstance.get() to use."""
+    import asyncio
+    import os
+    import sys
+
+    pytest.importorskip("mcp")
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    server = str((os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + "/component.py")
+    params = StdioServerParameters(
+        command=sys.executable, args=[server], env={
+            **os.environ,
+            "DAGSTER_HOME": str(tmp_path),
+            "DAGSTER_WORKFLOW_TOOLS_DEFINITIONS_MODULE": "fixture_defs:defs",
+            "DAGSTER_WORKFLOW_TOOLS_ALLOW_JOBS": "some_other_job",
+        },
+    )
+
+    async def go():
+        async with stdio_client(params) as (r, w):
+            async with ClientSession(r, w) as s:
+                await s.initialize()
+                return await s.call_tool("run_job", {"job_name": "named_job"})
+
+    result = asyncio.run(asyncio.wait_for(go(), 60))
+    assert getattr(result, "is_error", None) or getattr(result, "isError", None)
+    assert "allow_jobs" in result.content[0].text

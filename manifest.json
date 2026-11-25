@@ -17269,7 +17269,8 @@
       "tags": [],
       "dependencies": {
         "pip": [
-          "pandas"
+          "pandas",
+          "mmh3>=4.0"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/README.md",

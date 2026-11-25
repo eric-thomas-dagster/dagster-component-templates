@@ -1,0 +1,420 @@
+{
+  "component_type": "dagster_community_components.GeoIpLookupComponent",
+  "description": "Component for enriching a DataFrame with geolocation data looked up from an IP address column.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with an IP address column",
+      "required": true
+    },
+    "ip_column": {
+      "type": "string",
+      "label": "Ip Column",
+      "description": "Column containing the IPv4 or IPv6 address string to look up",
+      "required": true,
+      "x-dagster-widget": "column"
+    },
+    "lookup_mode": {
+      "type": "string",
+      "label": "Lookup Mode",
+      "description": "'database' (default) -- reads a local MaxMind .mmdb file via database_path/asn_database_path, no per-row network call, YOU must supply and refresh the file (see module docstring). 'web_service' -- calls MaxMind's hosted GeoIP2 web service per row (account_id_env_var/license_key_env_var required); no local file to maintain, but one network call per row, and ASN enrichment is NOT available in this mode (MaxMind's web service has no ASN endpoint).",
+      "required": false,
+      "default": "database",
+      "enum": [
+        "database",
+        "web_service"
+      ],
+      "ui:widget": "select"
+    },
+    "database_path": {
+      "type": "string",
+      "label": "Database Path",
+      "description": "Path to a local MaxMind City/Country .mmdb file (e.g. GeoLite2-City.mmdb). Required for city/country/lat-lng/postal/subdivision fields in 'database' mode. NOT bundled or downloaded by this component -- point this at a file you already hold a MaxMind license for, e.g. one maintained by GeoIpDatabaseUpdaterComponent in this same registry.",
+      "required": false,
+      "default": null
+    },
+    "asn_database_path": {
+      "type": "string",
+      "label": "Asn Database Path",
+      "description": "Path to a separate local MaxMind ASN .mmdb file (e.g. GeoLite2-ASN.mmdb). ASN is always a SEPARATE MaxMind database from City/Country. Only used in 'database' mode; set this to populate asn_column/asn_org_column.",
+      "required": false,
+      "default": null
+    },
+    "account_id_env_var": {
+      "type": "string",
+      "label": "Account Id Env Var",
+      "description": "Environment variable holding your MaxMind account ID. Only used in 'web_service' mode.",
+      "required": false,
+      "default": "MAXMIND_ACCOUNT_ID"
+    },
+    "license_key_env_var": {
+      "type": "string",
+      "label": "License Key Env Var",
+      "description": "Environment variable holding your MaxMind license key. Only used in 'web_service' mode.",
+      "required": false,
+      "default": "MAXMIND_LICENSE_KEY"
+    },
+    "web_service_host": {
+      "type": "string",
+      "label": "Web Service Host",
+      "description": "MaxMind web service host. Only used in 'web_service' mode.",
+      "required": false,
+      "default": "geoip.maxmind.com"
+    },
+    "batch_delay": {
+      "type": "number",
+      "label": "Batch Delay",
+      "description": "Seconds to sleep between rows in 'web_service' mode, to respect rate limits. Ignored in 'database' mode.",
+      "required": false,
+      "default": 0.0
+    },
+    "city_column": {
+      "type": "string",
+      "label": "City Column",
+      "description": "Output column for the city name, or null to omit.",
+      "required": false,
+      "default": "geoip_city",
+      "x-dagster-widget": "column"
+    },
+    "country_column": {
+      "type": "string",
+      "label": "Country Column",
+      "description": "Output column for the country name, or null to omit.",
+      "required": false,
+      "default": "geoip_country",
+      "x-dagster-widget": "column"
+    },
+    "country_iso_code_column": {
+      "type": "string",
+      "label": "Country Iso Code Column",
+      "description": "Output column for the ISO country code, or null to omit.",
+      "required": false,
+      "default": "geoip_country_iso_code",
+      "x-dagster-widget": "column"
+    },
+    "latitude_column": {
+      "type": "string",
+      "label": "Latitude Column",
+      "description": "Output column for latitude, or null to omit.",
+      "required": false,
+      "default": "geoip_latitude",
+      "x-dagster-widget": "column"
+    },
+    "longitude_column": {
+      "type": "string",
+      "label": "Longitude Column",
+      "description": "Output column for longitude, or null to omit.",
+      "required": false,
+      "default": "geoip_longitude",
+      "x-dagster-widget": "column"
+    },
+    "continent_column": {
+      "type": "string",
+      "label": "Continent Column",
+      "description": "Output column for the continent name, or null (default) to omit.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "subdivision_column": {
+      "type": "string",
+      "label": "Subdivision Column",
+      "description": "Output column for the most-specific subdivision (state/region) name, or null (default) to omit.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "postal_code_column": {
+      "type": "string",
+      "label": "Postal Code Column",
+      "description": "Output column for the postal code, or null (default) to omit.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "accuracy_radius_column": {
+      "type": "string",
+      "label": "Accuracy Radius Column",
+      "description": "Output column for the location accuracy radius (km), or null (default) to omit.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "asn_column": {
+      "type": "string",
+      "label": "Asn Column",
+      "description": "Output column for the autonomous system number, or null (default) to omit. Requires asn_database_path (database mode only).",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "asn_org_column": {
+      "type": "string",
+      "label": "Asn Org Column",
+      "description": "Output column for the autonomous system organization name, or null (default) to omit. Requires asn_database_path (database mode only).",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "match_status_column": {
+      "type": "string",
+      "label": "Match Status Column",
+      "description": "Optional output column recording per-row lookup status: 'matched', 'not_found' (valid IP, no DB entry -- private/reserved ranges land here), or 'invalid' (unparseable IP string). Null (default) to omit.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values; 'multi' for date × static. Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "cron"
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "description": "Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access.",
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run. 'multi_run' launches one run per partition (optionally capped via backfill_policy_max_partitions_per_run). Leave unset for Dagster's default.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    },
+    "description": {
+      "description": "Asset description shown in the Dagster catalog.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "geoip",
+    "maxmind"
+  ],
+  "name": "GeoIP Lookup"
+}

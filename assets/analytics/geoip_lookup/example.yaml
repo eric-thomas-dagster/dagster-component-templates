@@ -1,0 +1,10 @@
+type: dagster_community_components.GeoIpLookupComponent
+attributes:
+  asset_name: enriched_web_logs
+  upstream_asset_key: web_logs
+  ip_column: client_ip
+  database_path: /var/lib/geoip/GeoLite2-City.mmdb
+  asn_database_path: /var/lib/geoip/GeoLite2-ASN.mmdb
+  asn_column: geoip_asn
+  asn_org_column: geoip_asn_org
+  group_name: analytics

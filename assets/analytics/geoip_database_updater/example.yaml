@@ -1,0 +1,10 @@
+type: dagster_community_components.GeoIpDatabaseUpdaterComponent
+attributes:
+  asset_name: geoip_databases
+  editions:
+    - GeoLite2-City
+    - GeoLite2-ASN
+  database_directory: /var/lib/geoip
+  account_id_env_var: MAXMIND_ACCOUNT_ID
+  license_key_env_var: MAXMIND_LICENSE_KEY
+  group_name: analytics

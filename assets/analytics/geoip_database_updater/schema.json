@@ -1,0 +1,165 @@
+{
+  "component_type": "dagster_community_components.GeoIpDatabaseUpdaterComponent",
+  "description": "Downloads and refreshes local MaxMind GeoLite2/GeoIP2 .mmdb database files, skipping unchanged builds.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false,
+      "description": "No input -- this is a root asset that maintains local files."
+    },
+    "outputs": {
+      "type": "none",
+      "description": "No data output -- writes .mmdb files to database_directory and reports build metadata."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "editions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Editions",
+      "description": "MaxMind edition IDs to download and keep refreshed, e.g. 'GeoLite2-City', 'GeoLite2-Country', 'GeoLite2-ASN', or the paid 'GeoIP2-City' / 'GeoIP2-Country' / 'GeoIP2-ASN' / 'GeoIP2-ISP' equivalents -- your account_id/license_key must be entitled to each one requested. Each edition is written to '{database_directory}/{edition_id}.mmdb'.",
+      "required": false,
+      "default": ["GeoLite2-City"],
+      "ui:widget": "list"
+    },
+    "database_directory": {
+      "type": "string",
+      "label": "Database Directory",
+      "description": "Local directory the .mmdb files are written to and read from (created if missing).",
+      "required": true
+    },
+    "account_id_env_var": {
+      "type": "string",
+      "label": "Account Id Env Var",
+      "description": "Environment variable holding your MaxMind account ID.",
+      "required": false,
+      "default": "MAXMIND_ACCOUNT_ID"
+    },
+    "license_key_env_var": {
+      "type": "string",
+      "label": "License Key Env Var",
+      "description": "Environment variable holding your MaxMind license key.",
+      "required": false,
+      "default": "MAXMIND_LICENSE_KEY"
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "MaxMind GeoIP Update service host. Override only for testing against a mock server.",
+      "required": false,
+      "default": "https://updates.maxmind.com"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Timeout for each metadata/download HTTP request.",
+      "required": false,
+      "default": 60
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Defaults to ['python'] if not set.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 2,5' (the update check cadence).",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "ui:widget": "select"
+    },
+    "description": {
+      "description": "Asset description shown in the Dagster catalog.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "geoip",
+    "maxmind"
+  ],
+  "name": "GeoIP Database Updater"
+}

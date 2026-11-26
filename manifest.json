@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-11-25",
+  "last_updated": "2026-11-26",
   "components": [
     {
       "id": "ab_controls",
@@ -66750,6 +66750,59 @@
       "vertical": "database"
     },
     {
+      "id": "sql_to_file_asset",
+      "name": "SQL to File",
+      "category": "ingestion",
+      "description": "Run a SQL query against a registered warehouse/database resource (or a raw connection URL env var) and write the result set to a file -- local path or an fsspec URI (s3://, gs://, abfss://...). The reverse direction of a Copy activity whose sink is a file, not a table.",
+      "path": "assets/ingestion/sql_to_file_asset",
+      "tags": [
+        "ingestion",
+        "sql",
+        "export",
+        "asset"
+      ],
+      "icon": "FileOutput",
+      "type": "dagster_community_components.SqlToFileAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_file_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_file_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_file_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_file_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_file_asset/requirements.txt",
+      "component_type": "dagster_community_components.SqlToFileAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) — reads a SQL query result set via a registered resource or a raw connection URL.",
+        "outputs": "None (sink-like) — writes the query result to a sink fsspec URI file.",
+        "side_effects": "Requires read access to the SQL source and write access to sink_path.",
+        "anti_uses": "For writing a query result into a database table instead of a file, use sql_to_database_asset. For moving an existing file (not a query result) to cloud storage, use cloud_storage_copy_asset.",
+        "requires_resources": []
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0",
+          "sqlalchemy"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "sql export",
+        "query to file",
+        "copy activity",
+        "sql to s3",
+        "sql to parquet",
+        "sql to csv",
+        "database export"
+      ],
+      "vertical": "database"
+    },
+    {
       "id": "sql_transform",
       "name": "SQL Transform",
       "category": "transformation",
@@ -77635,5 +77688,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1478
+  "total": 1479
 }

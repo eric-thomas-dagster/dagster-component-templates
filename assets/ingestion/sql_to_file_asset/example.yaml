@@ -1,0 +1,20 @@
+type: dagster_community_components.SqlToFileAssetComponent
+attributes:
+  asset_key: exports/daily_orders
+  resource_key: snowflake_resource
+  query: "SELECT * FROM orders WHERE order_date = CURRENT_DATE - 1"
+  sink_path: s3://exports-bucket/orders/{partition_key}.parquet
+  sink_format: parquet
+  partition_type: daily
+  partition_start: "2024-01-01"
+---
+# Plain connection-string source, CSV to Azure Data Lake
+type: dagster_community_components.SqlToFileAssetComponent
+attributes:
+  asset_key: exports/customer_list
+  database_url_env_var: ANALYTICS_DB_URL
+  query: "SELECT customer_id, name, email FROM customers"
+  sink_path: abfss://exports@acct.dfs.core.windows.net/customers.csv
+  sink_format: csv
+  azure_account_name_env_var: AZURE_STORAGE_ACCOUNT_NAME
+  azure_connection_string_env_var: AZURE_STORAGE_CONNECTION_STRING

@@ -1,0 +1,12 @@
+dagster
+pandas>=1.5.0
+pydantic
+sqlalchemy
+
+# pick whichever your sink_path actually uses:
+#   pip install s3fs      # s3://
+#   pip install gcsfs     # gs://
+#   pip install adlfs     # abfs:// / abfss:// / az://
+
+# sink_format=parquet only
+# pyarrow

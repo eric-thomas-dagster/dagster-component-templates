@@ -1,0 +1,210 @@
+{
+  "component_type": "dagster_community_components.SqlToFileAssetComponent",
+  "description": "Run a SQL query and write the result set to a file -- local path or an fsspec URI (s3://, gs://, abfss://.../abfs://.../az://...). The reverse of a Copy activity whose sink is a file rather than a table.",
+  "summary": "Run a SQL query and write the result set to a file (local path or S3/GCS/Azure).",
+  "category": "ingestion",
+  "vertical": "database",
+  "icon": "FileOutput",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Export result with row/column counts"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. 'exports/daily_orders').",
+      "required": true
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a registered resource exposing .get_engine() (SQLAlchemy), .get_connection() (DBAPI), or .get_client() (vendor client, e.g. BigQuery/Redshift). Set this OR database_url_env_var (unless dry_run is True, which needs neither).",
+      "required": false
+    },
+    "database_url_env_var": {
+      "type": "string",
+      "label": "Database Url Env Var",
+      "description": "Env var with a SQLAlchemy database URL, read at run time. Set this OR resource_key (unless dry_run).",
+      "required": false
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "description": "SQL query. Result set becomes the output file's rows.",
+      "required": true
+    },
+    "sink_path": {
+      "type": "string",
+      "label": "Sink Path",
+      "description": "fsspec URI (s3://, gs://, abfss://..., or a local/plain path) to write the query result to. '{partition_key}' is templated when partitioned.",
+      "required": true
+    },
+    "sink_format": {
+      "type": "string",
+      "label": "Sink Format",
+      "description": "File format: 'csv' | 'jsonl' | 'json' | 'parquet'.",
+      "required": true
+    },
+    "sink_compression": {
+      "type": "string",
+      "label": "Sink Compression",
+      "description": "e.g. 'gzip', 'snappy' (parquet).",
+      "required": false
+    },
+    "azure_account_name_env_var": {
+      "type": "string",
+      "label": "Azure Account Name Env Var",
+      "description": "Only used when sink_path is an abfs://.../abfss://... URI.",
+      "required": false
+    },
+    "azure_account_key_env_var": {
+      "type": "string",
+      "label": "Azure Account Key Env Var",
+      "description": "Only used when sink_path is an abfs://.../abfss://... URI (ignored if azure_connection_string_env_var is also set).",
+      "required": false
+    },
+    "azure_connection_string_env_var": {
+      "type": "string",
+      "label": "Azure Connection String Env Var",
+      "description": "Only used when sink_path is an abfs://.../abfss://... URI. Takes precedence over azure_account_key_env_var.",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": false,
+      "label": "Dry Run",
+      "description": "Log the query and resolved sink_path and skip actually running it -- no resource is looked up, no connection opened, nothing written.",
+      "required": false
+    },
+    "run_window": {
+      "type": "string",
+      "label": "Run Window",
+      "description": "'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of running or failing -- no query runs, no file is written, and real downstream dependents skip too. Checked once per materialization. A malformed spec fails open (never blocks). Unset (default): always runs.",
+      "required": false
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster's native named concurrency pool -- a cap on concurrent exports sharing the same pool name. The pool's own slot count is configured at the deployment level, not here.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "default": "ingestion",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys for lineage.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners -- team names ('team:analytics') or email addresses.",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "string",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog. Auto-includes 'sql' if empty.",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "default": "exponential",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'cron' / 'static' / 'dynamic' / None for unpartitioned.",
+      "required": false
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "default": "%Y-%m-%d",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "default": 0,
+      "label": "Partition End Offset",
+      "description": "0 (default): a time-based partition set only ever holds COMPLETED windows. 1: include the current, in-progress window.",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying partitions definition (defaults to UTC).",
+      "required": false
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format. Required for time-based partition types.",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static partitioning.",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
+      "required": false
+    }
+  }
+}

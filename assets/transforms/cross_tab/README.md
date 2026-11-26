@@ -30,9 +30,9 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `index_column` | `Union[str, int]` | Column to use for row labels |
+| `index_column` | `Union[str, int, List[Union[str, int]]]` | Column(s) to use for row labels. A list groups by multiple columns at once (ADF Pivot transform's multiple group-by columns). |
 | `pivot_column` | `Union[str, int]` | Column whose unique values become new column headers |
-| `value_column` | `Union[str, int]` | Values to aggregate in the pivot table |
+| `value_column` | `Union[str, int, List[Union[str, int]]]` | Column(s) to aggregate in the pivot table. A list aggregates each column independently, producing one set of pivoted columns per value column (ADF Pivot transform's multiple pivot columns). |
 
 ### Catalog metadata
 
@@ -61,6 +61,8 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -82,8 +84,9 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 |---|---|---|---|
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
-| `agg_func` | `str` | `"sum"` | Aggregation function to apply |
+| `agg_func` | `Union[str, Dict[str, str]]` | `"sum"` | Aggregation function to apply. A single string applies the same function to every value_column. A dict of {value_column: agg_func} applies an independent aggregation per value column (requires value_column to be a list)… _(full docs in schema.json + component README)_ |
 | `fill_value` | `float` | `0` | Value to fill NaN cells with after pivoting |
+| `pivot_values` | `List[Any]` | — | Restrict pivot_column's unique values that become output columns to exactly this list (ADF Pivot transform's declared-schema value restriction), instead of every unique value in the data becoming a column. A listed value… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
@@ -107,6 +110,52 @@ attributes:
 ```
 
 Given input data with columns `region`, `quarter`, `revenue`, the output will have one row per unique `region` and one column per unique `quarter` value (e.g., `Q1`, `Q2`, `Q3`, `Q4`).
+
+## Multi-column grouping, multi-column aggregation, and restricted pivot values (ADF Pivot parity)
+
+Azure Data Factory's **Pivot** data flow transform supports three capabilities
+beyond a bare single-column pivot: multiple group-by columns, multiple
+independently-aggregated value columns, and restricting which pivot-column
+values actually become output columns (so a pivot doesn't silently emit an
+unbounded number of columns in production). This component mirrors all three:
+
+```yaml
+type: dagster_community_components.CrossTabComponent
+attributes:
+  asset_name: sales_by_region_and_segment_and_quarter
+  upstream_asset_key: sales_data
+  index_column: [region, segment]          # multiple group-by columns
+  pivot_column: quarter
+  value_column: [revenue, units]           # multiple value columns
+  agg_func:
+    revenue: sum                           # independent aggregation per value column
+    units: mean
+  pivot_values: [Q1, Q2, Q3, Q4]            # only these become output columns
+  fill_value: 0
+  group_name: transforms
+```
+
+- `index_column` accepts a single column (string, unchanged default) or a
+  list of columns to group by together, matching ADF Pivot's multiple
+  group-by columns.
+- `value_column` accepts a single column (unchanged default) or a list. With
+  a list, each value column is pivoted and aggregated independently, and the
+  output columns are named `{value_column}_{pivot_value}` (e.g. `revenue_Q1`,
+  `units_Q1`) — matching ADF Pivot's multiple pivot/aggregation columns.
+- `agg_func` accepts a single string applied to every value column (default,
+  unchanged), or a `{value_column: agg_func}` dict for an independent
+  aggregation per value column when `value_column` is a list.
+- `pivot_values` restricts the output to exactly the listed values of
+  `pivot_column`, instead of "every unique value becomes a column" — matching
+  ADF Pivot's declared-schema behavior. A listed value that never appears in
+  the data still produces a column, filled entirely with `fill_value` (ADF
+  Pivot does the same when a declared column has no matching rows). Values
+  present in the data but not listed are excluded from the output. Leave
+  `pivot_values` unset (the default) to keep the original "every unique value
+  becomes a column" behavior unchanged.
+
+`pivot_column` itself stays single-column only — ADF's own Pivot transform
+pivots on one column's values at a time, so this component does the same.
 
 ## Notes
 

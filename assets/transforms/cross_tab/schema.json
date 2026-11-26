@@ -38,7 +38,7 @@
     "index_column": {
       "type": "string",
       "label": "Index Column",
-      "description": "Column to use for row labels",
+      "description": "Column(s) to use for row labels. A list groups by multiple columns at once (ADF Pivot transform's multiple group-by columns). Set via YAML/API as a list for multi-column grouping.",
       "required": true,
       "x-dagster-widget": "column"
     },
@@ -52,14 +52,14 @@
     "value_column": {
       "type": "string",
       "label": "Value Column",
-      "description": "Values to aggregate in the pivot table",
+      "description": "Column(s) to aggregate in the pivot table. A list aggregates each column independently, producing one set of pivoted columns per value column (ADF Pivot transform's multiple pivot columns). Set via YAML/API as a list for multi-column aggregation.",
       "required": true,
       "x-dagster-widget": "column"
     },
     "agg_func": {
       "type": "string",
       "label": "Agg Func",
-      "description": "Aggregation function to apply",
+      "description": "Aggregation function to apply. A single string applies the same function to every value_column. A dict of {value_column: agg_func} (set via YAML/API) applies an independent aggregation per value column.",
       "required": false,
       "default": "sum"
     },
@@ -69,6 +69,15 @@
       "description": "Value to fill NaN cells with after pivoting",
       "required": false,
       "default": 0
+    },
+    "pivot_values": {
+      "type": "array",
+      "items": {},
+      "label": "Pivot Values",
+      "description": "Restrict pivot_column's unique values that become output columns to exactly this list (ADF Pivot transform's declared-schema value restriction), instead of every unique value in the data becoming a column. A listed value absent from the data still produces a column filled with fill_value. Leave unset (default) to keep every unique value as a column.",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
     },
     "group_name": {
       "type": "string",

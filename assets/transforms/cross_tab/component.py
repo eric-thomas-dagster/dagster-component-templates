@@ -145,6 +145,13 @@ def _build_partitions_def(
 
 
 
+def _as_list(value) -> list:
+    """Normalize a scalar-or-list field value into a plain list for membership checks."""
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value]
+
+
 def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
     """Execute SQL via a Dagster resource that exposes .get_engine()
     (SQLAlchemy), .get_connection() (DBAPI), or .get_client() (vendor
@@ -297,12 +304,42 @@ class CrossTabComponent(Component, Model, Resolvable):
             "Mutually exclusive with `upstream_asset_key` -- set exactly one."
         ),
     )
-    index_column: Union[str, int] = Field(description="Column to use for row labels")
+    index_column: Union[str, int, List[Union[str, int]]] = Field(
+        description=(
+            "Column(s) to use for row labels. A list groups by multiple "
+            "columns at once (ADF Pivot transform's multiple group-by columns)."
+        )
+    )
     pivot_column: Union[str, int] = Field(description="Column whose unique values become new column headers")
-    value_column: Union[str, int] = Field(description="Values to aggregate in the pivot table")
-    agg_func: str = Field(default="sum", description="Aggregation function to apply")
+    value_column: Union[str, int, List[Union[str, int]]] = Field(
+        description=(
+            "Column(s) to aggregate in the pivot table. A list aggregates "
+            "each column independently, producing one set of pivoted columns "
+            "per value column (ADF Pivot transform's multiple pivot columns)."
+        )
+    )
+    agg_func: Union[str, Dict[str, str]] = Field(
+        default="sum",
+        description=(
+            "Aggregation function to apply. A single string applies the same "
+            "function to every value_column. A dict of {value_column: agg_func} "
+            "applies an independent aggregation per value column (requires "
+            "value_column to be a list) -- e.g. {'revenue': 'sum', 'price': 'mean'}."
+        ),
+    )
     fill_value: Optional[float] = Field(
         default=0, description="Value to fill NaN cells with after pivoting"
+    )
+    pivot_values: Optional[List[Any]] = Field(
+        default=None,
+        description=(
+            "Restrict pivot_column's unique values that become output columns "
+            "to exactly this list (ADF Pivot transform's declared-schema value "
+            "restriction), instead of every unique value in the data becoming a "
+            "column. A listed value absent from the data still produces a "
+            "column filled with fill_value. Leave unset (default) to keep every "
+            "unique value as a column."
+        ),
     )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -505,6 +542,7 @@ class CrossTabComponent(Component, Model, Resolvable):
         value_column = self.value_column
         agg_func = self.agg_func
         fill_value = self.fill_value
+        pivot_values = self.pivot_values
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -620,7 +658,8 @@ group_name=group_name,
                         _pk_filtered = True
                         _pk_keep.update(upstream.index)
                 upstream = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
-            _missing = [c for c in (index_column, pivot_column, value_column) if c not in upstream.columns]
+            _check_cols = _as_list(index_column) + [pivot_column] + _as_list(value_column)
+            _missing = [c for c in _check_cols if c not in upstream.columns]
             if _missing:
                 context.log.warning(
                     f"cross_tab: columns {_missing} not present in upstream "
@@ -633,19 +672,47 @@ group_name=group_name,
                 "countdistinct": "nunique", "distinct_count": "nunique",
                 "concat": "first",
             }
-            _agg = _AGG_ALIASES.get(str(agg_func).lower(), agg_func)
-            result = pd.pivot_table(
-                upstream,
+            if isinstance(agg_func, dict):
+                _agg = {k: _AGG_ALIASES.get(str(v).lower(), v) for k, v in agg_func.items()}
+            else:
+                _agg = _AGG_ALIASES.get(str(agg_func).lower(), agg_func)
+
+            _pivot_kwargs = dict(
                 index=index_column,
                 columns=pivot_column,
                 values=value_column,
                 aggfunc=_agg,
                 fill_value=fill_value,
-            ).reset_index()
+            )
+            if pivot_values:
+                # Restrict pivot_column to exactly these values (ADF Pivot's
+                # declared-schema behavior): a value absent from the data still
+                # produces a fill_value column, via pandas' own Categorical ->
+                # pivot_table "unused categories still get a column" behavior.
+                # observed=False is pinned explicitly (rather than left on
+                # pandas' no_default) since that's the only setting under
+                # which this trick works, and pandas has announced the
+                # default will flip to True in a future release.
+                _pivot_input = upstream.copy()
+                _pivot_input[pivot_column] = pd.Categorical(
+                    _pivot_input[pivot_column], categories=list(pivot_values)
+                )
+                _pivot_kwargs["observed"] = False
+            else:
+                _pivot_input = upstream
 
-            # Flatten column MultiIndex if present
+            result = pd.pivot_table(_pivot_input, **_pivot_kwargs).reset_index()
+
+            # Flatten column MultiIndex if present. A single value_column
+            # produces flat (non-tuple) columns, same as before this change
+            # (str()'d only if not already a str); multiple value_columns
+            # produce a (value_column, pivot_value) MultiIndex, joined here
+            # with "_" (e.g. "revenue_Q1"), with empty levels (the reset-index
+            # label columns) dropped.
             result.columns = [
-                str(c) if not isinstance(c, str) else c for c in result.columns
+                "_".join(str(p) for p in c if str(p) != "") if isinstance(c, tuple)
+                else (str(c) if not isinstance(c, str) else c)
+                for c in result.columns
             ]
 
             context.log.info(

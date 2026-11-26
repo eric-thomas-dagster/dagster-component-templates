@@ -42550,6 +42550,51 @@
       "icon": "Shuffle"
     },
     {
+      "id": "lookup_match",
+      "name": "Lookup Match",
+      "category": "transformation",
+      "description": "Match rows against a lookup stream by key column(s), with deterministic multiple-match resolution (ADF's Lookup transform).",
+      "path": "assets/transforms/lookup",
+      "tags": [
+        "transformation",
+        "lookup",
+        "match"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/lookup/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/lookup/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/lookup/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/lookup/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/lookup/requirements.txt",
+      "icon": "Shuffle",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "agent_hints": {
+        "inputs": "PRIMARY stream (`upstream_asset_key` or `source`) + LOOKUP stream (`lookup_asset_key`) + match key(s) (`on` or `left_on`/`right_on`).",
+        "outputs": "output_mode='columns' (default): primary's columns + the matched lookup row's columns, null/NaN for no match. output_mode='is_match': primary's columns + one boolean column.",
+        "side_effects": "Row count never changes -- multiple lookup matches for the same key are collapsed to exactly one via `match_sort_by` (or first-occurrence if unset), unlike a plain join which fans out.",
+        "anti_uses": "For a multi-row fan-out join use dataframe_join instead. For fuzzy (non-exact) key matching use fuzzy_match."
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "keywords": [
+        "transform",
+        "reshape",
+        "join"
+      ]
+    },
+    {
       "id": "loop_gate_asset",
       "name": "loop_gate_asset",
       "category": "infrastructure",

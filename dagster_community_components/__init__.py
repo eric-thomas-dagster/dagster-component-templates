@@ -874,6 +874,7 @@ _CLASS_PATHS: dict[str, str] = {
     "LogisticRegressionModelComponent": "assets/analytics/logistic_regression_model/component.py",
     "LookerAssetsComponent": "integrations/looker_assets/component.py",
     "LookupComponent": "transforms/lookup/component.py",
+    "LookupMatchComponent": "assets/transforms/lookup/component.py",
     "LoopGateAssetComponent": "assets/infrastructure/loop_gate_asset/component.py",
     "MCPServerResourceComponent": "resources/mcp_server_resource/component.py",
     "MCPServerSpec": "assets/ai/anthropic_agent/component.py",

@@ -1,0 +1,13 @@
+type: dagster_community_components.LookupMatchComponent
+attributes:
+  asset_name: orders_with_latest_price
+  upstream_asset_key: orders
+  lookup_asset_key: price_history
+  # NOTE: `on` must be quoted — YAML 1.1 parses bare `on` as boolean True.
+  "on":
+    - product_id
+  match_sort_by:
+    - effective_date
+  match_sort_ascending: false
+  output_mode: columns
+  group_name: transforms

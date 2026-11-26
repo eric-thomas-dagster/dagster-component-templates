@@ -112,7 +112,7 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 | `drop` | `columns: [a, b]` | Drop these columns |
 | `rename` | `mapping: {old: new}` | Rename columns |
 | `group_by` | `group_by: [cols]`, `aggregations: {out: {col, agg}}` | Same agg shape as `polars_pipeline` |
-| `sort` | `by: [cols]`, `descending: bool` | Sort |
+| `sort` | `by: [cols]`, `descending: bool`, `na_position: first/last` (default `last`), `na_position_per_column: [first/last, ...]` | Sort. `na_position_per_column` (ADF Sort's per-condition null-handling flag) overrides `na_position` when set — one value per `by` column, sorted one key at a time from last to first with a stable sort to combine them. |
 | `head` / `tail` | `n: int` | Take first/last N rows |
 | `head_per_group` | `group_by: [cols]`, `n: int` | Top-N per group; sort first if order matters |
 | `unique` | `subset: [cols]`, `keep: first/last` | Dedup (`drop_duplicates`) |
@@ -122,8 +122,54 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 | `join` | `right: {ref: <step_id>}`, `how: inner/left/right/full/cross/semi/anti`, `on_columns`/`left_on`+`right_on` | Join against another step's output (multi-step form only). `semi`/`anti` are implemented as filters (pandas has no native semi/anti join) — they keep only the left side's columns. |
 | `union` | `other: {ref: <step_id>}`, `mode: by_name\|by_position` (default `by_name`), `distinct: bool` | Stack another step's rows on top (multi-step form only). `by_name` aligns by column label (pandas' `concat` default), filling missing columns with null; `by_position` renames the other step's columns to match this step's order first. |
 | `sql` | `sql: "<query>"` | Escape hatch via an in-memory DuckDB connection — `self` = current frame; prior steps usable by id |
+| `pivot` | `index: [cols]`, `pivot_column: col`, `value_columns: [cols]`, `agg_func: sum` (or a `{value_col: agg}` dict), `pivot_values: [v, ...]` (optional), `fill_value` (optional) | ADF's **Pivot** transform, via `pd.pivot_table`. Multiple `value_columns` flatten `(value_col, pivot_value)` MultiIndex columns to `value_col_pivotvalue`. `pivot_values` restricts the output to exactly those pivot-column values — one absent from the data still produces a `fill_value`-filled column (same `pd.Categorical(..., categories=...)` technique as the standalone `cross_tab` component). |
+| `lookup` | `right: {ref: <step_id>}`, `on_columns`/`left_on`+`right_on`, `match_sort_by: [cols]` (optional), `match_sort_ascending: bool\|[bool, ...]` (optional, default `true`), `output_mode: columns\|is_match` (default `columns`), `output_column: <name>` (required for `is_match`) | ADF's **Lookup** transform. Default `output_mode: columns` behaves like a left join (NaN for no match). `match_sort_by` sorts the right side and keeps exactly the first match per key *before* merging — guarantees a true 1:1 lookup when multiple right-side rows share a key (e.g. "latest event per customer": `match_sort_by: [event_time]`, `match_sort_ascending: false`). `output_mode: is_match` adds a single boolean `output_column` instead of any right-side columns (same semi-join indicator-merge technique the `join` op's `semi`/`anti` use). |
+| `window_calculation` | `function: ntile\|cume_dist`, `order_by: [cols]`, `group_by: [cols]` (optional), `n: int` (required for `ntile`), `output_column: <name>` | Scoped to just these two — rank-equivalents are already covered by the standalone `rank` component and this component's own `sort`/`group_by`. `ntile` buckets rows 1..N as evenly as possible with the FIRST `(row_count mod n)` buckets getting the extra row, matching SQL's `NTILE` convention exactly (computed directly, not via `pd.qcut`, which spreads any remainder across the outer buckets instead — verified by hand: 10 rows / 4 buckets is `[3,3,2,2]`, not qcut's `[3,2,2,3]`). `cume_dist` is `Series.rank(method='max', pct=True)` — verified by hand against `[10, 20, 20, 30] -> [0.25, 0.75, 0.75, 1.0]`. |
 
-Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / median / std / var / first / last / nunique`.
+Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / median / std / var / first / last / nunique`. `pivot`'s `agg_func` is looser (any name `pd.pivot_table`'s own `aggfunc` recognizes, plus the same SQL-ish aliases as `cross_tab`: `avg/average/stddev/variance/countdistinct/distinct_count/concat`).
+
+### `pivot` example (closes ADF's **Pivot** gap)
+
+```yaml
+- op: pivot
+  index: [region]
+  pivot_column: quarter
+  value_columns: [revenue]
+  agg_func: sum
+  pivot_values: [Q1, Q2, Q3, Q4]   # declare the full schema; a missing quarter still gets a column
+  fill_value: 0
+```
+
+### `lookup` example (closes ADF's **Lookup** gap)
+
+```yaml
+steps:
+  - id: orders
+    source: {kind: upstream, upstream_asset_key: raw_orders}
+    operations: []
+  - id: customer_events
+    source: {kind: upstream, upstream_asset_key: raw_events}
+    operations: []
+  - id: enriched
+    source: {kind: ref, ref: orders}
+    operations:
+      - op: lookup
+        right: {ref: customer_events}
+        on_columns: [customer_id]
+        match_sort_by: [event_time]
+        match_sort_ascending: false   # most-recent event wins when a customer has several
+```
+
+### `window_calculation` example (closes ADF's **Rank**/**Window** gap — `ntile`/`cume_dist` only)
+
+```yaml
+- op: window_calculation
+  function: ntile
+  order_by: [score]
+  group_by: [region]   # optional -- omit for a single global window
+  n: 4
+  output_column: score_quartile
+```
 
 ## Source kinds
 

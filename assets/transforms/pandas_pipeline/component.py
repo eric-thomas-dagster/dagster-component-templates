@@ -72,7 +72,8 @@ from pydantic import Field, model_validator
 
 _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "head", "tail", "head_per_group", "limit",
-              "unique", "join", "union", "drop_nulls", "fill_null", "cast", "sql"}
+              "unique", "join", "union", "drop_nulls", "fill_null", "cast", "sql",
+              "pivot", "lookup", "window_calculation"}
 
 # Ops not needing a SQL/aggregation engine at all stay pure pandas. filter,
 # with_columns(expressions=), group_by, sql, and union(mode) route through a
@@ -87,6 +88,15 @@ _PD_AGG_FUNCS = {"sum", "mean", "avg", "min", "max", "count", "median",
                  "std", "var", "first", "last", "nunique", "n_unique"}
 
 _AGG_NAME_MAP = {"avg": "mean", "n_unique": "nunique"}
+
+# Agg-func aliasing for the `pivot` op -- same alias table + "pass whatever
+# pandas/the agg itself understands" looseness as the standalone
+# `transforms/cross_tab` component's own pivot_table wrapper (unlike
+# `group_by`'s `_PD_AGG_FUNCS`, which validates strictly).
+_PIVOT_AGG_ALIASES = {
+    "avg": "mean", "average": "mean", "stddev": "std", "variance": "var",
+    "countdistinct": "nunique", "distinct_count": "nunique", "concat": "first",
+}
 
 
 def _apply_partition_template(s: str, partition_key: Optional[str], partition: Optional[Dict[str, str]] = None) -> str:
@@ -410,6 +420,26 @@ def _duckdb_conn_with(self_df: pd.DataFrame, step_outputs: Dict[str, pd.DataFram
     return conn
 
 
+def _sort_with_per_column_na_position(
+    df: pd.DataFrame, by: List, ascending: List[bool], na_position: List[str],
+) -> pd.DataFrame:
+    """Multi-key sort with an independent na_position per key (ADF's Sort transform: a
+    null-handling flag per sort condition, not one for the whole sort). pandas'
+    `sort_values(na_position=...)` only accepts one scalar for every key. Same technique as
+    the standalone `transforms/sort` component's own helper of the same name: sort one column
+    at a time, from the LAST key to the FIRST, using a stable sort each time -- a stable sort
+    on an already-sorted-by-later-keys frame preserves the later keys' relative order within
+    ties on the current key, which is what makes repeated single-column stable sorts
+    equivalent to one multi-key sort."""
+    result = df
+    for col, asc, na_pos in reversed(list(zip(by, ascending, na_position))):
+        is_na = result[col].isna()
+        non_na = result[~is_na].sort_values(by=col, ascending=asc, kind="mergesort")
+        na_rows = result[is_na]
+        result = pd.concat([na_rows, non_na]) if na_pos == "first" else pd.concat([non_na, na_rows])
+    return result
+
+
 def _apply_op(df: pd.DataFrame, op: Dict[str, Any], step_outputs: Dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Apply one op to a pandas DataFrame; returns the updated DataFrame.
 
@@ -489,7 +519,20 @@ def _apply_op(df: pd.DataFrame, op: Dict[str, Any], step_outputs: Dict[str, pd.D
         # head/limit right after group_by needs row order preserved.
         return df.groupby(group_by, sort=False, as_index=False).agg(**agg_kwargs)
     if kind == "sort":
-        return df.sort_values(by=op["by"], ascending=not op.get("descending", False))
+        by = op["by"]
+        ascending = not op.get("descending", False)
+        na_position_per_column = op.get("na_position_per_column")
+        if na_position_per_column is not None:
+            if len(na_position_per_column) != len(by):
+                raise ValueError(
+                    f"sort op: na_position_per_column length ({len(na_position_per_column)}) "
+                    f"must match 'by' length ({len(by)})"
+                )
+            return _sort_with_per_column_na_position(df, by, [ascending] * len(by), na_position_per_column)
+        na_position = op.get("na_position", "last")
+        if na_position not in ("first", "last"):
+            raise ValueError(f"sort op: na_position must be 'first' or 'last', got {na_position!r}")
+        return df.sort_values(by=by, ascending=ascending, na_position=na_position)
     if kind == "head" or kind == "limit":
         return df.head(op["n"])
     if kind == "tail":
@@ -582,6 +625,157 @@ def _apply_op(df: pd.DataFrame, op: Dict[str, Any], step_outputs: Dict[str, pd.D
             return conn.execute(sql).fetchdf()
         finally:
             conn.close()
+    if kind == "pivot":
+        index_cols = op.get("index")
+        pivot_column = op.get("pivot_column")
+        value_columns = op.get("value_columns")
+        if not index_cols or not pivot_column or not value_columns:
+            raise ValueError("pivot op requires 'index', 'pivot_column', and 'value_columns'")
+        agg_func = op.get("agg_func", "sum")
+        pivot_values = op.get("pivot_values")
+        fill_value = op.get("fill_value")
+        if isinstance(agg_func, dict):
+            agg = {k: _PIVOT_AGG_ALIASES.get(str(v).lower(), v) for k, v in agg_func.items()}
+        else:
+            agg = _PIVOT_AGG_ALIASES.get(str(agg_func).lower(), agg_func)
+        pivot_kwargs: Dict[str, Any] = dict(
+            index=index_cols, columns=pivot_column, values=value_columns,
+            aggfunc=agg, fill_value=fill_value,
+        )
+        if pivot_values:
+            # Restrict pivot_column to exactly these values (ADF Pivot's declared-schema
+            # behavior): a value absent from the data still produces a fill_value-filled
+            # column, via pandas' own Categorical -> pivot_table "unused categories still
+            # get a column" behavior. observed=False is pinned explicitly (rather than left
+            # on pandas' no_default) since that's the only setting under which this works,
+            # and pandas has announced the default will flip to True in a future release --
+            # same technique as the sibling `transforms/cross_tab` component's own fix.
+            pivot_input = df.copy()
+            pivot_input[pivot_column] = pd.Categorical(pivot_input[pivot_column], categories=list(pivot_values))
+            pivot_kwargs["observed"] = False
+        else:
+            pivot_input = df
+        result = pd.pivot_table(pivot_input, **pivot_kwargs).reset_index()
+        # Flatten a MultiIndex column result (multiple value_columns produce a
+        # (value_column, pivot_value) tuple per column) the same way cross_tab does --
+        # e.g. "revenue_Q1" instead of a ("revenue", "Q1") tuple column label.
+        result.columns = [
+            "_".join(str(p) for p in c if str(p) != "") if isinstance(c, tuple)
+            else (str(c) if not isinstance(c, str) else c)
+            for c in result.columns
+        ]
+        return result
+    if kind == "lookup":
+        right_spec = op.get("right")
+        if not isinstance(right_spec, dict) or "ref" not in right_spec:
+            raise ValueError("pandas_pipeline lookup.right must be {ref: <step_id>}")
+        right_id = right_spec["ref"]
+        if right_id not in step_outputs:
+            raise ValueError(f"lookup.right.ref={right_id!r} doesn't match any earlier step id")
+        right_df = step_outputs[right_id]
+        on_cols = op.get("on_columns") or op.get("on")
+        left_on, right_on = op.get("left_on"), op.get("right_on")
+        if on_cols:
+            key_left = key_right = [on_cols] if isinstance(on_cols, str) else list(on_cols)
+        elif left_on and right_on:
+            key_left = [left_on] if isinstance(left_on, str) else list(left_on)
+            key_right = [right_on] if isinstance(right_on, str) else list(right_on)
+        else:
+            raise ValueError("lookup op: provide 'on_columns' OR 'left_on' + 'right_on'")
+
+        right_for_match = right_df
+        match_sort_by = op.get("match_sort_by")
+        if match_sort_by:
+            if isinstance(match_sort_by, str):
+                match_sort_by = [match_sort_by]
+            match_sort_ascending = op.get("match_sort_ascending", True)
+            # Sort the right side by the tie-break columns, then keep exactly one match per
+            # key (first after sorting) -- guarantees a true 1:1 lookup even when multiple
+            # right-side rows share the same join key, same as ADF's Lookup transform.
+            right_for_match = right_df.sort_values(
+                by=match_sort_by, ascending=match_sort_ascending, kind="mergesort"
+            ).drop_duplicates(subset=key_right, keep="first")
+
+        output_mode = (op.get("output_mode") or "columns").lower()
+        if output_mode == "is_match":
+            output_column = op.get("output_column")
+            if not output_column:
+                raise ValueError("lookup op: output_mode='is_match' requires 'output_column'")
+            # Same semi-join indicator-merge technique as the join op's semi/anti support --
+            # keep only a boolean match flag, no right-side columns.
+            right_keys_only = right_for_match[key_right].drop_duplicates()
+            if on_cols:
+                merged = df.merge(right_keys_only, on=key_left, how="left", indicator="_lookup_match")
+            else:
+                merged = df.merge(right_keys_only, left_on=key_left, right_on=key_right, how="left", indicator="_lookup_match")
+            merged[output_column] = merged["_lookup_match"] == "both"
+            drop_cols = ["_lookup_match"]
+            if not on_cols:
+                drop_cols += [c for c in key_right if c not in df.columns and c in merged.columns]
+            return merged.drop(columns=drop_cols)
+        if output_mode != "columns":
+            raise ValueError(f"lookup op: output_mode must be 'columns' or 'is_match', got {output_mode!r}")
+        if on_cols:
+            return df.merge(right_for_match, on=key_left, how="left")
+        return df.merge(right_for_match, left_on=key_left, right_on=key_right, how="left")
+    if kind == "window_calculation":
+        function = (op.get("function") or "").lower()
+        if function not in ("ntile", "cume_dist"):
+            raise ValueError(
+                f"window_calculation: function must be 'ntile' or 'cume_dist', got {op.get('function')!r}"
+            )
+        order_by = op.get("order_by")
+        if not order_by:
+            raise ValueError("window_calculation: 'order_by' is required")
+        if isinstance(order_by, str):
+            order_by = [order_by]
+        group_by = op.get("group_by")
+        if isinstance(group_by, str):
+            group_by = [group_by]
+        output_column = op.get("output_column")
+        if not output_column:
+            raise ValueError("window_calculation: 'output_column' is required")
+        n = op.get("n")
+        if function == "ntile" and not n:
+            raise ValueError("window_calculation: function='ntile' requires 'n'")
+
+        def _composite_key(g: pd.DataFrame) -> pd.Series:
+            if len(order_by) == 1:
+                return g[order_by[0]]
+            return pd.Series(list(g[order_by].itertuples(index=False, name=None)), index=g.index)
+
+        def _ntile_values(g: pd.DataFrame) -> pd.Series:
+            # SQL NTILE(n): divide the ordered rows into n groups as evenly as possible,
+            # with the FIRST (row_count mod n) groups getting one extra row. pandas'
+            # pd.qcut on a row-rank sequence does NOT reproduce this rule -- its quantile
+            # algorithm spreads any remainder across the OUTER groups instead of only the
+            # first ones (verified by hand: 10 rows into 4 groups gives sizes [3,2,2,3] via
+            # qcut vs the correct SQL-convention [3,3,2,2]) -- so bucket sizes are computed
+            # directly here instead of via qcut.
+            sorted_idx = g.sort_values(by=order_by, kind="mergesort").index
+            n_rows = len(sorted_idx)
+            base, extra = divmod(n_rows, n)
+            sizes = [base + 1] * extra + [base] * (n - extra)
+            labels: List[int] = []
+            for bucket, size in enumerate(sizes, start=1):
+                labels.extend([bucket] * size)
+            return pd.Series(labels, index=sorted_idx, dtype="Int64").reindex(g.index)
+
+        def _cume_dist_values(g: pd.DataFrame) -> pd.Series:
+            # CUME_DIST = (# rows with value <= this row's value) / total rows. pandas' own
+            # Series.rank(method='max', pct=True) is the documented match -- verified by
+            # hand: [10, 20, 20, 30] -> [0.25, 0.75, 0.75, 1.0].
+            return _composite_key(g).rank(method="max", pct=True)
+
+        compute = _ntile_values if function == "ntile" else _cume_dist_values
+        df = df.copy()
+        if group_by:
+            parts = [compute(g) for _, g in df.groupby(group_by, sort=False)]
+            result = pd.concat(parts).reindex(df.index)
+        else:
+            result = compute(df)
+        df[output_column] = result
+        return df
     raise ValueError(f"pandas_pipeline op={kind!r} not supported. Valid: {sorted(_VALID_OPS)}")
 
 
@@ -688,7 +882,7 @@ class PandasPipelineComponent(Component, Model, Resolvable):
 
     Supported ops: filter, with_columns, select, drop, rename, group_by,
     sort, head/limit, tail, head_per_group, unique, join, union,
-    drop_nulls, fill_null, cast, sql.
+    drop_nulls, fill_null, cast, sql, pivot, lookup, window_calculation.
 
     **Expression syntax is SQL, not Python** for `filter.predicate`,
     `with_columns.expressions.<col>`, and `op: sql` — evaluated via an

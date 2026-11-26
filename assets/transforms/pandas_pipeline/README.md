@@ -56,10 +56,10 @@ Both components share the exact same YAML shape for everything except engine-int
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame). Mutually exclusive with `source:`. |
-| `source` | `Dict[str, Any]` | — | File / URL / encrypted-file source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}` or `{kind: encrypted_file, path, key_source… _(full docs in schema.json + component README)_ |
+| `source` | `Dict[str, Any]` | — | File / URL / encrypted-file source shape. `{kind: file, path, format?, delimiter?, has_header?, quote_char?, dtype_overrides?}` or `{kind: url, url, format?, delimiter?, has_header?, quote_char?, dtype_overrides?}` (CSV… _(full docs in schema.json + component README)_ |
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to upstream_asset_key OR source. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: upstream\|ref\|file\|url\|encrypted_file, ...}, operations: [...]}. |
-| `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv\|table\|encrypted_file, path/table: '...'}. These run after the chain finishes; the asset's return value comes from primary_step. |
+| `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv\|ndjson\|table\|encrypted_file, path/table: '...'}. `kind: ndjson` additionally takes `mode: overwrite\|append` (append reads-concats-rewrites; sing… _(full docs in schema.json + component README)_ |
 | `primary_step` | `str` | — | Step id whose frame is returned as the asset's output (default: last step). |
 | `key_source` | `str` | `"raw_key"` | 'raw_key' (a user-supplied symmetric key via AWS ESDK's RawMasterKeyProvider) or 'kms' (an AWS KMS CMK via AWS ESDK's StrictAwsKmsMasterKeyProvider). Only used when a source or sink kind is 'encrypted_file'. |
 | `raw_key_env_var` | `str` | — | Env var holding a base64-encoded 256-bit (32-byte) symmetric key. Required when key_source='raw_key' and an encrypted_file source/sink is used. Generate one with: python3 -c "import os,base64; print(base64.b64encode(os.u… _(full docs in schema.json + component README)_ |
@@ -129,16 +129,40 @@ Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / me
 
 `source: {kind: ..., ...}` (or per-step `source:` in the multi-step form):
 
-- `{kind: file, path, format?, delimiter?}` / `{kind: url, url, format?, delimiter?}` — csv/json/ndjson/parquet, format inferred from extension when unset. Cloud URLs (`s3://`, `gs://`, `az://`, `http(s)://`) are pre-fetched via `fsspec` into a temp file first.
+- `{kind: file, path, format?, delimiter?, has_header?, quote_char?, dtype_overrides?}` / `{kind: url, url, format?, delimiter?, has_header?, quote_char?, dtype_overrides?}` — csv/json/ndjson/parquet, format inferred from extension when unset. Cloud URLs (`s3://`, `gs://`, `az://`, `http(s)://`) are pre-fetched via `fsspec` into a temp file first. The three trailing options are CSV-only — see "CSV declared-type reads" below.
 - `{kind: upstream_asset, upstream_asset_key}` / top-level `upstream_asset_key:` — read an upstream Dagster asset (accepts a pandas OR polars upstream; polars frames are converted automatically).
 - `{kind: ref, ref: <step_id>}` — read another step's output (multi-step form only).
-- `{kind: encrypted_file, path, format?}` — decrypt a file's raw bytes (AWS Encryption SDK, `key_source`/`raw_key_env_var`/`kms_key_ids`/`key_id`/`encryption_context` fields, same names as [`FieldEncryptionComponent`](../field_encryption/README.md)) then parse into a DataFrame. See that component's README for the encryption mechanism and its StreamSets-ciphertext-interop caveat — it applies here too, at the file level instead of the cell level.
+- `{kind: encrypted_file, path, format?, has_header?, quote_char?, dtype_overrides?}` — decrypt a file's raw bytes (AWS Encryption SDK, `key_source`/`raw_key_env_var`/`kms_key_ids`/`key_id`/`encryption_context` fields, same names as [`FieldEncryptionComponent`](../field_encryption/README.md)) then parse into a DataFrame. See that component's README for the encryption mechanism and its StreamSets-ciphertext-interop caveat — it applies here too, at the file level instead of the cell level. Same CSV-only declared-type options as the plain file source.
+
+## CSV declared-type reads (`kind: file`/`url`/`encrypted_file`, format: csv)
+
+```yaml
+source:
+  kind: file
+  path: "incoming/orders.csv"
+  has_header: true           # default; set false for a headerless file
+  quote_char: "'"            # default pandas' own '"'
+  dtype_overrides:
+    account_code: object     # pin a column's type -- without this, a zero-padded code
+    customer_id: string      # column like "001" silently becomes the integer 1 under
+                              # pandas' own schema inference, same failure an Azure Data
+                              # Factory Copy activity's declared-type source read avoids
+```
+
+`dtype_overrides` values are pandas dtype NAMES as plain strings (`object`/`string`, `Int8`...`Int64`,
+`float32`/`float64`, `boolean`, ...) — validated via pandas' own canonical dtype resolver
+(`pd.api.types.pandas_dtype`), so any dtype the installed pandas version itself recognizes works, with
+no separate name→dtype table in this component to fall out of sync with a pandas release. Only the
+columns you list are pinned; every other column is still inferred normally. `has_header`/`quote_char`
+are pandas' own `read_csv` kwargs (`header=0`/`header=None`, `quotechar=`), passed through for
+completeness.
 
 ## Sink kinds
 
 `sinks: [{from: <step_id>, kind: ..., ...}]`:
 
 - `parquet` / `csv` — `path:` (supports `{partition_key}` / `{partition.<name>}` templating).
+- `ndjson` — `path:` (same templating), via pandas' native `to_json(orient="records", lines=True)` / `read_json(..., lines=True)`. Additionally takes `mode: overwrite` (default) \| `append` — append reads the existing file, concatenates, and rewrites (single-writer, not concurrent-write-safe). Closes a real gap: until now, writing JSON output needed a second asset even though `kind: encrypted_file` already supported `format: ndjson` for the encrypted path — the plain (unencrypted) file sink just never got the same format.
 - `table` — write to any Dagster resource exposing `.get_connection()`/`.get_engine()`. Auto-detects a DuckDB-style connection (`.register()`/`.execute()`/`.unregister()`) for a zero-copy fast path; falls back to `df.to_sql()` for any SQLAlchemy-compatible resource. Supports `if_exists: append/replace` or `mode: upsert_on_match` + `match: [col, ...]` for partition-rewrite idempotency.
 - `encrypted_file` — serialize to bytes (csv/json/ndjson/parquet) then encrypt (same AWS Encryption SDK mechanism as the source kind) before writing to `path:`.
 

@@ -126,11 +126,42 @@ def _infer_format(path: str) -> str:
     )
 
 
-def _read_bytes_to_df(data: bytes, fmt: str, delimiter: str) -> pd.DataFrame:
+def _validate_dtype_overrides(dtype_overrides: Optional[Dict[str, str]], label: str) -> Optional[Dict[str, str]]:
+    """Validate pandas dtype-name strings in a `dtype_overrides` mapping via pandas' own
+    canonical dtype resolver (`pd.api.types.pandas_dtype`) -- so any dtype name the installed
+    pandas version itself recognizes (e.g. "object"/"string", "Int64", "float64", "boolean")
+    works here, with no separate name->dtype table in this component to fall out of sync with
+    a pandas release. Raises a clear ValueError naming the offending column + dtype on a typo."""
+    if not dtype_overrides:
+        return None
+    for col, dtype_name in dtype_overrides.items():
+        try:
+            pd.api.types.pandas_dtype(dtype_name)
+        except TypeError as e:
+            raise ValueError(
+                f"{label}: dtype_overrides[{col!r}] names an unknown pandas dtype "
+                f"{dtype_name!r} ({e})"
+            ) from e
+    return dict(dtype_overrides)
+
+
+def _read_bytes_to_df(
+    data: bytes,
+    fmt: str,
+    delimiter: str,
+    has_header: bool = True,
+    quote_char: Optional[str] = None,
+    dtype_overrides: Optional[Dict[str, str]] = None,
+) -> pd.DataFrame:
     import io
     buf = io.BytesIO(data)
     if fmt == "csv":
-        return pd.read_csv(buf, sep=delimiter)
+        csv_kwargs: Dict[str, Any] = {"sep": delimiter, "header": 0 if has_header else None}
+        if quote_char is not None:
+            csv_kwargs["quotechar"] = quote_char
+        if dtype_overrides:
+            csv_kwargs["dtype"] = dtype_overrides
+        return pd.read_csv(buf, **csv_kwargs)
     if fmt == "parquet":
         return pd.read_parquet(buf)
     if fmt == "ndjson":
@@ -147,6 +178,15 @@ def _read_file_source(src: Dict[str, Any], partition_key: Optional[str], partiti
     file extension when `format:` is unset. Path/url is `{partition_key}` /
     `{partition.<name>}` templated.
 
+    CSV-only options -- matching an Azure Data Factory Copy activity's declared-type source
+    read, which this component's own default schema INFERENCE cannot reproduce on its own
+    (e.g. a column of zero-padded codes like "001" silently becomes the integer 1): `has_header`
+    (bool, default true; pandas' own `header=0`/`header=None` convention), `quote_char` (pandas'
+    own `quotechar` kwarg), `dtype_overrides` ({column: pandas dtype name as a string, e.g.
+    "object"/"string"/"Int64"/"float64"} -- pins specific columns' types instead of letting
+    inference guess; validated via pandas' own `pd.api.types.pandas_dtype` resolver, so any
+    dtype the installed pandas version itself recognizes works here).
+
     Cloud URLs (s3:// / gs:// / az:// / abfs:// / http(s)://): pre-fetched via
     fsspec into a temp file, then read locally — same mechanism
     `polars_pipeline` uses, for the same reason (format-agnostic, works
@@ -159,6 +199,11 @@ def _read_file_source(src: Dict[str, Any], partition_key: Optional[str], partiti
     path = _apply_partition_template(raw_path, partition_key, partition_map)
     fmt = (src.get("format") or "").lower() or _infer_format(path)
     delimiter = src.get("delimiter", "\t" if path.lower().endswith(".tsv") else ",")
+    has_header = src.get("has_header", True)
+    quote_char = src.get("quote_char")
+    dtype_overrides = _validate_dtype_overrides(
+        src.get("dtype_overrides"), f"pandas_pipeline source kind={kind!r}"
+    )
 
     local_path = path
     if _is_uri(path):
@@ -184,7 +229,12 @@ def _read_file_source(src: Dict[str, Any], partition_key: Optional[str], partiti
         local_path = _tmp.name
 
     if fmt == "csv":
-        return pd.read_csv(local_path, sep=delimiter)
+        csv_kwargs: Dict[str, Any] = {"sep": delimiter, "header": 0 if has_header else None}
+        if quote_char is not None:
+            csv_kwargs["quotechar"] = quote_char
+        if dtype_overrides:
+            csv_kwargs["dtype"] = dtype_overrides
+        return pd.read_csv(local_path, **csv_kwargs)
     if fmt == "parquet":
         return pd.read_parquet(local_path)
     if fmt == "ndjson":
@@ -632,9 +682,9 @@ class PandasPipelineComponent(Component, Model, Resolvable):
     Two shapes:
       * Flat shape: `upstream_asset_key` + `operations`.
       * Multi-step: `steps:` (each with `source`/`operations`) plus optional
-        `sinks:` for side-output parquet/csv/table/encrypted_file writes.
-        The asset's return value is the `primary_step`'s frame (default:
-        last step).
+        `sinks:` for side-output parquet/csv/ndjson/table/encrypted_file
+        writes. The asset's return value is the `primary_step`'s frame
+        (default: last step).
 
     Supported ops: filter, with_columns, select, drop, rename, group_by,
     sort, head/limit, tail, head_per_group, unique, join, union,
@@ -668,7 +718,12 @@ class PandasPipelineComponent(Component, Model, Resolvable):
     **Format parity with `polars_pipeline`**: `file`/`url` source kinds
     support csv/json/ndjson/parquet — NOT ipc/avro (polars' arrow-native
     formats aren't a natural pandas fit; use `polars_pipeline` if you need
-    those two).
+    those two). CSV reads additionally take `has_header`/`quote_char`/
+    `dtype_overrides` declared-type options (pandas' own kwarg names/dtype
+    strings — see `_read_file_source`'s docstring). `sinks:` additionally
+    support `kind: ndjson` (pandas' native `to_json(orient="records",
+    lines=True)` / `read_json(..., lines=True)`), with `mode: overwrite|
+    append`.
 
     **`encrypted_file` source/sink**: file-level AWS Encryption SDK
     encrypt/decrypt (raw-key or KMS), same mechanism as
@@ -690,10 +745,16 @@ class PandasPipelineComponent(Component, Model, Resolvable):
     source: Optional[Dict[str, Any]] = Field(
         default=None,
         description=(
-            "File / URL / encrypted-file source shape. `{kind: file, path, format?, delimiter?}` or "
-            "`{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}` or "
-            "`{kind: encrypted_file, path, key_source, ..., format?}` (see the encrypted_file fields "
-            "below). `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. "
+            "File / URL / encrypted-file source shape. `{kind: file, path, format?, delimiter?, "
+            "has_header?, quote_char?, dtype_overrides?}` or `{kind: url, url, format?, delimiter?, "
+            "has_header?, quote_char?, dtype_overrides?}` (CSV only: has_header default true, "
+            "quote_char default pandas' own '\"', dtype_overrides: {column: pandas dtype name e.g. "
+            "'object'/'string'/'Int64'/'float64'} -- pins a column's type instead of letting pandas' "
+            "own schema inference guess, e.g. a zero-padded code column like '001' silently becoming "
+            "the integer 1) or `{kind: upstream_asset, upstream_asset_key}` or "
+            "`{kind: encrypted_file, path, key_source, ..., format?, has_header?, quote_char?, "
+            "dtype_overrides?}` (see the encrypted_file fields below). `path`/`url` support "
+            "`{partition_key}` and `{partition.<name>}` templating. "
             "Format is inferred from extension (.json / .ndjson / .csv / .parquet) when unset. "
             "Mutually exclusive with `upstream_asset_key`."
         ),
@@ -714,7 +775,9 @@ class PandasPipelineComponent(Component, Model, Resolvable):
     sinks: Optional[List[Dict[str, Any]]] = Field(
         default=None,
         description=(
-            "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|table|encrypted_file, path/table: '...'}. "
+            "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|ndjson|table|encrypted_file, "
+            "path/table: '...'}. `kind: ndjson` additionally takes `mode: overwrite|append` (append "
+            "reads-concats-rewrites; single-writer, not concurrent-safe). "
             "These run after the chain finishes; the asset's return value comes from primary_step."
         ),
     )
@@ -1025,7 +1088,14 @@ class PandasPipelineComponent(Component, Model, Resolvable):
                     with open(path, "rb") as f:
                         ciphertext = f.read()
                     plaintext = _decrypt_file_bytes(ciphertext, key_source, raw_key_env_var, kms_key_ids, key_id, encryption_context)
-                    df = _read_bytes_to_df(plaintext, fmt, delimiter)
+                    df = _read_bytes_to_df(
+                        plaintext, fmt, delimiter,
+                        has_header=src.get("has_header", True),
+                        quote_char=src.get("quote_char"),
+                        dtype_overrides=_validate_dtype_overrides(
+                            src.get("dtype_overrides"), f"step {sid!r} source kind=encrypted_file"
+                        ),
+                    )
                     context.log.info(f"step {sid} source: decrypted + read encrypted_file → {path!r}")
                 elif src_kind == "ref":
                     ref = src.get("ref") or ""
@@ -1053,12 +1123,30 @@ class PandasPipelineComponent(Component, Model, Resolvable):
                 kind = (sink.get("kind") or "parquet").lower()
                 sdf = step_outputs[from_id]
 
-                if kind in ("parquet", "csv"):
+                if kind in ("parquet", "csv", "ndjson"):
                     path = sink.get("path")
                     if not path:
                         raise ValueError(f"sink from={from_id!r}: 'path' is required")
                     path = _apply_partition_template(path, partition_key, partition_map)
-                    if kind == "parquet":
+                    if kind == "ndjson":
+                        # kind: ndjson closes a real gap: writing JSON output otherwise needed a
+                        # second asset even though the encrypted_file sink already supported
+                        # format: ndjson for the encrypted path. mode: overwrite|append mirrors
+                        # polars_pipeline's own ndjson sink -- pandas has no native append for
+                        # ndjson, so append reads the existing file, concatenates, and rewrites
+                        # (single-writer assumption, not concurrent-write-safe).
+                        mode = (sink.get("mode") or "overwrite").lower()
+                        if mode not in ("overwrite", "append"):
+                            raise ValueError(
+                                f"sink from={from_id!r}: mode must be 'overwrite' or 'append', got {mode!r}"
+                            )
+                        if mode == "append" and os.path.exists(path):
+                            existing = pd.read_json(path, orient="records", lines=True)
+                            sdf = pd.concat([existing, sdf], ignore_index=True)
+                        sdf.to_json(path, orient="records", lines=True)
+                        if mode == "append":
+                            sink_metadata[f"pandas/sink/{from_id}/mode"] = MetadataValue.text("append")
+                    elif kind == "parquet":
                         sdf.to_parquet(path, index=False)
                     else:
                         sdf.to_csv(path, index=False)
@@ -1178,7 +1266,7 @@ class PandasPipelineComponent(Component, Model, Resolvable):
                     sink_metadata[f"pandas/sink/{from_id}/resource_key"] = MetadataValue.text(resource_key)
                     context.log.info(f"table sink {from_id!r} → {qualified} (via {resource_key}, {if_exists}, {len(sdf)} rows)")
                 else:
-                    raise ValueError(f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'table' | 'encrypted_file'.")
+                    raise ValueError(f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'ndjson' | 'table' | 'encrypted_file'.")
                 sink_metadata[f"pandas/sink/{from_id}/row_count"] = MetadataValue.int(len(sdf))
 
             row_count = len(result_df)

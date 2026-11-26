@@ -47,7 +47,7 @@
       "items": {
         "type": "object"
       },
-      "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|table|encrypted_file, path/table: '...'}. These run after the chain finishes; the asset's return value comes from primary_step."
+      "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|ndjson|table|encrypted_file, path/table: '...'}. `kind: ndjson` additionally takes `mode: overwrite|append` (append reads-concats-rewrites; single-writer, not concurrent-safe). These run after the chain finishes; the asset's return value comes from primary_step."
     },
     "primary_step": {
       "label": "Primary Step",
@@ -57,7 +57,7 @@
     "source": {
       "type": "object",
       "label": "Source",
-      "description": "File / URL / encrypted-file source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}` or `{kind: encrypted_file, path, format?}` (see key_source/raw_key_env_var/kms_key_ids/key_id/encryption_context below). `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. Format is inferred from extension (.json / .ndjson / .csv / .parquet) when unset. Mutually exclusive with `upstream_asset_key`.",
+      "description": "File / URL / encrypted-file source shape. `{kind: file, path, format?, delimiter?, has_header?, quote_char?, dtype_overrides?}` or `{kind: url, url, format?, delimiter?, has_header?, quote_char?, dtype_overrides?}` (CSV only: has_header default true, quote_char default '\"', dtype_overrides: {column: pandas dtype name e.g. 'object'/'string'/'Int64'/'float64'} -- pins a column's type instead of letting pandas' own schema inference guess, e.g. a zero-padded code column like '001' silently becoming the integer 1) or `{kind: upstream_asset, upstream_asset_key}` or `{kind: encrypted_file, path, format?, has_header?, quote_char?, dtype_overrides?}` (see key_source/raw_key_env_var/kms_key_ids/key_id/encryption_context below). `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. Format is inferred from extension (.json / .ndjson / .csv / .parquet) when unset. Mutually exclusive with `upstream_asset_key`.",
       "required": false
     },
     "key_source": {

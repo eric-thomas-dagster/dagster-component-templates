@@ -1,4 +1,4 @@
-type: dagster_community_components.LookupMatchComponent
+type: dagster_community_components.LookupComponent
 attributes:
   asset_name: orders_with_latest_price
   upstream_asset_key: orders

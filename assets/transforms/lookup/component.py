@@ -1,16 +1,27 @@
-"""LookupMatch.
+"""Lookup.
 
 Azure Data Factory's "Lookup" data flow transform: for each row in a primary
 stream, look up a matching row in a secondary/lookup stream by key column(s).
 
-Differs from a plain left join (already covered by `dataframe_join`) in two
-ways:
-  1. Deterministic multiple-match resolution -- when several lookup rows
-     match the same key, `match_sort_by` (+ `match_sort_ascending`) picks
-     exactly ONE candidate instead of fanning out into multiple output rows.
-  2. `output_mode='is_match'` -- emit a single boolean column indicating
-     whether a match was found, instead of pulling the matched row's columns
-     into the output (useful for a later filter / conditional-split step).
+Differs from a plain left join (already covered by `dataframe_join`) in that
+it gives explicit control over MULTIPLE-MATCH resolution instead of a bare
+left-join fan-out:
+  - `multiple_match='first'|'last'` (default 'first'): deterministic
+    single-match resolution -- `match_sort_by` (+ `match_sort_ascending`)
+    sorts candidate matches and keeps exactly one per key (StreamSets Local
+    Lookup / ADF Lookup's sort conditions).
+  - `multiple_match='all'`: StreamSets JDBC Lookup's SPLIT_INTO_MULTIPLE_RECORDS
+    -- fan out into one output row per match, like a plain left join.
+  - `multiple_match='all_as_list'`: StreamSets JDBC Lookup's ALL_AS_LIST --
+    one output row per primary row, every matching lookup row's added columns
+    collected into a list per column.
+  - `on_no_match='pass'|'error'`: pass unmatched rows through with null added
+    columns (default), or raise if any primary row has zero matches.
+  - `output_mode='is_match'` -- emit a single boolean column indicating
+    whether a match was found, instead of pulling the matched row's columns
+    into the output (useful for a later filter / conditional-split step).
+  - `columns_to_add` / `rename` -- restrict and/or rename the lookup columns
+    attached to the output (output_mode='columns' only).
 """
 from typing import Any, Dict, List, Optional, Union, Literal
 
@@ -214,21 +225,56 @@ def _normalize_match_sort_ascending(sort_by: Optional[List], sort_ascending) -> 
     if isinstance(sort_ascending, (list, tuple)):
         if len(sort_ascending) != len(sort_by):
             raise ValueError(
-                f"LookupMatchComponent: `match_sort_ascending` list length "
+                f"LookupComponent: `match_sort_ascending` list length "
                 f"({len(sort_ascending)}) must match `match_sort_by` list length ({len(sort_by)})."
             )
         return list(sort_ascending)
     return [True if sort_ascending is None else sort_ascending] * len(sort_by)
 
 
+def _resolve_lookup_matches_pandas(
+    lookup_subset: "pd.DataFrame",
+    key_cols: List,
+    added_cols: List,
+    sort_by: Optional[List],
+    sort_ascending,
+    multiple_match: str,
+) -> "pd.DataFrame":
+    """Collapse (or deliberately fan out) the lookup-side frame per
+    `multiple_match`:
+      - 'first'/'last': sort candidates by `sort_by` (if set) then keep
+        exactly one row per key (StreamSets Local Lookup / ADF Lookup's sort
+        conditions). Unset `sort_by`: first-occurrence / arbitrary pick
+        (pandas' own row order), documented as non-deterministic -- callers
+        who need a specific match MUST set `sort_by`.
+      - 'all': no collapsing -- every matching row passes through, producing
+        a plain left-join fan-out (StreamSets JDBC Lookup's
+        SPLIT_INTO_MULTIPLE_RECORDS).
+      - 'all_as_list': one row per key, `added_cols` collected into lists
+        (StreamSets JDBC Lookup's ALL_AS_LIST).
+    """
+    if multiple_match in ("first", "last"):
+        asc = _normalize_match_sort_ascending(sort_by, sort_ascending)
+        if sort_by:
+            lookup_subset = lookup_subset.sort_values(by=sort_by, ascending=asc, kind="mergesort")
+        return lookup_subset.drop_duplicates(subset=key_cols, keep=("first" if multiple_match == "first" else "last"))
+    if multiple_match == "all":
+        return lookup_subset
+    if multiple_match == "all_as_list":
+        if not added_cols:
+            return lookup_subset.drop_duplicates(subset=key_cols, keep="first")
+        return lookup_subset.groupby(key_cols, as_index=False, dropna=False).agg({c: list for c in added_cols})
+    raise ValueError(
+        f"LookupComponent: multiple_match must be 'first', 'last', 'all', or 'all_as_list', got {multiple_match!r}"
+    )
+
+
 def _resolve_one_match_per_key(
     lookup_df: "pd.DataFrame", key_cols: List, sort_by: Optional[List], sort_ascending,
 ) -> "pd.DataFrame":
-    """Collapse the lookup stream to exactly one row per key, the way ADF's Lookup
-    transform's sort conditions do: when several rows share a key, sort the
-    candidates and take the first. Unset `sort_by`: first-occurrence / arbitrary
-    pick (pandas' own `drop_duplicates(keep='first')` row order), documented as
-    non-deterministic -- callers who need a specific match MUST set `sort_by`.
+    """Collapse the lookup stream to exactly one row per key -- used only for
+    the `output_mode='is_match'` existence probe and the on_no_match='error'
+    check, both of which only care whether >=1 match exists, never which one.
     """
     asc = _normalize_match_sort_ascending(sort_by, sort_ascending)
     if sort_by:
@@ -319,12 +365,14 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
-class LookupMatchComponent(Component, Model, Resolvable):
+class LookupComponent(Component, Model, Resolvable):
     """Azure Data Factory's "Lookup" data flow transform: for each row in a
     primary stream, find a matching row in a secondary/lookup stream by key
-    column(s). Deterministic even when several lookup rows share a key
-    (`match_sort_by`), and can emit either the matched columns or a single
-    boolean `isMatch()`-style column (`output_mode='is_match'`).
+    column(s). `multiple_match` controls what happens when several lookup
+    rows share a key ('first'/'last' deterministic pick via `match_sort_by`,
+    'all' fan-out, or 'all_as_list' list-valued columns), `on_no_match`
+    controls unmatched-row behavior, and `output_mode` chooses between
+    attaching the matched columns or a single boolean `isMatch()`-style flag.
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
@@ -332,8 +380,9 @@ class LookupMatchComponent(Component, Model, Resolvable):
         default="pandas",
         description=(
             "'pandas' (default) or 'polars'. Polars uses .join() + "
-            ".unique(keep='first') for the match-sort dedup, with the same "
-            "on/left_on/right_on semantics, and returns a polars DataFrame."
+            ".unique(keep=...) / .group_by().agg() for multiple-match "
+            "resolution, with the same on/left_on/right_on semantics, and "
+            "returns a polars DataFrame."
         ),
     )
     upstream_asset_key: Optional[Union[str, List[str]]] = Field(
@@ -357,14 +406,35 @@ class LookupMatchComponent(Component, Model, Resolvable):
     on: Optional[List[Union[str, int]]] = Field(default=None, description="Column(s) to match on (same name in both streams)")
     left_on: Optional[List[Union[str, int]]] = Field(default=None, description="Primary-stream match columns (when column names differ)")
     right_on: Optional[List[Union[str, int]]] = Field(default=None, description="Lookup-stream match columns (when column names differ)")
+    multiple_match: str = Field(
+        default="first",
+        description=(
+            "When several lookup rows match the same key: 'first' (default) | 'last' -- "
+            "deterministically resolved via `match_sort_by` (StreamSets Local Lookup / ADF "
+            "Lookup's sort conditions; first-occurrence/arbitrary when `match_sort_by` is "
+            "unset -- NOT deterministic across runs with reordered upstream data). 'all' -- "
+            "fan out into one output row per match, same as a plain left join (StreamSets JDBC "
+            "Lookup's SPLIT_INTO_MULTIPLE_RECORDS). 'all_as_list' -- one output row per primary "
+            "row, every match's added columns collected into a list per column (StreamSets JDBC "
+            "Lookup's ALL_AS_LIST). Ignored when output_mode='is_match' (existence doesn't "
+            "depend on which/how many rows matched)."
+        ),
+    )
+    on_no_match: str = Field(
+        default="pass",
+        description=(
+            "What to do when a primary row has no match in the lookup stream: 'pass' (default) "
+            "-- row passes through, added columns are null/NaN (or output_column=False in "
+            "output_mode='is_match'). 'error' -- raise if any row has zero matches (StreamSets "
+            "JDBC Lookup's fail-on-missing-match policy)."
+        ),
+    )
     match_sort_by: Optional[List[str]] = Field(
         default=None,
         description=(
-            "When several lookup rows match the same key, sort the candidates by these "
-            "columns and take exactly one (the first after sorting) -- e.g. 'match the most "
-            "recent effective_date' or 'match the highest priority'. ADF Lookup's sort "
-            "conditions. Unset: first-occurrence / arbitrary pick (NOT deterministic across "
-            "runs with reordered upstream data) -- set this whenever a specific match matters."
+            "multiple_match='first'/'last' only: sort candidate matches by these columns before "
+            "picking one -- e.g. 'match the most recent effective_date' or 'match the highest "
+            "priority'. ADF Lookup's sort conditions."
         ),
     )
     match_sort_ascending: Optional[Union[bool, List[bool]]] = Field(
@@ -382,7 +452,8 @@ class LookupMatchComponent(Component, Model, Resolvable):
             "'columns' (default): pull the matched row's columns into the output, same shape "
             "as a left join -- null/NaN for no match. 'is_match': ADF Lookup's isMatch() -- "
             "add exactly one boolean column (named by `output_column`) indicating whether a "
-            "match was found, and carry NO lookup-side columns into the output."
+            "match was found, and carry NO lookup-side columns into the output. `multiple_match`, "
+            "`columns_to_add`, and `rename` are ignored in this mode."
         ),
     )
     output_column: Optional[str] = Field(
@@ -390,6 +461,29 @@ class LookupMatchComponent(Component, Model, Resolvable):
         description=(
             "output_mode='is_match' only: name for the boolean match-found column "
             "(default 'is_match')."
+        ),
+    )
+    columns_to_add: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "output_mode='columns' only: subset of lookup (non-key) columns to attach "
+            "(default/unset: all non-key columns)."
+        ),
+    )
+    rename: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "output_mode='columns' only: rename added lookup columns after attaching: "
+            "{original: new}. Must not rename a join key column."
+        ),
+    )
+    match_flag_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "output_mode='columns' only: ALSO add a boolean column (ADF's isMatch()) marking "
+            "whether each row found a match, alongside the attached lookup columns. (To get "
+            "ONLY the boolean column with no lookup columns attached, use "
+            "output_mode='is_match' + `output_column` instead.)"
         ),
     )
     suffixes: List[str] = Field(
@@ -544,7 +638,7 @@ class LookupMatchComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps', 'columns_to_add'), csv=('partition_values',), tags=('asset_tags',))
 
     @model_validator(mode="before")
     @classmethod
@@ -553,23 +647,48 @@ class LookupMatchComponent(Component, Model, Resolvable):
 
     @classmethod
     def get_description(cls) -> str:
-        return "Match rows against a lookup stream by key column(s), with deterministic multiple-match resolution (ADF's Lookup transform)."
+        return "Match rows against a lookup stream by key column(s), with explicit multiple-match resolution (ADF's Lookup transform)."
 
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
-        return ComponentFormConfig(label='Lookup Match', editable=True)
+        return ComponentFormConfig(label='Lookup', editable=True)
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
-            raise ValueError("LookupMatchComponent: set exactly one of `upstream_asset_key` or `source`.")
+            raise ValueError("LookupComponent: set exactly one of `upstream_asset_key` or `source`.")
         if not (self.on or (self.left_on and self.right_on)):
-            raise ValueError("LookupMatchComponent: set `on`, or both `left_on` and `right_on`.")
+            raise ValueError("LookupComponent: set `on`, or both `left_on` and `right_on`.")
         if self.output_mode not in ("columns", "is_match"):
-            raise ValueError(f"LookupMatchComponent: output_mode must be 'columns' or 'is_match', got {self.output_mode!r}")
+            raise ValueError(f"LookupComponent: output_mode must be 'columns' or 'is_match', got {self.output_mode!r}")
+        if self.multiple_match not in ("first", "last", "all", "all_as_list"):
+            raise ValueError(
+                f"LookupComponent: multiple_match must be 'first', 'last', 'all', or 'all_as_list', got {self.multiple_match!r}"
+            )
+        if self.on_no_match not in ("pass", "error"):
+            raise ValueError(f"LookupComponent: on_no_match must be 'pass' or 'error', got {self.on_no_match!r}")
+        if self.output_mode == "is_match":
+            if self.columns_to_add:
+                raise ValueError("LookupComponent: `columns_to_add` has no effect in output_mode='is_match' (no lookup columns are attached) -- unset it.")
+            if self.rename:
+                raise ValueError("LookupComponent: `rename` has no effect in output_mode='is_match' (no lookup columns are attached) -- unset it.")
+            if self.match_flag_column:
+                raise ValueError("LookupComponent: use `output_column` (not `match_flag_column`) to name the boolean column in output_mode='is_match'.")
         backend = (self.backend or "pandas").lower()
         if backend not in ("pandas", "polars"):
             raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
+        if backend == "polars" and self.multiple_match == "last":
+            # polars' own .unique(keep=...) supports 'last' directly -- no restriction here,
+            # kept for symmetry with other backend-specific validation in this repo.
+            pass
+        if self.rename and self.on:
+            _overlap = set(self.rename) & set(self.on)
+            if _overlap:
+                raise ValueError(f"LookupComponent: `rename` must not rename join key column(s) {sorted(_overlap)}.")
+        if self.rename and self.right_on:
+            _overlap = set(self.rename) & set(self.right_on)
+            if _overlap:
+                raise ValueError(f"LookupComponent: `rename` must not rename join key column(s) {sorted(_overlap)}.")
 
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -590,10 +709,15 @@ class LookupMatchComponent(Component, Model, Resolvable):
         on = self.on
         left_on = self.left_on
         right_on = self.right_on
+        multiple_match = self.multiple_match
+        on_no_match = self.on_no_match
         match_sort_by = self.match_sort_by
         match_sort_ascending = self.match_sort_ascending
         output_mode = self.output_mode
         output_column = self.output_column or "is_match"
+        columns_to_add = self.columns_to_add
+        rename = self.rename
+        match_flag_column = self.match_flag_column
         suffixes = self.suffixes or ["_x", "_y"]
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
@@ -662,7 +786,7 @@ class LookupMatchComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
             group_name=group_name,
-            description=self.description or LookupMatchComponent.get_description(),
+            description=self.description or LookupComponent.get_description(),
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
@@ -736,32 +860,27 @@ class LookupMatchComponent(Component, Model, Resolvable):
                     raise ImportError("polars backend requested but `polars` is not installed.")
                 primary_pl = pl.from_pandas(primary)
                 lookup_pl = pl.from_pandas(lookup)
-                # Same match-sort-dedup-then-join technique as polars_pipeline's
-                # own `lookup` op: sort by match_sort_by/descending (if set),
-                # THEN take exactly one row per key via .unique(keep='first')
-                # BEFORE the join -- a true 1:1 lookup regardless of how many
-                # lookup rows share a key, instead of a join fan-out. Always
-                # deduped (sort or not), matching the pandas path's own
-                # `_resolve_one_match_per_key` (first-occurrence pick when
-                # `match_sort_by` is unset).
-                if match_sort_by:
-                    _asc = _normalize_match_sort_ascending(match_sort_by, match_sort_ascending)
-                    _descending = [not a for a in _asc]
-                    lookup_pl = lookup_pl.sort(by=match_sort_by, descending=_descending).unique(
-                        subset=r_keys, keep="first", maintain_order=True
-                    )
-                else:
-                    lookup_pl = lookup_pl.unique(subset=r_keys, keep="first", maintain_order=True)
-                _resolved_n = lookup_pl.height
 
-                if output_mode == "is_match":
-                    # Existence-only check -- reduce the lookup side to just its
-                    # join keys plus a marker column, so the join can neither
-                    # fan out nor pull in any other lookup-side column.
-                    _probe_col = f"__lookup_probe_{output_column}__"
+                _added_cols_all = [c for c in lookup_pl.columns if c not in r_keys]
+                _added_cols = columns_to_add if columns_to_add else _added_cols_all
+                _subset_cols = r_keys + [c for c in _added_cols if c not in r_keys]
+                lookup_subset_pl = lookup_pl.select(_subset_cols)
+
+                if output_mode == "is_match" or match_flag_column or on_no_match == "error":
+                    # Existence-only probe -- reduce the lookup side to just its join
+                    # keys plus a marker column, so this join can neither fan out nor
+                    # pull in any other lookup-side column. Used for output_mode=
+                    # 'is_match', for the optional match_flag_column side-channel, and
+                    # for the on_no_match='error' check -- all three only care whether
+                    # >=1 match exists, never which one.
+                    _probe_col = "__lookup_match_probe__"
                     _right_probe = lookup_pl.select(r_keys).with_columns(
                         pl.lit(True).alias(_probe_col)
                     ).unique(subset=r_keys, keep="first", maintain_order=True)
+                else:
+                    _right_probe = None
+
+                if output_mode == "is_match":
                     merged_pl = primary_pl.join(
                         _right_probe, left_on=l_keys, right_on=r_keys, how="left", maintain_order="left"
                     )
@@ -772,20 +891,72 @@ class LookupMatchComponent(Component, Model, Resolvable):
                         _dupe_r_keys = [k for k in r_keys if k in merged_pl.columns and k not in l_keys]
                         if _dupe_r_keys:
                             merged_pl = merged_pl.drop(_dupe_r_keys)
+                    _resolved_n = _right_probe.height
                 else:
+                    if multiple_match in ("first", "last"):
+                        if match_sort_by:
+                            _asc = _normalize_match_sort_ascending(match_sort_by, match_sort_ascending)
+                            _descending = [not a for a in _asc]
+                            lookup_resolved_pl = lookup_subset_pl.sort(by=match_sort_by, descending=_descending).unique(
+                                subset=r_keys, keep=("first" if multiple_match == "first" else "last"), maintain_order=True
+                            )
+                        else:
+                            lookup_resolved_pl = lookup_subset_pl.unique(
+                                subset=r_keys, keep=("first" if multiple_match == "first" else "last"), maintain_order=True
+                            )
+                    elif multiple_match == "all":
+                        lookup_resolved_pl = lookup_subset_pl
+                    elif multiple_match == "all_as_list":
+                        _agg_cols = [c for c in _added_cols if c not in r_keys]
+                        lookup_resolved_pl = (
+                            lookup_subset_pl.group_by(r_keys, maintain_order=True).agg(
+                                [pl.col(c) for c in _agg_cols]
+                            )
+                            if _agg_cols
+                            else lookup_subset_pl.unique(subset=r_keys, keep="first", maintain_order=True)
+                        )
+                    else:
+                        raise ValueError(
+                            f"LookupComponent: multiple_match must be 'first', 'last', 'all', or 'all_as_list', got {multiple_match!r}"
+                        )
+                    if rename:
+                        lookup_resolved_pl = lookup_resolved_pl.rename({k: v for k, v in rename.items() if k in lookup_resolved_pl.columns})
+                    _resolved_n = lookup_resolved_pl.height
                     _suffix = suffixes[1] if len(suffixes) > 1 else "_y"
-                    merged_pl = primary_pl.join(
-                        lookup_pl, left_on=l_keys, right_on=r_keys, how="left", suffix=_suffix, maintain_order="left"
-                    )
+                    if match_flag_column:
+                        merged_pl = primary_pl.join(
+                            lookup_resolved_pl, left_on=l_keys, right_on=r_keys, how="left", suffix=_suffix, maintain_order="left"
+                        )
+                        _probe_merged = primary_pl.join(
+                            _right_probe, left_on=l_keys, right_on=r_keys, how="left", maintain_order="left"
+                        )
+                        merged_pl = merged_pl.with_columns(
+                            _probe_merged[_probe_col].fill_null(False).alias(match_flag_column)
+                        )
+                    else:
+                        merged_pl = primary_pl.join(
+                            lookup_resolved_pl, left_on=l_keys, right_on=r_keys, how="left", suffix=_suffix, maintain_order="left"
+                        )
                     if l_keys != r_keys:
                         _dupe_r_keys = [k for k in r_keys if k in merged_pl.columns and k not in l_keys]
                         if _dupe_r_keys:
                             merged_pl = merged_pl.drop(_dupe_r_keys)
 
+                if on_no_match == "error":
+                    _probe_merged = primary_pl.join(
+                        _right_probe, left_on=l_keys, right_on=r_keys, how="left", maintain_order="left"
+                    )
+                    _unmatched_n = int(_probe_merged[_probe_col].fill_null(False).not_().sum())
+                    if _unmatched_n:
+                        raise ValueError(
+                            f"LookupComponent: {_unmatched_n} row(s) had no match in the lookup "
+                            f"stream on join key(s) {l_keys} (on_no_match='error')."
+                        )
+
                 context.log.info(
-                    f"LookupMatch (polars): matched primary (n={len(primary)}) against lookup "
+                    f"Lookup (polars): matched primary (n={len(primary)}) against lookup "
                     f"(n={len(lookup)}, resolved to {_resolved_n} unique keys) "
-                    f"on {l_keys} (output_mode={output_mode})"
+                    f"on {l_keys} (output_mode={output_mode}, multiple_match={multiple_match})"
                 )
 
                 _merged_for_meta = merged_pl.to_pandas()
@@ -824,9 +995,14 @@ class LookupMatchComponent(Component, Model, Resolvable):
                 context.add_output_metadata(_metadata)
                 return merged_pl
 
-            lookup_resolved = _resolve_one_match_per_key(lookup, r_keys, match_sort_by, match_sort_ascending)
+            # --- pandas backend ---
+            _added_cols_all = [c for c in lookup.columns if c not in r_keys]
+            _added_cols = columns_to_add if columns_to_add else _added_cols_all
+            _subset_cols = r_keys + [c for c in _added_cols if c not in r_keys]
+            lookup_subset = lookup[_subset_cols].copy()
 
             if output_mode == "is_match":
+                lookup_resolved = _resolve_one_match_per_key(lookup, r_keys, match_sort_by, match_sort_ascending)
                 _lookup_keys_only = lookup_resolved[r_keys].drop_duplicates()
                 if r_keys != l_keys:
                     _lookup_keys_only = _lookup_keys_only.rename(columns=dict(zip(r_keys, l_keys)))
@@ -834,12 +1010,19 @@ class LookupMatchComponent(Component, Model, Resolvable):
                 merged[output_column] = merged["_lookup_match"] == "both"
                 merged = merged.drop(columns=["_lookup_match"])
             else:
+                lookup_resolved = _resolve_lookup_matches_pandas(
+                    lookup_subset, r_keys, [c for c in _added_cols if c not in r_keys],
+                    match_sort_by, match_sort_ascending, multiple_match,
+                )
+                if rename:
+                    lookup_resolved = lookup_resolved.rename(columns=rename)
                 merged = primary.merge(
                     lookup_resolved,
                     how="left",
                     left_on=l_keys,
                     right_on=r_keys,
                     suffixes=tuple(suffixes),
+                    indicator="_lookup_match" if (match_flag_column or on_no_match == "error") else False,
                 )
                 # Same-name join keys collapse into a single column via pandas'
                 # own merge semantics; only drop the lookup-side duplicate when
@@ -848,11 +1031,22 @@ class LookupMatchComponent(Component, Model, Resolvable):
                     _dupe_r_keys = [k for k in r_keys if k in merged.columns and k not in l_keys]
                     if _dupe_r_keys:
                         merged = merged.drop(columns=_dupe_r_keys)
+                if "_lookup_match" in merged.columns:
+                    if on_no_match == "error":
+                        _unmatched = (merged["_lookup_match"] == "left_only").sum()
+                        if _unmatched:
+                            raise ValueError(
+                                f"LookupComponent: {int(_unmatched)} row(s) had no match in the "
+                                f"lookup stream on join key(s) {l_keys} (on_no_match='error')."
+                            )
+                    if match_flag_column:
+                        merged[match_flag_column] = merged["_lookup_match"] == "both"
+                    merged = merged.drop(columns=["_lookup_match"])
 
             context.log.info(
-                f"LookupMatch: matched primary (n={len(primary)}) against lookup "
-                f"(n={len(lookup)}, resolved to {len(lookup_resolved)} unique keys) "
-                f"on {l_keys} (output_mode={output_mode})"
+                f"Lookup: matched primary (n={len(primary)}) against lookup "
+                f"(n={len(lookup)}, resolved to {len(lookup_resolved)} rows) "
+                f"on {l_keys} (output_mode={output_mode}, multiple_match={multiple_match})"
             )
 
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

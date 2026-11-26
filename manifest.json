@@ -42514,46 +42514,7 @@
       "id": "lookup",
       "name": "lookup",
       "category": "transformation",
-      "description": "Inline lookup — left-join an upstream DataFrame against a smaller reference DataFrame, optionally caching the reference per run.",
-      "version": "1.0.0",
-      "author": "Eric Thomas",
-      "path": "transforms/lookup",
-      "tags": [],
-      "dependencies": {
-        "pip": [
-          "pandas"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/requirements.txt",
-      "validation": {
-        "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
-        "last_validated": "2026-05-14"
-      },
-      "agent_hints": {
-        "inputs": "DataFrame + a lookup source (via upstream key or config table) + join key.",
-        "outputs": "DataFrame with looked-up value columns appended.",
-        "side_effects": "Adds columns. Left-join semantics — no row count change unless multiple matches.",
-        "anti_uses": "For multi-key joins use dataframe_join. For fuzzy matching use fuzzy_match."
-      },
-      "produces": [
-        "asset"
-      ],
-      "keywords": [
-        "transform",
-        "reshape"
-      ],
-      "icon": "Shuffle"
-    },
-    {
-      "id": "lookup_match",
-      "name": "Lookup Match",
-      "category": "transformation",
-      "description": "Match rows against a lookup stream by key column(s), with deterministic multiple-match resolution (ADF's Lookup transform).",
+      "description": "Match rows against a lookup stream by key column(s): deterministic multiple-match resolution ('first'/'last' via match_sort_by, 'all' fan-out, 'all_as_list'), on_no_match pass/error, columns_to_add/rename, and output_mode='is_match' for a single boolean column instead of attached lookup columns (ADF's Lookup transform). Supports both pandas and polars backends.",
       "path": "assets/transforms/lookup",
       "tags": [
         "transformation",
@@ -42572,9 +42533,9 @@
       },
       "agent_hints": {
         "inputs": "PRIMARY stream (`upstream_asset_key` or `source`) + LOOKUP stream (`lookup_asset_key`) + match key(s) (`on` or `left_on`/`right_on`).",
-        "outputs": "output_mode='columns' (default): primary's columns + the matched lookup row's columns, null/NaN for no match. output_mode='is_match': primary's columns + one boolean column.",
-        "side_effects": "Row count never changes -- multiple lookup matches for the same key are collapsed to exactly one via `match_sort_by` (or first-occurrence if unset), unlike a plain join which fans out.",
-        "anti_uses": "For a multi-row fan-out join use dataframe_join instead. For fuzzy (non-exact) key matching use fuzzy_match."
+        "outputs": "output_mode='columns' (default): primary's columns + the matched lookup row's columns (subset via columns_to_add, renamable via rename), null/NaN for no match. output_mode='is_match': primary's columns + one boolean column.",
+        "side_effects": "multiple_match='first'/'last' (default 'first'): row count unchanged, one match per key via match_sort_by (or first-occurrence if unset). multiple_match='all': fans out one row per match, like a plain left join. multiple_match='all_as_list': row count unchanged, matches collected into list-valued columns. on_no_match='error' raises if any row is unmatched.",
+        "anti_uses": "For a multi-row fan-out join with no deterministic single-match resolution needed, use dataframe_join instead. For fuzzy (non-exact) key matching use fuzzy_match."
       },
       "version": "1.0.0",
       "author": "Eric Thomas",

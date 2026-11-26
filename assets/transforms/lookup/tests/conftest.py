@@ -1,4 +1,4 @@
-"""Shared test helpers for LookupMatchComponent."""
+"""Shared test helpers for LookupComponent."""
 import importlib.util
 import pathlib
 from types import ModuleType

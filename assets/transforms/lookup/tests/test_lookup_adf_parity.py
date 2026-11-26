@@ -1,4 +1,4 @@
-"""Tests for LookupMatchComponent -- ADF's Lookup data flow transform: for each row
+"""Tests for LookupComponent -- ADF's Lookup data flow transform: for each row
 in a primary stream, find a matching row in a secondary/lookup stream by key
 column(s), with two features a plain left join (dataframe_join) can't express:
 
@@ -55,7 +55,7 @@ def _materialize(mod, **overrides):
         on=["product_id"],
     )
     kw.update(overrides)
-    comp = mod.LookupMatchComponent(**kw)
+    comp = mod.LookupComponent(**kw)
     comp_assets = comp.build_defs(None).assets
     result = dg.materialize(
         [_upstream("orders", orders_df), _upstream("price_history", price_df)] + list(comp_assets),
@@ -157,7 +157,7 @@ def test_is_match_mode_default_output_column_name(mod):
 
 
 def test_output_mode_invalid_raises(mod):
-    comp = mod.LookupMatchComponent(
+    comp = mod.LookupComponent(
         asset_name="out", upstream_asset_key="orders", lookup_asset_key="price_history",
         on=["product_id"], output_mode="bogus",
     )
@@ -166,7 +166,7 @@ def test_output_mode_invalid_raises(mod):
 
 
 def test_requires_join_keys(mod):
-    comp = mod.LookupMatchComponent(
+    comp = mod.LookupComponent(
         asset_name="out", upstream_asset_key="orders", lookup_asset_key="price_history",
     )
     with pytest.raises(ValueError, match="set `on`"):
@@ -180,7 +180,7 @@ def test_left_on_right_on_different_names(mod):
     def _price_renamed():
         return price_renamed
 
-    comp = mod.LookupMatchComponent(
+    comp = mod.LookupComponent(
         asset_name="out_renamed", upstream_asset_key="orders", lookup_asset_key="price_history_renamed",
         left_on=["product_id"], right_on=["sku"], match_sort_by=["effective_date"], match_sort_ascending=False,
     )

@@ -1,4 +1,4 @@
-"""Real, committed test for LookupMatchComponent's `backend: polars` path --
+"""Real, committed test for LookupComponent's `backend: polars` path --
 same match-sort-dedup-then-join technique as polars_pipeline's own `lookup`
 op (sort + `.unique(subset=key_cols, keep='first')` on the lookup side before
 joining), mirroring `dataframe_join`'s own dual-backend convention.
@@ -53,7 +53,7 @@ def _materialize(mod, **overrides):
         on=["product_id"],
     )
     kw.update(overrides)
-    comp = mod.LookupMatchComponent(**kw)
+    comp = mod.LookupComponent(**kw)
     comp_assets = comp.build_defs(None).assets
     result = dg.materialize(
         [_upstream("orders", _orders()), _upstream("price_history", _price_history())] + list(comp_assets),
@@ -126,7 +126,7 @@ def test_polars_and_pandas_backends_agree_on_is_match(mod):
 
 
 def test_invalid_backend_raises(mod):
-    comp = mod.LookupMatchComponent(
+    comp = mod.LookupComponent(
         asset_name="out", upstream_asset_key="orders", lookup_asset_key="price_history",
         on=["product_id"], backend="spark",
     )

@@ -1,3 +1,3 @@
-from .component import LookupMatchComponent
+from .component import LookupComponent
 
-__all__ = ["LookupMatchComponent"]
+__all__ = ["LookupComponent"]

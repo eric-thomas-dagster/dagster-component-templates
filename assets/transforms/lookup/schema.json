@@ -1,6 +1,6 @@
 {
-  "component_type": "dagster_community_components.LookupMatchComponent",
-  "description": "Match rows against a lookup stream by key column(s), with deterministic multiple-match resolution (ADF's Lookup transform).",
+  "component_type": "dagster_community_components.LookupComponent",
+  "description": "Match rows against a lookup stream by key column(s): deterministic multiple-match resolution ('first'/'last' via match_sort_by, 'all' fan-out, 'all_as_list'), on_no_match pass/error, columns_to_add/rename, and output_mode='is_match' for a single boolean column instead of attached lookup columns (ADF's Lookup transform).",
   "category": "transformation",
   "icon": "Shuffle",
   "x-dagster-io": {
@@ -359,6 +359,39 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "multiple_match": {
+      "type": "string",
+      "label": "Multiple Match",
+      "description": "When several lookup rows match the same key: 'first' (default) \\| 'last' -- deterministically resolved via `match_sort_by` (StreamSets Local Lookup / ADF Lookup's sort conditions; first-occurrence/arbitrary when `match_sort_by` is unset -- NOT deterministic across runs with reordered upstream data). 'all' -- fan out into one output row per match, same as a plain left join (StreamSets JDBC Lookup's SPLIT_INTO_MULTIPLE_RECORDS). 'all_as_list' -- one output row per primary row, every match's added columns collected into a list per column (StreamSets JDBC Lookup's ALL_AS_LIST). Ignored when output_mode='is_match' (existence doesn't depend on which/how many rows matched).",
+      "required": false
+    },
+    "on_no_match": {
+      "type": "string",
+      "label": "On No Match",
+      "description": "What to do when a primary row has no match in the lookup stream: 'pass' (default) -- row passes through, added columns are null/NaN (or output_column=False in output_mode='is_match'). 'error' -- raise if any row has zero matches (StreamSets JDBC Lookup's fail-on-missing-match policy).",
+      "required": false
+    },
+    "columns_to_add": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Columns To Add",
+      "description": "output_mode='columns' only: subset of lookup (non-key) columns to attach (default/unset: all non-key columns).",
+      "required": false
+    },
+    "rename": {
+      "type": "object",
+      "label": "Rename",
+      "description": "output_mode='columns' only: rename added lookup columns after attaching: {original: new}. Must not rename a join key column.",
+      "required": false
+    },
+    "match_flag_column": {
+      "type": "string",
+      "label": "Match Flag Column",
+      "description": "output_mode='columns' only: ALSO add a boolean column (ADF's isMatch()) marking whether each row found a match, alongside the attached lookup columns. (To get ONLY the boolean column with no lookup columns attached, use output_mode='is_match' + `output_column` instead.)",
+      "required": false
     }
   },
   "tags": [

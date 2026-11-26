@@ -272,9 +272,31 @@ Promote any of these to a Dagster+ Insights custom metric via the UI — one cli
 |---|---|---|
 | `url` | `{kind: url, url: ..., delimiter: ','}` | Remote CSVs, public datasets |
 | `file` | `{kind: file, path: ..., delimiter: ','}` | Local CSV files |
+| `url`/`file` | `header`, `quotechar`, `dtype_overrides` | CSV declared-type read options -- see below |
 | `warehouse_query` | `{kind: warehouse_query, resource_key: snowflake, sql: "..."}` | **Production ML** — any Dagster resource with `.get_engine()` or `.get_connection()` |
 | `upstream_asset` | `{kind: upstream_asset, upstream_asset_key: raw/events}` | Chain the pipeline downstream of any other Dagster asset |
 | `encrypted_file` | `{kind: encrypted_file, path: ..., format: csv, key_source: raw_key\|kms, raw_key_env_var: ..., kms_key_ids: ..., key_id: ..., encryption_context: {...}}` | Envelope-decrypt a whole file (real AWS Encryption SDK — raw key or KMS) before parsing it. File-level, not cell-level — see [`FieldEncryptionComponent`](../../../transforms/field_encryption/README.md) for per-column encryption on already-tabular data. |
+
+### CSV declared-type reads (`kind: file`/`url`)
+
+```yaml
+source:
+  kind: file
+  path: "incoming/orders.csv"
+  header: 0                  # default (first row is the header); set null for a headerless file
+  quotechar: "'"              # default pandas' own '"'
+  dtype_overrides:
+    account_code: object     # pin a column's type -- without this, a zero-padded code
+    customer_id: string      # column like "001" silently becomes the integer 1 under
+                              # pandas' own schema inference, same failure an Azure Data
+                              # Factory Copy activity's declared-type source read avoids
+```
+
+`header` and `quotechar` are pandas' own `read_csv` kwarg names, passed straight through (`quotechar` only
+when set). `dtype_overrides` values are pandas dtype NAMES as plain strings (`object`/`string`, `Int64`,
+`float64`, `category`, ...) passed as pandas' own `dtype=` kwarg. Only the columns you list are pinned;
+every other column is still inferred normally. Same idea as `polars_pipeline`'s `has_header`/`quote_char`/
+`schema_overrides` CSV source options, adapted to pandas dtype names for this pandas-based pipeline.
 
 ## Sinks — where the outputs go
 
@@ -372,7 +394,7 @@ Full end-to-end demo + comparison against 7 alternative shapes (raw `@dg.asset`,
 | Field | Type | Description |
 |---|---|---|
 | `asset_name_prefix` | `str` | Prefix for emitted asset names. Each step listed in outputs.assets becomes '{prefix}_{step_id}'. |
-| `source` | `Dict[str, Any]` | Data source. Shapes: {kind: url, url: '...', delimiter: ','} \| {kind: file, path: '...', delimiter: ','} \| {kind: upstream_asset, upstream_asset_key: '...'} |
+| `source` | `Dict[str, Any]` | Data source. Shapes: {kind: url, url: '...', delimiter: ',', header?, quotechar?, dtype_overrides?} \| {kind: file, path: '...', delimiter: ',', header?, quotechar?, dtype_overrides?} \| {kind: upstream_asset, upstream_a… _(full docs in schema.json + component README)_ |
 | `target_column` | `str` | Column to predict. |
 | `feature_columns` | `List[str]` | Feature columns for training + prediction. |
 | `steps` | `List[Dict[str, Any]]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args}. Steps chain by id — a step with `source: <id>` uses that step's output; omit `source:` and it defaults to the most recent DataFrame in state. |

@@ -340,14 +340,34 @@ def _ingest(source_config: dict, context, partition_key: Optional[str] = None) -
         # Unified: pd.read_csv handles local paths, http(s):// URLs, and
         # cloud URLs (s3://, gs://, az://, abfs://) via fsspec — no need
         # for a separate requests.get() codepath.
+        #
+        # Declared-type read options -- matching the same gap closed in
+        # polars_pipeline (commit 119035e73) against Azure Data Factory's
+        # Copy activity: pandas' own default schema INFERENCE on this
+        # read_csv call can't pin a column's type, so a zero-padded code
+        # column like "001" silently becomes the integer 1 with no
+        # override. `header` and `quotechar` are pandas' own read_csv kwarg
+        # names, passed straight through; `dtype_overrides` is a
+        # {column: pandas dtype name string} mapping passed as pandas' own
+        # `dtype=` kwarg -- only the listed columns are pinned, every other
+        # column is still inferred normally.
         raw = source_config.get("url") or source_config.get("path")
         if not raw:
             raise ValueError(f"ml_pipeline source kind={kind!r} requires `url` or `path`")
         path = _apply_partition_template(raw, partition_key)
         storage_options = source_config.get("storage_options")
-        read_kwargs: Dict[str, Any] = {"sep": source_config.get("delimiter", ",")}
+        read_kwargs: Dict[str, Any] = {
+            "sep": source_config.get("delimiter", ","),
+            "header": source_config.get("header", 0),
+        }
         if storage_options:
             read_kwargs["storage_options"] = storage_options
+        quotechar = source_config.get("quotechar")
+        if quotechar is not None:
+            read_kwargs["quotechar"] = quotechar
+        dtype_overrides = source_config.get("dtype_overrides")
+        if dtype_overrides:
+            read_kwargs["dtype"] = dtype_overrides
         return pd.read_csv(path, **read_kwargs)
     if kind == "upstream_asset":
         # Loaded by Dagster via IO manager and passed as an arg to the pipeline;
@@ -1884,9 +1904,16 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
     source: Dict[str, Any] = Field(
         description=(
             "Data source. Shapes: "
-            "{kind: url, url: '...', delimiter: ','} | "
-            "{kind: file, path: '...', delimiter: ','} | "
-            "{kind: upstream_asset, upstream_asset_key: '...'}"
+            "{kind: url, url: '...', delimiter: ',', header?, quotechar?, dtype_overrides?} | "
+            "{kind: file, path: '...', delimiter: ',', header?, quotechar?, dtype_overrides?} | "
+            "{kind: upstream_asset, upstream_asset_key: '...'} "
+            "(CSV-only read options on kind: url|file -- `header`: pandas' own read_csv "
+            "`header=` row-index, default 0, set null for a headerless file; `quotechar`: "
+            "pandas' own read_csv `quotechar=`, only passed when set; `dtype_overrides`: "
+            "{column: pandas dtype name e.g. 'object'/'string'/'Int64'/'float64'} -- pins a "
+            "column's type instead of letting pandas' own schema inference guess, e.g. a "
+            "zero-padded code column like '001' silently becoming the integer 1; only the "
+            "listed columns are pinned, every other column is still inferred normally)"
         ),
     )
     target_column: str = Field(description="Column to predict.")

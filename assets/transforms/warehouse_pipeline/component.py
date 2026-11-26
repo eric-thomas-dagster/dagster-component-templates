@@ -140,10 +140,31 @@ _SUPPORTED_DIALECTS = {"duckdb", "postgres", "postgresql", "snowflake", "bigquer
 
 _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "limit", "top_n", "top_n_per_group",
-              "dedup", "distinct", "union", "join", "sql"}
+              "dedup", "distinct", "union", "join", "sql",
+              "pivot", "lookup", "window_calculation"}
 
 _SUPPORTED_AGGS = {"sum", "mean", "avg", "min", "max", "count",
                     "nunique", "n_unique", "median", "stddev", "variance"}
+
+# Dialects with native `ORDER BY col NULLS FIRST|LAST` support (used by op=sort's
+# nulls_last). mssql/mysql have no such syntax and need a portable CASE-based
+# workaround (see _build_op_sql's 'sort' branch).
+_NATIVE_NULLS_ORDER_DIALECTS = {"duckdb", "postgres", "postgresql", "snowflake",
+                                 "bigquery", "redshift", "databricks"}
+
+# Dialects supporting a `SELECT * <kw> (col, ...)` column-exclusion wildcard, and the
+# exact keyword each one needs -- NOT the same keyword everywhere: BigQuery and
+# Databricks use `EXCEPT` (confirmed in both products' own SQL reference docs), while
+# DuckDB and Snowflake use `EXCLUDE` (`EXCEPT` is reserved for the set operator on both --
+# confirmed empirically against a real DuckDB connection; Snowflake's own docs show only
+# `SELECT * EXCLUDE col_name`). Used by op=drop and the row-ranking cleanup in
+# op=top_n_per_group / op=lookup's match_sort_by.
+_EXCLUDE_COLUMNS_KEYWORD = {
+    "duckdb": "EXCLUDE",
+    "snowflake": "EXCLUDE",
+    "bigquery": "EXCEPT",
+    "databricks": "EXCEPT",
+}
 
 
 def _quote(ident: str, dialect: str) -> str:
@@ -155,18 +176,83 @@ def _quote(ident: str, dialect: str) -> str:
     return ".".join(f'"{p}"' for p in parts)
 
 
-def _agg_expr(func: str, col: str, dialect: str) -> str:
+def _quote_alias(name: str, dialect: str) -> str:
+    """Quote a single identifier segment, never splitting on '.' -- used for column
+    aliases *built from data values* (op=pivot's pivot_values, op=lookup/window_calculation's
+    output_column), which may legitimately contain a literal dot or other character that
+    `_quote`'s dotted-identifier splitting would mishandle."""
+    if dialect == "mssql":
+        return f"[{name}]"
+    if dialect == "mysql":
+        return f"`{name}`"
+    return f'"{name}"'
+
+
+def _literal(value: Any, dialect: str) -> str:
+    """Render a Python value as a safe SQL literal (e.g. op=pivot's pivot_values inside a
+    CASE WHEN). Strings are single-quoted with embedded quotes doubled -- the same
+    IN-list literal-escaping convention already used by the sibling warehouse_* components
+    (warehouse_join/warehouse_dedup/warehouse_filter/etc: `"'" + k.replace("'", "''") + "'"`)."""
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if value is None:
+        return "NULL"
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _agg_func_sql(func: str, expr: str) -> str:
+    """Wrap an arbitrary SQL expression (a quoted column OR a CASE WHEN, for op=pivot's
+    conditional aggregation) in the aggregate function named by `func`."""
     f = func.lower()
-    if f == "sum":      return f"SUM({_quote(col, dialect)})"
-    if f in ("mean", "avg"): return f"AVG({_quote(col, dialect)})"
-    if f == "min":      return f"MIN({_quote(col, dialect)})"
-    if f == "max":      return f"MAX({_quote(col, dialect)})"
-    if f == "count":    return f"COUNT({_quote(col, dialect)})"
-    if f in ("nunique", "n_unique"): return f"COUNT(DISTINCT {_quote(col, dialect)})"
-    if f == "median":   return f"MEDIAN({_quote(col, dialect)})"
-    if f == "stddev":   return f"STDDEV({_quote(col, dialect)})"
-    if f == "variance": return f"VARIANCE({_quote(col, dialect)})"
+    if f == "sum":      return f"SUM({expr})"
+    if f in ("mean", "avg"): return f"AVG({expr})"
+    if f == "min":      return f"MIN({expr})"
+    if f == "max":      return f"MAX({expr})"
+    if f == "count":    return f"COUNT({expr})"
+    if f in ("nunique", "n_unique"): return f"COUNT(DISTINCT {expr})"
+    if f == "median":   return f"MEDIAN({expr})"
+    if f == "stddev":   return f"STDDEV({expr})"
+    if f == "variance": return f"VARIANCE({expr})"
     raise ValueError(f"agg func {func!r} not supported. Use one of {sorted(_SUPPORTED_AGGS)}")
+
+
+def _agg_expr(func: str, col: str, dialect: str) -> str:
+    return _agg_func_sql(func, _quote(col, dialect))
+
+
+def _resolve_right_ref(right: Any, step_refs: Dict[str, str], dialect: str) -> str:
+    """Resolve a `right:`/`other:` operand (join/lookup/union) to a quoted SQL source --
+    either a table name string, or a {ref: <step_id>} pointing at an earlier step's CTE."""
+    if isinstance(right, dict) and "ref" in right:
+        right_ref = step_refs.get(right["ref"])
+        if right_ref is None:
+            raise ValueError(f"right.ref={right['ref']!r} doesn't match any earlier step id")
+        return _quote(right_ref, dialect)
+    if isinstance(right, str):
+        return _quote(right, dialect)
+    raise ValueError("'right' must be a table string or {ref: <step_id>}")
+
+
+def _build_on_clause(op: Dict[str, Any], dialect: str,
+                      left_alias: str = "_l", right_alias: str = "_r") -> Optional[str]:
+    """Build the `<left> = <right>` condition list (no leading 'ON') shared by join's
+    ON clause and semi/anti's correlated EXISTS predicate, from on_columns/on, or
+    left_on + right_on. Returns None if neither was provided."""
+    on_columns = op.get("on_columns") or op.get("on")
+    left_on = op.get("left_on")
+    right_on = op.get("right_on")
+    if on_columns:
+        return " AND ".join(
+            f"{left_alias}.{_quote(c, dialect)} = {right_alias}.{_quote(c, dialect)}" for c in on_columns
+        )
+    if left_on and right_on:
+        return " AND ".join(
+            f"{left_alias}.{_quote(lo, dialect)} = {right_alias}.{_quote(ro, dialect)}"
+            for lo, ro in zip(left_on, right_on)
+        )
+    return None
 
 
 def _resolve_sql_template(sql: str, prev_ref: str, step_refs: Dict[str, str], dialect: str,
@@ -238,10 +324,11 @@ def _build_op_sql(prev_ref: str, op: Dict[str, Any], dialect: str,
         cols = ", ".join(_quote(c, dialect) for c in op["columns"])
         return f"SELECT {cols} FROM {prev}"
     if kind == "drop":
-        if dialect in ("duckdb", "bigquery", "snowflake", "databricks"):
+        if dialect in _EXCLUDE_COLUMNS_KEYWORD:
             cols = ", ".join(_quote(c, dialect) for c in op["columns"])
-            return f"SELECT * EXCEPT ({cols}) FROM {prev}"
-        raise ValueError(f"warehouse_pipeline op='drop' needs SELECT * EXCEPT(); not supported on {dialect}. Use 'select' to enumerate the kept cols.")
+            kw = _EXCLUDE_COLUMNS_KEYWORD[dialect]
+            return f"SELECT * {kw} ({cols}) FROM {prev}"
+        raise ValueError(f"warehouse_pipeline op='drop' needs SELECT * EXCEPT()/EXCLUDE(); not supported on {dialect}. Use 'select' to enumerate the kept cols.")
     if kind == "rename":
         raise ValueError("warehouse_pipeline op='rename' requires explicit projection — use 'select' with aliases instead, e.g. `columns: ['order_id AS id', 'total']`.")
     if kind == "with_columns":
@@ -264,9 +351,26 @@ def _build_op_sql(prev_ref: str, op: Dict[str, Any], dialect: str,
         by = op["by"] if isinstance(op["by"], list) else [op["by"]]
         descending = op.get("descending", False)
         descending = descending if isinstance(descending, list) else [descending] * len(by)
-        order_clause = ", ".join(
-            f"{_quote(c, dialect)} {'DESC' if d else 'ASC'}" for c, d in zip(by, descending)
-        )
+        # ADF's own Sort transform defaults to nulls FIRST -- nulls_last=False matches that.
+        nulls_last = op.get("nulls_last", False)
+        nulls_last = nulls_last if isinstance(nulls_last, list) else [nulls_last] * len(by)
+        if dialect in _NATIVE_NULLS_ORDER_DIALECTS:
+            order_clause = ", ".join(
+                f"{_quote(c, dialect)} {'DESC' if d else 'ASC'} {'NULLS LAST' if nl else 'NULLS FIRST'}"
+                for c, d, nl in zip(by, descending, nulls_last)
+            )
+        else:
+            # mssql / mysql have no NULLS FIRST/LAST syntax -- portable workaround: a
+            # leading CASE-based tiebreaker groups NULLs to the requested end before the
+            # real per-column direction is applied as a secondary sort key.
+            parts = []
+            for c, d, nl in zip(by, descending, nulls_last):
+                qc = _quote(c, dialect)
+                null_rank = "1" if nl else "0"
+                not_null_rank = "0" if nl else "1"
+                parts.append(f"(CASE WHEN {qc} IS NULL THEN {null_rank} ELSE {not_null_rank} END) ASC")
+                parts.append(f"{qc} {'DESC' if d else 'ASC'}")
+            order_clause = ", ".join(parts)
         return f"SELECT * FROM {prev} ORDER BY {order_clause}"
     if kind == "limit":
         return f"SELECT * FROM {prev} LIMIT {int(op['n'])}"
@@ -282,11 +386,11 @@ def _build_op_sql(prev_ref: str, op: Dict[str, Any], dialect: str,
         n = int(op["n"])
         partition_clause = ", ".join(_quote(c, dialect) for c in group_by)
         return (
-            f"SELECT * EXCEPT (\"_rn\") FROM "
+            f"SELECT * {_EXCLUDE_COLUMNS_KEYWORD[dialect]} (\"_rn\") FROM "
             f"(SELECT *, ROW_NUMBER() OVER (PARTITION BY {partition_clause} ORDER BY "
             f"{_quote(sort_by, dialect)} {'ASC' if ascending else 'DESC'}) AS \"_rn\" "
             f"FROM {prev}) WHERE \"_rn\" <= {n}"
-        ) if dialect in ("duckdb", "bigquery", "snowflake", "databricks") else (
+        ) if dialect in _EXCLUDE_COLUMNS_KEYWORD else (
             f"SELECT * FROM "
             f"(SELECT *, ROW_NUMBER() OVER (PARTITION BY {partition_clause} ORDER BY "
             f"{_quote(sort_by, dialect)} {'ASC' if ascending else 'DESC'}) AS \"_rn\" "
@@ -329,30 +433,28 @@ def _build_op_sql(prev_ref: str, op: Dict[str, Any], dialect: str,
     if kind == "join":
         # `right` may be a table name  OR a {ref: <step_id>}.
         right = op["right"]
-        if isinstance(right, dict) and "ref" in right:
-            right_ref = step_refs.get(right["ref"])
-            if right_ref is None:
-                raise ValueError(f"join.right.ref={right['ref']!r} doesn't match any earlier step id")
-            right_quoted = _quote(right_ref, dialect)
-        elif isinstance(right, str):
-            right_quoted = _quote(right, dialect)
-        else:
-            raise ValueError("join.right must be a table string or {ref: <step_id>}")
+        right_quoted = _resolve_right_ref(right, step_refs, dialect)
         how = op.get("how", "inner").upper()
         if how == "OUTER":
             how = "FULL OUTER"
-        on_columns = op.get("on_columns") or op.get("on")
-        left_on = op.get("left_on")
-        right_on = op.get("right_on")
-        if on_columns:
-            on_clause = "ON " + " AND ".join(
-                f"_l.{_quote(c, dialect)} = _r.{_quote(c, dialect)}" for c in on_columns
+        if how in ("SEMI", "ANTI"):
+            # Portable semi/anti join: NOT a `SEMI JOIN`/`ANTI JOIN` keyword (not standard
+            # across this component's target dialects) -- a correlated
+            # WHERE [NOT] EXISTS (...) subquery, which every supported dialect understands.
+            # Output is left-side columns only (semi/anti never pull right-side columns).
+            cond = _build_on_clause(op, dialect)
+            if cond is None:
+                raise ValueError("join op: how='semi'/'anti' requires 'on_columns' OR 'left_on' + 'right_on'")
+            select_cols = op.get("select_cols")
+            select_clause = ", ".join(select_cols) if select_cols else "_l.*"
+            exists_kw = "EXISTS" if how == "SEMI" else "NOT EXISTS"
+            return (
+                f"SELECT {select_clause} FROM {prev} AS _l "
+                f"WHERE {exists_kw} (SELECT 1 FROM {right_quoted} AS _r WHERE {cond})"
             )
-        elif left_on and right_on:
-            on_clause = "ON " + " AND ".join(
-                f"_l.{_quote(lo, dialect)} = _r.{_quote(ro, dialect)}"
-                for lo, ro in zip(left_on, right_on)
-            )
+        on_clause_inner = _build_on_clause(op, dialect)
+        if on_clause_inner is not None:
+            on_clause = "ON " + on_clause_inner
         elif how == "CROSS":
             on_clause = ""
         else:
@@ -360,6 +462,143 @@ def _build_op_sql(prev_ref: str, op: Dict[str, Any], dialect: str,
         select_cols = op.get("select_cols")
         select_clause = ", ".join(select_cols) if select_cols else "_l.*, _r.*"
         return f"SELECT {select_clause} FROM {prev} AS _l {how} JOIN {right_quoted} AS _r {on_clause}".strip()
+    if kind == "pivot":
+        index_cols = op.get("index")
+        if not index_cols:
+            raise ValueError("op='pivot' requires 'index': [col, ...] -- the column(s) kept as row identity")
+        if isinstance(index_cols, str):
+            index_cols = [index_cols]
+        pivot_column = op.get("pivot_column")
+        if not pivot_column:
+            raise ValueError("op='pivot' requires 'pivot_column': <col> -- whose distinct values become new output columns")
+        value_columns = op.get("value_columns")
+        if not value_columns:
+            raise ValueError("op='pivot' requires 'value_columns': [col, ...] -- the column(s) aggregated into each pivoted cell")
+        if isinstance(value_columns, str):
+            value_columns = [value_columns]
+        agg_func = op.get("agg_func", "sum")
+        pivot_values = op.get("pivot_values")
+        if not pivot_values:
+            raise ValueError(
+                "op='pivot' requires 'pivot_values': [v1, v2, ...] -- the exact distinct values "
+                "of pivot_column to materialize as output columns. Unlike pandas_pipeline/"
+                "polars_pipeline's pivot (which discovers distinct values at RUNTIME, in-process), "
+                "this component compiles portable conditional-aggregation SQL "
+                "(SUM(CASE WHEN pivot_column = 'v' THEN value_column END) AS v, ...) at QUERY-BUILD "
+                "TIME, before execution -- there's no universal unbounded PIVOT keyword across "
+                "every dialect this component targets, so the value list must be known upfront. "
+                "If you don't know the values ahead of time, run a `SELECT DISTINCT <pivot_column>` "
+                "query first and feed the result in here, or use the pandas_pipeline/polars_pipeline "
+                "sibling instead, which can discover pivot values at runtime."
+            )
+        fill_value = op.get("fill_value")
+        multi_value = len(value_columns) > 1
+        select_parts = [_quote(c, dialect) for c in index_cols]
+        for value_col in value_columns:
+            for pv in pivot_values:
+                case_expr = (
+                    f"CASE WHEN {_quote(pivot_column, dialect)} = {_literal(pv, dialect)} "
+                    f"THEN {_quote(value_col, dialect)} END"
+                )
+                agg_sql = _agg_func_sql(agg_func, case_expr)
+                if fill_value is not None:
+                    agg_sql = f"COALESCE({agg_sql}, {_literal(fill_value, dialect)})"
+                alias = f"{value_col}_{pv}" if multi_value else str(pv)
+                select_parts.append(f"{agg_sql} AS {_quote_alias(alias, dialect)}")
+        group_list = ", ".join(_quote(c, dialect) for c in index_cols)
+        return f"SELECT {', '.join(select_parts)} FROM {prev} GROUP BY {group_list}"
+    if kind == "lookup":
+        right = op["right"]
+        right_quoted = _resolve_right_ref(right, step_refs, dialect)
+        on_clause_inner = _build_on_clause(op, dialect)
+        if on_clause_inner is None:
+            raise ValueError("lookup op: provide 'on_columns' OR 'left_on' + 'right_on'")
+        output_mode = (op.get("output_mode") or "columns").lower()
+
+        if output_mode == "is_match":
+            # Existence doesn't depend on match_sort_by's one-row-per-key narrowing --
+            # EXISTS is true/false the same either way -- so this ignores it and probes
+            # the raw right side directly.
+            output_column = op.get("output_column", "is_match")
+            return (
+                f"SELECT _l.*, CASE WHEN EXISTS "
+                f"(SELECT 1 FROM {right_quoted} AS _r WHERE {on_clause_inner}) "
+                f"THEN TRUE ELSE FALSE END AS {_quote_alias(output_column, dialect)} "
+                f"FROM {prev} AS _l"
+            )
+        if output_mode != "columns":
+            raise ValueError(f"lookup op: output_mode must be 'columns' or 'is_match', got {output_mode!r}")
+
+        right_source = right_quoted
+        match_sort_by = op.get("match_sort_by")
+        if match_sort_by:
+            if isinstance(match_sort_by, str):
+                match_sort_by = [match_sort_by]
+            match_sort_ascending = op.get("match_sort_ascending", False)
+            match_sort_ascending = (
+                match_sort_ascending if isinstance(match_sort_ascending, list)
+                else [match_sort_ascending] * len(match_sort_by)
+            )
+            right_key_cols = op.get("right_on") or op.get("on_columns") or op.get("on")
+            if not right_key_cols:
+                raise ValueError("lookup op: match_sort_by requires 'on_columns' or 'right_on' to define the partition key")
+            partition_clause = ", ".join(_quote(c, dialect) for c in right_key_cols)
+            order_clause = ", ".join(
+                f"{_quote(c, dialect)} {'ASC' if a else 'DESC'}"
+                for c, a in zip(match_sort_by, match_sort_ascending)
+            )
+            # Same ROW_NUMBER()-over-PARTITION pattern as op=top_n_per_group above --
+            # deterministically picks exactly one right-side row per key.
+            ranked = (
+                f"(SELECT *, ROW_NUMBER() OVER (PARTITION BY {partition_clause} ORDER BY "
+                f"{order_clause}) AS \"_lookup_rn\" FROM {right_quoted}) AS _ranked"
+            )
+            if dialect in _EXCLUDE_COLUMNS_KEYWORD:
+                kw = _EXCLUDE_COLUMNS_KEYWORD[dialect]
+                right_source = f"(SELECT * {kw} (\"_lookup_rn\") FROM {ranked} WHERE \"_lookup_rn\" = 1)"
+            else:
+                # Same limitation as op=top_n_per_group's own fallback: the ranking column
+                # leaks into the result on dialects with no column-exclusion wildcard.
+                right_source = f"(SELECT * FROM {ranked} WHERE \"_lookup_rn\" = 1)"
+
+        select_cols = op.get("select_cols")
+        select_clause = ", ".join(select_cols) if select_cols else "_l.*, _r.*"
+        return (
+            f"SELECT {select_clause} FROM {prev} AS _l "
+            f"LEFT JOIN {right_source} AS _r ON {on_clause_inner}"
+        )
+    if kind == "window_calculation":
+        function = (op.get("function") or "").lower()
+        if function not in ("ntile", "cume_dist"):
+            raise ValueError(f"window_calculation op: 'function' must be 'ntile' or 'cume_dist', got {op.get('function')!r}")
+        order_by = op.get("order_by")
+        if not order_by:
+            raise ValueError("window_calculation op requires 'order_by': [col, ...]")
+        if isinstance(order_by, str):
+            order_by = [order_by]
+        ascending = op.get("ascending", True)
+        ascending = ascending if isinstance(ascending, list) else [ascending] * len(order_by)
+        order_clause = ", ".join(
+            f"{_quote(c, dialect)} {'ASC' if a else 'DESC'}" for c, a in zip(order_by, ascending)
+        )
+        group_by = op.get("group_by")
+        partition_clause = ""
+        if group_by:
+            if isinstance(group_by, str):
+                group_by = [group_by]
+            partition_clause = "PARTITION BY " + ", ".join(_quote(c, dialect) for c in group_by) + " "
+        if function == "ntile":
+            n = op.get("n")
+            if not n:
+                raise ValueError("window_calculation op: function='ntile' requires 'n': <int>")
+            func_sql = f"NTILE({int(n)})"
+        else:
+            func_sql = "CUME_DIST()"
+        output_column = op.get("output_column") or function
+        return (
+            f"SELECT *, {func_sql} OVER ({partition_clause}ORDER BY {order_clause}) "
+            f"AS {_quote_alias(output_column, dialect)} FROM {prev}"
+        )
     raise ValueError(f"warehouse_pipeline: op={kind!r} not supported. Valid: {sorted(_VALID_OPS)}")
 
 
@@ -707,7 +946,7 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
 
     Supported ops (in any step): filter / with_columns / select / drop /
     group_by / sort / limit / top_n / top_n_per_group / dedup / distinct /
-    union / join / sql.
+    union / join / sql / pivot / lookup / window_calculation.
 
     The `op: sql` body may reference `<<self>>` (previous CTE in this
     step) or `<<step_id>>` (any earlier step's output).

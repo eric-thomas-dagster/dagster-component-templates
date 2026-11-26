@@ -119,19 +119,114 @@ attributes:
 |---|---|
 | `filter` | `predicate: <SQL>` |
 | `select` | `columns: [a, b]` |
-| `drop` | `columns: [a, b]` — needs `SELECT * EXCEPT()` (DuckDB / BigQuery / Snowflake / Databricks) |
+| `drop` | `columns: [a, b]` — needs a column-exclusion wildcard (DuckDB / BigQuery / Snowflake / Databricks): `SELECT * EXCLUDE()` on DuckDB/Snowflake, `SELECT * EXCEPT()` on BigQuery/Databricks (confirmed per-platform — DuckDB's and Snowflake's parsers reject `EXCEPT` for this; it's their set-operator keyword) |
 | `with_columns` | `expressions: {out_col: <SQL expr>}` |
 | `group_by` | `group_by: [cols]`, `aggregations: {out: {col, agg}}` |
-| `sort` | `by: [cols]`, `descending: bool/list` |
+| `sort` | `by: [cols]`, `descending: bool/list`, `nulls_last: bool/list` (default `false` — nulls first, matching ADF's own Sort transform default) |
 | `limit` | `n: int` |
 | `top_n` | Global top N: `sort_by`, `n`, `ascending` |
 | `top_n_per_group` | Top N per partition: `group_by`, `sort_by`, `n`, `ascending` |
 | `dedup` | `subset` + optional `order_by` + `descending` |
 | `distinct` | `SELECT DISTINCT *` |
 | `union` | `other: <table_name>`, `distinct: bool`, optional `select_cols` |
-| `join` | `right: <table>`, `how:`, `on_columns:` or `left_on`/`right_on`, optional `select_cols` |
+| `join` | `right: <table>`, `how:` (`inner`/`left`/`right`/`outer`/`cross`/`semi`/`anti`), `on_columns:` or `left_on`/`right_on`, optional `select_cols` |
+| `pivot` | ADF's Pivot transform — see below |
+| `lookup` | ADF's Lookup transform — see below |
+| `window_calculation` | ADF's Rank/Window transforms, narrowed to `ntile`/`cume_dist` — see below |
 
 `agg` values: `sum / mean / avg / min / max / count / nunique / median / stddev / variance`.
+
+## `join` how='semi' / 'anti' (ADF's Exists transform)
+
+```yaml
+- op: join
+  right: {ref: gold_customers}   # or a table name string
+  how: semi                       # or 'anti'
+  on_columns: [customer_id]
+```
+
+Filters the left side to rows that do (`semi`) / don't (`anti`) have a matching right-side
+row — same concept as ADF's Exists transform. Compiles to a portable correlated
+`WHERE [NOT] EXISTS (SELECT 1 FROM <right> WHERE ...)` subquery, **not** `SEMI JOIN`/
+`ANTI JOIN` keywords (not standard across this component's target dialects). Output is
+left-side columns only (`_l.*` by default, or `select_cols` to project explicitly) —
+semi/anti never pull right-side columns in.
+
+## `pivot` (ADF's Pivot transform)
+
+```yaml
+- op: pivot
+  index: [region]                 # row-identity column(s)
+  pivot_column: quarter           # whose distinct values become new output columns
+  value_columns: [amount]         # column(s) aggregated into each pivoted cell
+  agg_func: sum
+  pivot_values: [Q1, Q2, Q3, Q4]   # REQUIRED — see below
+  fill_value: 0                   # optional — COALESCE()s a missing combination's cell
+```
+
+No SQL dialect this component targets has a universal, unbounded `PIVOT` keyword (some —
+Snowflake, SQL Server — have one, but it's not portable across every dialect here), so
+this compiles to the fully portable conditional-aggregation idiom instead:
+`SUM(CASE WHEN quarter = 'Q1' THEN amount END) AS "Q1", ...`, one `CASE WHEN` per
+`pivot_values` entry, repeated once per `value_columns` entry (output column names get a
+`<value_col>_<pivot_value>` prefix when there's more than one value column, to avoid
+collisions).
+
+**`pivot_values` is required**, unlike `pandas_pipeline`/`polars_pipeline`'s own `pivot`
+op (which discovers the pivot column's distinct values at runtime, in-process). This
+component compiles to SQL *before* execution, so the exact value list must be known
+upfront. If you don't know the values ahead of time, run a
+`SELECT DISTINCT <pivot_column>` query first and feed the result in, or use the
+`pandas_pipeline`/`polars_pipeline` sibling instead.
+
+`pivot_values` entries are rendered as escaped SQL string literals (the same
+`'` → `''` doubling convention the sibling `warehouse_*` components already use for their
+own IN-list literals) — safe against a pivot value containing a quote or arbitrary text.
+
+## `lookup` (ADF's Lookup transform)
+
+```yaml
+- op: lookup
+  right: {ref: customers}          # or a table name string
+  on_columns: [customer_id]        # or left_on / right_on
+  match_sort_by: [updated_at]      # optional — see below
+  match_sort_ascending: false      # optional, default false (most-recent-first)
+  output_mode: columns             # 'columns' (default) or 'is_match'
+  output_column: is_match           # only used when output_mode: is_match
+  select_cols: ["_l.id", "_r.name"] # optional — defaults to "_l.*, _r.*"
+```
+
+Compiles to a `LEFT JOIN` — every left row is kept, with right-side columns `NULL` when
+there's no match. When the right side can have more than one matching row per key,
+`match_sort_by` picks exactly **one** deterministically, using the same
+`ROW_NUMBER() OVER (PARTITION BY <key> ORDER BY <match_sort_by>)` window-function pattern
+`top_n_per_group` already uses — the row ranked `1` wins. `output_mode: is_match` skips
+pulling right-side columns in entirely and instead emits a single boolean `output_column`
+via `WHERE EXISTS (...)`.
+
+On dialects without a column-exclusion wildcard (same list as `drop`'s limitation above),
+the internal row-ranking column (`_lookup_rn`) leaks into a `match_sort_by` lookup's
+result when using `_r.*` — same known limitation as `top_n_per_group`'s own fallback. Use
+explicit `select_cols` to avoid it on those dialects.
+
+## `window_calculation` (ADF's Rank/Window transforms — `ntile` / `cume_dist` only)
+
+```yaml
+- op: window_calculation
+  function: ntile          # or 'cume_dist'
+  order_by: [score]
+  group_by: [region]       # optional — partitions the window independently per group
+  n: 4                     # required for function: ntile
+  output_column: quartile
+```
+
+Scoped narrowly to `NTILE`/`CUME_DIST` — rank-equivalent concepts (ADF's Rank transform)
+are already covered by this component's own `top_n`/`top_n_per_group` ops. Both compile
+to near-literal standard SQL window functions
+(`NTILE(n) OVER (PARTITION BY ... ORDER BY ...)` /
+`CUME_DIST() OVER (PARTITION BY ... ORDER BY ...)`), supported identically across every
+dialect this component targets (Postgres, DuckDB, Snowflake, BigQuery, SQL Server,
+MySQL 8+, Oracle, Redshift, Databricks) — no portability workaround needed.
 
 ## Generated SQL
 
@@ -186,9 +281,10 @@ sinks:
 
 ## Limitations
 
-- `drop` and `top_n_per_group` (which uses `SELECT * EXCEPT()` internally) require dialects that support that syntax: DuckDB / BigQuery / Snowflake / Databricks. On others, use explicit `select` projections instead.
+- `drop`, `top_n_per_group`, and `lookup`'s `match_sort_by` (which use a column-exclusion wildcard internally — `EXCLUDE()` on DuckDB/Snowflake, `EXCEPT()` on BigQuery/Databricks) require one of those four dialects. On others, use explicit `select`/`select_cols` projections instead.
 - `rename` is intentionally not supported — use `select` with `AS` aliases instead (e.g. `columns: ['order_id AS id', 'total']`).
 - `source:` currently supports only `upstream_table: <name>`. Inline SQL / CTE-from-SQL coming.
+- `pivot` requires `pivot_values` upfront (SQL compiles before execution) — see the `pivot` section above for the runtime-discovery alternative.
 
 ## Sibling components
 

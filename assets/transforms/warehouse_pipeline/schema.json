@@ -51,7 +51,7 @@
       "items": {
         "type": "object"
       },
-      "description": "Flat shape: ordered ops applied to 'source'. Supported ops: filter, with_columns, select, drop, group_by, sort, limit, top_n, top_n_per_group, dedup, distinct, union, join, sql."
+      "description": "Flat shape: ordered ops applied to 'source'. Supported ops: filter, with_columns, select, drop, group_by, sort, limit, top_n, top_n_per_group, dedup, distinct, union, join, sql, pivot, lookup, window_calculation."
     },
     "output_table": {"label": "Output Table", 
       "type": "string",

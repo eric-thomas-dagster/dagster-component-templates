@@ -141,7 +141,19 @@ _SUPPORTED_DIALECTS = {"duckdb", "postgres", "postgresql", "snowflake", "bigquer
 _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "limit", "top_n", "top_n_per_group",
               "dedup", "distinct", "union", "join", "sql",
-              "pivot", "lookup", "window_calculation"}
+              "pivot", "lookup", "window_calculation", "unpivot", "rank"}
+
+# SQL-native window-function ranking (op='rank'): RANK/DENSE_RANK/ROW_NUMBER are standard
+# across every dialect this component targets. The pandas-style tie-breaking vocabulary
+# ('average'/'min'/'max'/'first' from pandas_pipeline/polars_pipeline's own `rank` op) has no
+# direct SQL window-function equivalent -- forcing it would mean compiling a non-portable
+# secondary aggregation per dialect, so this op intentionally uses SQL's own vocabulary
+# instead of pandas'. 'ntile'/'cume_dist' are shared with window_calculation -- 'rank' is the
+# more complete superset (adds rank/dense_rank/row_number), kept as a separate op rather than
+# folded into window_calculation to avoid changing that op's already-tested behavior.
+_RANK_METHOD_SQL = {
+    "rank": "RANK()", "dense_rank": "DENSE_RANK()", "row_number": "ROW_NUMBER()",
+}
 
 _SUPPORTED_AGGS = {"sum", "mean", "avg", "min", "max", "count",
                     "nunique", "n_unique", "median", "stddev", "variance"}
@@ -595,6 +607,74 @@ def _build_op_sql(prev_ref: str, op: Dict[str, Any], dialect: str,
         else:
             func_sql = "CUME_DIST()"
         output_column = op.get("output_column") or function
+        return (
+            f"SELECT *, {func_sql} OVER ({partition_clause}ORDER BY {order_clause}) "
+            f"AS {_quote_alias(output_column, dialect)} FROM {prev}"
+        )
+    if kind == "unpivot":
+        # ADF's Unpivot transform, compiled as a portable UNION ALL (one branch per value
+        # column) rather than a native UNPIVOT keyword -- UNPIVOT syntax/support is
+        # inconsistent across this component's target dialects (e.g. postgres/redshift/mysql
+        # have no native UNPIVOT at all), while UNION ALL of per-column SELECTs works
+        # identically on every one of them.
+        id_columns = op.get("id_columns")
+        if not id_columns:
+            raise ValueError("unpivot op requires 'id_columns': [col, ...]")
+        if isinstance(id_columns, str):
+            id_columns = [id_columns]
+        value_columns = op.get("value_columns")
+        if not value_columns:
+            raise ValueError("unpivot op requires 'value_columns': [col, ...]")
+        if isinstance(value_columns, str):
+            value_columns = [value_columns]
+        var_column = op.get("var_column") or op.get("variable_name") or "variable"
+        value_column = op.get("value_column") or op.get("value_name") or "value"
+        id_select = ", ".join(_quote(c, dialect) for c in id_columns)
+        drop_nulls = op.get("drop_null_values", False)
+        branches = []
+        for vc in value_columns:
+            where = f" WHERE {_quote(vc, dialect)} IS NOT NULL" if drop_nulls else ""
+            branches.append(
+                f"SELECT {id_select}, {_literal(vc, dialect)} AS {_quote_alias(var_column, dialect)}, "
+                f"{_quote(vc, dialect)} AS {_quote_alias(value_column, dialect)} FROM {prev}{where}"
+            )
+        return " UNION ALL ".join(branches)
+    if kind == "rank":
+        order_by = op.get("order_by")
+        if not order_by:
+            raise ValueError("rank op requires 'order_by': [col, ...]")
+        if isinstance(order_by, str):
+            order_by = [order_by]
+        ascending = op.get("ascending", True)
+        ascending = ascending if isinstance(ascending, list) else [ascending] * len(order_by)
+        method = str(op.get("method") or "rank").lower()
+        _valid = set(_RANK_METHOD_SQL) | {"ntile", "cume_dist"}
+        if method not in _valid:
+            raise ValueError(
+                f"rank op: method must be one of {sorted(_valid)}, got {op.get('method')!r}. "
+                "Pandas-style tie-breaking ('average'/'min'/'max'/'first', 'dense') isn't a "
+                "portable SQL window function -- use pandas_pipeline/polars_pipeline's own "
+                "`rank` op for that instead."
+            )
+        order_clause = ", ".join(
+            f"{_quote(c, dialect)} {'ASC' if a else 'DESC'}" for c, a in zip(order_by, ascending)
+        )
+        group_by = op.get("group_by")
+        partition_clause = ""
+        if group_by:
+            if isinstance(group_by, str):
+                group_by = [group_by]
+            partition_clause = "PARTITION BY " + ", ".join(_quote(c, dialect) for c in group_by) + " "
+        output_column = op.get("output_column") or method
+        if method == "ntile":
+            n = op.get("ntile_buckets") or op.get("n")
+            if not n:
+                raise ValueError("rank op: method='ntile' requires 'ntile_buckets': <int>")
+            func_sql = f"NTILE({int(n)})"
+        elif method == "cume_dist":
+            func_sql = "CUME_DIST()"
+        else:
+            func_sql = _RANK_METHOD_SQL[method]
         return (
             f"SELECT *, {func_sql} OVER ({partition_clause}ORDER BY {order_clause}) "
             f"AS {_quote_alias(output_column, dialect)} FROM {prev}"

@@ -133,6 +133,8 @@ attributes:
 | `pivot` | ADF's Pivot transform — see below |
 | `lookup` | ADF's Lookup transform — see below |
 | `window_calculation` | ADF's Rank/Window transforms, narrowed to `ntile`/`cume_dist` — see below |
+| `unpivot` | ADF's Unpivot transform — see below |
+| `rank` | ADF's Rank transform, real SQL window functions (`RANK`/`DENSE_RANK`/`ROW_NUMBER`/`NTILE`/`CUME_DIST`) — see below |
 
 `agg` values: `sum / mean / avg / min / max / count / nunique / median / stddev / variance`.
 
@@ -227,6 +229,46 @@ to near-literal standard SQL window functions
 `CUME_DIST() OVER (PARTITION BY ... ORDER BY ...)`), supported identically across every
 dialect this component targets (Postgres, DuckDB, Snowflake, BigQuery, SQL Server,
 MySQL 8+, Oracle, Redshift, Databricks) — no portability workaround needed.
+
+## `unpivot` (ADF's Unpivot transform)
+
+```yaml
+- op: unpivot
+  id_columns: [customer_id]          # kept as-is
+  value_columns: [q1, q2, q3, q4]    # melted into 2 output columns
+  var_column: quarter                # optional, default 'variable'
+  value_column: revenue              # optional, default 'value'
+  drop_null_values: true             # optional, default false
+```
+
+No UNPIVOT keyword this component's target dialects agree on (several — Postgres,
+Redshift, MySQL — have none at all), so this compiles to a fully portable `UNION ALL` of
+one `SELECT` per `value_columns` entry instead:
+`SELECT id_cols, 'q1' AS quarter, q1 AS revenue FROM ... UNION ALL SELECT id_cols, 'q2' AS
+quarter, q2 AS revenue FROM ...`. `drop_null_values` adds a `WHERE <col> IS NOT NULL` to
+each branch.
+
+## `rank` (ADF's Rank transform — real SQL window functions)
+
+```yaml
+- op: rank
+  order_by: [score]
+  method: dense_rank      # rank | dense_rank | row_number | ntile | cume_dist
+  group_by: [region]      # optional — partitions the window independently per group
+  ntile_buckets: 4        # required for method: ntile
+  output_column: score_rank
+```
+
+Unlike `pandas_pipeline`/`polars_pipeline`'s own `rank` op (pandas-style tie-breaking:
+`average`/`min`/`max`/`first`/`dense`), this compiles to real SQL window functions —
+`RANK()`/`DENSE_RANK()`/`ROW_NUMBER()`/`NTILE(n)`/`CUME_DIST() OVER (PARTITION BY ...
+ORDER BY ...)` — standard across every dialect this component targets. Pandas-style
+tie-breaking has no portable SQL window-function equivalent, so this op intentionally uses
+SQL's own vocabulary instead of forcing a non-portable secondary-aggregation translation;
+use the `pandas_pipeline`/`polars_pipeline` sibling for that tie-breaking style instead.
+`ntile`/`cume_dist` overlap with `window_calculation` (kept there too, unchanged, to avoid
+touching its already-tested behavior) — `rank` is the superset, adding `rank`/`dense_rank`/
+`row_number`.
 
 ## Generated SQL
 

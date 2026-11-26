@@ -73,7 +73,7 @@ from pydantic import Field, model_validator
 _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "head", "tail", "head_per_group", "limit",
               "unique", "join", "union", "drop_nulls", "fill_null", "cast", "sql",
-              "pivot", "lookup", "window_calculation"}
+              "pivot", "lookup", "window_calculation", "unpivot", "rank"}
 
 # Ops not needing a SQL/aggregation engine at all stay pure pandas. filter,
 # with_columns(expressions=), group_by, sql, and union(mode) route through a
@@ -440,6 +440,75 @@ def _sort_with_per_column_na_position(
     return result
 
 
+def _rank_by_multiple_columns(
+    df: pd.DataFrame, columns: List, ascending: List[bool], *, method: str, pct: bool,
+    group_by: Optional[List] = None,
+) -> pd.Series:
+    """Multi-key rank (ADF's Rank transform: several sort columns, each with its own
+    direction, like a SQL ORDER BY with several keys). pandas' own Series.rank() only ranks
+    by one column; this replicates its tie-breaking methods (average/min/max/first/dense)
+    over a lexicographic multi-column ordering instead. Same verified implementation as the
+    standalone `transforms/rank` component's own helper of the same name."""
+    def _rank_block(block: pd.DataFrame) -> pd.Series:
+        order = block.sort_values(by=columns, ascending=ascending, kind="mergesort")
+        n = len(order)
+        pos = pd.Series(range(1, n + 1), index=order.index)
+        is_new_group = order[columns].ne(order[columns].shift()).any(axis=1)
+        is_new_group.iloc[0] = True
+        dense_id = is_new_group.cumsum()
+        if method == "first":
+            rank = pos.astype(float)
+        elif method == "dense":
+            rank = dense_id.astype(float)
+        else:
+            first_pos = pos.groupby(dense_id).transform("min")
+            last_pos = pos.groupby(dense_id).transform("max")
+            if method == "min":
+                rank = first_pos.astype(float)
+            elif method == "max":
+                rank = last_pos.astype(float)
+            else:  # "average"
+                rank = (first_pos + last_pos) / 2.0
+        if pct:
+            denom = float(dense_id.max()) if method == "dense" else float(n)
+            rank = rank / denom
+        return rank.reindex(block.index)
+
+    if group_by:
+        return df.groupby(group_by, group_keys=False).apply(_rank_block)
+    return _rank_block(df)
+
+
+def _ntile_bucket_labels(n: int, n_buckets: int) -> List[int]:
+    """Standard SQL NTILE(n_buckets) bucket assignment -- remainder rows go to the FIRST
+    buckets, matching real SQL engines (pd.qcut was rejected: it distributes remainder to the
+    LAST buckets instead). Same verified implementation as `transforms/rank`'s own helper."""
+    if n_buckets <= 0:
+        raise ValueError(f"ntile_buckets must be a positive integer, got {n_buckets!r}")
+    base, remainder = divmod(n, n_buckets)
+    sizes = [base + 1] * remainder + [base] * (n_buckets - remainder)
+    labels: List[int] = []
+    for bucket_idx, size in enumerate(sizes, start=1):
+        labels.extend([bucket_idx] * size)
+    return labels
+
+
+def _ntile_rank(
+    df: pd.DataFrame, columns: List, ascending: List[bool], n_buckets: int,
+    group_by: Optional[List] = None,
+) -> pd.Series:
+    """SQL's NTILE(n_buckets): bucket each group's rows into `n_buckets` equal-ish-sized
+    buckets (1..N), ordered by `columns`/`ascending`."""
+    def _ntile_block(block: pd.DataFrame) -> pd.Series:
+        pos = _rank_by_multiple_columns(block, columns, ascending, method="first", pct=False)
+        labels = _ntile_bucket_labels(len(block), n_buckets)
+        return pos.map(lambda p: labels[int(p) - 1]).astype(float)
+
+    if group_by:
+        return df.groupby(group_by, group_keys=False).apply(_ntile_block)
+    return _ntile_block(df)
+
+
 def _apply_op(df: pd.DataFrame, op: Dict[str, Any], step_outputs: Dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Apply one op to a pandas DataFrame; returns the updated DataFrame.
 
@@ -775,6 +844,67 @@ def _apply_op(df: pd.DataFrame, op: Dict[str, Any], step_outputs: Dict[str, pd.D
         else:
             result = compute(df)
         df[output_column] = result
+        return df
+    if kind == "unpivot":
+        # ADF's Unpivot transform: melt N value columns into 2 (variable, value). Same
+        # id_columns/value_columns/var_name/value_name shape as the standalone
+        # `transforms/unpivot` component -- unlike that component, no collision-renaming of
+        # var_name/value_name is attempted here (an op chain's user controls naming directly
+        # via a later `rename`/`select` op if a collision ever matters).
+        id_columns = op.get("id_columns")
+        if not id_columns:
+            raise ValueError("unpivot op requires 'id_columns'")
+        value_columns = op.get("value_columns")
+        var_name = op.get("var_name", "variable")
+        value_name = op.get("value_name", "value")
+        out = df.melt(
+            id_vars=id_columns, value_vars=value_columns,
+            var_name=var_name, value_name=value_name,
+        )
+        if op.get("drop_null_values", False):
+            out = out.dropna(subset=[value_name])
+        return out
+    if kind == "rank":
+        # ADF's Rank transform, full tie-breaking method set (unlike window_calculation,
+        # scoped to just ntile/cume_dist) -- same methods + helpers as the standalone
+        # `transforms/rank` component, duplicated inline per this repo's no-cross-component-
+        # imports convention.
+        order_by = op.get("order_by")
+        if not order_by:
+            raise ValueError("rank op requires 'order_by'")
+        cols = list(order_by) if isinstance(order_by, (list, tuple)) else [order_by]
+        method = (op.get("method") or "average").lower()
+        _valid_rank_methods = {"average", "min", "max", "first", "dense", "ntile", "cume_dist"}
+        if method not in _valid_rank_methods:
+            raise ValueError(f"rank op: method must be one of {sorted(_valid_rank_methods)}, got {op.get('method')!r}")
+        ascending = op.get("ascending", True)
+        if isinstance(ascending, (list, tuple)):
+            if len(ascending) != len(cols):
+                raise ValueError(
+                    f"rank op: 'ascending' list length ({len(ascending)}) must match "
+                    f"'order_by' length ({len(cols)})"
+                )
+            asc_list = list(ascending)
+        else:
+            asc_list = [ascending] * len(cols)
+        group_by = op.get("group_by")
+        if isinstance(group_by, str):
+            group_by = [group_by]
+        output_column = op.get("output_column") or f"{'_'.join(str(c) for c in cols)}_rank"
+        df = df.copy()
+        if method == "ntile":
+            ntile_buckets = op.get("ntile_buckets")
+            if not ntile_buckets:
+                raise ValueError("rank op: method='ntile' requires 'ntile_buckets'")
+            df[output_column] = _ntile_rank(df, cols, asc_list, ntile_buckets, group_by=group_by)
+        elif method == "cume_dist":
+            df[output_column] = _rank_by_multiple_columns(
+                df, cols, asc_list, method="max", pct=True, group_by=group_by
+            )
+        else:
+            df[output_column] = _rank_by_multiple_columns(
+                df, cols, asc_list, method=method, pct=False, group_by=group_by
+            )
         return df
     raise ValueError(f"pandas_pipeline op={kind!r} not supported. Valid: {sorted(_VALID_OPS)}")
 

@@ -135,6 +135,8 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 | `pivot` | `index: [cols]`, `pivot_column`, `value_columns: [cols]`, `agg_func` (default `sum`), `pivot_values?`, `fill_value?` (default `0`) | ADF's **Pivot** transform — see below. |
 | `lookup` | `right: {ref: <step_id>}`, `on_columns`/`left_on`+`right_on`, `match_sort_by?`, `match_sort_ascending?`, `output_mode`, `output_column?` | ADF's **Lookup** transform — see below. |
 | `window_calculation` | `function: ntile\|cume_dist`, `order_by: [cols]`, `group_by?: [cols]`, `n?` (ntile only), `output_column` | ADF's **Window** transform's `ntile`/`cume_dist` statistical functions — see below. Rank-equivalent functions are already covered by the standalone `rank` component. |
+| `unpivot` | `id_columns: [cols]`, `value_columns?: [cols]` (default: all non-`id_columns`), `var_name?` (default `variable`), `value_name?` (default `value`), `drop_null_values?: bool` (default `false`) | ADF's **Unpivot** transform — see below. |
+| `rank` | `order_by: col\|[cols]`, `method?` (`average`\|`min`\|`max`\|`first`\|`dense`\|`ntile`\|`cume_dist`, default `average`), `ascending?: bool\|[bool, ...]` (default `true`), `group_by?: [cols]`, `ntile_buckets?: int` (required for `ntile`), `output_column?` (default `{order_by}_rank`) | ADF's **Rank** transform, full tie-breaking method set — see below. |
 
 Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / median / std / var / first / last / nunique`.
 
@@ -199,6 +201,37 @@ Polars has no built-in `ntile`/`cume_dist` expression, so both are built from
 `rank`/`cum_count` + arithmetic. Rank-equivalent window functions are already covered by
 the standalone `rank` component and this component's own `sort`/`group_by`, so this op is
 scoped to just these two statistical functions.
+
+### `unpivot` (ADF's Unpivot transform)
+
+```yaml
+- op: unpivot
+  id_columns: [customer_id]
+  value_columns: [q1_revenue, q2_revenue, q3_revenue, q4_revenue]
+  var_name: quarter
+  value_name: revenue
+```
+
+Built on polars' own `.unpivot()` (the current polars 2.0 method name — `.melt()` no
+longer exists). `on`/`index` map to `value_columns`/`id_columns`.
+
+### `rank` (ADF's Rank transform — full tie-breaking method set)
+
+```yaml
+- op: rank
+  order_by: [score]
+  method: dense
+  group_by: [region]   # optional -- omit for a single global rank
+  output_column: score_rank
+```
+
+Unlike `window_calculation` (scoped to just `ntile`/`cume_dist`), `rank` covers the full
+tie-breaking method set: `average`/`min`/`max`/`first`/`dense` (polars' own `Expr.rank()`
+vocabulary, `first` aliased to polars' `ordinal`), plus `ntile`/`cume_dist`. A single-column
+`order_by` uses polars' native `Expr.rank()` directly; a multi-column `order_by` (ADF: several
+sort keys, like a SQL `ORDER BY` with several columns, each with its own `ascending`
+direction) is built from `sort()` + `shift()`/`cum_sum()`/`.over()` primitives, since polars'
+own `rank()` only ranks by a single expression.
 
 ## `inline` and `sql` sources
 

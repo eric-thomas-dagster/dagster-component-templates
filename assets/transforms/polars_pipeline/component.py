@@ -84,7 +84,7 @@ _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "head", "tail", "head_per_group", "limit",
               "unique", "join", "union", "drop_nulls", "fill_null", "cast", "sql",
               "explode", "to_datetime", "coalesce", "route",
-              "pivot", "lookup", "window_calculation"}
+              "pivot", "lookup", "window_calculation", "unpivot", "rank"}
 
 
 # Java SimpleDateFormat/DateTimeFormatter -> polars (Rust chrono) strptime token
@@ -1149,6 +1149,148 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
             r = order_expr.rank(method="max")
             count_n = pl.len()
         return lf.with_columns((r.cast(pl.Float64) / count_n.cast(pl.Float64)).alias(output_column))
+    if kind == "unpivot":
+        # ADF's Unpivot transform. `.unpivot()` is the current polars 2.0 method name
+        # (verified against the installed version directly -- `.melt()` no longer exists);
+        # kwargs are `on` (value columns) / `index` (id columns) / `variable_name` /
+        # `value_name`, NOT pandas.melt's `id_vars`/`value_vars`/`var_name`.
+        id_columns = op.get("id_columns")
+        if not id_columns:
+            raise ValueError("unpivot op requires 'id_columns'")
+        id_columns = id_columns if isinstance(id_columns, list) else [id_columns]
+        value_columns = op.get("value_columns")
+        if value_columns is not None and not isinstance(value_columns, list):
+            value_columns = [value_columns]
+        var_name = op.get("var_name", "variable")
+        value_name = op.get("value_name", "value")
+        df = lf.collect()
+        out = df.unpivot(on=value_columns, index=id_columns, variable_name=var_name, value_name=value_name)
+        if op.get("drop_null_values", False):
+            out = out.filter(pl.col(value_name).is_not_null())
+        return out.lazy()
+    if kind == "rank":
+        # ADF's Rank transform, full tie-breaking method set (unlike window_calculation,
+        # scoped to just ntile/cume_dist). polars' native Expr.rank() only supports a single
+        # sort key (method: average/min/max/dense/ordinal/random -- verified against the
+        # installed polars 2.0's RankMethod) -- multi-column order_by needs the same
+        # sorted-partition + value-change-detection technique pandas_pipeline's own `rank`
+        # op uses, built from polars primitives instead.
+        order_by = op["order_by"] if isinstance(op["order_by"], list) else [op["order_by"]]
+        method = str(op.get("method") or "average").lower()
+        _method_alias = {"first": "ordinal"}
+        method = _method_alias.get(method, method)
+        _valid_rank_methods = {"average", "min", "max", "ordinal", "dense", "ntile", "cume_dist"}
+        if method not in _valid_rank_methods:
+            raise ValueError(
+                f"rank op: method must be one of {sorted(_valid_rank_methods | {'first'})}, "
+                f"got {op.get('method')!r}"
+            )
+        ascending = op.get("ascending", True)
+        ascending = ascending if isinstance(ascending, list) else [ascending] * len(order_by)
+        descending = [not a for a in ascending]
+        group_by = op.get("group_by")
+        if group_by and not isinstance(group_by, list):
+            group_by = [group_by]
+        output_column = op.get("output_column") or f"{'_'.join(str(c) for c in order_by)}_rank"
+
+        if len(order_by) == 1 and method not in ("ntile", "cume_dist"):
+            # Single sort key: polars' own native rank handles ties directly, descending
+            # applied via the column's own sort direction.
+            rank_expr = pl.col(order_by[0])
+            if descending[0]:
+                rank_expr = rank_expr.rank(method=method, descending=True)
+            else:
+                rank_expr = rank_expr.rank(method=method)
+            if group_by:
+                rank_expr = rank_expr.over(group_by)
+            return lf.with_columns(rank_expr.cast(pl.Float64).alias(output_column))
+
+        # Multi-column order_by (or ntile/cume_dist, which already have their own
+        # sort-based implementation below): sort by (group_by + order_by) with each
+        # column's own direction, then detect value-change across ALL order_by columns
+        # row-to-row within each partition -- same lexicographic-tie-group technique as
+        # pandas_pipeline's own `_rank_by_multiple_columns` helper, built from polars'
+        # shift()/cum_sum()/over() primitives instead of a pandas groupby.apply.
+        sort_keys = (group_by or []) + order_by
+        sort_descending = ([False] * len(group_by) if group_by else []) + descending
+        lf = lf.sort(by=sort_keys, descending=sort_descending, maintain_order=True)
+        pos_expr = pl.col(order_by[0]).cum_count()
+        if group_by:
+            pos_expr = pos_expr.over(group_by)
+        lf = lf.with_columns(pos_expr.alias("__rank_pos__"))
+
+        if method == "ntile":
+            n = op.get("ntile_buckets")
+            if not n or int(n) < 1:
+                raise ValueError("rank op: method='ntile' requires a positive integer 'ntile_buckets'")
+            n = int(n)
+            if group_by:
+                count_n = pl.len().over(group_by)
+            else:
+                count_n = pl.len()
+            base = count_n // n
+            rem = count_n % n
+            threshold = rem * (base + 1)
+            r = pl.col("__rank_pos__")
+            bucket_low = ((r - 1) // (base + 1)) + 1
+            bucket_high = rem + ((r - threshold - 1) // base) + 1
+            bucket = pl.when(r <= threshold).then(bucket_low).otherwise(bucket_high)
+            out = lf.with_columns(bucket.cast(pl.Int64).alias(output_column))
+            return out.drop("__rank_pos__")
+        if method == "cume_dist":
+            if group_by:
+                count_n = pl.len().over(group_by)
+            else:
+                count_n = pl.len()
+            # Need the tie-group's MAX position (standard CUME_DIST), computed the same
+            # value-change-detection way as the other multi-key methods below.
+            change_exprs = []
+            for c in order_by:
+                prev = pl.col(c).shift(1)
+                if group_by:
+                    prev = prev.over(group_by)
+                change_exprs.append(prev.is_null() | (pl.col(c) != prev))
+            is_new = pl.any_horizontal(change_exprs) if len(change_exprs) > 1 else change_exprs[0]
+            lf = lf.with_columns(is_new.cast(pl.Int64).alias("__rank_isnew__"))
+            dense_expr = pl.col("__rank_isnew__").cum_sum()
+            if group_by:
+                dense_expr = dense_expr.over(group_by)
+            lf = lf.with_columns(dense_expr.alias("__rank_dense__"))
+            dense_group_cols = (group_by or []) + ["__rank_dense__"]
+            max_pos = pl.col("__rank_pos__").max().over(dense_group_cols)
+            out = lf.with_columns((max_pos.cast(pl.Float64) / count_n.cast(pl.Float64)).alias(output_column))
+            return out.drop("__rank_pos__", "__rank_isnew__", "__rank_dense__")
+
+        # average / min / max / dense / ordinal, multi-column case.
+        if method == "ordinal":
+            out = lf.with_columns(pl.col("__rank_pos__").cast(pl.Float64).alias(output_column))
+            return out.drop("__rank_pos__")
+        change_exprs = []
+        for c in order_by:
+            prev = pl.col(c).shift(1)
+            if group_by:
+                prev = prev.over(group_by)
+            change_exprs.append(prev.is_null() | (pl.col(c) != prev))
+        is_new = pl.any_horizontal(change_exprs) if len(change_exprs) > 1 else change_exprs[0]
+        lf = lf.with_columns(is_new.cast(pl.Int64).alias("__rank_isnew__"))
+        dense_expr = pl.col("__rank_isnew__").cum_sum()
+        if group_by:
+            dense_expr = dense_expr.over(group_by)
+        lf = lf.with_columns(dense_expr.alias("__rank_dense__"))
+        if method == "dense":
+            out = lf.with_columns(pl.col("__rank_dense__").cast(pl.Float64).alias(output_column))
+            return out.drop("__rank_pos__", "__rank_isnew__", "__rank_dense__")
+        dense_group_cols = (group_by or []) + ["__rank_dense__"]
+        min_pos = pl.col("__rank_pos__").min().over(dense_group_cols)
+        max_pos = pl.col("__rank_pos__").max().over(dense_group_cols)
+        if method == "min":
+            result_expr = min_pos
+        elif method == "max":
+            result_expr = max_pos
+        else:  # average
+            result_expr = (min_pos + max_pos).cast(pl.Float64) / 2.0
+        out = lf.with_columns(result_expr.cast(pl.Float64).alias(output_column))
+        return out.drop("__rank_pos__", "__rank_isnew__", "__rank_dense__")
     raise ValueError(f"polars_pipeline op={kind!r} not supported. Valid: {sorted(_VALID_OPS)}")
 
 

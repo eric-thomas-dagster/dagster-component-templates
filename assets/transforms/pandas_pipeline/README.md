@@ -125,6 +125,8 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 | `pivot` | `index: [cols]`, `pivot_column: col`, `value_columns: [cols]`, `agg_func: sum` (or a `{value_col: agg}` dict), `pivot_values: [v, ...]` (optional), `fill_value` (optional) | ADF's **Pivot** transform, via `pd.pivot_table`. Multiple `value_columns` flatten `(value_col, pivot_value)` MultiIndex columns to `value_col_pivotvalue`. `pivot_values` restricts the output to exactly those pivot-column values — one absent from the data still produces a `fill_value`-filled column (same `pd.Categorical(..., categories=...)` technique as the standalone `cross_tab` component). |
 | `lookup` | `right: {ref: <step_id>}`, `on_columns`/`left_on`+`right_on`, `match_sort_by: [cols]` (optional), `match_sort_ascending: bool\|[bool, ...]` (optional, default `true`), `output_mode: columns\|is_match` (default `columns`), `output_column: <name>` (required for `is_match`) | ADF's **Lookup** transform. Default `output_mode: columns` behaves like a left join (NaN for no match). `match_sort_by` sorts the right side and keeps exactly the first match per key *before* merging — guarantees a true 1:1 lookup when multiple right-side rows share a key (e.g. "latest event per customer": `match_sort_by: [event_time]`, `match_sort_ascending: false`). `output_mode: is_match` adds a single boolean `output_column` instead of any right-side columns (same semi-join indicator-merge technique the `join` op's `semi`/`anti` use). |
 | `window_calculation` | `function: ntile\|cume_dist`, `order_by: [cols]`, `group_by: [cols]` (optional), `n: int` (required for `ntile`), `output_column: <name>` | Scoped to just these two — rank-equivalents are already covered by the standalone `rank` component and this component's own `sort`/`group_by`. `ntile` buckets rows 1..N as evenly as possible with the FIRST `(row_count mod n)` buckets getting the extra row, matching SQL's `NTILE` convention exactly (computed directly, not via `pd.qcut`, which spreads any remainder across the outer buckets instead — verified by hand: 10 rows / 4 buckets is `[3,3,2,2]`, not qcut's `[3,2,2,3]`). `cume_dist` is `Series.rank(method='max', pct=True)` — verified by hand against `[10, 20, 20, 30] -> [0.25, 0.75, 0.75, 1.0]`. |
+| `unpivot` | `id_columns: [cols]`, `value_columns: [cols]` (optional, default: all non-`id_columns`), `var_name: <name>` (default `variable`), `value_name: <name>` (default `value`), `drop_null_values: bool` (default `false`) | ADF's **Unpivot** transform — wide to long via `df.melt()`. Same field shape as the standalone `transforms/unpivot` component, minus its var_name/value_name collision-renaming (use a later `rename`/`select` op in the chain if that ever matters). |
+| `rank` | `order_by: col\|[cols]`, `method: average\|min\|max\|first\|dense\|ntile\|cume_dist` (default `average`), `ascending: bool\|[bool, ...]` (default `true`), `group_by: [cols]` (optional), `ntile_buckets: int` (required for `ntile`), `output_column: <name>` (default `{order_by}_rank`) | ADF's **Rank** transform, full tie-breaking method set (unlike `window_calculation`, scoped to just `ntile`/`cume_dist`) — same verified helpers as the standalone `rank` component, duplicated inline. Supports a multi-column `order_by` (ADF: several sort keys, like a SQL `ORDER BY` with several columns), each with its own `ascending` direction. |
 
 Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / median / std / var / first / last / nunique`. `pivot`'s `agg_func` is looser (any name `pd.pivot_table`'s own `aggfunc` recognizes, plus the same SQL-ish aliases as `cross_tab`: `avg/average/stddev/variance/countdistinct/distinct_count/concat`).
 
@@ -169,6 +171,26 @@ steps:
   group_by: [region]   # optional -- omit for a single global window
   n: 4
   output_column: score_quartile
+```
+
+### `unpivot` example (closes ADF's **Unpivot** gap)
+
+```yaml
+- op: unpivot
+  id_columns: [customer_id]
+  value_columns: [q1_revenue, q2_revenue, q3_revenue, q4_revenue]
+  var_name: quarter
+  value_name: revenue
+```
+
+### `rank` example (closes ADF's **Rank** gap — full tie-breaking method set)
+
+```yaml
+- op: rank
+  order_by: [score]
+  method: dense
+  group_by: [region]   # optional -- omit for a single global rank
+  output_column: score_rank
 ```
 
 ## Source kinds

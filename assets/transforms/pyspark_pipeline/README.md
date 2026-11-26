@@ -116,13 +116,27 @@ attributes:
 
 ## Supported ops
 
-`filter` / `select` / `drop` / `rename` / `with_columns` (SQL expressions) / `group_by` / `sort` / `limit` / `distinct` / `drop_nulls`.
+`filter` / `select` / `drop` / `rename` / `with_columns` (SQL expressions) / `group_by` / `sort` / `limit` / `distinct` / `drop_nulls` / `join` / `union` / `sql`.
 
 Aggregations in `group_by`: `sum / mean / avg / min / max / count / countDistinct / first / last / stddev / variance`.
+
+`join` takes `right: {ref: <step_id>}` plus either `on_columns`/`on` (same column names on both sides), or `left_on` + `right_on` (different names), or `how: cross`. `how` is any real Spark join type string (`inner`, `left`/`left_outer`, `right`/`right_outer`, `outer`/`full`, `left_semi`/`semi`, `left_anti`/`anti`, `cross`).
+
+`union` takes `other: {ref: <step_id>}` and an optional `distinct: true` to dedupe after unioning.
+
+`sql` runs `spark.sql(...)`; the current chain is registered as the temp view `self`, and every earlier step's output is registered under its own step id — so a query can join `self` against any prior step by name.
 
 ## Local vs cluster
 
 For local development, set `spark.master: "local[*]"`. For a real cluster, point `spark.master` at the cluster URL (`spark://`, `yarn`, `k8s://...`) and add cluster-specific configs to `spark_config:`.
+
+## Running this component's tests locally
+
+PySpark needs a real JVM underneath it. `pip install "pyspark>=3.4.0"` alone isn't enough -- you
+also need a JDK (17+ recommended; tested against OpenJDK 17 + PySpark 4.3.0) with `JAVA_HOME` set,
+e.g. on macOS: `brew install openjdk@17 && export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`.
+`tests/conftest.py` skips this component's test suite cleanly (not a hard failure) when no usable
+Spark/JVM is found, which is also why these tests aren't part of the curated per-push CI suite.
 
 ## Partitioning
 

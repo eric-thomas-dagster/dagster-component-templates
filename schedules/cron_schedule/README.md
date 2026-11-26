@@ -13,6 +13,7 @@ Two modes — same field surface:
 - **Cron validated against cadence** — a daily cron paired with hourly partitions raises `ValueError` at load time instead of failing silently.
 - **Non-boundary fire times in partitioned mode** — `cron_expression: "15 9 * * *"` + `partition_type: daily` produces a daily schedule that fires at 09:15 instead of the default 00:00.
 - **Multi-axis partitions** — declare `partition_dimensions: [{name, type, start, ...}]` for time × static / time × dynamic combinations.
+- **Calendar conditions** — `calendar_condition: last_day_of_month | last_business_day_of_month | first_business_day_of_month` gates a cron on a calendar boundary cron alone can't express (see below).
 
 ## Airflow migration: `@once`, `end_date`, `logical_date`
 
@@ -38,6 +39,30 @@ attributes:
   add_logical_date_tag: true
   end_date: "2026-06-01"
 ```
+
+## `calendar_condition`: last day of month, business-day boundaries
+
+Plain cron can't express "the actual last day of the month" (28-31, varies) or a business-day
+boundary at all — only a fixed day-of-month number. `calendar_condition` closes that gap: set
+`cron_expression` to fire on every CANDIDATE day near the boundary, and `calendar_condition` gates
+every tick down to the one true match, skipping the rest.
+
+```yaml
+# Replaces a hand-written schedule that fires on 0 23 28-31 * * and then has to work out,
+# inside the job itself, whether tomorrow is actually the 1st of the month.
+attributes:
+  schedule_name: month_end_close
+  asset_keys: ["finance/month_end_journal"]
+  cron_expression: "0 23 28-31 * *"
+  calendar_condition: last_day_of_month
+```
+
+Three conditions: `last_day_of_month`, `last_business_day_of_month`, `first_business_day_of_month`
+(pair the last two with a cron day-of-month range like `28-31` / `1-3` to cover every month's real
+range of candidate dates). "Business day" means Mon–Fri only — there's no holiday calendar here;
+holidays vary by locale and company, so a real holiday list needs a hand-written sensor instead.
+Only valid with `cadence: scheduled`; in the partitioned path it requires `cron_expression` to be
+set explicitly, same as `end_date`/`add_logical_date_tag` above.
 
 ## Airflow `CronPartitionTimetable` / `PartitionedAssetTimetable` → Dagster mapping
 
@@ -126,6 +151,7 @@ or needs converter-side string parsing (`ProductMapper`) rather than a Dagster p
 | `add_logical_date_tag` | `bool` | `false` | If true, tags each run with 'logical_date' -- Airflow's run-identifying timestamp. Partitioned: the partition window's start (Airflow's own definition: logical_date = start of the data interval). Un-partitioned: the sche… _(full docs in schema.json + component README)_ |
 | `add_interval_tags` | `bool` | `false` | If true, also tags each run with 'data_interval_start' / 'data_interval_end' (ISO8601) -- the window of data this run covers, for pipelines that process 'the interval that just ended' rather than a single point in time… _(full docs in schema.json + component README)_ |
 | `skip_first_tick` | `bool` | `false` | If true, the first tick this schedule ever fires for is skipped instead of launching a run -- avoids a long/expensive run firing immediately right after a fresh deploy, for a schedule whose cadence (e.g. weekly) means th… _(full docs in schema.json + component README)_ |
+| `calendar_condition` | `str` | — | 'last_day_of_month' \| 'last_business_day_of_month' \| 'first_business_day_of_month'. When set, each tick is ADDITIONALLY gated by this calendar check (on the tick's own scheduled_execution_time date, in execution_timezo… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). NOTE: the schedule rejects dynamic-only partitions. |
 
 [//]: # (FIELDS:END)

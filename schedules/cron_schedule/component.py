@@ -273,6 +273,35 @@ def _parse_iso_datetime(value: str):
     return dt
 
 
+_CALENDAR_CONDITIONS = ("last_day_of_month", "last_business_day_of_month", "first_business_day_of_month")
+
+
+def _calendar_condition_matches(condition: str, day) -> bool:
+    """`day` is a datetime.date (the tick's own scheduled_execution_time date). 'business day' is
+    plain Mon-Fri (weekday() < 5) -- no holiday calendar, see the field's own docstring for why."""
+    import calendar as _calendar_mod
+
+    days_in_month = _calendar_mod.monthrange(day.year, day.month)[1]
+    last_calendar_day = day.replace(day=days_in_month)
+
+    if condition == "last_day_of_month":
+        return day == last_calendar_day
+
+    if condition == "last_business_day_of_month":
+        d = last_calendar_day
+        while d.weekday() >= 5:  # walk back from month-end past Sat/Sun
+            d = d.replace(day=d.day - 1)
+        return day == d
+
+    if condition == "first_business_day_of_month":
+        d = day.replace(day=1)
+        while d.weekday() >= 5:  # walk forward from the 1st past Sat/Sun
+            d = d.replace(day=d.day + 1)
+        return day == d
+
+    raise ValueError(f"unknown calendar_condition: {condition!r}")  # unreachable -- validated at model-validation time
+
+
 def _schedule_already_fired_before(sched_context, schedule_name: str) -> bool:
     """skip_first_tick: has this schedule EVER requested a run before -- Dagster's own
     'dagster/schedule_name' tag, queried via run history, not a fixed delay or a new state file.
@@ -457,6 +486,23 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    calendar_condition: Optional[str] = Field(
+        default=None,
+        description=(
+            "'last_day_of_month' | 'last_business_day_of_month' | 'first_business_day_of_month'. "
+            "When set, each tick is ADDITIONALLY gated by this calendar check (on the tick's own "
+            "scheduled_execution_time date, in execution_timezone) on top of cron_expression -- cron "
+            "alone can't express 'the actual last day of the month' (28-31, varies) or a business-day "
+            "boundary. Typical use: set cron_expression to fire on every CANDIDATE day near the "
+            "boundary (e.g. '0 23 28-31 * *' for last_day_of_month, '0 9 1-3 * *' for "
+            "first_business_day_of_month) and this filters every other candidate tick down to a "
+            "SkipReason, leaving exactly the one true match. 'business day' means Mon-Fri only -- no "
+            "holiday calendar (holidays vary by locale/company; a real holiday list needs a "
+            "hand-written sensor instead). Only valid with cadence='scheduled'; requires "
+            "cron_expression explicitly in the partitioned path (see end_date)."
+        ),
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description=(
@@ -533,8 +579,12 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError("cadence='once' has no interval to tag -- unset add_interval_tags.")
             if self.skip_first_tick:
                 raise ValueError("cadence='once' has only one tick, ever -- skip_first_tick would skip it entirely. Unset skip_first_tick.")
+            if self.calendar_condition:
+                raise ValueError("cadence='once' has no recurring calendar to gate -- unset calendar_condition.")
         if self.add_interval_tags and not (self.partition_type or self.partition_dimensions):
             raise ValueError("add_interval_tags requires partition_type/partition_dimensions -- the un-partitioned path has no interval, only a single trigger instant.")
+        if self.calendar_condition and self.calendar_condition not in _CALENDAR_CONDITIONS:
+            raise ValueError(f"calendar_condition must be one of {_CALENDAR_CONDITIONS}, got {self.calendar_condition!r}.")
         return self
 
     @classmethod
@@ -589,7 +639,7 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
             return Definitions(sensors=[sensor], jobs=[job])
 
         _end_dt = _parse_iso_datetime(self.end_date) if self.end_date else None
-        _advanced = bool(_end_dt or self.add_logical_date_tag or self.add_interval_tags or self.skip_first_tick)
+        _advanced = bool(_end_dt or self.add_logical_date_tag or self.add_interval_tags or self.skip_first_tick or self.calendar_condition)
 
         _is_partitioned = bool(self.partition_type or self.partition_dimensions)
 
@@ -632,7 +682,12 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 ]
                 _cadence = _time_axes[0] if _time_axes else None
 
-            if self.cron_expression and _cadence:
+            if self.cron_expression and _cadence and not self.calendar_condition:
+                # calendar_condition's whole point is a cron that fires on SEVERAL candidate days
+                # per period (e.g. '1-3' for first_business_day_of_month, '28-31' for
+                # last_day_of_month) -- the "fires exactly once per period" check below would
+                # always reject that on purpose; calendar_condition's own per-tick gate (see
+                # _execution_fn below) is what narrows candidates down to the one true match.
                 _validate_cron_for_cadence(self.cron_expression, _cadence)
 
             job = define_asset_job(
@@ -650,19 +705,21 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
                 # execution_fn + evaluate_tick against a real partitioned job.
                 if not self.cron_expression:
                     raise ValueError(
-                        "cron_expression is required when using end_date/"
-                        "add_logical_date_tag/skip_first_tick with a partitioned "
-                        "schedule -- the auto-inferred-cadence cron used when none "
-                        "of those is set doesn't apply to this manually-built path."
+                        "cron_expression is required when using end_date/add_logical_date_tag/"
+                        "skip_first_tick/calendar_condition with a partitioned schedule -- the "
+                        "auto-inferred-cadence cron used when none of those is set doesn't apply "
+                        "to this manually-built path."
                     )
                 _pd, _end, _tag, _interval_tag, _tags = partitions_def, _end_dt, self.add_logical_date_tag, self.add_interval_tags, self.tags
-                _skip_first, _sched_name = self.skip_first_tick, self.schedule_name
+                _skip_first, _sched_name, _cal = self.skip_first_tick, self.schedule_name, self.calendar_condition
 
-                def _execution_fn(sched_context, _pd=_pd, _end=_end, _tag=_tag, _interval_tag=_interval_tag, _tags=_tags, _skip_first=_skip_first, _sched_name=_sched_name):
+                def _execution_fn(sched_context, _pd=_pd, _end=_end, _tag=_tag, _interval_tag=_interval_tag, _tags=_tags, _skip_first=_skip_first, _sched_name=_sched_name, _cal=_cal):
                     if _end and sched_context.scheduled_execution_time >= _end:
                         return dg.SkipReason(f"past end_date {_end.isoformat()}")
                     if _skip_first and not _schedule_already_fired_before(sched_context, _sched_name):
                         return dg.SkipReason("skip_first_tick=true -- skipping this schedule's first-ever tick")
+                    if _cal and not _calendar_condition_matches(_cal, sched_context.scheduled_execution_time.date()):
+                        return dg.SkipReason(f"calendar_condition={_cal!r} doesn't match this tick's date")
                     window = _pd.get_last_partition_window()
                     if window is None:
                         return dg.SkipReason("no completed partition yet")
@@ -714,13 +771,15 @@ class CronScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
             )
             if _advanced:
                 _end, _tag, _tags = _end_dt, self.add_logical_date_tag, self.tags
-                _skip_first, _sched_name = self.skip_first_tick, self.schedule_name
+                _skip_first, _sched_name, _cal = self.skip_first_tick, self.schedule_name, self.calendar_condition
 
-                def _execution_fn(sched_context, _end=_end, _tag=_tag, _tags=_tags, _skip_first=_skip_first, _sched_name=_sched_name):
+                def _execution_fn(sched_context, _end=_end, _tag=_tag, _tags=_tags, _skip_first=_skip_first, _sched_name=_sched_name, _cal=_cal):
                     if _end and sched_context.scheduled_execution_time >= _end:
                         return dg.SkipReason(f"past end_date {_end.isoformat()}")
                     if _skip_first and not _schedule_already_fired_before(sched_context, _sched_name):
                         return dg.SkipReason("skip_first_tick=true -- skipping this schedule's first-ever tick")
+                    if _cal and not _calendar_condition_matches(_cal, sched_context.scheduled_execution_time.date()):
+                        return dg.SkipReason(f"calendar_condition={_cal!r} doesn't match this tick's date")
                     merged_tags = dict(_tags or {})
                     if _tag:
                         merged_tags["logical_date"] = sched_context.scheduled_execution_time.isoformat()

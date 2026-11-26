@@ -151,6 +151,12 @@
       "label": "Skip First Tick",
       "description": "If true, the first tick this schedule ever fires for is skipped instead of launching a run -- avoids a long/expensive run firing immediately right after a fresh deploy, for a schedule whose cadence (e.g. weekly) means that first tick often lands soon after activation. Detected by querying run history for any PRIOR run tagged with this schedule's name (Dagster's own 'dagster/schedule_name' tag) -- not a fixed delay, so it correctly skips exactly once per activation (including after a daemon restart) and never skips again once a run has actually been requested.",
       "required": false
+    },
+    "calendar_condition": {
+      "type": "string",
+      "label": "Calendar Condition",
+      "description": "'last_day_of_month' \\| 'last_business_day_of_month' \\| 'first_business_day_of_month'. When set, each tick is ADDITIONALLY gated by this calendar check (on the tick's own scheduled_execution_time date, in execution_timezone) on top of cron_expression -- cron alone can't express 'the actual last day of the month' (28-31, varies) or a business-day boundary. Typical use: set cron_expression to fire on every CANDIDATE day near the boundary (e.g. '0 23 28-31 * *' for last_day_of_month, '0 9 1-3 * *' for first_business_day_of_month) and this filters every other candidate tick down to a SkipReason, leaving exactly the one true match. 'business day' means Mon-Fri only -- no holiday calendar (holidays vary by locale/company; a real holiday list needs a hand-written sensor instead). Only valid with cadence='scheduled'; requires cron_expression explicitly in the partitioned path (see end_date).",
+      "required": false
     }
   },
   "tags": [

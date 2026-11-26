@@ -64,6 +64,81 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
     raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
 
 
+_STREAMSETS_FIELD_TYPES = (
+    "boolean", "byte", "short", "integer", "long", "float", "double",
+    "string", "byte_array", "datetime",
+)
+
+
+def streamsets_field_bytes(value: Any, field_type: Optional[str] = None) -> bytes:
+    """Serialize `value` exactly the way StreamSets Data Collector's real Field Hasher does, confirmed by
+    reading its own open-source implementation directly (com.streamsets.pipeline.lib.hashing.HashingUtil.
+    RecordFunnel.funnel(), Guava's PrimitiveSink): a null field is a single sentinel byte (Guava's own
+    putBoolean(true) call for a null value), BOOLEAN is 1 byte (0/1), and every fixed-width numeric type is
+    written LITTLE-ENDIAN at its own native width (Guava's AbstractStreamingHasher convention, confirmed by
+    independently reproducing a reported real-engine MD5 of the integer 42: int32 little-endian 42 ->
+    md5 9824a7030ce67cf3f0efe7529f0c6ecc, matching byte-for-byte) -- NOT the text representation this
+    component's default (encoding unset) hash mode uses. Only STRING/DECIMAL fields are UTF-8 text bytes;
+    BYTE_ARRAY is passed through unchanged; DATE/TIME/DATETIME are all an 8-byte little-endian epoch-millis
+    LONG (Guava's putLong(field.getValueAsDate().getTime())).
+
+    `field_type` pins the exact StreamSets Field.Type this value had when StreamSets hashed it (one of
+    boolean/byte/short/integer/long/float/double/string/byte_array/datetime) -- set it when you know it, e.g.
+    from the source schema. Left unset, this infers the narrowest StreamSets numeric type Data Collector's own
+    data-driven parsers (JSON, CSV with inferred types, Avro-less text) would have picked for that value: a
+    bool is BOOLEAN; an int fitting in a signed 32-bit range is INTEGER (4 bytes), otherwise LONG (8 bytes);
+    a float is always DOUBLE (8 bytes); anything with a `.timestamp()` method (`datetime.datetime`,
+    `pandas.Timestamp`) is DATETIME -- Data Collector's own JSON/text parsers never infer the narrower
+    FLOAT/SHORT/BYTE types on their own, only an explicit schema or a Field Type Converter stage does, which
+    this best-effort inference cannot see. Pin `field_type` explicitly if your source pipeline used one of
+    those narrower types (or BOOLEAN-as-integer-flag, etc.) -- the hash will otherwise come out wrong for
+    that specific field, silently (a different valid StreamSets digest, not an error)."""
+    import struct
+
+    if value is None or (not isinstance(value, (bytes, bytearray)) and pd.isna(value)):
+        return b"\x01"  # Guava's putBoolean(true) null-field sentinel
+
+    ft = field_type
+    if ft is None:
+        if isinstance(value, bool):
+            ft = "boolean"
+        elif isinstance(value, int):
+            ft = "integer" if -(2**31) <= value <= 2**31 - 1 else "long"
+        elif isinstance(value, float):
+            ft = "double"
+        elif isinstance(value, (bytes, bytearray)):
+            ft = "byte_array"
+        elif hasattr(value, "timestamp") and callable(value.timestamp):  # datetime.datetime / pd.Timestamp
+            ft = "datetime"
+        else:
+            ft = "string"
+    elif ft not in _STREAMSETS_FIELD_TYPES:
+        raise ValueError(f"field_type must be one of {_STREAMSETS_FIELD_TYPES}, got {field_type!r}")
+
+    if ft == "boolean":
+        return b"\x01" if bool(value) else b"\x00"
+    if ft == "byte":
+        return struct.pack("<b", int(value))
+    if ft == "short":
+        return struct.pack("<h", int(value))
+    if ft == "integer":
+        return struct.pack("<i", int(value))
+    if ft == "long":
+        return struct.pack("<q", int(value))
+    if ft == "float":
+        return struct.pack("<f", float(value))
+    if ft == "double":
+        return struct.pack("<d", float(value))
+    if ft == "datetime":
+        # StreamSets' own getTime() is epoch MILLISECONDS; .timestamp() is epoch SECONDS (a float), so
+        # this must multiply by 1000 before truncating to an int. `value` itself may already be a plain
+        # epoch-seconds number (field_type explicitly pinned) rather than a datetime/Timestamp object.
+        seconds = value.timestamp() if hasattr(value, "timestamp") else float(value)
+        return struct.pack("<q", int(round(seconds * 1000)))
+    if ft == "byte_array":
+        return bytes(value)
+    return str(value).encode("utf-8")
+
 
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
 from typing import List, Optional, Union  # noqa: E402,F401
@@ -173,6 +248,18 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
             "'murmur3_128'; 'sha256' truncates+salts ONLY when `hash_mode` is also the default "
             "'in_place' -- the original, unchanged behavior -- every other algorithm/hash_mode "
             "combination is a full, unsalted hex digest, matching StreamSets' own output), "
+            "`encoding` (unset default: hash the value's TEXT representation, this component's "
+            "original behavior; 'streamsets': hash the value as StreamSets' real Field Hasher "
+            "does -- each value's own native per-type bytes, little-endian, not its text form -- "
+            "this is a REAL behavior difference confirmed against StreamSets' own open-source "
+            "Field Hasher code, not a cosmetic option: an INTEGER/LONG/DOUBLE/BOOLEAN column "
+            "hashed with encoding unset will NOT match a hash StreamSets itself produced for the "
+            "same values), `field_type` (encoding='streamsets' only; pins the exact StreamSets "
+            "Field.Type a value had -- one of boolean/byte/short/integer/long/float/double/string/"
+            "byte_array/datetime -- when left unset this infers the narrowest type Data "
+            "Collector's own JSON/text parsers would pick, which cannot see a narrower type an "
+            "explicit schema or Field Type Converter stage assigned upstream; see "
+            "streamsets_field_bytes()'s own docstring for exactly what is and isn't inferred), "
             "`hash_mode` ('in_place' default | 'target_field' | 'record'), `output_field` "
             "(required for target_field/record), `columns` (list, required for 'record' -- "
             "fields concatenated together before hashing), `field_separator` (appended after "
@@ -348,6 +435,33 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
                     algorithm = rule.get("algorithm", "sha256")
                     hash_mode = rule.get("hash_mode", "in_place")
                     field_separator = rule.get("field_separator", "")
+                    encoding = rule.get("encoding")
+                    field_type = rule.get("field_type")
+                    if encoding not in (None, "streamsets"):
+                        raise ValueError(f"unknown encoding: {encoding!r}; the only supported value is 'streamsets'")
+                    if field_type is not None and hash_mode == "record":
+                        raise ValueError(
+                            "field_type is not supported with hash_mode='record' (it spans several columns, "
+                            "each with its own type) -- leave field_type unset; each column's type is inferred "
+                            "independently per value"
+                        )
+
+                    def _hash_bytes(data: bytes, _algorithm=algorithm) -> str:
+                        # The encoding='streamsets' path: `data` is ALREADY the exact bytes StreamSets'
+                        # own Field Hasher would hash (see streamsets_field_bytes) -- a full, unsalted
+                        # hex digest, same as the text path's non-default combinations below.
+                        if _algorithm in ("sha256", "md5", "sha1", "sha512"):
+                            return hashlib.new(_algorithm, data).hexdigest()
+                        if _algorithm == "murmur3_128":
+                            try:
+                                import mmh3
+                            except ImportError as e:
+                                raise ImportError(
+                                    "algorithm='murmur3_128' requires the 'mmh3' package. "
+                                    "Run: pip install mmh3"
+                                ) from e
+                            return mmh3.mmh3_x64_128_digest(data, 0).hex()
+                        raise ValueError(f"unknown hash algorithm: {_algorithm!r}")
 
                     def _digest(value: str, _algorithm=algorithm, _hash_mode=hash_mode, _salt=salt) -> str:
                         # Only the ORIGINAL code path -- default algorithm 'sha256' in the
@@ -393,13 +507,25 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
                             return mmh3.mmh3_x64_128_digest(value.encode(), 0).hex()
                         raise ValueError(f"unknown hash algorithm: {_algorithm!r}")
 
+                    if encoding == "streamsets":
+                        # Raw typed values reach streamsets_field_bytes -- do NOT .astype(str) first,
+                        # that's exactly the bug this mode exists to avoid (see its docstring).
+                        def _digest_streamsets(value, _field_type=field_type):
+                            return _hash_bytes(streamsets_field_bytes(value, _field_type))
+
                     if hash_mode == "in_place":
-                        df[col] = df[col].astype(str).apply(_digest)
+                        if encoding == "streamsets":
+                            df[col] = df[col].apply(_digest_streamsets)
+                        else:
+                            df[col] = df[col].astype(str).apply(_digest)
                     elif hash_mode == "target_field":
                         output_field = rule.get("output_field")
                         if not output_field:
                             raise ValueError("hash_mode='target_field' requires 'output_field'")
-                        df[output_field] = df[col].astype(str).apply(_digest)
+                        if encoding == "streamsets":
+                            df[output_field] = df[col].apply(_digest_streamsets)
+                        else:
+                            df[output_field] = df[col].astype(str).apply(_digest)
                     elif hash_mode == "record":
                         output_field = rule.get("output_field")
                         if not output_field:
@@ -413,14 +539,28 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
                         # field's value, including the last one -- it is not a between-fields
                         # join. Field names are never included, only values (confirmed from
                         # StreamSets' own current documentation for the Field Hasher processor).
-                        def _record_concat(row, _cols=record_columns, _sep=field_separator):
-                            parts = []
-                            for c in _cols:
-                                v = row[c]
-                                parts.append(("" if pd.isna(v) else str(v)) + _sep)
-                            return "".join(parts)
+                        if encoding == "streamsets":
+                            # Native-byte parity: each field's own typed bytes (streamsets_field_bytes),
+                            # followed by the separator's UTF-8 bytes -- matching Guava's RecordFunnel,
+                            # which writes sink.putString(separator, UTF-8) after every field.
+                            sep_bytes = field_separator.encode("utf-8")
 
-                        df[output_field] = df.apply(lambda row: _digest(_record_concat(row)), axis=1)
+                            def _record_bytes(row, _cols=record_columns, _sep=sep_bytes, _field_type=field_type):
+                                data = b""
+                                for c in _cols:
+                                    data += streamsets_field_bytes(row[c], _field_type) + _sep
+                                return data
+
+                            df[output_field] = df.apply(lambda row: _hash_bytes(_record_bytes(row)), axis=1)
+                        else:
+                            def _record_concat(row, _cols=record_columns, _sep=field_separator):
+                                parts = []
+                                for c in _cols:
+                                    v = row[c]
+                                    parts.append(("" if pd.isna(v) else str(v)) + _sep)
+                                return "".join(parts)
+
+                            df[output_field] = df.apply(lambda row: _digest(_record_concat(row)), axis=1)
                     else:
                         raise ValueError(f"unknown hash_mode: {hash_mode!r}")
                 elif method == "partial":

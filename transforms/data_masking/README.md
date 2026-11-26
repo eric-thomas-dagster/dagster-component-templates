@@ -89,24 +89,45 @@ required* `output_field`. That variant's exact mechanics couldn't be
 confirmed from source (same closed-source gap as MURMUR3_128) — only the
 clearly-documented `record` (whole-record) shape is implemented.
 
-**A type-native hashing mode was requested but NOT implemented, because the
-premise doesn't hold against the one real source available.** The ask was:
-hash a numeric/boolean field's native binary representation (e.g. an int as
-4 little-endian bytes) rather than its text form, so non-string-column
-hashes match StreamSets' own output. Reading StreamSets' actual open-source
-`FieldHasherProcessor.java` directly (not inferred) shows the opposite:
-`generateHashForField` always converts the value to its **string**
-representation first (`getValueAsString()` — `String.valueOf(...)` for
-every type including `INTEGER`/`LONG`/`DOUBLE`/`BOOLEAN`), then hashes the
-UTF-8 bytes of that string — exactly what this component already does for
-every algorithm, with no native-byte path anywhere in the file. Either the
-request is describing a newer, closed-source behavior change this public
-snapshot predates (same gap as MURMUR3_128, above), or the premise is
-mistaken — either way, implementing a guessed byte-packing scheme here
-would produce hashes that *look* StreamSets-compatible but aren't verified
-to be, which is worse than not having the feature. If a real StreamSets
-instance's hash of a known int/double/boolean value becomes available,
-that would settle it either way.
+**Type-native hashing IS implemented (`encoding: streamsets`) — a prior note here claiming the premise
+didn't hold was itself wrong**, traced to a method name (`generateHashForField`) that does not exist
+anywhere in StreamSets' real open-source `FieldHasherProcessor.java`. The actual byte-producing code path
+(confirmed by reading it directly, following the real call graph: `performHashingForFields` ->
+`generateHash`/`handleHashingForTarget` -> `HashingUtil.getRecordFunnel(...)` ->
+`hasher.hashObject(record, recordFunnel)` -> `RecordFunnel.funnel()`, in
+`com.streamsets.pipeline.lib.hashing.HashingUtil.java`) dispatches on the field's real StreamSets type and
+writes each one through Guava's typed `PrimitiveSink` methods -- `putBoolean`/`putByte`/`putShort`/
+`putInt`/`putLong`/`putFloat`/`putDouble`, each its own native little-endian width, DATE/TIME/DATETIME as
+an 8-byte little-endian epoch-millis `putLong`, and `putString` (UTF-8) for STRING/DECIMAL only. This is
+corroborated independently, not just by re-reading the source: a reported real Data Collector 6.4.1 MD5 of
+the INTEGER field `42` (`9824a7030ce67cf3f0efe7529f0c6ecc`) is reproduced exactly by hashing int32
+little-endian `42` (`\x2a\x00\x00\x00`) -- see `streamsets_field_bytes()` in `component.py` and
+`tests/test_hash_streamsets_native_bytes.py`.
+
+```yaml
+rules:
+  - column: customer_id        # an INTEGER/LONG column in the source system
+    method: hash
+    algorithm: md5
+    encoding: streamsets        # native per-type bytes, not text -- see above
+```
+
+`encoding: streamsets` (default: unset, the original text-hashing behavior above, unaffected) applies to
+`in_place`/`target_field`/`record` alike. StreamSets' own type for a value isn't carried through a pandas
+DataFrame, so by default this infers the narrowest type Data Collector's own JSON/CSV parsers would have
+picked (a bool -> BOOLEAN; an int fitting a signed 32-bit range -> INTEGER, else LONG; a float -> DOUBLE;
+anything with a `.timestamp()` method -> DATETIME; anything else -> STRING) -- it CANNOT see a narrower
+type (FLOAT/SHORT/BYTE, or an integer-flag meant as BOOLEAN) that only an explicit schema or a Field Type
+Converter stage assigned upstream in the real pipeline. Set `field_type` (one of boolean/byte/short/
+integer/long/float/double/string/byte_array/datetime) to pin it explicitly when you know it; getting this
+wrong produces a different, still-valid-looking StreamSets digest silently, not an error. `field_type` is
+per-rule (one column in `in_place`/`target_field` mode) and is rejected with a clear error in `record` mode,
+which spans several columns that may each have a different real type -- each column's type there is always
+inferred independently per value.
+
+MURMUR3_128's byte-for-byte parity caveat above still applies unchanged with `encoding: streamsets` --
+only the input bytes fed to it changed (native vs. text), not the confidence level of the algorithm match
+itself.
 
 ## StreamSets Field Masker parity
 

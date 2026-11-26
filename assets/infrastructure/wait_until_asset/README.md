@@ -27,6 +27,22 @@ attributes:
 | `file_exists` | a glob pattern matches at least one path | `file_pattern` |
 | `time_of_day` | today's wall-clock time (in `timezone`) has passed `time_of_day` | `time_of_day` |
 | `delay` | `delay_seconds` have passed since the run's reference time | `delay_seconds` |
+| `sftp_file_exists` | `sftp_path` exists on an SFTP server (checked via `stat`, not a glob) | `sftp_host_env_var`, `sftp_username_env_var`, `sftp_path`, + `sftp_password_env_var` or `sftp_private_key_env_var` |
+| `s3_key_exists` | `s3_key` exists in `s3_bucket` (checked via `head_object`) | `s3_bucket`, `s3_key` |
+| `gcs_object_exists` | `gcs_blob_name` exists in `gcs_bucket` | `gcs_bucket`, `gcs_blob_name` |
+| `http_ok` | a `GET` to `http_url` returns a 2xx status (anything else, including a connection error, is "not yet met") | `http_url` |
+
+## `sftp_file_exists` / `s3_key_exists` / `gcs_object_exists` / `http_ok`
+
+Same auth conventions as this package's own ingestion components, not a new pattern:
+`sftp_file_exists` mirrors `sftp_to_database_asset`'s `host_env_var`/`username_env_var`/
+`password_env_var`/`private_key_env_var` (paramiko); `s3_key_exists` uses boto3's default
+credential/region chain, same as `s3_to_database_asset`; `gcs_object_exists` mirrors
+`gcs_to_database_asset`'s `credentials_env_var` (unset falls back to application-default
+credentials); `http_ok` mirrors `per_row_http_fetcher`'s `auth_type` (`none`/`basic`/`bearer`
+only here — no `oauth2_client_credentials`, since a poll check has no use for a short-lived
+token refresh loop). `sftp_file_exists` checks an exact path via SFTP `stat`, not a glob —
+SFTP has no native wildcard listing the way local `file_exists` does.
 
 ## `retry_exit_code` — a designated "not ready yet" exit code
 
@@ -98,6 +114,24 @@ for a single-asset op, same convention as `shell_command_asset`'s `skip_on_exit_
 | `time_of_day` | `str` | — | condition='time_of_day' only (required then): 'HH:MM' (24h) in `timezone`. Met once today's wall-clock time has passed it. |
 | `delay_seconds` | `float` | — | condition='delay' only (required then): seconds after the run's reference time that must have passed. |
 | `timezone` | `str` | — | IANA timezone for condition='time_of_day' (default UTC). |
+| `sftp_host_env_var` | `str` | — | condition='sftp_file_exists' only (required then): env var with the SFTP host. Same convention as sftp_to_database_asset's host_env_var. |
+| `sftp_username_env_var` | `str` | — | condition='sftp_file_exists' only (required then): env var with the SFTP username. |
+| `sftp_password_env_var` | `str` | — | condition='sftp_file_exists': env var with the SFTP password. Set this OR sftp_private_key_env_var. |
+| `sftp_private_key_env_var` | `str` | — | condition='sftp_file_exists': env var with a path to an SSH private key file. Set this OR sftp_password_env_var. |
+| `sftp_port` | `int` | `22` | condition='sftp_file_exists': SFTP port. |
+| `sftp_path` | `str` | — | condition='sftp_file_exists' only (required then): exact remote file path checked via SFTP stat each poll (no glob support -- SFTP has no native wildcard listing the way local file_exists does). |
+| `s3_bucket` | `str` | — | condition='s3_key_exists' only (required then): S3 bucket name. |
+| `s3_key` | `str` | — | condition='s3_key_exists' only (required then): exact S3 object key checked via head_object each poll. |
+| `aws_region` | `str` | — | condition='s3_key_exists': AWS region. Unset uses boto3's default credential/region chain. |
+| `gcs_bucket` | `str` | — | condition='gcs_object_exists' only (required then): GCS bucket name. |
+| `gcs_blob_name` | `str` | — | condition='gcs_object_exists' only (required then): exact GCS object name checked each poll. |
+| `gcs_credentials_env_var` | `str` | — | condition='gcs_object_exists': env var with a path to a GCP service account JSON key file. Unset uses application-default credentials. Same convention as gcs_to_database_asset's credentials_env_var. |
+| `http_url` | `str` | — | condition='http_ok' only (required then): URL checked via GET each poll. A 2xx response means met; anything else (including a connection error) means not yet met. |
+| `http_auth_type` | `Literal['none', 'basic', 'bearer']` | `"none"` | condition='http_ok': auth to attach to the GET request. Same convention as per_row_http_fetcher's auth_type (oauth2 not offered here -- a poll check has no use for a short-lived token refresh loop). |
+| `http_auth_username_env_var` | `str` | — | condition='http_ok', http_auth_type='basic' only (required then): env var with the basic-auth username. |
+| `http_auth_password_env_var` | `str` | — | condition='http_ok', http_auth_type='basic' only (required then): env var with the basic-auth password. |
+| `http_auth_token_env_var` | `str` | — | condition='http_ok', http_auth_type='bearer' only (required then): env var with the bearer token. |
+| `http_timeout_seconds` | `float` | `10` | condition='http_ok': request timeout in seconds for each poll's GET. |
 | `on_timeout` | `Literal['fail', 'skip']` | `"fail"` | 'fail' (default): raise and fail the run. 'skip': materialize successfully with metadata timed_out=true (Dagster has no native per-asset 'skipped' status; same convention as shell_command_asset's skip_on_exit_code). |
 
 [//]: # (FIELDS:END)
@@ -106,6 +140,13 @@ for a single-asset op, same convention as `shell_command_asset`'s `skip_on_exit_
 
 ```
 dagster
+paramiko>=3.0.0
+boto3>=1.26.0
+google-cloud-storage>=2.0.0
+requests
 ```
 
-No third-party dependency.
+`paramiko` is only needed for `condition='sftp_file_exists'`, `boto3` only for
+`'s3_key_exists'`, `google-cloud-storage` only for `'gcs_object_exists'`, and `requests`
+only for `'http_ok'` — the other conditions (`callable`, `shell_exit_zero`, `file_exists`,
+`time_of_day`, `delay`) need none of them.

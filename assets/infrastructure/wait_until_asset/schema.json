@@ -17,9 +17,9 @@
       "required": true
     },
     "condition": {
-      "description": "'callable': callable_path() returns truthy. 'shell_exit_zero': command exits 0. 'file_exists': a path matching file_pattern exists. 'time_of_day': now (in timezone) has passed time_of_day. 'delay': delay_seconds have passed since the run's reference time.",
+      "description": "'callable': callable_path() returns truthy. 'shell_exit_zero': command exits 0. 'file_exists': a path matching file_pattern exists. 'time_of_day': now (in timezone) has passed time_of_day. 'delay': delay_seconds have passed since the run's reference time. 'sftp_file_exists': sftp_path exists on the SFTP server. 's3_key_exists': s3_key exists in s3_bucket. 'gcs_object_exists': gcs_blob_name exists in gcs_bucket. 'http_ok': a GET to http_url returns a 2xx status.",
       "type": "string",
-      "enum": ["callable", "shell_exit_zero", "file_exists", "time_of_day", "delay"],
+      "enum": ["callable", "shell_exit_zero", "file_exists", "time_of_day", "delay", "sftp_file_exists", "s3_key_exists", "gcs_object_exists", "http_ok"],
       "label": "Condition",
       "required": true
     },
@@ -63,6 +63,115 @@
       "type": "string",
       "label": "Timezone",
       "description": "IANA timezone for condition='time_of_day' (default UTC).",
+      "required": false
+    },
+    "sftp_host_env_var": {
+      "type": "string",
+      "label": "Sftp Host Env Var",
+      "description": "condition='sftp_file_exists' only (required then): env var with the SFTP host. Same convention as sftp_to_database_asset's host_env_var.",
+      "required": false
+    },
+    "sftp_username_env_var": {
+      "type": "string",
+      "label": "Sftp Username Env Var",
+      "description": "condition='sftp_file_exists' only (required then): env var with the SFTP username.",
+      "required": false
+    },
+    "sftp_password_env_var": {
+      "type": "string",
+      "label": "Sftp Password Env Var",
+      "description": "condition='sftp_file_exists': env var with the SFTP password. Set this OR sftp_private_key_env_var.",
+      "required": false
+    },
+    "sftp_private_key_env_var": {
+      "type": "string",
+      "label": "Sftp Private Key Env Var",
+      "description": "condition='sftp_file_exists': env var with a path to an SSH private key file. Set this OR sftp_password_env_var.",
+      "required": false
+    },
+    "sftp_port": {
+      "type": "integer",
+      "label": "Sftp Port",
+      "description": "condition='sftp_file_exists': SFTP port.",
+      "required": false
+    },
+    "sftp_path": {
+      "type": "string",
+      "label": "Sftp Path",
+      "description": "condition='sftp_file_exists' only (required then): exact remote file path checked via SFTP stat each poll (no glob support -- SFTP has no native wildcard listing the way local file_exists does).",
+      "required": false
+    },
+    "s3_bucket": {
+      "type": "string",
+      "label": "S3 Bucket",
+      "description": "condition='s3_key_exists' only (required then): S3 bucket name.",
+      "required": false
+    },
+    "s3_key": {
+      "type": "string",
+      "label": "S3 Key",
+      "description": "condition='s3_key_exists' only (required then): exact S3 object key checked via head_object each poll.",
+      "required": false
+    },
+    "aws_region": {
+      "type": "string",
+      "label": "Aws Region",
+      "description": "condition='s3_key_exists': AWS region. Unset uses boto3's default credential/region chain.",
+      "required": false
+    },
+    "gcs_bucket": {
+      "type": "string",
+      "label": "Gcs Bucket",
+      "description": "condition='gcs_object_exists' only (required then): GCS bucket name.",
+      "required": false
+    },
+    "gcs_blob_name": {
+      "type": "string",
+      "label": "Gcs Blob Name",
+      "description": "condition='gcs_object_exists' only (required then): exact GCS object name checked each poll.",
+      "required": false
+    },
+    "gcs_credentials_env_var": {
+      "type": "string",
+      "label": "Gcs Credentials Env Var",
+      "description": "condition='gcs_object_exists': env var with a path to a GCP service account JSON key file. Unset uses application-default credentials. Same convention as gcs_to_database_asset's credentials_env_var.",
+      "required": false
+    },
+    "http_url": {
+      "type": "string",
+      "label": "Http Url",
+      "description": "condition='http_ok' only (required then): URL checked via GET each poll. A 2xx response means met; anything else (including a connection error) means not yet met.",
+      "required": false
+    },
+    "http_auth_type": {
+      "type": "string",
+      "enum": ["none", "basic", "bearer"],
+      "label": "Http Auth Type",
+      "description": "condition='http_ok': auth to attach to the GET request. Same convention as per_row_http_fetcher's auth_type (oauth2 not offered here -- a poll check has no use for a short-lived token refresh loop).",
+      "required": false
+    },
+    "http_auth_username_env_var": {
+      "type": "string",
+      "label": "Http Auth Username Env Var",
+      "description": "condition='http_ok', http_auth_type='basic' only (required then): env var with the basic-auth username.",
+      "required": false
+    },
+    "http_auth_password_env_var": {
+      "type": "string",
+      "label": "Http Auth Password Env Var",
+      "description": "condition='http_ok', http_auth_type='basic' only (required then): env var with the basic-auth password.",
+      "required": false
+    },
+    "http_auth_token_env_var": {
+      "type": "string",
+      "label": "Http Auth Token Env Var",
+      "description": "condition='http_ok', http_auth_type='bearer' only (required then): env var with the bearer token.",
+      "required": false
+    },
+    "http_timeout_seconds": {
+      "type": "number",
+      "label": "Http Timeout Seconds",
+      "description": "condition='http_ok': request timeout in seconds for each poll's GET.",
       "required": false
     },
     "poll_seconds": {

@@ -36,14 +36,16 @@
     "how": {
       "type": "string",
       "label": "How",
-      "description": "Join type: 'inner', 'left', 'right', 'outer', 'cross'",
+      "description": "Join type: 'inner', 'left', 'right', 'outer', 'cross', 'semi', 'anti'. 'semi' keeps left rows that HAVE a match in right; 'anti' keeps left rows that have NO match in right. Both work on either backend (pandas or polars). Neither adds any right-side columns to the output -- only left's own columns survive, filtered by match/no-match. Maps to Azure Data Factory's 'Exists' data flow transform.",
       "required": false,
       "default": "inner",
       "enum": [
         "inner",
         "left",
         "right",
-        "outer"
+        "outer",
+        "semi",
+        "anti"
       ],
       "ui:widget": "select"
     },

@@ -56,7 +56,7 @@
       "required": true
     },
     "how": {"label": "How", 
-      "description": "`f'Join type: one of {sorted(_VALID_HOWS)}'`",
+      "description": "Join type: one of ['anti', 'cross', 'full', 'inner', 'left', 'outer', 'right', 'semi']. 'semi' keeps left rows that HAVE a match in right; 'anti' keeps left rows that have NO match in right -- compiled as a portable WHERE EXISTS / NOT EXISTS subquery (not a dialect-specific SEMI/ANTI JOIN keyword), so no right-side columns are ever in the output. Maps to Azure Data Factory's 'Exists' data flow transform.",
       "type": "string",
       "enum": [
         "inner",
@@ -64,7 +64,9 @@
         "right",
         "outer",
         "full",
-        "cross"
+        "cross",
+        "semi",
+        "anti"
       ],
       "default": "inner"
     },

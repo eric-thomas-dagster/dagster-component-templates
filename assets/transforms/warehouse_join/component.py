@@ -26,7 +26,7 @@ from pydantic import Field
 
 _SUPPORTED_DIALECTS = {"duckdb", "postgres", "postgresql", "snowflake", "bigquery",
                         "redshift", "databricks", "mssql", "mysql"}
-_VALID_HOWS = {"inner", "left", "right", "outer", "full", "cross"}
+_VALID_HOWS = {"inner", "left", "right", "outer", "full", "cross", "semi", "anti"}
 
 
 class _SqlSession:
@@ -81,31 +81,57 @@ def _ctas_join(output_table: str, left_table: str, right_table: str,
                 mode: str, dialect: str) -> Optional[str]:
     if how not in _VALID_HOWS:
         raise ValueError(f"how={how!r} must be one of {sorted(_VALID_HOWS)}")
-    how_sql = {"outer": "FULL OUTER", "full": "FULL OUTER"}.get(how, how.upper())
 
     l = _quote(left_table, dialect)
     r = _quote(right_table, dialect)
-    if how == "cross":
-        on_clause = ""
-    elif on:
-        on_clause = "ON " + " AND ".join(
-            f"_l.{_quote(c, dialect)} = _r.{_quote(c, dialect)}" for c in on
+
+    if how in ("semi", "anti"):
+        # Standard SQL has no SEMI/ANTI JOIN keyword in most dialects (DuckDB
+        # and a few others support it as an extension, but this component's
+        # siblings need to run across every dialect in _SUPPORTED_DIALECTS).
+        # The portable idiom is a correlated EXISTS / NOT EXISTS subquery that
+        # filters rows of the left table alone -- no right-side columns ever
+        # appear in the result, matching ADF's "Exists" transform.
+        if on:
+            cond_pairs = [(c, c) for c in on]
+        elif left_on and right_on:
+            if len(left_on) != len(right_on):
+                raise ValueError("left_on and right_on must have the same length")
+            cond_pairs = list(zip(left_on, right_on))
+        else:
+            raise ValueError("Provide either 'on' OR both 'left_on' and 'right_on' for how='semi'/'anti'")
+        exists_cond = " AND ".join(
+            f"_r.{_quote(rc, dialect)} = _l.{_quote(lc, dialect)}" for lc, rc in cond_pairs
         )
-    elif left_on and right_on:
-        if len(left_on) != len(right_on):
-            raise ValueError("left_on and right_on must have the same length")
-        on_clause = "ON " + " AND ".join(
-            f"_l.{_quote(lc, dialect)} = _r.{_quote(rc, dialect)}"
-            for lc, rc in zip(left_on, right_on)
+        not_kw = "NOT " if how == "anti" else ""
+        select_clause = ", ".join(select_cols) if select_cols else "_l.*"
+        inner_sql = (
+            f"SELECT {select_clause} FROM {l} AS _l "
+            f"WHERE {not_kw}EXISTS (SELECT 1 FROM {r} AS _r WHERE {exists_cond})"
         )
     else:
-        raise ValueError("Provide either 'on' OR both 'left_on' and 'right_on' (unless how='cross')")
+        how_sql = {"outer": "FULL OUTER", "full": "FULL OUTER"}.get(how, how.upper())
+        if how == "cross":
+            on_clause = ""
+        elif on:
+            on_clause = "ON " + " AND ".join(
+                f"_l.{_quote(c, dialect)} = _r.{_quote(c, dialect)}" for c in on
+            )
+        elif left_on and right_on:
+            if len(left_on) != len(right_on):
+                raise ValueError("left_on and right_on must have the same length")
+            on_clause = "ON " + " AND ".join(
+                f"_l.{_quote(lc, dialect)} = _r.{_quote(rc, dialect)}"
+                for lc, rc in zip(left_on, right_on)
+            )
+        else:
+            raise ValueError("Provide either 'on' OR both 'left_on' and 'right_on' (unless how='cross')")
 
-    select_clause = ", ".join(select_cols) if select_cols else "_l.*, _r.*"
-    inner_sql = (
-        f"SELECT {select_clause} FROM {l} AS _l "
-        f"{how_sql} JOIN {r} AS _r {on_clause}".strip()
-    )
+        select_clause = ", ".join(select_cols) if select_cols else "_l.*, _r.*"
+        inner_sql = (
+            f"SELECT {select_clause} FROM {l} AS _l "
+            f"{how_sql} JOIN {r} AS _r {on_clause}".strip()
+        )
 
     out_quoted = _quote(output_table, dialect)
     if mode == "replace":
@@ -189,7 +215,17 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
     left_table: str = Field(description="Left-side table name (aliased as _l in select_cols)")
     right_table: str = Field(description="Right-side table name (aliased as _r in select_cols)")
     output_table: str = Field(description="Destination table name")
-    how: str = Field(default="inner", description=f"Join type: one of {sorted(_VALID_HOWS)}")
+    how: str = Field(
+        default="inner",
+        description=(
+            f"Join type: one of {sorted(_VALID_HOWS)}. 'semi' keeps left rows that "
+            "HAVE a match in right; 'anti' keeps left rows that have NO match in "
+            "right -- compiled as a portable WHERE EXISTS / NOT EXISTS subquery "
+            "(not a dialect-specific SEMI/ANTI JOIN keyword), so no right-side "
+            "columns are ever in the output. Maps to Azure Data Factory's "
+            "'Exists' data flow transform."
+        ),
+    )
     on_columns: Optional[List[str]] = Field(
         default=None,
         description=(

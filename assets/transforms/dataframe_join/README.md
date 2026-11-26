@@ -40,6 +40,8 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -62,7 +64,7 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 | `backend` | `str` | `"pandas"` | 'pandas' (default) or 'polars'. Polars uses .join() with the same how/on/left_on/right_on semantics and returns a polars DataFrame. |
 | `right_asset_key` | `str` | — | Right DataFrame asset key. Leave unset (or equal to `left_asset_key`) to self-join — the upstream frame is cloned in-process with all non-key columns prefixed by `right_prefix` (default 'Right_'). |
 | `additional_asset_keys` | `List[str]` | — | Optional list of further DataFrame asset keys to join in after `right` (N-way merge). Each is merged onto the running result using the same `how` / `on` / `suffixes`. Cannot be combined with `left_on`/`right_on`. |
-| `how` | `str` | `"inner"` | Join type: 'inner', 'left', 'right', 'outer', 'cross' |
+| `how` | `str` | `"inner"` | Join type: 'inner', 'left', 'right', 'outer', 'cross', 'semi', 'anti'. 'semi' keeps left rows that HAVE a match in right; 'anti' keeps left rows that have NO match in right. Both work on either backend (pandas or polars)… _(full docs in schema.json + component README)_ |
 | `on` | `List[Union[str, int]]` | — | Column(s) to join on (same name in both DataFrames) |
 | `left_on` | `List[Union[str, int]]` | — | Left join columns (when column names differ) |
 | `right_on` | `List[Union[str, int]]` | — | Right join columns (when column names differ) |
@@ -85,6 +87,25 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 - For a cross join, set `how: cross` and leave `on`, `left_on`, `right_on` as null.
 - Overlapping non-key columns are disambiguated using `suffixes`.
 - `backend: polars` preserves row order (`maintain_order`) matching the driving side's order for every `how` -- required since Polars 2.0 made its streaming query engine the default, which doesn't guarantee join row order otherwise (confirmed against a real, installed polars 2.0.0). `backend: pandas` (default) is unaffected -- pandas' `.merge()` already preserves this.
+
+## Semi / anti joins (`how: semi` / `how: anti`)
+
+`semi` keeps left rows that HAVE a match in right; `anti` keeps left rows that have NO match in right. Neither adds any right-side columns to the output -- only left's own columns survive, filtered by match/no-match. This maps to Azure Data Factory's **"Exists"** data flow transform (its "Exists" = semi, "Doesn't Exist" = anti).
+
+Works on both backends:
+- `backend: pandas` (default) -- pandas has no native semi/anti `.merge()`, so this is implemented via a left merge against right's deduped key columns with `indicator=True`, filtering on `_merge == "both"` (semi) or `"left_only"` (anti), then dropping the indicator.
+- `backend: polars` -- passes straight through to polars' own `.join(how="semi"/"anti")`.
+
+```yaml
+type: dagster_community_components.DataframeJoin
+attributes:
+  asset_name: customers_with_orders
+  left_asset_key: customers
+  right_asset_key: orders
+  how: semi        # customers that HAVE placed an order
+  "on":
+    - customer_id
+```
 
 ## YAML Example
 

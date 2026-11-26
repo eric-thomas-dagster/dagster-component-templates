@@ -189,6 +189,38 @@ def _pl_join_with_order_fallback(left_pl, right_pl, join_kwargs: dict):
         return left_pl.join(right_pl, **{k: v for k, v in join_kwargs.items() if k != "maintain_order"})
 
 
+def _semi_anti_join(left_df, right_df, how: str, on, left_on, right_on):
+    """pandas has no native semi/anti join concept (unlike polars' `.join(how=...)`,
+    which passes 'semi'/'anti' straight through to a real polars join). Implement
+    the pandas equivalent via merge + indicator: a semi join keeps left rows whose
+    join key(s) appear in right; an anti join keeps left rows whose join key(s) do
+    NOT appear in right. The output is left's own columns only -- no right-side
+    columns are added, matching ADF's 'Exists' transform / standard SQL
+    EXISTS / NOT EXISTS semantics.
+    """
+    if on:
+        l_keys = list(on)
+        r_keys = list(on)
+    elif left_on and right_on:
+        l_keys = list(left_on)
+        r_keys = list(right_on)
+    else:
+        raise ValueError("semi/anti join requires 'on', or both 'left_on' and 'right_on'")
+
+    # Only the (deduped) key columns from right are needed to probe for a
+    # match -- renamed to the left-side key names so `merge(on=...)` can be
+    # used directly without any suffixing (right contributes no other
+    # columns, so there's nothing left to collide with left's own).
+    right_keys_df = right_df[r_keys].drop_duplicates()
+    if l_keys != r_keys:
+        right_keys_df = right_keys_df.rename(columns=dict(zip(r_keys, l_keys)))
+
+    probe = left_df.merge(right_keys_df, on=l_keys, how="left", indicator=True)
+    wanted = "both" if how == "semi" else "left_only"
+    result = probe[probe["_merge"] == wanted].drop(columns=["_merge"])
+    return result.reset_index(drop=True)
+
+
 class DataframeJoin(Component, Model, Resolvable):
     """Join two DataFrame assets on common or specified columns."""
 
@@ -214,7 +246,17 @@ class DataframeJoin(Component, Model, Resolvable):
             "`how` / `on` / `suffixes`. Cannot be combined with `left_on`/`right_on`."
         ),
     )
-    how: str = Field(default="inner", description="Join type: 'inner', 'left', 'right', 'outer', 'cross'")
+    how: str = Field(
+        default="inner",
+        description=(
+            "Join type: 'inner', 'left', 'right', 'outer', 'cross', 'semi', 'anti'. "
+            "'semi' keeps left rows that HAVE a match in right; 'anti' keeps left "
+            "rows that have NO match in right. Both work on either backend "
+            "(pandas or polars). Neither adds any right-side columns to the "
+            "output -- only left's own columns survive, filtered by match/no-"
+            "match. Maps to Azure Data Factory's 'Exists' data flow transform."
+        ),
+    )
     on: Optional[List[Union[str, int]]] = Field(default=None, description="Column(s) to join on (same name in both DataFrames)")
     left_on: Optional[List[Union[str, int]]] = Field(default=None, description="Left join columns (when column names differ)")
     right_on: Optional[List[Union[str, int]]] = Field(default=None, description="Right join columns (when column names differ)")
@@ -760,126 +802,138 @@ class DataframeJoin(Component, Model, Resolvable):
                 elif left_on and _right_on_local:
                     left, right = _align_join_dtypes(left, right, left_on, _right_on_local)
 
-                # Tolerate missing join keys: if `on` / `left_on` / `_right_on_local`
-                # references columns absent from upstream (broken-upstream chain
-                # in an importer-converted workflow), do a row-positional concat
-                # rather than crashing. Matches lax behavior on bad
-                # configs.
-                def _row_concat(_l, _r):
-                    _l = _l.reset_index(drop=True)
-                    _r = _r.reset_index(drop=True)
-                    # Drop overlapping non-key cols from right to avoid dupe names.
-                    _dupes = [c for c in _r.columns if c in _l.columns]
-                    if _dupes:
-                        _r = _r.rename(columns={c: c + suffixes[1] for c in _dupes})
-                    n = min(len(_l), len(_r))
-                    return pd.concat([_l.head(n), _r.head(n)], axis=1)
-                _missing_on = [c for c in (on or []) if c not in left.columns or c not in right.columns]
-                _missing_left_on = [c for c in (left_on or []) if c not in left.columns]
-                _missing_right_on = [c for c in (_right_on_local or []) if c not in right.columns]
-                if _missing_on or _missing_left_on or _missing_right_on:
-                    context.log.warning(
-                        f"dataframe_join: missing join keys "
-                        f"on={_missing_on} left_on={_missing_left_on} right_on={_missing_right_on}; "
-                        "row-positional concat fallback."
-                    )
-                    merged = _row_concat(left, right)
+                if how in ("semi", "anti"):
+                    # dtype alignment already happened above (same `on`/`left_on`/
+                    # `_right_on_local` pair), regardless of `how`.
+                    merged = _semi_anti_join(left, right, how, on, left_on, _right_on_local)
+                    for slot in extra_slots:
+                        nxt = extras.get(slot)
+                        if nxt is None:
+                            continue
+                        if on:
+                            merged, nxt = _align_join_dtypes(merged, nxt, on, on)
+                        merged = _semi_anti_join(merged, nxt, how, on, None, None)
                 else:
-                    # If `right_prefix` is set, prefix only the right-side
-                    # columns that would otherwise COLLIDE with the left after
-                    # merge:
-                    #   • non-key cols that exist on both sides (would get
-                    #     suffixed by pandas — apply the prefix instead)
-                    #   • _right_on_local keys whose name differs from the
-                    #     corresponding left_on key (pandas keeps both post-
-                    #     merge; apply the prefix to the right one so callers
-                    #     who reference `<prefix><name>` find it)
-                    # Same-name join keys (whether via `on=` or matching
-                    # left_on/_right_on_local) get COLLAPSED by pandas → never
-                    # prefixed. Right's other unique cols stay as-is.
-                    _right_in = right
-                    _right_on_in = _right_on_local
-                    if right_prefix:
-                        _join_keys_both = set((on or []) + (_right_on_local or []))
-                        # 1. Non-key cols on both sides (collision case)
-                        _overlap = [
-                            c for c in _right_in.columns
-                            if c in left.columns and c not in _join_keys_both
-                        ]
-                        # 2. _right_on_local keys whose paired left_on key has a
-                        #    different name (pandas keeps both post-merge)
-                        _diff_name_right_keys = []
-                        if left_on and _right_on_local and len(left_on) == len(_right_on_local):
-                            for _lk, _rk in zip(left_on, _right_on_local):
-                                if _lk != _rk:
-                                    _diff_name_right_keys.append(_rk)
-                        _to_prefix = list(set(_overlap) | set(_diff_name_right_keys))
-                        if _to_prefix:
-                            _rename_map = {c: f"{right_prefix}{c}" for c in _to_prefix}
-                            _right_in = _right_in.rename(columns=_rename_map)
-                            # Update _right_on_local to point at renamed keys.
-                            if _right_on_in:
-                                _right_on_in = [_rename_map.get(c, c) for c in _right_on_in]
-                    try:
-                        merged = left.merge(
-                            _right_in,
-                            how=how,
-                            on=on,
-                            left_on=left_on,
-                            right_on=_right_on_in,
-                            suffixes=tuple(suffixes),
+                    # Tolerate missing join keys: if `on` / `left_on` / `_right_on_local`
+                    # references columns absent from upstream (broken-upstream chain
+                    # in an importer-converted workflow), do a row-positional concat
+                    # rather than crashing. Matches lax behavior on bad
+                    # configs.
+                    def _row_concat(_l, _r):
+                        _l = _l.reset_index(drop=True)
+                        _r = _r.reset_index(drop=True)
+                        # Drop overlapping non-key cols from right to avoid dupe names.
+                        _dupes = [c for c in _r.columns if c in _l.columns]
+                        if _dupes:
+                            _r = _r.rename(columns={c: c + suffixes[1] for c in _dupes})
+                        n = min(len(_l), len(_r))
+                        return pd.concat([_l.head(n), _r.head(n)], axis=1)
+                    _missing_on = [c for c in (on or []) if c not in left.columns or c not in right.columns]
+                    _missing_left_on = [c for c in (left_on or []) if c not in left.columns]
+                    _missing_right_on = [c for c in (_right_on_local or []) if c not in right.columns]
+                    if _missing_on or _missing_left_on or _missing_right_on:
+                        context.log.warning(
+                            f"dataframe_join: missing join keys "
+                            f"on={_missing_on} left_on={_missing_left_on} right_on={_missing_right_on}; "
+                            "row-positional concat fallback."
                         )
-                    except Exception as _merge_err:
-                        # Pandas raises MergeError when `suffixes` would create
-                        # a duplicate column. Cases include:
-                        #   1) Suffixed name already exists (left has both
-                        #      `X` and `X_x` from a previous merge).
-                        #   2) _right_on_local key also exists on left side as a
-                        #      non-key column — pandas sees it as overlap.
-                        # Fix: rename EVERY right column that collides with
-                        # left (incl. _right_on_local keys), with unique tag. Then
-                        # patch left_on/_right_on_local to the renamed keys.
-                        _join_keys_both = set(on or [])
-                        _renames: Dict[str, str] = {}
-                        for _c in right.columns:
-                            if _c in left.columns and _c not in _join_keys_both:
-                                # Pick a tag that's free in both frames.
-                                _tag = "__r"
-                                _new = f"{_c}{_tag}"
-                                _n = 1
-                                while _new in left.columns or _new in right.columns:
-                                    _n += 1
-                                    _new = f"{_c}__r{_n}"
-                                _renames[_c] = _new
-                        if _renames:
-                            context.log.warning(
-                                f"dataframe_join: pandas.merge failed ({_merge_err}); "
-                                f"pre-renaming {len(_renames)} right-side overlap cols."
-                            )
-                            _r2 = right.rename(columns=_renames)
-                            _right_on2 = [_renames.get(c, c) for c in (_right_on_local or [])] if _right_on_local else None
+                        merged = _row_concat(left, right)
+                    else:
+                        # If `right_prefix` is set, prefix only the right-side
+                        # columns that would otherwise COLLIDE with the left after
+                        # merge:
+                        #   • non-key cols that exist on both sides (would get
+                        #     suffixed by pandas — apply the prefix instead)
+                        #   • _right_on_local keys whose name differs from the
+                        #     corresponding left_on key (pandas keeps both post-
+                        #     merge; apply the prefix to the right one so callers
+                        #     who reference `<prefix><name>` find it)
+                        # Same-name join keys (whether via `on=` or matching
+                        # left_on/_right_on_local) get COLLAPSED by pandas → never
+                        # prefixed. Right's other unique cols stay as-is.
+                        _right_in = right
+                        _right_on_in = _right_on_local
+                        if right_prefix:
+                            _join_keys_both = set((on or []) + (_right_on_local or []))
+                            # 1. Non-key cols on both sides (collision case)
+                            _overlap = [
+                                c for c in _right_in.columns
+                                if c in left.columns and c not in _join_keys_both
+                            ]
+                            # 2. _right_on_local keys whose paired left_on key has a
+                            #    different name (pandas keeps both post-merge)
+                            _diff_name_right_keys = []
+                            if left_on and _right_on_local and len(left_on) == len(_right_on_local):
+                                for _lk, _rk in zip(left_on, _right_on_local):
+                                    if _lk != _rk:
+                                        _diff_name_right_keys.append(_rk)
+                            _to_prefix = list(set(_overlap) | set(_diff_name_right_keys))
+                            if _to_prefix:
+                                _rename_map = {c: f"{right_prefix}{c}" for c in _to_prefix}
+                                _right_in = _right_in.rename(columns=_rename_map)
+                                # Update _right_on_local to point at renamed keys.
+                                if _right_on_in:
+                                    _right_on_in = [_rename_map.get(c, c) for c in _right_on_in]
+                        try:
                             merged = left.merge(
-                                _r2,
+                                _right_in,
                                 how=how,
                                 on=on,
                                 left_on=left_on,
-                                right_on=_right_on2,
+                                right_on=_right_on_in,
                                 suffixes=tuple(suffixes),
                             )
-                        else:
-                            raise
-                for slot in extra_slots:
-                    nxt = extras.get(slot)
-                    if nxt is None:
-                        continue
-                    if on:
-                        merged, nxt = _align_join_dtypes(merged, nxt, on, on)
-                    merged = merged.merge(
-                        nxt,
-                        how=how,
-                        on=on,
-                        suffixes=tuple(suffixes),
-                    )
+                        except Exception as _merge_err:
+                            # Pandas raises MergeError when `suffixes` would create
+                            # a duplicate column. Cases include:
+                            #   1) Suffixed name already exists (left has both
+                            #      `X` and `X_x` from a previous merge).
+                            #   2) _right_on_local key also exists on left side as a
+                            #      non-key column — pandas sees it as overlap.
+                            # Fix: rename EVERY right column that collides with
+                            # left (incl. _right_on_local keys), with unique tag. Then
+                            # patch left_on/_right_on_local to the renamed keys.
+                            _join_keys_both = set(on or [])
+                            _renames: Dict[str, str] = {}
+                            for _c in right.columns:
+                                if _c in left.columns and _c not in _join_keys_both:
+                                    # Pick a tag that's free in both frames.
+                                    _tag = "__r"
+                                    _new = f"{_c}{_tag}"
+                                    _n = 1
+                                    while _new in left.columns or _new in right.columns:
+                                        _n += 1
+                                        _new = f"{_c}__r{_n}"
+                                    _renames[_c] = _new
+                            if _renames:
+                                context.log.warning(
+                                    f"dataframe_join: pandas.merge failed ({_merge_err}); "
+                                    f"pre-renaming {len(_renames)} right-side overlap cols."
+                                )
+                                _r2 = right.rename(columns=_renames)
+                                _right_on2 = [_renames.get(c, c) for c in (_right_on_local or [])] if _right_on_local else None
+                                merged = left.merge(
+                                    _r2,
+                                    how=how,
+                                    on=on,
+                                    left_on=left_on,
+                                    right_on=_right_on2,
+                                    suffixes=tuple(suffixes),
+                                )
+                            else:
+                                raise
+                    for slot in extra_slots:
+                        nxt = extras.get(slot)
+                        if nxt is None:
+                            continue
+                        if on:
+                            merged, nxt = _align_join_dtypes(merged, nxt, on, on)
+                        merged = merged.merge(
+                            nxt,
+                            how=how,
+                            on=on,
+                            suffixes=tuple(suffixes),
+                        )
                 merged = _apply_post_merge(merged)
                 from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
                 _col_schema = TableSchema(columns=[

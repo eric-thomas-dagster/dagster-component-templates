@@ -67,6 +67,8 @@ attributes:
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', or None for unpartitioned. A partitioned run reads only its slice of the source and replaces only that slice of the output (delete the slice, insert the new rows). |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time partitions. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated keys for static partitions, e.g. 'customer_a,customer_b'. |
 | `partition_date_column` | `str` | — | Column holding each row's date. A time-partitioned run reads only the source rows in its window and replaces only those rows of the output, so the output must keep this column. |
@@ -86,7 +88,7 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `database_url` | `str` | — | — |
-| `how` | `str` | `"inner"` | `f'Join type: one of {sorted(_VALID_HOWS)}'` |
+| `how` | `str` | `"inner"` | `f"Join type: one of {sorted(_VALID_HOWS)}. 'semi' keeps left rows that HAVE a match in right; 'anti' keeps left rows that have NO match in right -- compiled as a portable WHERE EXISTS / NOT EXISTS subquery (not a dialec… _(full docs in schema.json + component README)_ |
 | `on_columns` | `List[str]` | — | Join columns (same name on both sides). NB: this is named `on_columns` rather than `on` because YAML 1.1 parses `on:` as a boolean (True), breaking schema validation. |
 | `left_on` | `List[Union[str, int]]` | — | Left join columns (when names differ) |
 | `right_on` | `List[Union[str, int]]` | — | Right join columns (when names differ) |
@@ -116,6 +118,37 @@ SELECT _l.order_id, _l.amount, _l.status, _r.customer_name, _r.region
 FROM "raw"."orders" AS _l
 LEFT JOIN "raw"."customers" AS _r
 ON _l."customer_id" = _r."customer_id"
+```
+
+## Semi / anti joins (`how: semi` / `how: anti`)
+
+`semi` keeps left rows that HAVE a match in right; `anti` keeps left rows that have NO match in right. Neither adds any right-side columns to the output -- only left's own columns survive, filtered by match/no-match. This maps to Azure Data Factory's **"Exists"** data flow transform (its "Exists" = semi, "Doesn't Exist" = anti).
+
+Standard SQL has no `SEMI JOIN`/`ANTI JOIN` keyword in most dialects (DuckDB and a few others support it as an extension, but this component needs to work across every dialect in `_SUPPORTED_DIALECTS`), so these compile to a portable `WHERE EXISTS (...)` / `WHERE NOT EXISTS (...)` correlated subquery instead:
+
+```sql
+-- how: semi
+CREATE OR REPLACE TABLE analytics.customers_with_orders AS
+SELECT _l.* FROM "raw"."customers" AS _l
+WHERE EXISTS (SELECT 1 FROM "raw"."orders" AS _r WHERE _r."customer_id" = _l."customer_id")
+
+-- how: anti
+CREATE OR REPLACE TABLE analytics.customers_without_orders AS
+SELECT _l.* FROM "raw"."customers" AS _l
+WHERE NOT EXISTS (SELECT 1 FROM "raw"."orders" AS _r WHERE _r."customer_id" = _l."customer_id")
+```
+
+```yaml
+type: dagster_community_components.WarehouseJoinComponent
+attributes:
+  asset_name: customers_with_orders
+  dialect: snowflake
+  left_table: raw.customers
+  right_table: raw.orders
+  output_table: analytics.customers_with_orders
+  how: semi                   # customers that HAVE placed an order
+  on_columns: [customer_id]
+  mode: replace
 ```
 
 ## Partitioning

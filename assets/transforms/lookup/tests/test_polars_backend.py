@@ -82,6 +82,22 @@ def test_polars_multiple_matches_resolved_deterministically_by_sort(mod):
     assert out.loc[2, "price"] == 99.0
 
 
+def test_polars_match_sort_by_column_excluded_from_columns_to_add(mod):
+    """Regression: `match_sort_by=['effective_date']` with `columns_to_add=['price']`
+    (effective_date requested for sorting only, not as an output column) must not
+    raise -- the sort-only column has to survive the lookup-side column subset
+    long enough to sort by, then get dropped before the join."""
+    out = _as_df(_materialize(
+        mod, backend="polars", columns_to_add=["price"],
+        match_sort_by=["effective_date"], match_sort_ascending=False,
+    ))
+    out = out.set_index("order_id")
+    assert "effective_date" not in out.columns
+    assert out.loc[1, "price"] == 30.0
+    assert out.loc[3, "price"] == 30.0
+    assert out.loc[2, "price"] == 99.0
+
+
 def test_polars_default_columns_mode_pulls_matched_columns_null_for_no_match(mod):
     out = _as_df(_materialize(mod, backend="polars"))
     out = out.set_index("order_id")

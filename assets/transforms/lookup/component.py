@@ -335,6 +335,35 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
 
 
 
+def coerce_deprecated_lookup_fields(data):
+    """Accept the pre-consolidation LookupComponent's field names.
+
+    Before the ADF-Lookup consolidation (see git history on this file), the
+    flat-layout `transforms/lookup` component used `upstream_lookup_key`
+    (required) for what this component now calls `lookup_asset_key`, and
+    `sort_conditions` (list of {column, order: asc|desc}) for what this
+    component now calls `match_sort_by` / `match_sort_ascending`. Both old
+    names are accepted-but-deprecated inputs, rewritten onto the current
+    field names before Pydantic validation -- same model_validator(mode=
+    "before") idiom as `coerce_upstream_input` just above.
+    """
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    if "upstream_lookup_key" in out:
+        legacy_value = out.pop("upstream_lookup_key")
+        out.setdefault("lookup_asset_key", legacy_value)
+    if "sort_conditions" in out:
+        sort_conditions = out.pop("sort_conditions")
+        if sort_conditions and "match_sort_by" not in out:
+            out["match_sort_by"] = [c["column"] for c in sort_conditions]
+            out.setdefault(
+                "match_sort_ascending",
+                [c.get("order", "asc").lower() != "desc" for c in sort_conditions],
+            )
+    return out
+
+
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
 from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
@@ -645,6 +674,11 @@ class LookupComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_deprecated_lookup_fields(cls, data):
+        return coerce_deprecated_lookup_fields(data)
+
     @classmethod
     def get_description(cls) -> str:
         return "Match rows against a lookup stream by key column(s), with explicit multiple-match resolution (ADF's Lookup transform)."
@@ -863,7 +897,14 @@ class LookupComponent(Component, Model, Resolvable):
 
                 _added_cols_all = [c for c in lookup_pl.columns if c not in r_keys]
                 _added_cols = columns_to_add if columns_to_add else _added_cols_all
-                _subset_cols = r_keys + [c for c in _added_cols if c not in r_keys]
+                # `match_sort_by` columns must survive the subset even when they
+                # aren't also requested via `columns_to_add` -- the sort below
+                # needs them present. They're dropped again after resolution.
+                _sort_only_cols = (
+                    [c for c in match_sort_by if c not in r_keys and c not in _added_cols]
+                    if (multiple_match in ("first", "last") and match_sort_by) else []
+                )
+                _subset_cols = r_keys + [c for c in _added_cols if c not in r_keys] + _sort_only_cols
                 lookup_subset_pl = lookup_pl.select(_subset_cols)
 
                 if output_mode == "is_match" or match_flag_column or on_no_match == "error":
@@ -904,6 +945,8 @@ class LookupComponent(Component, Model, Resolvable):
                             lookup_resolved_pl = lookup_subset_pl.unique(
                                 subset=r_keys, keep=("first" if multiple_match == "first" else "last"), maintain_order=True
                             )
+                        if _sort_only_cols:
+                            lookup_resolved_pl = lookup_resolved_pl.drop(_sort_only_cols)
                     elif multiple_match == "all":
                         lookup_resolved_pl = lookup_subset_pl
                     elif multiple_match == "all_as_list":
@@ -998,7 +1041,15 @@ class LookupComponent(Component, Model, Resolvable):
             # --- pandas backend ---
             _added_cols_all = [c for c in lookup.columns if c not in r_keys]
             _added_cols = columns_to_add if columns_to_add else _added_cols_all
-            _subset_cols = r_keys + [c for c in _added_cols if c not in r_keys]
+            # `match_sort_by` columns must survive the subset even when they
+            # aren't also requested via `columns_to_add` -- the sort inside
+            # `_resolve_lookup_matches_pandas` needs them present. They're
+            # dropped again after resolution.
+            _sort_only_cols = (
+                [c for c in match_sort_by if c not in r_keys and c not in _added_cols]
+                if (multiple_match in ("first", "last") and match_sort_by) else []
+            )
+            _subset_cols = r_keys + [c for c in _added_cols if c not in r_keys] + _sort_only_cols
             lookup_subset = lookup[_subset_cols].copy()
 
             if output_mode == "is_match":
@@ -1014,6 +1065,8 @@ class LookupComponent(Component, Model, Resolvable):
                     lookup_subset, r_keys, [c for c in _added_cols if c not in r_keys],
                     match_sort_by, match_sort_ascending, multiple_match,
                 )
+                if _sort_only_cols:
+                    lookup_resolved = lookup_resolved.drop(columns=[c for c in _sort_only_cols if c in lookup_resolved.columns])
                 if rename:
                     lookup_resolved = lookup_resolved.rename(columns=rename)
                 merged = primary.merge(

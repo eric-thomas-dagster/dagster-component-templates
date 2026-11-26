@@ -197,6 +197,8 @@ attributes:
 
 An earlier, separate flat-layout `LookupComponent` (`transforms/lookup`, since removed and merged into this one) used `upstream_lookup_key` / `sort_conditions` / `match_flag_column`-as-sole-output. Field mapping: `upstream_lookup_key` → `lookup_asset_key`; `sort_conditions: [{column, order}]` → `match_sort_by` (list of columns) + `match_sort_ascending` (bool/list, `order: desc` → `false`); `columns_to_add`, `multiple_match`, `on_no_match`, and `rename` are unchanged in name and behavior.
 
+**Old configs still load and run correctly** -- `upstream_lookup_key` and `sort_conditions` are accepted as deprecated aliases (rewritten onto `lookup_asset_key` / `match_sort_by` / `match_sort_ascending` before validation), so this is not a breaking change in practice. New configs should use the current field names; the old ones have no deprecation deadline but are not documented above and may be removed in a future major version.
+
 ## IO Manager Note
 
 This component uses Dagster's IO manager to pass DataFrames between assets. No IO manager configuration is required for local development -- Dagster's default FilesystemIOManager handles serialization automatically.

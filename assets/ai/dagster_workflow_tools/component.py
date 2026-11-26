@@ -722,6 +722,11 @@ def build_mcp_server(tools: DagsterWorkflowTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("dagster-workflow-tools")
     allowed = set(tools.tool_names())
 
@@ -730,20 +735,38 @@ def build_mcp_server(tools: DagsterWorkflowTools):
             mcp.tool()(fn)
         return fn
 
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see DagsterWorkflowTools.call) -- a bad-arguments or dispatch failure
+        comes back as a plain {"error": ...} dict, which the MCP transport would otherwise hand back as a
+        NORMAL (isError=False) tool result indistinguishable from success. Re-raising here lets the `mcp`
+        package's own exception handling (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception
+        from a registered tool function and turn it into a real isError=True CallToolResult) make the failure
+        visible to whatever's counting failed calls in the agent loop. MUST be the SDK's own ToolError
+        (_SdkToolError), not this module's ToolError (defined above, raised by the t_* methods): the SDK's
+        tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a raised exception's own
+        message when it recognizes the exception as ITS OWN ToolError/ResourceError -- anything else
+        (including this module's same-named ToolError class) is treated as an unexpected crash and replaced
+        with a generic 'Error executing tool <name>' before it reaches the client, throwing away the reason
+        the agent needs to act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def materialize_assets(asset_keys: List[str], run_config: Optional[dict] = None, tags: Optional[dict] = None, partition_key: Optional[str] = None) -> dict:
         """Trigger a real, synchronous materialization of the given asset keys (blocks until the run finishes). Returns {success, run_id, asset_keys}."""
-        return tools.call("materialize_assets", {"asset_keys": asset_keys, "run_config": run_config, "tags": tags, "partition_key": partition_key})
+        return _mcp_call("materialize_assets", {"asset_keys": asset_keys, "run_config": run_config, "tags": tags, "partition_key": partition_key})
 
     @_tool
     def run_job(job_name: str, run_config: Optional[dict] = None, tags: Optional[dict] = None, partition_key: Optional[str] = None) -> dict:
         """Trigger a real, synchronous run of an existing named job (blocks until the run finishes). Returns {success, run_id, job_name}."""
-        return tools.call("run_job", {"job_name": job_name, "run_config": run_config, "tags": tags, "partition_key": partition_key})
+        return _mcp_call("run_job", {"job_name": job_name, "run_config": run_config, "tags": tags, "partition_key": partition_key})
 
     @_tool
     def launch_job(job_name: str, run_config: Optional[dict] = None, tags: Optional[dict] = None) -> dict:
         """Launch a named job and return {success, run_id, job_name, url} IMMEDIATELY -- does NOT wait for the run to finish. Requires the caller be a listed owner of the job (checked in code; see README)."""
-        return tools.call("launch_job", {"job_name": job_name, "run_config": run_config, "tags": tags})
+        return _mcp_call("launch_job", {"job_name": job_name, "run_config": run_config, "tags": tags})
 
     return mcp
 

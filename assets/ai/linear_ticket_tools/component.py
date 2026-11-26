@@ -584,6 +584,11 @@ def build_mcp_server(tools: LinearTicketTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server, Context as _Context
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("linear-ticket-tools")
     allowed = set(tools.tool_names())
 
@@ -604,20 +609,37 @@ def build_mcp_server(tools: LinearTicketTools):
         # extra keys as real attributes. Handle both without assuming either shape.
         return meta.get("dagster_run_id") if isinstance(meta, dict) else getattr(meta, "dagster_run_id", None)
 
+    def _mcp_call(name: str, args: Dict[str, Any], *, run_id: Optional[str] = None) -> Dict[str, Any]:
+        """tools.call() never raises (see LinearTicketTools.call) -- a bad-arguments or failure comes back as
+        a plain {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL
+        (isError=False) tool result indistinguishable from success. Re-raising here lets the `mcp` package's
+        own exception handling (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a
+        registered tool function and turn it into a real isError=True CallToolResult) make the failure visible
+        to whatever's counting failed calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError),
+        not this module's: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a
+        raised exception's own message when it recognizes the exception as ITS OWN ToolError/ResourceError --
+        anything else (including a same-named ToolError class defined elsewhere) is treated as an unexpected
+        crash and replaced with a generic 'Error executing tool <name>' before it reaches the client, throwing
+        away the reason the agent needs to act on."""
+        result = tools.call(name, args, run_id=run_id)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def find_issues(query: str) -> dict:
         """Open Linear tickets the agents already filed whose title matches query's main words. Call this BEFORE create_issue to avoid filing the same problem twice."""
-        return tools.call("find_issues", {"query": query})
+        return _mcp_call("find_issues", {"query": query})
 
     @_tool
     def create_issue(title: str, body: str, ctx: _Context = None) -> dict:
         """File a Linear ticket in the configured team. Check find_issues first."""
-        return tools.call("create_issue", {"title": title, "body": body}, run_id=_run_id_from(ctx))
+        return _mcp_call("create_issue", {"title": title, "body": body}, run_id=_run_id_from(ctx))
 
     @_tool
     def list_agent_issues() -> dict:
         """Open tickets the agents filed, with their bodies -- for announcing elsewhere (e.g. Slack)."""
-        return tools.call("list_agent_issues", {})
+        return _mcp_call("list_agent_issues", {})
 
     return mcp
 

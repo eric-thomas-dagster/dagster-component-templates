@@ -58,6 +58,8 @@ sftp_monitor  →  [Dagster job]  →  sftp_to_database_asset
 | `partition_type` | `str` | `"none"` | none, daily, weekly, monthly, hourly, static, multi, or dynamic |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start_date` | `str` | — | Partition start date YYYY-MM-DD (required if partition_type != none) |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
@@ -88,6 +90,12 @@ sftp_monitor  →  [Dagster job]  →  sftp_to_database_asset
 | `schema_name` | `str` | — | Destination schema name |
 | `file_format` | `str` | `"auto"` | csv, json, parquet, or auto |
 | `csv_delimiter` | `str` | `","` | CSV delimiter |
+| `header_row` | `int` | `0` | CSV only: row number to use as column names (0-indexed, None for no header -- columns come out named 0, 1, 2, ...). Same field name/semantics as file_ingestion's header_row. |
+| `csv_quotechar` | `str` | — | CSV only: quote character (pandas default '"' when unset). |
+| `csv_escapechar` | `str` | — | CSV only: escape character for quote/delimiter characters inside a field. |
+| `dtype_mapping` | `str` | — | Typed columns: JSON string of {column: pandas dtype}, e.g. '{"id": "int64", "amount": "float64"}'. Applies to CSV and JSON reads (passed as pandas' own dtype= kwarg); has no effect on parquet, which already carries its o… _(full docs in schema.json + component README)_ |
+| `pre_copy_script` | `str` | — | SQL executed against the destination database immediately before the FIRST write to each distinct destination table this asset run touches (e.g. 'TRUNCATE TABLE orders') -- matches Azure Data Factory Copy activity's Sink… _(full docs in schema.json + component README)_ |
+| `dry_run` | `bool` | `false` | If true, download and parse each matched file (so logs show real row/column counts) but skip BOTH pre_copy_script and the actual write to the destination table -- nothing reaches the database. Use to validate a new colum… _(full docs in schema.json + component README)_ |
 | `column_mapping` | `dict` | — | Rename columns: {old: new} |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

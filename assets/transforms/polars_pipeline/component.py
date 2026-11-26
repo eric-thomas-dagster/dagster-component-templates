@@ -187,6 +187,14 @@ def _read_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[st
     Auto-detects from the file extension when `format:` is unset.
     Path/url is `{partition_key}` / `{partition.<name>}` templated.
 
+    CSV-only options -- matching an Azure Data Factory Copy activity's declared-type source read,
+    which this polars CSV scan's own default schema INFERENCE cannot reproduce on its own (e.g. a
+    column of zero-padded codes like "001" silently becomes the integer 1): `has_header` (bool,
+    default true), `quote_char` (default polars' own '"'), `schema_overrides` ({column: polars
+    dtype name as a string, e.g. "Utf8"/"String"/"Int64"/"Float64"} -- pins specific columns'
+    types instead of letting inference guess; every standard polars dtype name is looked up
+    directly as a pl.<Name> attribute, so any dtype polars itself exposes works here).
+
     Cloud URLs (s3:// / gs:// / az:// / abfs:// / http(s)://): pre-fetched
     via fsspec into a temp file, then read locally. This is format-agnostic
     and works for every polars reader without depending on version-specific
@@ -218,6 +226,24 @@ def _read_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[st
                 f"polars_pipeline: can't infer format from {path!r} — set `format:` explicitly."
             )
     delimiter = src.get("delimiter", "\t" if path.lower().endswith(".tsv") else ",")
+    has_header = src.get("has_header", True)
+    quote_char = src.get("quote_char")
+    schema_overrides_raw = src.get("schema_overrides")
+    schema_overrides = None
+    if schema_overrides_raw:
+        # YAML can't express a polars DataType object directly -- values are plain dtype-name
+        # strings (e.g. "Utf8"/"String", "Int64", "Float64"), looked up as real attributes on the
+        # polars module itself (works across versions: every standard dtype -- old or renamed
+        # alias alike -- is always a direct pl.<Name> attribute, confirmed against the installed
+        # polars 2.0.0; no hardcoded name->dtype table to drift out of sync with a polars release).
+        schema_overrides = {}
+        for col, dtype_name in schema_overrides_raw.items():
+            if not hasattr(pl_module, dtype_name):
+                raise ValueError(
+                    f"polars_pipeline source kind={kind!r}: schema_overrides[{col!r}] names an "
+                    f"unknown polars dtype {dtype_name!r} (not a pl.{dtype_name} attribute)"
+                )
+            schema_overrides[col] = getattr(pl_module, dtype_name)
 
     # Cloud URL pre-fetch — universal for any format. `storage_options:`
     # in the source spec is forwarded to fsspec.open (e.g. anon: true,
@@ -249,7 +275,12 @@ def _read_file_source(pl_module, src: Dict[str, Any], partition_key: Optional[st
 
     # scan_* returns LazyFrame (streaming-friendly); read_json is eager only.
     if fmt == "csv":
-        return pl_module.scan_csv(local_path, separator=delimiter)
+        csv_kwargs: Dict[str, Any] = {"separator": delimiter, "has_header": has_header}
+        if quote_char is not None:
+            csv_kwargs["quote_char"] = quote_char
+        if schema_overrides:
+            csv_kwargs["schema_overrides"] = schema_overrides
+        return pl_module.scan_csv(local_path, **csv_kwargs)
     if fmt == "parquet":
         return pl_module.scan_parquet(local_path)
     if fmt == "ndjson":
@@ -1110,8 +1141,13 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     source: Optional[Dict[str, Any]] = Field(
         default=None,
         description=(
-            "File / URL source shape. `{kind: file, path, format?, delimiter?}` or "
-            "`{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, "
+            "File / URL source shape. `{kind: file, path, format?, delimiter?, has_header?, "
+            "quote_char?, schema_overrides?}` or `{kind: url, url, format?, delimiter?, "
+            "has_header?, quote_char?, schema_overrides?}` (CSV only: has_header default true, "
+            "quote_char default '\"', schema_overrides: {column: polars dtype name e.g. "
+            "'Utf8'/'Int64'/'Float64'} -- pins a column's type instead of letting polars' own "
+            "schema inference guess, e.g. a zero-padded code column like '001' silently becoming "
+            "the integer 1) or `{kind: upstream_asset, "
             "upstream_asset_key}` or `{kind: encrypted_file, path, format?, key_source?, "
             "raw_key_env_var?, kms_key_ids?, key_id?, encryption_context?}` (decrypts the "
             "file's raw bytes via the real AWS Encryption SDK before parsing — same "

@@ -66,7 +66,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame). Mutually exclusive with `source:`. |
-| `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}` or `{kind: encrypted_file, path, format?, key_source?, raw_key… _(full docs in schema.json + component README)_ |
+| `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?, has_header?, quote_char?, schema_overrides?}` or `{kind: url, url, format?, delimiter?, has_header?, quote_char?, schema_overrides?}` (CSV only: has_heade… _(full docs in schema.json + component README)_ |
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to upstream_asset_key OR source. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: upstream\|ref, upstream_asset_key\|ref}, operations: [...]}. |
 | `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv\|avro\|encrypted_file\|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?… _(full docs in schema.json + component README)_ |
@@ -140,6 +140,27 @@ Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / me
 `source: {kind: inline, rows: [...]}` or `{kind: inline, text: "...", format: csv|ndjson}` embeds rows or raw delimited text directly in the YAML — no external file, for a StreamSets raw-data/dev-origin-style pipeline.
 
 `source: {kind: sql, resource_key?, url_env_var?, query?, table?, incremental?, offset_column?, initial_offset?}` reads from a SQL database via a Dagster resource exposing `.get_engine()`/`.get_connection()` (`resource_key`) or a raw connection URL in an env var (`url_env_var`). Plain mode runs `query:` once. `incremental: true` gives a resumable `WHERE offset_column > <last stored value> ORDER BY offset_column` read against `table:` (or a base `query:`), with the new high-water mark persisted via this asset's own output metadata (`dagster_community_components/last_offset/<step_id>`) — the same mechanism `mongodb_reader`/`elasticsearch_reader` use, no separate state file. `jdbc` is accepted as an alias for `sql`.
+
+## CSV declared-type reads (`kind: file`/`url`, format: csv)
+
+```yaml
+source:
+  kind: file
+  path: "incoming/orders.csv"
+  has_header: true           # default; set false for a headerless file
+  quote_char: "'"            # default polars' own '"'
+  schema_overrides:
+    account_code: Utf8       # pin a column's type -- without this, a zero-padded code
+    customer_id: Utf8        # column like "001" silently becomes the integer 1 under
+                              # polars' own schema inference, same failure an Azure Data
+                              # Factory Copy activity's declared-type source read avoids
+```
+
+`schema_overrides` values are polars dtype NAMES as plain strings (`Utf8`/`String`, `Int8`...`Int64`,
+`Float32`/`Float64`, `Boolean`, `Date`, `Datetime`, ...) — looked up directly as `pl.<Name>` attributes, so
+any dtype the installed polars version itself exposes works, with no separate name→dtype table in this
+component to fall out of sync with a polars release. Only the columns you list are pinned; every other
+column is still inferred normally.
 
 ## New sink capabilities
 

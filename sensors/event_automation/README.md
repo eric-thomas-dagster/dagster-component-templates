@@ -2,15 +2,16 @@
 
 Prefect-Automations-style declarative event → action wiring in one YAML component. Each `when: … then: …` block becomes a real Dagster sensor under the covers; no Python needed for common trigger-action shapes.
 
-**Surface: 35 trigger types + 27 action types + AND/OR compound composition (one level of nesting).**
+**Surface: 38 trigger types + 29 action types + AND/OR compound composition (one level of nesting).**
 
-## Triggers (35)
+## Triggers (38)
 
 | Type | Fires on |
 |---|---|
 | `run_status` | Any run finishing with `SUCCESS/FAILURE/CANCELED/STARTED` |
 | `asset_materialized` | Named assets get materialized |
 | `schedule` | Cron (schedule → sensor with cron gating) |
+| `on_load` | Fires exactly once, ever — first sensor evaluation while RUNNING, never again. For setup-only actions (e.g. `set_concurrency_limit`) that only need to apply once, not on every tick — Dagster has no native "on code location load" hook, so this is the way. |
 | `http_poll` | Poll a URL; fires on response change, HTTP 2xx, or JSON path non-empty |
 | `freshness_violation` | Asset stale beyond `max_age_minutes` (ongoing DQ) |
 | `run_duration` | Run finished + duration > threshold (slow-run detector) |
@@ -46,7 +47,7 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 | `all_of` | AND compound (all sub-triggers fire within `within_seconds`) |
 | `any_of` | OR compound (nested inside `all_of` only) |
 
-## Actions (27)
+## Actions (29)
 
 **Alerting / external** (11):
 
@@ -89,6 +90,13 @@ Prefect-Automations-style declarative event → action wiring in one YAML compon
 | `cancel_backfill` | Cancel a partition backfill | Dagster+ token |
 | `reexecute_backfill` | Re-execute a failed backfill (FROM_FAILURE or ALL_STEPS) | Dagster+ token |
 | `add_dynamic_partition` | Register a new dynamic partition programmatically | — (works on OSS) |
+
+**Utility** (2):
+
+| Type | Effect |
+|---|---|
+| `log` | Just log a message at `info`/`warning`/`error`/`debug` — no side effect. For debugging a new trigger config, or a lightweight audit note alongside other actions. |
+| `run_command` | Run a shell command on the Dagster daemon's host (`subprocess.run(..., shell=True)`), templated like every other action. `fail_on_nonzero_exit` (default false) turns a non-zero exit or a timeout into a raised error — surfacing as a failed sensor tick — instead of just a logged warning. |
 
 **Template tokens available in every action:** `{event_type}`, `{run_id}`, `{job_name}`, `{asset_key}`, `{partition_key}`, `{status}`, `{timestamp}`, `{message}`, `{url}`. Partition-emitting triggers also expose per-dimension tokens like `{partition_date}` / `{partition_region}` when the event is on a `MultiPartitionsDefinition`.
 
@@ -295,6 +303,19 @@ Swap `type:` on either side for any other trigger / action type documented below
 - type: schedule
   cron: "0 * * * *"
   execution_timezone: America/New_York   # default: UTC
+```
+
+**`on_load`** — fires exactly once, ever: the first time its sensor evaluates while `default_status: RUNNING`, then `SkipReason` forever after (mirrors `cron_schedule`'s own `cadence: once`, as a trigger here so it composes with this component's action catalog). No fields of its own. The motivating case: `set_concurrency_limit` only needs to apply once per deploy, not on every sensor tick — Dagster has no native "on code location load" hook, so this is the way to get that shape.
+
+```yaml
+name: apply_queue_limits
+when:
+  - type: on_load
+then:
+  - type: set_concurrency_limit
+    concurrency_key: snowflake
+    limit: 10
+default_status: RUNNING
 ```
 
 ### External
@@ -980,6 +1001,28 @@ Every action gets template tokens: `{event_type}`, `{run_id}`, `{job_name}`, `{a
   metadata_template:
     fired_by: "{event_type}"
     ts: "{timestamp}"
+```
+
+### Utility
+
+**`log`** — just log a message, no side effect.
+
+```yaml
+- type: log
+  message: "{event_type} fired for {job_name}"
+  level: warning       # info (default) | warning | error | debug
+```
+
+**`run_command`** — run a shell command on the Dagster daemon's host (`subprocess.run(command, shell=True)`). `command` is templated the same way every other action's message/body is.
+
+```yaml
+- type: run_command
+  command: "aws s3 sync /local/export s3://bucket/{partition_key}/"
+  timeout_seconds: 300
+  working_directory: /opt/exports
+  env:
+    AWS_PROFILE: prod
+  fail_on_nonzero_exit: true   # default false -- logs a warning instead of raising
 ```
 
 ## Common recipes

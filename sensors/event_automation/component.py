@@ -1,4 +1,4 @@
-"""EventAutomationComponent — 35 declarative triggers → 27 actions in one YAML component.
+"""EventAutomationComponent — 38 declarative triggers → 29 actions in one YAML component.
 
 Prefect-Automations analog on top of real Dagster sensors. Full trigger + action
 catalog, compound AND/OR semantics, and recipes are in the README:
@@ -13,7 +13,7 @@ import time
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import dagster as dg
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 # ── Action models ──────────────────────────────────────────────────────────
@@ -407,6 +407,45 @@ class AddDynamicPartitionAction(_ActionBase):
     )
 
 
+class LogAction(_ActionBase):
+    """Just log a message -- no side effect. Useful while building/debugging a new trigger config
+    (confirm it actually fires before wiring up something riskier), or as a lightweight audit note
+    alongside other actions in the same `then:` list."""
+    type: Literal["log"] = "log"
+    message: str = Field(default="{message}", description="Log message. Templated ('{token}' substitution, same tokens every other action's templates get).")
+    level: str = Field(default="info", description="info | warning | error | debug")
+
+    @model_validator(mode="after")
+    def _validate_level(self):
+        if self.level.lower() not in ("info", "warning", "error", "debug"):
+            raise ValueError(f"LogAction.level must be one of info/warning/error/debug, got {self.level!r}.")
+        return self
+
+
+class CommandAction(_ActionBase):
+    """Run a shell command on the Dagster daemon's host process. `command` is YOUR OWN config (same
+    trust boundary as this component's `webhook`/`sql`-adjacent actions elsewhere), templated with
+    the same `{token}` substitution every other action uses -- not arbitrary untrusted input, and no
+    eval/jinja beyond that substitution."""
+    type: Literal["run_command"] = "run_command"
+    command: str = Field(description="Shell command to run (via subprocess, shell=True). Templated.")
+    timeout_seconds: int = Field(default=60, description="Kill the command if it hasn't finished within this many seconds.")
+    working_directory: Optional[str] = Field(default=None, description="cwd for the subprocess. Defaults to the daemon process's own cwd.")
+    env: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Extra env vars merged OVER the daemon process's own environment (not a replacement of it).",
+    )
+    fail_on_nonzero_exit: bool = Field(
+        default=False,
+        description=(
+            "If true, a non-zero exit code (or a timeout) raises instead of just logging a "
+            "warning -- surfaces as a failed sensor tick in the UI, which stands out more than a "
+            "log line buried in sensor logs. Default false matches every other side-effect action "
+            "in this component (a failed webhook/Slack/etc. call also just logs a warning)."
+        ),
+    )
+
+
 Action = Union[
     MaterializeAction,
     LaunchJobAction,
@@ -436,6 +475,8 @@ Action = Union[
     CancelBackfillAction,
     ReexecuteBackfillAction,
     AddDynamicPartitionAction,
+    LogAction,
+    CommandAction,
 ]
 
 
@@ -672,6 +713,16 @@ class ScheduleTrigger(_TriggerBase):
     type: Literal["schedule"] = "schedule"
     cron: str = Field(description="Cron expression (e.g. '0 * * * *').")
     execution_timezone: str = Field(default="UTC")
+
+
+class OnLoadTrigger(_TriggerBase):
+    """Fires exactly once, ever -- the first time its sensor evaluates while RUNNING, then never
+    again. Dagster has no native 'on code location load/deploy' hook; this is the way to run a
+    setup-only action (e.g. `set_concurrency_limit`, which only needs to apply once, not on every
+    sensor tick) instead of repeating it on an ordinary recurring trigger. Mirrors cron_schedule's
+    own `cadence: once` (Airflow's @once), expressed here as a trigger so it composes with this
+    component's action catalog."""
+    type: Literal["on_load"] = "on_load"
 
 
 class HttpPollTrigger(_TriggerBase):
@@ -1373,6 +1424,7 @@ Trigger = Union[
     RunStatusTrigger,
     AssetMaterializedTrigger,
     ScheduleTrigger,
+    OnLoadTrigger,
     HttpPollTrigger,
     FreshnessViolationTrigger,
     RunDurationTrigger,
@@ -1863,6 +1915,34 @@ def _execute_action(action: Action, tokens: Dict[str, Any], logger, instance=Non
             logger.info(f"add_dynamic_partition → {action.partitions_def_name}={key}")
         except Exception as exc:
             logger.warning(f"add_dynamic_partition failed: {exc}")
+        return None
+    if isinstance(action, LogAction):
+        msg = _render_template(action.message, tokens)
+        getattr(logger, action.level.lower())(msg)
+        return None
+    if isinstance(action, CommandAction):
+        import subprocess
+        command = _render_template(action.command, tokens)
+        env = {**os.environ, **(action.env or {})}
+        try:
+            result = subprocess.run(
+                command, shell=True, timeout=action.timeout_seconds, cwd=action.working_directory,
+                env=env, capture_output=True, text=True,
+            )
+            if result.stdout:
+                logger.info(f"run_command stdout: {result.stdout.strip()[:2000]}")
+            if result.stderr:
+                logger.info(f"run_command stderr: {result.stderr.strip()[:2000]}")
+            if result.returncode != 0:
+                msg = f"run_command exited {result.returncode}: {command!r}"
+                if action.fail_on_nonzero_exit:
+                    raise RuntimeError(msg)
+                logger.warning(msg)
+        except subprocess.TimeoutExpired:
+            msg = f"run_command timed out after {action.timeout_seconds}s: {command!r}"
+            if action.fail_on_nonzero_exit:
+                raise RuntimeError(msg)
+            logger.warning(msg)
         return None
     logger.warning(f"Unknown action type: {type(action).__name__}")
     return None
@@ -2584,6 +2664,30 @@ def _build_schedule_sensor(
             timestamp=int(prev_fire.timestamp()),
             message=f"Schedule fired: {trigger.cron}",
         )
+        requests_out = _run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name)
+        return dg.SensorResult(run_requests=requests_out) if requests_out else None
+
+    return dg.SensorDefinition(
+        name=name,
+        evaluation_fn=_sensor_fn,
+        minimum_interval_seconds=30,
+        default_status=default_status,
+    )
+
+
+def _build_on_load_sensor(
+    name: str, trigger: OnLoadTrigger, actions: List[Action], default_status: dg.DefaultSensorStatus
+) -> dg.SensorDefinition:
+    """on_load: fires once, ever -- same cursor-flag idiom as cron_schedule's cadence='once'
+    sensor. The cursor is set BEFORE running actions (not after), matching that component's own
+    choice: a crash partway through `then:` still counts as "fired" and won't retry on the next
+    tick, the same tradeoff every other side-effect action in this component already accepts
+    (failures log a warning rather than bubble up and re-fire)."""
+    def _sensor_fn(context: dg.SensorEvaluationContext):
+        if context.cursor == "fired":
+            return dg.SkipReason("on_load already fired once -- this sensor never fires again")
+        context.update_cursor("fired")
+        tokens = _default_tokens(event_type="on_load", message="Code location loaded")
         requests_out = _run_actions(actions, tokens, context.log, instance=context.instance, throttle=trigger.throttle, sensor_name=name)
         return dg.SensorResult(run_requests=requests_out) if requests_out else None
 
@@ -4774,6 +4878,8 @@ class EventAutomationComponent(dg.Component, dg.Model, dg.Resolvable):
                 sensors.append(_build_asset_materialized_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, ScheduleTrigger):
                 sensors.append(_build_schedule_sensor(child_name, trigger, self.then, sensor_status))
+            elif isinstance(trigger, OnLoadTrigger):
+                sensors.append(_build_on_load_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, HttpPollTrigger):
                 sensors.append(_build_http_poll_sensor(child_name, trigger, self.then, sensor_status))
             elif isinstance(trigger, FreshnessViolationTrigger):

@@ -188,6 +188,8 @@ class TestModelConstruction:
             (comp_mod.ToggleScheduleAction, {"schedule_name": "s", "action": "stop"}),
             (comp_mod.SnsAction, {"topic_arn": "arn:..."}),
             (comp_mod.SqsAction, {"queue_url": "https://sqs..."}),
+            (comp_mod.LogAction, {"message": "hi"}),
+            (comp_mod.CommandAction, {"command": "true"}),
         ]
         for cls, fields in actions:
             obj = cls(**fields)
@@ -228,12 +230,13 @@ class TestSensorEmission:
         assert "test_automation__schedule_1" in names
         assert "test_automation__asset_materialized_2" in names
 
-    def test_all_35_trigger_types_emit_sensors(self):
+    def test_all_36_trigger_types_emit_sensors(self):
         """One sensor per trigger, for every trigger type."""
         triggers = [
             {"type": "run_status", "status": "FAILURE"},
             {"type": "asset_materialized", "asset_keys": ["a"]},
             {"type": "schedule", "cron": "0 * * * *"},
+            {"type": "on_load"},
             {"type": "http_poll", "url": "https://example.com"},
             {"type": "freshness_violation", "asset_keys": ["a"], "max_age_minutes": 60},
             {"type": "run_duration", "max_duration_seconds": 1800},
@@ -270,7 +273,7 @@ class TestSensorEmission:
             {"type": "sqs_poll", "queue_url": "https://sqs.example.com/q"},
         ]
         defs = self._build_defs(triggers)
-        assert len(list(defs.sensors)) == 35
+        assert len(list(defs.sensors)) == 36
 
 
 # ── Template rendering ───────────────────────────────────────────────────
@@ -1096,6 +1099,8 @@ class TestEndToEnd:
                 {"type": "cancel_backfill", "backfill_id": "bf_1"},
                 {"type": "reexecute_backfill", "backfill_id": "bf_1", "from_failure": True},
                 {"type": "add_dynamic_partition", "partitions_def_name": "hours", "partition_key": "2024-01-15"},
+                {"type": "log", "message": "all actions ran"},
+                {"type": "run_command", "command": "true"},
             ],
         )
         defs = component.build_defs(None)

@@ -145,3 +145,46 @@ def test_build_mcp_server_registers_generic_tools(mod, monkeypatch):
     tools = mod.AtlassianMcpProxyTools("service_account", service_account_key_env_var="ATLASSIAN_SVC_KEY")
     mcp = mod.build_mcp_server(tools)
     assert mcp is not None
+
+
+def test_stdio_server_missing_auth_is_a_real_isError_result_with_the_original_message():
+    """Full round trip through a real subprocess (same transport agentic_pipeline/slack_chat_tools etc. use)
+    -- not just calling the registered function in-process -- since the SDK's tool dispatch only preserves a
+    raised exception's own message when it recognizes the exception as ITS OWN ToolError (see _mcp_call in
+    component.py); getting this wrong (e.g. raising this module's own ToolError instead) still produces
+    isError=True but replaces the message with a useless generic 'Error executing tool <name>', mirroring
+    dagster_instance_tools/tests/test_mcp_stdio.py's identical check. Uses a deliberately-unset auth env var
+    (not a network mock) as the real, known failure -- AtlassianMcpProxyTools._get_auth_header raises
+    AtlassianMcpAuthError -> tools.call() returns {"error": ...} -> _mcp_call must turn that into isError."""
+    import asyncio
+    import os
+    import sys
+    from pathlib import Path
+
+    import pytest
+
+    pytest.importorskip("mcp")
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    server = str(Path(__file__).resolve().parent.parent / "component.py")
+    unset_email_var = "ATLASSIAN_EMAIL_TEST_UNSET_VAR"
+    unset_token_var = "ATLASSIAN_API_TOKEN_TEST_UNSET_VAR"
+    env = {k: v for k, v in os.environ.items() if k not in (unset_email_var, unset_token_var)}
+    env.update({
+        "ATLASSIAN_MCP_AUTH_MODE": "personal_api_token",
+        "ATLASSIAN_MCP_EMAIL_ENV_VAR": unset_email_var,
+        "ATLASSIAN_MCP_API_TOKEN_ENV_VAR": unset_token_var,
+    })
+    params = StdioServerParameters(command=sys.executable, args=[server], env=env)
+
+    async def go():
+        async with stdio_client(params) as (r, w):
+            async with ClientSession(r, w) as s:
+                await s.initialize()
+                return await s.call_tool("call_remote_tool", {"tool_name": "jira_search", "arguments": {}})
+
+    result = asyncio.run(asyncio.wait_for(go(), 60))
+    assert getattr(result, "is_error", None) or getattr(result, "isError", None)
+    text = result.content[0].text
+    assert unset_email_var in text and "requires" in text

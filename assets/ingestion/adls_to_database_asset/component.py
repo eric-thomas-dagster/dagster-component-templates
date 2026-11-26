@@ -274,6 +274,37 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     if_exists: str = Field(default="append", description="fail, replace, or append")
     file_format: str = Field(default="auto", description="csv, json, parquet, or auto")
     csv_delimiter: str = Field(default=",", description="CSV delimiter")
+    header_row: Optional[int] = Field(
+        default=0,
+        description="CSV only: row number to use as column names (0-indexed, None for no header -- columns come "
+                    "out named 0, 1, 2, ...). Same field name/semantics as file_ingestion's header_row.",
+    )
+    csv_quotechar: Optional[str] = Field(default=None, description="CSV only: quote character (pandas default '\"' when unset).")
+    csv_escapechar: Optional[str] = Field(default=None, description="CSV only: escape character for quote/delimiter characters inside a field.")
+    dtype_mapping: Optional[str] = Field(
+        default=None,
+        description='Typed columns: JSON string of {column: pandas dtype}, e.g. \'{"id": "int64", "amount": "float64"}\'. '
+                    "Applies to CSV and JSON reads (passed as pandas' own dtype= kwarg); has no effect on parquet, "
+                    "which already carries its own column types. Same field name/shape as file_ingestion's and "
+                    "s3_to_database_asset's dtype_mapping.",
+    )
+    pre_copy_script: Optional[str] = Field(
+        default=None,
+        description="SQL executed against the destination database immediately before the FIRST write to each "
+                    "distinct destination table this asset run touches (e.g. 'TRUNCATE TABLE orders') -- matches "
+                    "Azure Data Factory Copy activity's Sink 'Pre-copy script', which likewise assumes an "
+                    "already-provisioned sink table. Runs once per distinct table, not once per matched blob -- in "
+                    "wildcard mode, every matched file normally shares one table_name, so it fires exactly once for "
+                    "the whole asset; a partition_key-templated table_name that resolves to several distinct tables "
+                    "in one run gets its own one-time run per table. Skipped entirely when dry_run is true.",
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="If true, download and parse each matched file (so logs show real row/column counts) but skip "
+                    "BOTH pre_copy_script and the actual write to the destination table -- nothing reaches the "
+                    "database. Use to validate a new wildcard/column_mapping/dtype_mapping config before trusting "
+                    "it with real writes.",
+    )
     column_mapping: Optional[dict] = Field(default=None, description="Rename columns: {old: new}")
     group_name: Optional[str] = Field(default="ingestion", description="Asset group name")
     description: Optional[str] = Field(default=None)
@@ -522,6 +553,21 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             client = BlobServiceClient.from_connection_string(conn_str)
             engine = create_engine(db_url)
 
+            dtype_mapping = None
+            if _self.dtype_mapping:
+                import json
+                try:
+                    dtype_mapping = json.loads(_self.dtype_mapping)
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"ADLSToDatabaseAssetComponent: dtype_mapping is not valid JSON: {e}") from e
+
+            # pre_copy_script runs ONCE per distinct destination table this asset run writes to -- not once
+            # per source file. Matters in wildcard mode (every matched blob shares one table_name): running a
+            # TRUNCATE-shaped script before EVERY file would wipe out the previous file's just-written rows
+            # within the same run. Matches Azure Data Factory Copy activity's own "once per sink" semantics,
+            # generalized to the (table_name can vary per partition key) case this component already supports.
+            _pre_copy_done = set()
+
             def _read_and_write(container_name, blob_name, table_name):
                 context.log.info(f"Downloading {container_name}/{blob_name}")
                 blob = client.get_blob_client(container=container_name, blob=blob_name)
@@ -535,19 +581,35 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 if fmt == "parquet":
                     df = pd.read_parquet(BytesIO(content))
                 elif fmt == "json":
-                    df = pd.read_json(BytesIO(content), orient="records")
+                    df = pd.read_json(BytesIO(content), orient="records", dtype=dtype_mapping)
                 else:
-                    df = pd.read_csv(BytesIO(content), delimiter=_self.csv_delimiter)
+                    csv_kwargs = {"delimiter": _self.csv_delimiter, "header": _self.header_row, "dtype": dtype_mapping}
+                    if _self.csv_quotechar is not None:
+                        csv_kwargs["quotechar"] = _self.csv_quotechar
+                    if _self.csv_escapechar is not None:
+                        csv_kwargs["escapechar"] = _self.csv_escapechar
+                    df = pd.read_csv(BytesIO(content), **csv_kwargs)
 
                 context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
 
                 if _self.column_mapping:
                     df = df.rename(columns=_self.column_mapping)
 
-                df.to_sql(table_name, con=engine, schema=_self.schema_name,
-                          if_exists=_self.if_exists, index=False, method="multi", chunksize=1000)
+                dest = f"{_self.schema_name + '.' if _self.schema_name else ''}{table_name}"
+                if _self.dry_run:
+                    context.log.info(f"dry_run: would write {len(df)} rows to {dest} (pre_copy_script skipped, nothing written)")
+                else:
+                    pre_copy_key = (_self.schema_name, table_name)
+                    if _self.pre_copy_script and pre_copy_key not in _pre_copy_done:
+                        from sqlalchemy import text
+                        with engine.begin() as conn:
+                            conn.execute(text(_self.pre_copy_script))
+                        _pre_copy_done.add(pre_copy_key)
+                        context.log.info(f"Ran pre_copy_script against {dest}")
 
-                context.log.info(f"Wrote {len(df)} rows to {_self.schema_name + '.' if _self.schema_name else ''}{table_name}")
+                    df.to_sql(table_name, con=engine, schema=_self.schema_name,
+                              if_exists=_self.if_exists, index=False, method="multi", chunksize=1000)
+                    context.log.info(f"Wrote {len(df)} rows to {dest}")
                 return {"df": df, "blob_name": blob_name, "table_name": table_name, "fmt": fmt}
 
             effective_container = config.container_name or _self.container_name

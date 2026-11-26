@@ -99,6 +99,12 @@ Set `wildcard` (e.g. `*.csv`) to treat `blob_name` as a directory prefix and loa
 | `schema_name` | `str` | — | Destination schema name |
 | `file_format` | `str` | `"auto"` | csv, json, parquet, or auto |
 | `csv_delimiter` | `str` | `","` | CSV delimiter |
+| `header_row` | `int` | `0` | CSV only: row number to use as column names (0-indexed, None for no header -- columns come out named 0, 1, 2, ...). Same field name/semantics as file_ingestion's header_row. |
+| `csv_quotechar` | `str` | — | CSV only: quote character (pandas default '"' when unset). |
+| `csv_escapechar` | `str` | — | CSV only: escape character for quote/delimiter characters inside a field. |
+| `dtype_mapping` | `str` | — | Typed columns: JSON string of {column: pandas dtype}, e.g. '{"id": "int64", "amount": "float64"}'. Applies to CSV and JSON reads (passed as pandas' own dtype= kwarg); has no effect on parquet, which already carries its o… _(full docs in schema.json + component README)_ |
+| `pre_copy_script` | `str` | — | SQL executed against the destination database immediately before the FIRST write to each distinct destination table this asset run touches (e.g. 'TRUNCATE TABLE orders') -- matches Azure Data Factory Copy activity's Sink… _(full docs in schema.json + component README)_ |
+| `dry_run` | `bool` | `false` | If true, download and parse each matched file (so logs show real row/column counts) but skip BOTH pre_copy_script and the actual write to the destination table -- nothing reaches the database. Use to validate a new wildc… _(full docs in schema.json + component README)_ |
 | `column_mapping` | `dict` | — | Rename columns: {old: new} |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

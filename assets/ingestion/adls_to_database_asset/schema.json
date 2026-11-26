@@ -374,6 +374,42 @@
       "label": "Recursive",
       "description": "wildcard only. Match blobs in 'subdirectories' (blob names containing '/') under blob_name too.",
       "required": false
+    },
+    "header_row": {
+      "type": "integer",
+      "label": "Header Row",
+      "description": "CSV only: row number to use as column names (0-indexed, None for no header -- columns come out named 0, 1, 2, ...). Same field name/semantics as file_ingestion's header_row.",
+      "required": false
+    },
+    "csv_quotechar": {
+      "type": "string",
+      "label": "Csv Quotechar",
+      "description": "CSV only: quote character (pandas default '\"' when unset).",
+      "required": false
+    },
+    "csv_escapechar": {
+      "type": "string",
+      "label": "Csv Escapechar",
+      "description": "CSV only: escape character for quote/delimiter characters inside a field.",
+      "required": false
+    },
+    "dtype_mapping": {
+      "type": "string",
+      "label": "Dtype Mapping",
+      "description": "Typed columns: JSON string of {column: pandas dtype}, e.g. '{\"id\": \"int64\", \"amount\": \"float64\"}'. Applies to CSV and JSON reads (passed as pandas' own dtype= kwarg); has no effect on parquet, which already carries its own column types. Same field name/shape as file_ingestion's and s3_to_database_asset's dtype_mapping.",
+      "required": false
+    },
+    "pre_copy_script": {
+      "type": "string",
+      "label": "Pre Copy Script",
+      "description": "SQL executed against the destination database immediately before the FIRST write to each distinct destination table this asset run touches (e.g. 'TRUNCATE TABLE orders') -- matches Azure Data Factory Copy activity's Sink 'Pre-copy script', which likewise assumes an already-provisioned sink table. Runs once per distinct table, not once per matched blob -- in wildcard mode, every matched file normally shares one table_name, so it fires exactly once for the whole asset; a partition_key-templated table_name that resolves to several distinct tables in one run gets its own one-time run per table. Skipped entirely when dry_run is true.",
+      "required": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "If true, download and parse each matched file (so logs show real row/column counts) but skip BOTH pre_copy_script and the actual write to the destination table -- nothing reaches the database. Use to validate a new wildcard/column_mapping/dtype_mapping config before trusting it with real writes.",
+      "required": false
     }
   },
   "tags": [

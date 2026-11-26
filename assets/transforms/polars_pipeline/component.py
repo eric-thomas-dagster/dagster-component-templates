@@ -1029,8 +1029,10 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
             pivoted = pivoted.with_columns([pl.col(c).fill_null(fill_value) for c in value_pivot_cols])
         return pivoted.lazy()
     if kind == "lookup":
-        # ADF's Lookup transform. Reuses `join`'s own {ref: <step_id>} right-
-        # side shape.
+        # ADF's Lookup transform -- field shape matches the canonical standalone
+        # `assets/transforms/lookup` LookupComponent (and pandas_pipeline's/
+        # pyspark_pipeline's own lookup ops) exactly, so YAML vocabulary
+        # transfers across all four.
         right_spec = op["right"]
         if not isinstance(right_spec, dict) or "ref" not in right_spec:
             raise ValueError("polars_pipeline lookup.right must be {ref: <step_id>}")
@@ -1050,43 +1052,120 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
             left_on = left_on if isinstance(left_on, list) else [left_on]
             right_on = right_on if isinstance(right_on, list) else [right_on]
 
+        multiple_match = (op.get("multiple_match") or "first").lower()
+        if multiple_match not in ("first", "last", "all", "all_as_list"):
+            raise ValueError(
+                f"lookup op: multiple_match must be 'first', 'last', 'all', or 'all_as_list', "
+                f"got {op.get('multiple_match')!r}"
+            )
+        on_no_match = (op.get("on_no_match") or "pass").lower()
+        if on_no_match not in ("pass", "error"):
+            raise ValueError(f"lookup op: on_no_match must be 'pass' or 'error', got {op.get('on_no_match')!r}")
         match_sort_by = op.get("match_sort_by")
         if match_sort_by:
-            # Multiple right-side rows sharing a key: sort the right side by
-            # match_sort_by (direction via match_sort_ascending) THEN take
-            # exactly one row per key with unique(keep='first') BEFORE the
-            # join -- guarantees a true 1:1 lookup regardless of how many
-            # right rows share a key, instead of a join fan-out.
-            sort_by = match_sort_by if isinstance(match_sort_by, list) else [match_sort_by]
-            ascending = op.get("match_sort_ascending", True)
-            descending = [not a for a in ascending] if isinstance(ascending, list) else (not ascending)
-            right_lf = right_lf.sort(by=sort_by, descending=descending).unique(
-                subset=right_on, keep="first", maintain_order=True
-            )
-
+            match_sort_by = match_sort_by if isinstance(match_sort_by, list) else [match_sort_by]
+        match_sort_ascending = op.get("match_sort_ascending", True)
         output_mode = (op.get("output_mode") or "columns").lower()
+        if output_mode not in ("columns", "is_match"):
+            raise ValueError(f"lookup op: output_mode must be 'columns' or 'is_match', got {output_mode!r}")
+        output_column = op.get("output_column") or "is_match"
+        columns_to_add = op.get("columns_to_add")
+        rename = op.get("rename")
+        match_flag_column = op.get("match_flag_column")
+        if output_mode == "is_match" and (columns_to_add or rename or match_flag_column):
+            raise ValueError(
+                "lookup op: columns_to_add/rename/match_flag_column have no effect in "
+                "output_mode='is_match' (no lookup columns are attached) -- unset them."
+            )
+        if rename:
+            _overlap = set(rename) & set(right_on)
+            if _overlap:
+                raise ValueError(f"lookup op: `rename` must not rename join key column(s) {sorted(_overlap)}.")
+
+        # Deduped-to-one-row-per-key keys-only frame -- reused for the
+        # on_no_match='error' probe, output_mode='is_match', and
+        # match_flag_column, all of which only care whether >=1 match exists.
+        right_keys_only = right_lf.select(right_on).unique(subset=right_on, keep="first", maintain_order=True)
+
+        if on_no_match == "error":
+            _probe_col = "__lookup_error_probe__"
+            _probe = right_keys_only.with_columns(pl.lit(True).alias(_probe_col))
+            _joined_probe = lf.join(_probe, left_on=left_on, right_on=right_on, how="left", maintain_order="left")
+            _unmatched = _joined_probe.filter(pl.col(_probe_col).is_null()).select(pl.len()).collect().item()
+            if _unmatched:
+                raise ValueError(
+                    f"lookup op: {_unmatched} row(s) had no match in the lookup stream on "
+                    f"join key(s) {left_on} (on_no_match='error')."
+                )
+
         if output_mode == "is_match":
-            # Existence-only check -- reduce the right side to just its join
-            # keys (deduped to one row per key, independent of match_sort_by)
-            # plus a marker column, so the join can neither fan out nor pull
-            # in any other right-side column; a semi-join-shaped result.
-            output_column = op.get("output_column") or "is_match"
+            # Existence-only check -- the join can neither fan out nor pull in
+            # any other right-side column; a semi-join-shaped result.
             probe_col = f"__lookup_probe_{output_column}__"
-            right_probe = right_lf.select(right_on).with_columns(
-                pl.lit(True).alias(probe_col)
-            ).unique(subset=right_on, keep="first", maintain_order=True)
+            right_probe = right_keys_only.with_columns(pl.lit(True).alias(probe_col))
             joined = lf.join(right_probe, left_on=left_on, right_on=right_on, how="left", maintain_order="left")
             return joined.with_columns(
                 pl.col(probe_col).fill_null(False).alias(output_column)
             ).drop(probe_col)
-        if output_mode != "columns":
-            raise ValueError(f"lookup op: output_mode must be 'columns' or 'is_match', got {output_mode!r}")
 
-        # output_mode == 'columns': behaves like a left join -- null for no
-        # match, every right-side column kept (renamed via `suffix` on an
-        # overlapping non-join column name, same default as `join`).
+        # output_mode == 'columns'
+        added_cols_all = [c for c in right_lf.collect_schema().names() if c not in right_on]
+        added_cols = columns_to_add if columns_to_add else added_cols_all
+        # match_sort_by columns must survive into `right_subset` even when they aren't in
+        # columns_to_add (the sort below needs to read them) -- dropped again right after
+        # resolving, unless the caller also explicitly asked to keep them via columns_to_add.
+        sort_only_cols = (
+            [c for c in match_sort_by if c not in right_on and c not in added_cols]
+            if (match_sort_by and multiple_match in ("first", "last")) else []
+        )
+        subset_cols = list(dict.fromkeys(right_on + [c for c in added_cols if c not in right_on] + sort_only_cols))
+        right_subset = right_lf.select(subset_cols)
+
+        if multiple_match in ("first", "last"):
+            # 'first'/'last': sort candidates by match_sort_by (if set) then keep exactly
+            # one row per key -- guarantees a true 1:1 lookup even when multiple right-side
+            # rows share the same join key. Unset match_sort_by: first-occurrence/arbitrary
+            # pick (polars' own row order) -- NOT deterministic across runs with reordered
+            # upstream data; set match_sort_by for a reproducible result.
+            keep = "first" if multiple_match == "first" else "last"
+            if match_sort_by:
+                descending = (
+                    [not a for a in match_sort_ascending] if isinstance(match_sort_ascending, list)
+                    else [not match_sort_ascending] * len(match_sort_by)
+                )
+                right_resolved = right_subset.sort(by=match_sort_by, descending=descending).unique(
+                    subset=right_on, keep=keep, maintain_order=True
+                )
+            else:
+                right_resolved = right_subset.unique(subset=right_on, keep=keep, maintain_order=True)
+            _drop_sort_only = [c for c in sort_only_cols if c in right_resolved.collect_schema().names()]
+            if _drop_sort_only:
+                right_resolved = right_resolved.drop(_drop_sort_only)
+        elif multiple_match == "all":
+            right_resolved = right_subset
+        else:  # all_as_list
+            agg_cols = [c for c in added_cols if c not in right_on]
+            if agg_cols:
+                right_resolved = right_subset.group_by(right_on, maintain_order=True).agg(
+                    [pl.col(c) for c in agg_cols]
+                )
+            else:
+                right_resolved = right_subset.unique(subset=right_on, keep="first", maintain_order=True)
+
+        if rename:
+            _resolved_cols = set(right_resolved.collect_schema().names())
+            _rename = {k: v for k, v in rename.items() if k in _resolved_cols}
+            if _rename:
+                right_resolved = right_resolved.rename(_rename)
+
         suffix = op.get("suffix", "_right")
-        return lf.join(right_lf, left_on=left_on, right_on=right_on, how="left", suffix=suffix, maintain_order="left")
+        merged = lf.join(right_resolved, left_on=left_on, right_on=right_on, how="left", suffix=suffix, maintain_order="left")
+
+        if match_flag_column:
+            probe2 = right_keys_only.with_columns(pl.lit(True).alias(match_flag_column))
+            merged = merged.join(probe2, left_on=left_on, right_on=right_on, how="left", maintain_order="left")
+            merged = merged.with_columns(pl.col(match_flag_column).fill_null(False))
+        return merged
     if kind == "window_calculation":
         # ADF's Window transform, scoped to JUST the two statistical
         # functions not already covered by this file's own `sort`/`group_by`

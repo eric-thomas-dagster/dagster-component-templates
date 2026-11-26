@@ -289,3 +289,115 @@ def test_window_calculation_cume_dist_hand_verified(mod):
     )
     out_sorted = out.sort("v")
     assert out_sorted["cd"].to_list() == [0.25, 0.75, 0.75, 1.0]
+
+
+# ── lookup: multiple_match / on_no_match / columns_to_add / rename / match_flag_column ─────
+# (richer field shape ported from the canonical standalone LookupComponent, for cross-pipeline
+# consistency with pandas_pipeline/pyspark_pipeline's own lookup ops.)
+
+def _lookup_steps(right_rows, op_extra):
+    return [
+        {"id": "left", "source": {"kind": "inline", "rows": [
+            {"customer_id": 1}, {"customer_id": 2},
+        ]}, "operations": []},
+        {"id": "right", "source": {"kind": "inline", "rows": right_rows}, "operations": []},
+        {"id": "out", "source": {"kind": "ref", "ref": "left"},
+         "operations": [{"op": "lookup", "right": {"ref": "right"}, "on_columns": ["customer_id"], **op_extra}]},
+    ]
+
+
+def test_lookup_multiple_match_last(mod):
+    out = _materialize_steps(mod, steps=_lookup_steps(
+        [
+            {"customer_id": 1, "event_time": "2024-01-02", "event_id": "e_early"},
+            {"customer_id": 1, "event_time": "2024-01-05", "event_id": "e_late"},
+            {"customer_id": 2, "event_time": "2024-01-01", "event_id": "e_only"},
+        ],
+        {"multiple_match": "last", "match_sort_by": ["event_time"]},
+    ), asset_name="mm_last")
+    assert len(out) == 2
+    by_id = {row["customer_id"]: row["event_id"] for row in out.to_dicts()}
+    assert by_id[1] == "e_late"
+    assert by_id[2] == "e_only"
+
+
+def test_lookup_multiple_match_all_fans_out(mod):
+    out = _materialize_steps(mod, steps=_lookup_steps(
+        [
+            {"customer_id": 1, "event_id": "e1"},
+            {"customer_id": 1, "event_id": "e2"},
+            {"customer_id": 2, "event_id": "e3"},
+        ],
+        {"multiple_match": "all"},
+    ), asset_name="mm_all")
+    assert len(out) == 3
+    assert sorted(row["event_id"] for row in out.to_dicts() if row["customer_id"] == 1) == ["e1", "e2"]
+
+
+def test_lookup_multiple_match_all_as_list(mod):
+    out = _materialize_steps(mod, steps=_lookup_steps(
+        [
+            {"customer_id": 1, "event_id": "e1"},
+            {"customer_id": 1, "event_id": "e2"},
+            {"customer_id": 2, "event_id": "e3"},
+        ],
+        {"multiple_match": "all_as_list"},
+    ), asset_name="mm_all_as_list")
+    assert len(out) == 2
+    by_id = {row["customer_id"]: row["event_id"] for row in out.to_dicts()}
+    assert sorted(by_id[1]) == ["e1", "e2"]
+    assert by_id[2] == ["e3"]
+
+
+def test_lookup_on_no_match_error_raises(mod):
+    with pytest.raises(Exception, match="on_no_match='error'"):
+        _materialize_steps(mod, steps=_lookup_steps(
+            [{"customer_id": 1, "event_id": "e1"}], {"on_no_match": "error"},
+        ), asset_name="no_match_error")
+
+
+def test_lookup_on_no_match_pass_is_default(mod):
+    out = _materialize_steps(mod, steps=_lookup_steps(
+        [{"customer_id": 1, "event_id": "e1"}], {},
+    ), asset_name="no_match_pass")
+    by_id = {row["customer_id"]: row["event_id"] for row in out.to_dicts()}
+    assert by_id[1] == "e1"
+    assert by_id[2] is None
+
+
+def test_lookup_columns_to_add_restricts_output(mod):
+    out = _materialize_steps(mod, steps=_lookup_steps(
+        [
+            {"customer_id": 1, "event_id": "e1", "region": "east"},
+            {"customer_id": 2, "event_id": "e2", "region": "west"},
+        ],
+        {"columns_to_add": ["event_id"]},
+    ), asset_name="cols_restrict")
+    assert "event_id" in out.columns
+    assert "region" not in out.columns
+
+
+def test_lookup_rename_renames_added_columns(mod):
+    out = _materialize_steps(mod, steps=_lookup_steps(
+        [{"customer_id": 1, "event_id": "e1"}, {"customer_id": 2, "event_id": "e2"}],
+        {"rename": {"event_id": "last_event_id"}},
+    ), asset_name="renamed")
+    assert "last_event_id" in out.columns
+    assert "event_id" not in out.columns
+
+
+def test_lookup_rename_join_key_raises(mod):
+    with pytest.raises(Exception, match="join key"):
+        _materialize_steps(mod, steps=_lookup_steps(
+            [{"customer_id": 1, "event_id": "e1"}], {"rename": {"customer_id": "cust_id"}},
+        ), asset_name="rename_key_err")
+
+
+def test_lookup_match_flag_column_with_columns_mode(mod):
+    out = _materialize_steps(mod, steps=_lookup_steps(
+        [{"customer_id": 1, "event_id": "e1"}], {"match_flag_column": "matched"},
+    ), asset_name="match_flag")
+    assert "event_id" in out.columns
+    by_id = {row["customer_id"]: row["matched"] for row in out.to_dicts()}
+    assert by_id[1] is True
+    assert by_id[2] is False

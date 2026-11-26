@@ -133,7 +133,7 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 | `coalesce` | `columns: [a, b]`, `output_column` | First non-null across the listed columns |
 | `route` | `routes: [{name, predicate}]`, `default?` | Fan one step out into several named lanes by predicate (same SQL dialect as `filter`), with an optional catch-all `default` lane. Reference a lane from a later step via `source: {kind: ref, ref: "<step_id>.<lane>"}` or a sink's `from:`. If `default` is set, the bare step id also resolves to that lane. |
 | `pivot` | `index: [cols]`, `pivot_column`, `value_columns: [cols]`, `agg_func` (default `sum`), `pivot_values?`, `fill_value?` (default `0`) | ADF's **Pivot** transform — see below. |
-| `lookup` | `right: {ref: <step_id>}`, `on_columns`/`left_on`+`right_on`, `match_sort_by?`, `match_sort_ascending?`, `output_mode`, `output_column?` | ADF's **Lookup** transform — see below. |
+| `lookup` | `right: {ref: <step_id>}`, `on_columns`/`left_on`+`right_on`, `multiple_match?` (`first`\|`last`\|`all`\|`all_as_list`, default `first`), `on_no_match?` (`pass`\|`error`, default `pass`), `match_sort_by?`, `match_sort_ascending?`, `output_mode`, `output_column?`, `columns_to_add?`, `rename?`, `match_flag_column?` | ADF's **Lookup** transform — see below. Same field shape as the standalone `assets/transforms/lookup` `LookupComponent` and `pandas_pipeline`/`pyspark_pipeline`'s own `lookup` ops. |
 | `window_calculation` | `function: ntile\|cume_dist`, `order_by: [cols]`, `group_by?: [cols]`, `n?` (ntile only), `output_column` | ADF's **Window** transform's `ntile`/`cume_dist` statistical functions — see below. Rank-equivalent functions are already covered by the standalone `rank` component. |
 | `unpivot` | `id_columns: [cols]`, `value_columns?: [cols]` (default: all non-`id_columns`), `var_name?` (default `variable`), `value_name?` (default `value`), `drop_null_values?: bool` (default `false`) | ADF's **Unpivot** transform — see below. |
 | `rank` | `order_by: col\|[cols]`, `method?` (`average`\|`min`\|`max`\|`first`\|`dense`\|`ntile`\|`cume_dist`, default `average`), `ascending?: bool\|[bool, ...]` (default `true`), `group_by?: [cols]`, `ntile_buckets?: int` (required for `ntile`), `output_column?` (default `{order_by}_rank`) | ADF's **Rank** transform, full tie-breaking method set — see below. |
@@ -180,6 +180,27 @@ semi-join-shaped result). When `match_sort_by` is set, multiple right-side rows 
 key are resolved to exactly one match by sorting the right side (direction via
 `match_sort_ascending`) and keeping the first row per key before the join — a true 1:1
 lookup regardless of how many right rows share a key.
+
+`multiple_match` controls this resolution explicitly: `first`/`last` (default `first`) is
+the `match_sort_by`-driven pick above (unset `match_sort_by`: arbitrary/first-occurrence —
+set it for a reproducible result); `all` fans out one output row per match (plain left-join
+fan-out); `all_as_list` collects every match's added columns into list-valued columns with
+no fan-out. `on_no_match: error` raises if any left row has zero matches (default `pass`
+lets it through with nulls). `columns_to_add` restricts which right-side columns get
+attached (default: all non-key columns); `rename` renames them after attaching (rejects
+renaming a join key). `match_flag_column` attaches the matched columns **and** a boolean
+flag simultaneously — distinct from `output_mode: is_match`, which emits *only* the boolean
+with no right-side columns attached.
+
+```yaml
+- op: lookup
+  right: {ref: customer_events}
+  on_columns: [customer_id]
+  multiple_match: all_as_list   # every matching event's columns collected into lists, no fan-out
+  columns_to_add: [event_id]    # only attach this column (default: all non-key columns)
+  rename: {event_id: event_ids}
+  on_no_match: error            # raise instead of silently passing unmatched rows through
+```
 
 ### `window_calculation` (ADF's Window transform — ntile / cume_dist)
 

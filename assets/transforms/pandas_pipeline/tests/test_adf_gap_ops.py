@@ -297,3 +297,107 @@ def test_window_calculation_invalid_function_raises(mod):
             "op": "window_calculation", "function": "rank", "order_by": ["v"],
             "output_column": "x",
         }])
+
+
+# -- lookup: multiple_match / on_no_match / columns_to_add / rename / match_flag_column ----
+# (richer field shape ported from the canonical standalone LookupComponent, for cross-pipeline
+# consistency with polars_pipeline/pyspark_pipeline's own lookup ops -- see commit history.)
+
+def _lookup_comp(mod, right_rows, op_extra):
+    @dg.asset
+    def orders():
+        return pd.DataFrame({"customer_id": [1, 2]})
+
+    @dg.asset
+    def events():
+        return pd.DataFrame(right_rows)
+
+    comp = mod.PandasPipelineComponent(
+        asset_name="out",
+        steps=[
+            {"id": "o", "source": {"kind": "upstream", "upstream_asset_key": "orders"}, "operations": []},
+            {"id": "e", "source": {"kind": "upstream", "upstream_asset_key": "events"}, "operations": []},
+            {"id": "out", "source": {"kind": "ref", "ref": "o"},
+             "operations": [{"op": "lookup", "right": {"ref": "e"}, "on_columns": ["customer_id"], **op_extra}]},
+        ],
+    )
+    defs = dg.Definitions.merge(dg.Definitions(assets=[orders, events]), comp.build_defs(None))
+    result = dg.materialize([orders, events, defs.get_assets_def(dg.AssetKey("out"))])
+    return result.output_for_node("out")
+
+
+def test_lookup_multiple_match_last(mod):
+    # customer 1 has two events; match_sort_by ascending + multiple_match='last' picks the
+    # LATEST event_time (opposite of the 'first' default).
+    out = _lookup_comp(mod, {
+        "customer_id": [1, 1, 2], "event_time": ["2024-01-02", "2024-01-05", "2024-01-01"],
+        "event_id": ["e_early", "e_late", "e_only"],
+    }, {"multiple_match": "last", "match_sort_by": ["event_time"]})
+    assert len(out) == 2
+    by_customer = dict(zip(out["customer_id"], out["event_id"]))
+    assert by_customer[1] == "e_late"
+    assert by_customer[2] == "e_only"
+
+
+def test_lookup_multiple_match_all_fans_out(mod):
+    out = _lookup_comp(mod, {
+        "customer_id": [1, 1, 2], "event_id": ["e1", "e2", "e3"],
+    }, {"multiple_match": "all"})
+    assert len(out) == 3  # customer 1's two matches both survive -- plain left-join fan-out
+    assert sorted(out[out["customer_id"] == 1]["event_id"].tolist()) == ["e1", "e2"]
+
+
+def test_lookup_multiple_match_all_as_list(mod):
+    out = _lookup_comp(mod, {
+        "customer_id": [1, 1, 2], "event_id": ["e1", "e2", "e3"],
+    }, {"multiple_match": "all_as_list"})
+    assert len(out) == 2  # one row per primary row, no fan-out
+    by_customer = dict(zip(out["customer_id"], out["event_id"]))
+    assert sorted(by_customer[1]) == ["e1", "e2"]
+    assert by_customer[2] == ["e3"]
+
+
+def test_lookup_on_no_match_error_raises(mod):
+    with pytest.raises(ValueError, match="on_no_match='error'"):
+        _lookup_comp(mod, {"customer_id": [1], "event_id": ["e1"]}, {"on_no_match": "error"})
+
+
+def test_lookup_on_no_match_pass_is_default(mod):
+    # Customer 2 has no match -- default on_no_match='pass' lets it through with nulls.
+    out = _lookup_comp(mod, {"customer_id": [1], "event_id": ["e1"]}, {})
+    by_customer = dict(zip(out["customer_id"], out["event_id"]))
+    assert by_customer[1] == "e1"
+    assert pd.isna(by_customer[2])
+
+
+def test_lookup_columns_to_add_restricts_output(mod):
+    out = _lookup_comp(mod, {
+        "customer_id": [1, 2], "event_id": ["e1", "e2"], "region": ["east", "west"],
+    }, {"columns_to_add": ["event_id"]})
+    assert "event_id" in out.columns
+    assert "region" not in out.columns
+
+
+def test_lookup_rename_renames_added_columns(mod):
+    out = _lookup_comp(mod, {
+        "customer_id": [1, 2], "event_id": ["e1", "e2"],
+    }, {"rename": {"event_id": "last_event_id"}})
+    assert "last_event_id" in out.columns
+    assert "event_id" not in out.columns
+
+
+def test_lookup_rename_join_key_raises(mod):
+    with pytest.raises(ValueError, match="join key"):
+        _lookup_comp(mod, {"customer_id": [1, 2], "event_id": ["e1", "e2"]},
+                     {"rename": {"customer_id": "cust_id"}})
+
+
+def test_lookup_match_flag_column_with_columns_mode(mod):
+    # match_flag_column attaches BOTH the matched columns AND a boolean flag --
+    # distinct from output_mode='is_match', which emits only the boolean.
+    out = _lookup_comp(mod, {"customer_id": [1], "event_id": ["e1"]},
+                        {"match_flag_column": "matched"})
+    assert "event_id" in out.columns
+    by_customer = dict(zip(out["customer_id"], out["matched"]))
+    assert by_customer[1] is True or by_customer[1] == True  # noqa: E712
+    assert by_customer[2] is False or by_customer[2] == False  # noqa: E712

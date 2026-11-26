@@ -735,6 +735,9 @@ def _apply_op(df: pd.DataFrame, op: Dict[str, Any], step_outputs: Dict[str, pd.D
         ]
         return result
     if kind == "lookup":
+        # ADF's Lookup transform -- field shape matches the canonical standalone
+        # `assets/transforms/lookup` LookupComponent (and pyspark_pipeline's own
+        # lookup op) exactly, so YAML vocabulary transfers across all four.
         right_spec = op.get("right")
         if not isinstance(right_spec, dict) or "ref" not in right_spec:
             raise ValueError("pandas_pipeline lookup.right must be {ref: <step_id>}")
@@ -752,41 +755,108 @@ def _apply_op(df: pd.DataFrame, op: Dict[str, Any], step_outputs: Dict[str, pd.D
         else:
             raise ValueError("lookup op: provide 'on_columns' OR 'left_on' + 'right_on'")
 
-        right_for_match = right_df
+        multiple_match = (op.get("multiple_match") or "first").lower()
+        if multiple_match not in ("first", "last", "all", "all_as_list"):
+            raise ValueError(
+                f"lookup op: multiple_match must be 'first', 'last', 'all', or 'all_as_list', "
+                f"got {op.get('multiple_match')!r}"
+            )
+        on_no_match = (op.get("on_no_match") or "pass").lower()
+        if on_no_match not in ("pass", "error"):
+            raise ValueError(f"lookup op: on_no_match must be 'pass' or 'error', got {op.get('on_no_match')!r}")
         match_sort_by = op.get("match_sort_by")
-        if match_sort_by:
-            if isinstance(match_sort_by, str):
-                match_sort_by = [match_sort_by]
-            match_sort_ascending = op.get("match_sort_ascending", True)
-            # Sort the right side by the tie-break columns, then keep exactly one match per
-            # key (first after sorting) -- guarantees a true 1:1 lookup even when multiple
-            # right-side rows share the same join key, same as ADF's Lookup transform.
-            right_for_match = right_df.sort_values(
-                by=match_sort_by, ascending=match_sort_ascending, kind="mergesort"
-            ).drop_duplicates(subset=key_right, keep="first")
-
+        if isinstance(match_sort_by, str):
+            match_sort_by = [match_sort_by]
+        match_sort_ascending = op.get("match_sort_ascending", True)
         output_mode = (op.get("output_mode") or "columns").lower()
+        if output_mode not in ("columns", "is_match"):
+            raise ValueError(f"lookup op: output_mode must be 'columns' or 'is_match', got {output_mode!r}")
+        output_column = op.get("output_column") or "is_match"
+        columns_to_add = op.get("columns_to_add")
+        rename = op.get("rename")
+        match_flag_column = op.get("match_flag_column")
+        if output_mode == "is_match" and (columns_to_add or rename or match_flag_column):
+            raise ValueError(
+                "lookup op: columns_to_add/rename/match_flag_column have no effect in "
+                "output_mode='is_match' (no lookup columns are attached) -- unset them."
+            )
+        if rename:
+            _overlap = set(rename) & set(key_right)
+            if _overlap:
+                raise ValueError(f"lookup op: `rename` must not rename join key column(s) {sorted(_overlap)}.")
+
+        if on_no_match == "error":
+            right_keys_probe = right_df[key_right].drop_duplicates()
+            probe_merge = df.merge(right_keys_probe, left_on=key_left, right_on=key_right, how="left", indicator=True)
+            _unmatched = int((probe_merge["_merge"] == "left_only").sum())
+            if _unmatched:
+                raise ValueError(
+                    f"lookup op: {_unmatched} row(s) had no match in the lookup stream on "
+                    f"join key(s) {key_left} (on_no_match='error')."
+                )
+
         if output_mode == "is_match":
-            output_column = op.get("output_column")
-            if not output_column:
-                raise ValueError("lookup op: output_mode='is_match' requires 'output_column'")
-            # Same semi-join indicator-merge technique as the join op's semi/anti support --
-            # keep only a boolean match flag, no right-side columns.
-            right_keys_only = right_for_match[key_right].drop_duplicates()
-            if on_cols:
-                merged = df.merge(right_keys_only, on=key_left, how="left", indicator="_lookup_match")
-            else:
-                merged = df.merge(right_keys_only, left_on=key_left, right_on=key_right, how="left", indicator="_lookup_match")
+            # Semi-join indicator-merge technique -- keep only a boolean match
+            # flag, no right-side columns.
+            right_keys_only = right_df[key_right].drop_duplicates()
+            merged = df.merge(right_keys_only, left_on=key_left, right_on=key_right, how="left", indicator="_lookup_match")
             merged[output_column] = merged["_lookup_match"] == "both"
             drop_cols = ["_lookup_match"]
-            if not on_cols:
+            if key_left != key_right:
                 drop_cols += [c for c in key_right if c not in df.columns and c in merged.columns]
             return merged.drop(columns=drop_cols)
-        if output_mode != "columns":
-            raise ValueError(f"lookup op: output_mode must be 'columns' or 'is_match', got {output_mode!r}")
-        if on_cols:
-            return df.merge(right_for_match, on=key_left, how="left")
-        return df.merge(right_for_match, left_on=key_left, right_on=key_right, how="left")
+
+        # output_mode == 'columns'
+        added_cols_all = [c for c in right_df.columns if c not in key_right]
+        added_cols = columns_to_add if columns_to_add else added_cols_all
+        # match_sort_by columns must survive into `right_subset` even when they aren't in
+        # columns_to_add (the sort below needs to read them) -- dropped again right after
+        # resolving, unless the caller also explicitly asked to keep them via columns_to_add.
+        sort_only_cols = (
+            [c for c in match_sort_by if c not in key_right and c not in added_cols]
+            if (match_sort_by and multiple_match in ("first", "last")) else []
+        )
+        subset_cols = list(dict.fromkeys(key_right + [c for c in added_cols if c not in key_right] + sort_only_cols))
+        right_subset = right_df[subset_cols].copy()
+
+        if multiple_match in ("first", "last"):
+            # 'first'/'last': sort candidates by match_sort_by (if set) then keep exactly
+            # one row per key -- guarantees a true 1:1 lookup even when multiple right-side
+            # rows share the same join key. Unset match_sort_by: first-occurrence/arbitrary
+            # pick (pandas' own row order) -- NOT deterministic across runs with reordered
+            # upstream data; set match_sort_by for a reproducible result.
+            keep = "first" if multiple_match == "first" else "last"
+            if match_sort_by:
+                right_resolved = right_subset.sort_values(
+                    by=match_sort_by, ascending=match_sort_ascending, kind="mergesort"
+                ).drop_duplicates(subset=key_right, keep=keep)
+            else:
+                right_resolved = right_subset.drop_duplicates(subset=key_right, keep=keep)
+            right_resolved = right_resolved.drop(columns=[c for c in sort_only_cols if c in right_resolved.columns])
+        elif multiple_match == "all":
+            right_resolved = right_subset
+        else:  # all_as_list
+            agg_cols = [c for c in added_cols if c not in key_right]
+            if agg_cols:
+                right_resolved = right_subset.groupby(key_right, as_index=False, dropna=False).agg({c: list for c in agg_cols})
+            else:
+                right_resolved = right_subset.drop_duplicates(subset=key_right, keep="first")
+
+        if rename:
+            right_resolved = right_resolved.rename(columns=rename)
+
+        merged = df.merge(
+            right_resolved, how="left", left_on=key_left, right_on=key_right,
+            indicator="_lookup_match" if match_flag_column else False,
+        )
+        if key_left != key_right:
+            _dupe_r_keys = [c for c in key_right if c in merged.columns and c not in key_left]
+            if _dupe_r_keys:
+                merged = merged.drop(columns=_dupe_r_keys)
+        if match_flag_column:
+            merged[match_flag_column] = merged["_lookup_match"] == "both"
+            merged = merged.drop(columns=["_lookup_match"])
+        return merged
     if kind == "window_calculation":
         function = (op.get("function") or "").lower()
         if function not in ("ntile", "cume_dist"):

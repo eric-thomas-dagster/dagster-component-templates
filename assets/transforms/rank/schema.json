@@ -44,7 +44,7 @@
     "method": {
       "type": "string",
       "label": "Method",
-      "description": "Tie-breaking method: 'average', 'min', 'max', 'first', or 'dense'",
+      "description": "Ranking method: tie-breaking variants 'average', 'min', 'max', 'first', 'dense'; or ranking functions 'ntile' (SQL NTILE(n), requires ntile_buckets) and 'cume_dist' (SQL CUME_DIST()).",
       "required": false,
       "default": "average",
       "enum": [
@@ -52,7 +52,9 @@
         "min",
         "max",
         "first",
-        "dense"
+        "dense",
+        "ntile",
+        "cume_dist"
       ],
       "ui:widget": "select"
     },
@@ -317,6 +319,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "ntile_buckets": {
+      "type": "integer",
+      "label": "Ntile Buckets",
+      "description": "Required when method='ntile': number of equal-sized buckets (1..N) to assign rows into.",
+      "required": false
     }
   },
   "tags": [

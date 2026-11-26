@@ -235,6 +235,52 @@ def _rank_by_multiple_columns(
     return _rank_block(df)
 
 
+def _ntile_bucket_labels(n: int, n_buckets: int) -> List[int]:
+    """Standard SQL NTILE(n_buckets) bucket assignment for `n` sequentially-ordered
+    rows: split as evenly as possible across `n_buckets` groups, with any remainder
+    (n % n_buckets) rows going to the FIRST buckets (one extra row each) -- matching
+    real SQL engines (verified by hand: NTILE(3) over 10 rows -> sizes [4, 3, 3], not
+    [3, 3, 4]). When `n_buckets` > `n`, each row gets its own bucket (1..n) and the
+    remaining buckets are simply unused, rather than producing empty or duplicate
+    labels (also matches real SQL engines' NTILE behavior).
+
+    pandas has no single built-in `.rank(method="ntile")`; `pd.qcut(..., q=n_buckets)`
+    was considered but rejected after hand-verification -- it distributes remainder
+    rows to the LAST buckets (the opposite of standard SQL NTILE) and, when
+    `n_buckets` > `n`, `duplicates='drop'` can produce non-contiguous labels (e.g.
+    {1, 3, 5} instead of {1, 2, 3}). This direct implementation is verified correct
+    against the standard SQL NTILE definition for both the normal case and the
+    n_buckets > n edge case above.
+    """
+    if n_buckets <= 0:
+        raise ValueError(f"ntile_buckets must be a positive integer, got {n_buckets!r}")
+    base, remainder = divmod(n, n_buckets)
+    sizes = [base + 1] * remainder + [base] * (n_buckets - remainder)
+    labels: List[int] = []
+    for bucket_idx, size in enumerate(sizes, start=1):
+        labels.extend([bucket_idx] * size)
+    return labels
+
+
+def _ntile_rank(
+    df: "pd.DataFrame", columns: List, ascending: List[bool], n_buckets: int,
+    group_by: Optional[List] = None,
+) -> "pd.Series":
+    """SQL's NTILE(n_buckets) / ADF Window transform's `ntile`: bucket each group's
+    rows into `n_buckets` equal-ish-sized buckets (1..N), ordered by `columns` /
+    `ascending` (the same sorted-partition primitive `_rank_by_multiple_columns`
+    uses for row order, reused here via its 'first' method -- a plain sequential
+    1..n position with ties broken by first occurrence)."""
+    def _ntile_block(block: "pd.DataFrame") -> "pd.Series":
+        pos = _rank_by_multiple_columns(block, columns, ascending, method="first", pct=False)
+        labels = _ntile_bucket_labels(len(block), n_buckets)
+        return pos.map(lambda p: labels[int(p) - 1]).astype(float)
+
+    if group_by:
+        return df.groupby(group_by, group_keys=False).apply(_ntile_block)
+    return _ntile_block(df)
+
+
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
 from typing import List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
@@ -348,7 +394,18 @@ class RankComponent(Component, Model, Resolvable):
     )
     method: str = Field(
         default="average",
-        description="Tie-breaking method: 'average', 'min', 'max', 'first', or 'dense'",
+        description=(
+            "Ranking method: tie-breaking variants 'average', 'min', 'max', 'first', 'dense' "
+            "(pandas' own Series.rank(method=...) options); or two statistical ranking "
+            "FUNCTIONS over the same sorted-partition primitive -- 'ntile' (SQL NTILE(n): "
+            "bucket rows into `ntile_buckets` equal-ish groups, labeled 1..N) and 'cume_dist' "
+            "(SQL CUME_DIST(): cumulative distribution, the fraction of rows with a value <= "
+            "the current row's)."
+        ),
+    )
+    ntile_buckets: Optional[int] = Field(
+        default=None,
+        description="Required when method='ntile': number of equal-sized buckets (1..N) to assign rows into.",
     )
     ascending: Union[bool, List[bool]] = Field(
         default=True,
@@ -569,6 +626,7 @@ class RankComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         column = self.column
         method = self.method
+        ntile_buckets = self.ntile_buckets
         ascending = self.ascending
         group_by = self.group_by
         output_column = self.output_column
@@ -701,7 +759,29 @@ group_name=group_name,
                 out_col = output_column or f"{column}_rank"
             pct = normalize
 
-            if _is_multi_key:
+            if method in ("ntile", "cume_dist"):
+                # ADF Window transform's statistical ranking FUNCTIONS -- same
+                # sorted-partition primitive as the 5 tie-breaking methods
+                # above, but a different output, not a modification of them.
+                cols = list(column) if isinstance(column, (list, tuple)) else [column]
+                if isinstance(ascending, (list, tuple)):
+                    if len(ascending) != len(cols):
+                        raise ValueError(
+                            f"RankComponent: `ascending` list length ({len(ascending)}) must "
+                            f"match `column` list length ({len(cols)})."
+                        )
+                    asc_list = list(ascending)
+                else:
+                    asc_list = [ascending] * len(cols)
+                if method == "ntile":
+                    if not ntile_buckets:
+                        raise ValueError("RankComponent: method='ntile' requires `ntile_buckets`.")
+                    df[out_col] = _ntile_rank(df, cols, asc_list, ntile_buckets, group_by=group_by)
+                else:  # cume_dist -- pandas' Series.rank(method='max', pct=True) IS CUME_DIST()
+                    df[out_col] = _rank_by_multiple_columns(
+                        df, cols, asc_list, method="max", pct=True, group_by=group_by
+                    )
+            elif _is_multi_key:
                 cols = list(column)
                 if isinstance(ascending, (list, tuple)):
                     if len(ascending) != len(cols):

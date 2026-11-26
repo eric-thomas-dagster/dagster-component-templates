@@ -282,6 +282,13 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
         default=",",
         description="CSV delimiter character (if format is CSV)"
     )
+    header_row: Optional[int] = Field(
+        default=0,
+        description="CSV only: row number to use as column names (0-indexed, None for no header -- columns come "
+                    "out named 0, 1, 2, ...). Same field name/semantics as file_ingestion's header_row.",
+    )
+    csv_quotechar: Optional[str] = Field(default=None, description="CSV only: quote character (pandas default '\"' when unset).")
+    csv_escapechar: Optional[str] = Field(default=None, description="CSV only: escape character for quote/delimiter characters inside a field.")
     json_orient: str = Field(
         default="records",
         description="JSON orientation: 'records', 'split', 'index', 'columns', 'values'"
@@ -295,6 +302,22 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
     dtype_mapping: Optional[str] = Field(
         default="",
         description="JSON string for specifying column types, e.g. {\"col1\": \"int64\"}"
+    )
+    pre_copy_script: Optional[str] = Field(
+        default=None,
+        description="SQL executed against the destination database immediately before the FIRST write to each "
+                    "distinct destination table this asset run touches (e.g. 'TRUNCATE TABLE orders') -- matches "
+                    "Azure Data Factory Copy activity's Sink 'Pre-copy script', which likewise assumes an "
+                    "already-provisioned sink table. Runs once per distinct table, not once per matched object -- in "
+                    "wildcard mode every matched object is concatenated into one write, so it fires exactly once for "
+                    "the whole asset. Skipped entirely when dry_run is true.",
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="If true, download and parse each matched object (so logs show real row/column counts) but "
+                    "skip BOTH pre_copy_script and the actual write to the destination table -- nothing reaches the "
+                    "database. Use to validate a new wildcard/column_mapping/dtype_mapping config before trusting "
+                    "it with real writes.",
     )
 
     # Metadata
@@ -516,7 +539,12 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
         aws_region = self.aws_region
         file_format = self.file_format
         csv_delimiter = self.csv_delimiter
+        header_row = self.header_row
+        csv_quotechar = self.csv_quotechar
+        csv_escapechar = self.csv_escapechar
         json_orient = self.json_orient
+        pre_copy_script = self.pre_copy_script
+        dry_run = self.dry_run
         description = self.description
         group_name = self.group_name or None
 
@@ -526,8 +554,8 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
             import json
             try:
                 column_mapping = json.loads(self.column_mapping)
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                raise ValueError(f"S3ToDatabaseAssetComponent: column_mapping is not valid JSON: {e}") from e
 
         # Parse dtype mapping
         dtype_mapping = None
@@ -535,8 +563,8 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
             import json
             try:
                 dtype_mapping = json.loads(self.dtype_mapping)
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                raise ValueError(f"S3ToDatabaseAssetComponent: dtype_mapping is not valid JSON: {e}") from e
 
         _static_bucket = self.s3_bucket
         _static_key = self.s3_key
@@ -668,6 +696,12 @@ group_name=group_name,
         def s3_to_database_asset(context: AssetExecutionContext, config: S3FileConfig):
             """Asset that loads S3 files into a database table."""
 
+            # pre_copy_script runs ONCE per distinct destination table this asset run writes to -- not once
+            # per matched object. In wildcard mode every matched object is concatenated into one write, so this
+            # only ever matters if that changes in the future; tracked explicitly for parity with
+            # adls_to_database_asset's own "once per sink" semantics.
+            _pre_copy_done = set()
+
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             bucket = config.s3_bucket or _static_bucket
@@ -751,11 +785,12 @@ group_name=group_name,
                         raise ValueError(f"Cannot auto-detect format for {object_key}")
 
                 if format_to_use == "csv":
-                    df = pd.read_csv(
-                        BytesIO(file_content),
-                        delimiter=csv_delimiter,
-                        dtype=dtype_mapping
-                    )
+                    csv_kwargs = {"delimiter": csv_delimiter, "header": header_row, "dtype": dtype_mapping}
+                    if csv_quotechar is not None:
+                        csv_kwargs["quotechar"] = csv_quotechar
+                    if csv_escapechar is not None:
+                        csv_kwargs["escapechar"] = csv_escapechar
+                    df = pd.read_csv(BytesIO(file_content), **csv_kwargs)
                 elif format_to_use == "json":
                     df = pd.read_json(
                         BytesIO(file_content),
@@ -802,23 +837,36 @@ group_name=group_name,
                     df = df.rename(columns=column_mapping)
                     context.log.info(f"Renamed columns: {list(column_mapping.keys())}")
 
-                # Connect to database
-                engine = create_engine(_resolve_db_url(context, resource_key, database_url))
+                dest = f"{schema_name + '.' if schema_name else ''}{table_name}"
 
-                # Write to database
-                df.to_sql(
-                    name=table_name,
-                    con=engine,
-                    schema=schema_name,
-                    if_exists=if_exists,
-                    index=False,
-                    method='multi',
-                    chunksize=1000
-                )
+                if dry_run:
+                    context.log.info(
+                        f"dry_run: would write {len(df)} rows to {dest} (pre_copy_script skipped, nothing written)"
+                    )
+                else:
+                    # Connect to database
+                    engine = create_engine(_resolve_db_url(context, resource_key, database_url))
 
-                context.log.info(
-                    f"Wrote {len(df)} rows to {schema_name + '.' if schema_name else ''}{table_name}"
-                )
+                    pre_copy_key = (schema_name, table_name)
+                    if pre_copy_script and pre_copy_key not in _pre_copy_done:
+                        from sqlalchemy import text
+                        with engine.begin() as conn:
+                            conn.execute(text(pre_copy_script))
+                        _pre_copy_done.add(pre_copy_key)
+                        context.log.info(f"Ran pre_copy_script against {dest}")
+
+                    # Write to database
+                    df.to_sql(
+                        name=table_name,
+                        con=engine,
+                        schema=schema_name,
+                        if_exists=if_exists,
+                        index=False,
+                        method='multi',
+                        chunksize=1000
+                    )
+
+                    context.log.info(f"Wrote {len(df)} rows to {dest}")
 
                 return MaterializeResult(
                     metadata={

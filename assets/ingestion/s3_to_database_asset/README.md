@@ -107,9 +107,14 @@ Set `wildcard` (e.g. `*.csv`) to treat `s3_key` as an object-key prefix and load
 | `aws_region` | `str` | — | AWS region (optional, uses default if not specified) |
 | `file_format` | `str` | `"csv"` | Expected file format: 'csv', 'json', 'parquet', 'auto' (detect from extension) |
 | `csv_delimiter` | `str` | `","` | CSV delimiter character (if format is CSV) |
+| `header_row` | `int` | `0` | CSV only: row number to use as column names (0-indexed, None for no header -- columns come out named 0, 1, 2, ...). Same field name/semantics as file_ingestion's header_row. |
+| `csv_quotechar` | `str` | — | CSV only: quote character (pandas default '"' when unset). |
+| `csv_escapechar` | `str` | — | CSV only: escape character for quote/delimiter characters inside a field. |
 | `json_orient` | `str` | `"records"` | JSON orientation: 'records', 'split', 'index', 'columns', 'values' |
 | `column_mapping` | `Union[str, int]` | — | JSON string for renaming columns, e.g. {"old_name": "new_name"} |
 | `dtype_mapping` | `str` | — | JSON string for specifying column types, e.g. {"col1": "int64"} |
+| `pre_copy_script` | `str` | — | SQL executed against the destination database immediately before the FIRST write to each distinct destination table this asset run touches (e.g. 'TRUNCATE TABLE orders') -- matches Azure Data Factory Copy activity's Sink… _(full docs in schema.json + component README)_ |
+| `dry_run` | `bool` | `false` | If true, download and parse each matched object (so logs show real row/column counts) but skip BOTH pre_copy_script and the actual write to the destination table -- nothing reaches the database. Use to validate a new wil… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the DataFrame about to be written, in metadata, so builder UIs can show 'what's being sunk' without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
@@ -494,6 +499,13 @@ Use `dtype_mapping` to explicitly set column types:
 ```yaml
 dtype_mapping: '{"id": "int64", "price": "float64", "date": "datetime64[ns]"}'
 ```
+
+### Issue: "... is not valid JSON" from `dtype_mapping` or `column_mapping`
+
+**Solution:**
+This means the JSON string you gave one of those fields doesn't parse -- fix the JSON. (Previously,
+invalid JSON in either field was silently ignored and the component proceeded as if the field had
+never been set, with no warning; this is now a hard, clearly-worded error at component build time.)
 
 ## Performance Tips
 

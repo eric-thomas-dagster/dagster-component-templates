@@ -295,6 +295,33 @@ def test_build_mcp_server_with_no_allowed_tools_exposes_nothing(mod):
     assert asyncio.run(check()) == []
 
 
+class _FakeErrorTools(_FakeTools):
+    """tools.call() never raises -- a bad/disallowed/failed call comes back as {"error": ...},
+    same contract as the real HostedMcpProxyTools.call()."""
+
+    def call(self, tool, args=None):
+        self.calls.append((tool, args))
+        return {"error": f"{tool} failed: RuntimeError: upstream exploded"}
+
+
+def test_build_mcp_server_proxy_tool_raises_a_real_tool_error_on_an_error_dict(mod):
+    """The MCP wrapper must not hand a {"error": ...} dict back as a normal (isError=False)
+    result -- that's indistinguishable from success to an agent loop's own failed-call
+    accounting. See _mcp_call in component.py. mcp's in-process Tool.run (not a full stdio
+    round trip) raises the wrapped ToolError rather than returning a CallToolResult -- the full
+    isError=True / original-message-preserved behavior is covered end-to-end by
+    tests/test_mcp_stdio.py's real subprocess test; this one just confirms _mcp_call raises the
+    SDK's own ToolError (not some other exception) rather than returning the error dict as-is."""
+    tools = _FakeErrorTools(["get_issue"])
+    mcp = mod.build_mcp_server(tools)
+
+    async def check():
+        return await mcp.call_tool("get_issue", {"arguments": {"id": "ABC-123"}})
+
+    with pytest.raises(Exception, match="upstream exploded"):
+        asyncio.run(check())
+
+
 # --- main() env var validation ------------------------------------------------------------------
 
 def test_main_requires_url_and_oauth_dir_or_access_token(mod, monkeypatch):

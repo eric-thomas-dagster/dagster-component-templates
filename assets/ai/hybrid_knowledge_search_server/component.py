@@ -1473,11 +1473,39 @@ def build_mcp_server(resource: HybridKnowledgeSearchResource, server_name: str =
     return mcp
 
 
+def _sdk_tool_error_cls():
+    """The MCP SDK's own ToolError class -- NOT a same-named class defined anywhere in this
+    module: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a
+    raised exception's own message when it recognizes the exception as ITS OWN ToolError/
+    ResourceError -- anything else is treated as an unexpected crash and replaced with a
+    generic 'Error executing tool <name>' before it reaches the client, throwing away the
+    reason the agent needs to act on."""
+    try:  # mcp 2.x (confirmed live, 2.3.0)
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError
+    except ImportError:  # mcp 1.x (stable FastMCP API, not live-verified here)
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError
+    return _SdkToolError
+
+
 def _safe(fn, *args, **kwargs) -> dict:
+    """Each `HybridKnowledgeSearchResource` method is both (a) called directly here, in the MCP
+    wrapper, and (b) a resource method other code may call directly for the asset/op path, where
+    it must keep its documented never-raises, {"error": ...}-on-failure contract unchanged (see
+    existing tests in tests/test_hybrid_knowledge_search_server.py asserting that directly).
+    This wrapper is what adapts that contract for MCP: a raised exception (sql_tables
+    misconfiguration, an unknown receipt_id, etc.) OR a successful-looking {"error": ...} return
+    (networkx "entity not found", etc.) are both re-raised as the MCP SDK's own ToolError, so the
+    `mcp` package's own exception handling (both fastmcp 1.x and mcp.server.mcpserver 2.x catch
+    any exception from a registered tool function) turns the failure into a real isError=True
+    CallToolResult -- instead of either shape reading as a NORMAL (isError=False), successful
+    result to whatever is counting failed tool calls in the agent loop."""
     try:
-        return fn(*args, **kwargs)
-    except Exception as e:  # noqa: BLE001 -- surface as data, the agent loop must not crash
-        return {"error": f"{type(e).__name__}: {e}"}
+        result = fn(*args, **kwargs)
+    except Exception as e:  # noqa: BLE001 -- surface as a real MCP tool error, the agent loop must see the failure
+        raise _sdk_tool_error_cls()(f"{type(e).__name__}: {e}") from e
+    if isinstance(result, dict) and "error" in result:
+        raise _sdk_tool_error_cls()(result["error"])
+    return result
 
 
 def main(argv: Optional[List[str]] = None) -> None:

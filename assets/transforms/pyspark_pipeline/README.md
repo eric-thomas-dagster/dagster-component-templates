@@ -40,6 +40,8 @@ For small frames or single-machine work, `polars_pipeline` is lighter weight. Fo
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
@@ -116,7 +118,9 @@ attributes:
 
 ## Supported ops
 
-`filter` / `select` / `drop` / `rename` / `with_columns` (SQL expressions) / `group_by` / `sort` / `limit` / `distinct` / `drop_nulls` / `join` / `union` / `sql`.
+`filter` / `select` / `drop` / `rename` / `with_columns` (SQL expressions) / `group_by` / `sort` / `head` / `tail` / `head_per_group` / `limit` / `distinct` / `unique` / `drop_nulls` / `fill_null` / `cast` / `join` / `union` / `sql` / `pivot` / `lookup` / `window_calculation` / `unpivot` / `rank`.
+
+Same op-menu shape as the sibling `pandas_pipeline`/`polars_pipeline` components (field names match exactly, so YAML written for one transfers to another) — a few ops are necessarily Spark-native rather than exact ports, called out below.
 
 Aggregations in `group_by`: `sum / mean / avg / min / max / count / countDistinct / first / last / stddev / variance`.
 
@@ -125,6 +129,52 @@ Aggregations in `group_by`: `sum / mean / avg / min / max / count / countDistinc
 `union` takes `other: {ref: <step_id>}` and an optional `distinct: true` to dedupe after unioning.
 
 `sql` runs `spark.sql(...)`; the current chain is registered as the temp view `self`, and every earlier step's output is registered under its own step id — so a query can join `self` against any prior step by name.
+
+`head: {n}` / `tail: {n}` take the first/last N rows. `tail` has no cheap distributed implementation in Spark — `DataFrame.tail(n)` collects to the driver (same cost class as `.collect()`, just truncated), unlike every other op in this file, which stays a lazy Catalyst-planned transformation. Fine for small N; don't reach for it on a huge table.
+
+`head_per_group: {group_by, n}` keeps the first N rows per group. `unique: {subset, keep: first|last}` dedupes rows (plain `distinct` still works unchanged for a no-subset, no-tie-break dedupe). Both resolve "first"/"last" via Spark's own row order where Spark can still see it (a single-pass read with no prior shuffle) — NOT a guaranteed stable ordering across an arbitrary upstream plan. `sort` explicitly first for a reproducible pick.
+
+```yaml
+- {op: head_per_group, group_by: [customer_id], n: 3}
+- {op: unique, subset: [customer_id], keep: first}
+```
+
+`fill_null: {value}` wraps `.fillna(value)` (a scalar for every column, or a `{col: value}` dict). `cast: {mapping}` casts named columns to a Spark type name (`int`, `bigint`, `float`, `double`, `string`, `boolean`, `date`, `timestamp`, or any real Spark type string such as `decimal(10,2)` — pandas dtype spellings like `int64`/`float64`/`str` are also accepted and mapped onto their Spark equivalent).
+
+`pivot: {index, pivot_column, value_columns, agg_func, pivot_values, fill_value}` — ADF Pivot parity, same shape as `pandas_pipeline`'s `pivot` op. Built via explicit conditional aggregation (not Spark's native `groupBy().pivot()`) so output columns are always named `<value_column>_<pivot_value>`, matching the sibling components exactly, rather than Spark's own pivot-column-naming convention.
+
+```yaml
+- op: pivot
+  index: [region]
+  pivot_column: quarter
+  value_columns: [revenue]
+  agg_func: sum
+  pivot_values: [Q1, Q2, Q3, Q4]   # restrict + guarantee all 4 columns exist
+  fill_value: 0
+```
+
+`lookup: {right, on_columns|on|left_on+right_on, multiple_match, on_no_match, match_sort_by, match_sort_ascending, output_mode, output_column, columns_to_add, rename, match_flag_column}` — ADF Lookup transform parity, matching the canonical standalone `assets/transforms/lookup` `LookupComponent`'s full field set (richer than the base `pandas_pipeline`/`polars_pipeline` `lookup` op, which only has `match_sort_by`/`output_mode`). `multiple_match` is `first` (default) / `last` / `all` (fan-out) / `all_as_list` (`collect_list` per added column). `on_no_match: error` raises if any primary row has zero matches.
+
+```yaml
+- op: lookup
+  right: {ref: customer_tiers}
+  on_columns: customer_id
+  multiple_match: first
+  match_sort_by: [effective_date]
+  match_sort_ascending: false     # most recent tier wins
+  columns_to_add: [tier]
+  match_flag_column: tier_matched
+```
+
+`window_calculation: {function: ntile|cume_dist, order_by, group_by, output_column, n}` maps directly onto Spark's native `F.ntile()`/`F.cume_dist()` window functions.
+
+`unpivot: {id_columns, value_columns, var_name, value_name, drop_null_values}` wraps Spark's native `DataFrame.unpivot()` (added in Spark 3.4) — same shape as the standalone `transforms/unpivot` component and the sibling pipeline components' `unpivot` op.
+
+`rank: {order_by, method, ascending, group_by, output_column, ntile_buckets}` maps onto Spark's native window-ranking functions. Unlike `pandas_pipeline`/`polars_pipeline`'s `rank` op (tie-breaking vocabulary `average`/`min`/`max`/`first`/`dense`/`ntile`/`cume_dist`), this op's `method` is scoped to Spark's own native names — `rank` / `dense_rank` / `row_number` / `ntile` / `cume_dist` — since there's no native Spark equivalent for pandas' fractional-tie `average` or ties-get-highest `max` without hand-building a secondary aggregation. Use the pandas/polars sibling components if you need that vocabulary.
+
+```yaml
+- {op: rank, order_by: [revenue], method: dense_rank, group_by: [region], output_column: revenue_rank}
+```
 
 ## Local vs cluster
 

@@ -101,13 +101,70 @@ from pydantic import Field
 
 
 _VALID_OPS = {"filter", "select", "drop", "rename", "with_columns",
-              "group_by", "sort", "limit", "distinct", "drop_nulls",
-              "join", "union", "sql"}
+              "group_by", "sort", "head", "tail", "head_per_group", "limit",
+              "distinct", "unique", "drop_nulls", "fill_null", "cast",
+              "join", "union", "sql",
+              "pivot", "lookup", "window_calculation", "unpivot", "rank"}
 _SUPPORTED_AGGS = {"sum", "mean", "avg", "min", "max", "count", "countDistinct",
                     "first", "last", "stddev", "variance"}
 
+# Agg-func aliasing for the `pivot` op -- same alias table as the sibling
+# pandas_pipeline/polars_pipeline components' own `_PIVOT_AGG_ALIASES`, so the
+# same YAML `agg_func` spelling works across all three pipeline components.
+_PIVOT_AGG_ALIASES = {
+    "avg": "mean", "average": "mean", "std": "stddev",
+    "countdistinct": "countDistinct", "distinct_count": "countDistinct", "concat": "first",
+}
+
+# Cast-type aliasing for the `cast` op -- pandas/numpy dtype names mapped onto
+# Spark's own type-name strings (passed straight to `Column.cast(<name>)`,
+# which Spark resolves itself); unknown names pass through unchanged so any
+# real Spark type name (e.g. "decimal(10,2)") still works untranslated.
+_SPARK_CAST_ALIASES = {
+    "int": "int", "int32": "int", "integer": "int",
+    "int64": "bigint", "long": "bigint", "bigint": "bigint",
+    "float": "float", "float32": "float",
+    "float64": "double", "double": "double",
+    "str": "string", "string": "string", "utf8": "string",
+    "bool": "boolean", "boolean": "boolean",
+    "datetime": "timestamp", "timestamp": "timestamp", "date": "date",
+}
+
+# Spark-native rank/window method vocabulary for the `rank` op. Unlike
+# pandas_pipeline/polars_pipeline's `rank` op (tie-breaking vocabulary:
+# average/min/max/first/dense), Spark's window functions are rank/dense_rank/
+# row_number/ntile/cume_dist -- there is no native Spark equivalent for
+# pandas' fractional-tie 'average' or ties-get-highest 'max' without hand-
+# building a secondary aggregation, so (same judgment call warehouse_pipeline's
+# SQL-compiled `rank` op already made for the same reason) this op's method
+# vocabulary is scoped to Spark's own native names rather than faking pandas
+# semantics. Use pandas_pipeline/polars_pipeline if you need that vocabulary.
+_SPARK_RANK_METHODS = {"rank", "dense_rank", "row_number", "ntile", "cume_dist"}
+
 # Control-flow step types — see the module docstring for shapes.
 _CONTROL_TYPES = {"condition", "checkpoint", "for_each"}
+
+
+def _spark_keyed_join(left_df, right_df, key_left: List, key_right: List, how: str = "left"):
+    """Join two Spark DataFrames on possibly differently-named key columns.
+
+    When key_left == key_right, delegates to `.join(on=<list of names>)`,
+    which Spark already dedupes to one copy of each key column. When the
+    names differ, joins on an explicit equality condition (which keeps BOTH
+    sides' key columns in the output) and drops the right-side key columns
+    afterward -- referenced via the right DataFrame object (`right_df[c]`),
+    not by bare string name, so a right key that happens to share a name
+    with an unrelated LEFT column is never dropped by mistake.
+    """
+    if key_left == key_right:
+        return left_df.join(right_df, on=key_left, how=how)
+    cond = None
+    for lo, ro in zip(key_left, key_right):
+        term = left_df[lo] == right_df[ro]
+        cond = term if cond is None else (cond & term)
+    joined = left_df.join(right_df, on=cond, how=how)
+    drop_cols = [right_df[c] for c in key_right if c not in key_left]
+    return joined.drop(*drop_cols) if drop_cols else joined
 
 
 def _safe_eval(expr: str, context: Dict[str, Any]) -> Any:
@@ -245,13 +302,58 @@ def _apply_op(spark, df, op: Dict[str, Any], step_outputs: Dict[str, Any]):
         descending = descending if isinstance(descending, list) else [descending] * len(by)
         cols = [(F.col(c).desc() if d else F.col(c).asc()) for c, d in zip(by, descending)]
         return df.orderBy(*cols)
-    if kind == "limit":
+    if kind == "head" or kind == "limit":
         return df.limit(op["n"])
+    if kind == "tail":
+        # Spark has no distributed "last N rows" -- DataFrame.tail(n) collects to
+        # the driver (same cost class as .collect(), just truncated), unlike
+        # every other op in this file which stays a lazy Catalyst-planned
+        # transformation. Fine for small N; don't reach for this on a huge table.
+        n = op["n"]
+        return spark.createDataFrame(df.tail(n), schema=df.schema)
+    if kind == "head_per_group":
+        from pyspark.sql.window import Window
+        group_by = op["group_by"]
+        gcols = group_by if isinstance(group_by, list) else [group_by]
+        n = op["n"]
+        # No explicit order_by in this op's field shape (matching pandas_pipeline's
+        # own head_per_group, which just takes the first N rows in EXISTING order
+        # per group) -- Spark has no native "current row order" concept once a
+        # DataFrame has been shuffled, so monotonically_increasing_id() is used as
+        # a best-effort order proxy. It's stable for a single-pass read with no
+        # prior shuffle, but NOT a guaranteed stable ordering across an arbitrary
+        # upstream plan -- sort explicitly first if you need a specific N rows.
+        w = Window.partitionBy(*gcols).orderBy(F.monotonically_increasing_id())
+        return (df.withColumn("_rn", F.row_number().over(w))
+                  .filter(F.col("_rn") <= n).drop("_rn"))
     if kind == "distinct":
         return df.distinct()
+    if kind == "unique":
+        from pyspark.sql.window import Window
+        subset = op.get("subset")
+        keep = (op.get("keep") or "first").lower()
+        if keep not in ("first", "last"):
+            raise ValueError(f"unique op: keep must be 'first' or 'last', got {op.get('keep')!r}")
+        cols = subset if subset else df.columns
+        # Same order-proxy caveat as head_per_group: 'first'/'last' resolves ties
+        # via monotonically_increasing_id(), which only reflects true input order
+        # absent a prior shuffle -- `sort` first for a guaranteed-deterministic pick.
+        order_col = F.monotonically_increasing_id()
+        w = Window.partitionBy(*cols).orderBy(order_col.asc() if keep == "first" else order_col.desc())
+        return (df.withColumn("_rn", F.row_number().over(w))
+                  .filter(F.col("_rn") == 1).drop("_rn"))
     if kind == "drop_nulls":
         subset = op.get("subset")
         return df.dropna(subset=subset)
+    if kind == "fill_null":
+        return df.fillna(op.get("value", 0))
+    if kind == "cast":
+        mapping = op["mapping"]
+        out = df
+        for col, t in mapping.items():
+            spark_type = _SPARK_CAST_ALIASES.get(t.lower(), t)
+            out = out.withColumn(col, F.col(col).cast(spark_type))
+        return out
     if kind == "join":
         right_spec = op["right"]
         if not isinstance(right_spec, dict) or "ref" not in right_spec:
@@ -294,6 +396,253 @@ def _apply_op(spark, df, op: Dict[str, Any], step_outputs: Dict[str, Any]):
         for sid, other_df in step_outputs.items():
             other_df.createOrReplaceTempView(sid)
         return spark.sql(sql)
+    if kind == "pivot":
+        from pyspark.sql.window import Window  # noqa: F401  (imported for symmetry with other ops' local imports)
+        index_cols = op.get("index")
+        pivot_column = op.get("pivot_column")
+        value_columns = op.get("value_columns")
+        if not index_cols or not pivot_column or not value_columns:
+            raise ValueError("pivot op requires 'index', 'pivot_column', and 'value_columns'")
+        index_cols = index_cols if isinstance(index_cols, list) else [index_cols]
+        value_columns = value_columns if isinstance(value_columns, list) else [value_columns]
+        agg_func = op.get("agg_func", "sum")
+        pivot_values = op.get("pivot_values")
+        fill_value = op.get("fill_value")
+
+        def _resolve_agg(func: str) -> str:
+            func = _PIVOT_AGG_ALIASES.get(func.lower(), func)
+            if func not in _SUPPORTED_AGGS:
+                raise ValueError(f"pivot op: agg_func {func!r} not supported. Use one of {sorted(_SUPPORTED_AGGS)}")
+            return func
+
+        if isinstance(agg_func, dict):
+            agg_by_col = {vc: _resolve_agg(agg_func[vc]) for vc in value_columns}
+        else:
+            resolved = _resolve_agg(agg_func)
+            agg_by_col = {vc: resolved for vc in value_columns}
+
+        if pivot_values:
+            pv_list = pivot_values if isinstance(pivot_values, list) else [pivot_values]
+        else:
+            # No restriction given -- discover distinct pivot-column values via a
+            # driver-side collect (bounded by the pivot column's own cardinality,
+            # not row count; same cost Spark's own native .pivot() pays internally
+            # when called without an explicit `values=` list).
+            pv_list = [r[0] for r in df.select(pivot_column).distinct().orderBy(pivot_column).collect()]
+
+        # Built via explicit conditional aggregation (not groupBy().pivot()) so
+        # output column names are deterministically "<value_column>_<pivot_value>"
+        # -- matching pandas_pipeline/polars_pipeline's own pivot-op naming exactly
+        # -- rather than relying on Spark's own multi-agg .pivot() column-naming
+        # convention (which prefixes with the pivot value instead, "<pivot_value>_
+        # <alias>", and only when more than one agg alias is passed per group).
+        agg_exprs = []
+        for pv in pv_list:
+            for vc in value_columns:
+                func = agg_by_col[vc]
+                agg_fn = getattr(F, func) if hasattr(F, func) else getattr(F, "count_distinct")
+                expr = agg_fn(F.when(F.col(pivot_column) == F.lit(pv), F.col(vc)))
+                if fill_value is not None:
+                    expr = F.coalesce(expr, F.lit(fill_value))
+                agg_exprs.append(expr.alias(f"{vc}_{pv}"))
+        return df.groupBy(*index_cols).agg(*agg_exprs)
+    if kind == "lookup":
+        from pyspark.sql.window import Window
+        right_spec = op.get("right")
+        if not isinstance(right_spec, dict) or "ref" not in right_spec:
+            raise ValueError("pyspark_pipeline lookup.right must be {ref: <step_id>}")
+        right_id = right_spec["ref"]
+        if right_id not in step_outputs:
+            raise ValueError(f"lookup.right.ref={right_id!r} doesn't match any earlier step id")
+        right_df = step_outputs[right_id]
+        on_cols = op.get("on_columns") or op.get("on")
+        left_on, right_on = op.get("left_on"), op.get("right_on")
+        if on_cols:
+            key_left = key_right = [on_cols] if isinstance(on_cols, str) else list(on_cols)
+        elif left_on and right_on:
+            key_left = [left_on] if isinstance(left_on, str) else list(left_on)
+            key_right = [right_on] if isinstance(right_on, str) else list(right_on)
+        else:
+            raise ValueError("lookup op: provide 'on_columns' OR 'left_on' + 'right_on'")
+
+        multiple_match = (op.get("multiple_match") or "first").lower()
+        if multiple_match not in ("first", "last", "all", "all_as_list"):
+            raise ValueError(
+                f"lookup op: multiple_match must be 'first', 'last', 'all', or 'all_as_list', "
+                f"got {op.get('multiple_match')!r}"
+            )
+        on_no_match = (op.get("on_no_match") or "pass").lower()
+        if on_no_match not in ("pass", "error"):
+            raise ValueError(f"lookup op: on_no_match must be 'pass' or 'error', got {op.get('on_no_match')!r}")
+        match_sort_by = op.get("match_sort_by")
+        if isinstance(match_sort_by, str):
+            match_sort_by = [match_sort_by]
+        match_sort_ascending = op.get("match_sort_ascending", True)
+        output_mode = (op.get("output_mode") or "columns").lower()
+        if output_mode not in ("columns", "is_match"):
+            raise ValueError(f"lookup op: output_mode must be 'columns' or 'is_match', got {op.get('output_mode')!r}")
+        output_column = op.get("output_column") or "is_match"
+        columns_to_add = op.get("columns_to_add")
+        rename = op.get("rename")
+        match_flag_column = op.get("match_flag_column")
+        if output_mode == "is_match" and (columns_to_add or rename or match_flag_column):
+            raise ValueError(
+                "lookup op: columns_to_add/rename/match_flag_column have no effect in "
+                "output_mode='is_match' (no lookup columns are attached) -- unset them."
+            )
+
+        right_keys_only = right_df.select(*key_right).dropDuplicates(key_right)
+
+        if on_no_match == "error":
+            unmatched = _spark_keyed_join(df, right_keys_only, key_left, key_right, how="left_anti")
+            if unmatched.limit(1).count() > 0:
+                raise ValueError(
+                    "lookup op: on_no_match='error' and at least one primary row had zero matches"
+                )
+
+        if output_mode == "is_match":
+            probe = right_keys_only.withColumn(output_column, F.lit(True))
+            merged = _spark_keyed_join(df, probe, key_left, key_right, how="left")
+            return merged.fillna({output_column: False})
+
+        # output_mode == 'columns'
+        added_cols_all = [c for c in right_df.columns if c not in key_right]
+        added_cols = columns_to_add if columns_to_add else added_cols_all
+        # match_sort_by columns must survive into `right_subset` even when they
+        # aren't in `columns_to_add` (the sort/row_number below needs to read
+        # them) -- dropped again right after resolving, unless the caller also
+        # explicitly asked to keep them via columns_to_add.
+        sort_only_cols = (
+            [c for c in match_sort_by if c not in key_right and c not in added_cols]
+            if (match_sort_by and multiple_match in ("first", "last")) else []
+        )
+        subset_cols = list(dict.fromkeys(key_right + [c for c in added_cols if c not in key_right] + sort_only_cols))
+        right_subset = right_df.select(*subset_cols)
+
+        if multiple_match in ("first", "last"):
+            # Same order-proxy caveat as `unique`/`head_per_group`: unset
+            # match_sort_by means a non-deterministic pick (documented, matches
+            # the canonical standalone LookupComponent's own stated behavior) --
+            # set match_sort_by for a reproducible result.
+            if match_sort_by:
+                asc_list = (match_sort_ascending if isinstance(match_sort_ascending, list)
+                            else [match_sort_ascending] * len(match_sort_by))
+                if multiple_match == "last":
+                    asc_list = [not a for a in asc_list]
+                order_exprs = [(F.col(c).asc() if a else F.col(c).desc()) for c, a in zip(match_sort_by, asc_list)]
+            else:
+                order_col = F.monotonically_increasing_id()
+                order_exprs = [order_col.asc() if multiple_match == "first" else order_col.desc()]
+            w = Window.partitionBy(*key_right).orderBy(*order_exprs)
+            right_resolved = (right_subset.withColumn("_rn", F.row_number().over(w))
+                              .filter(F.col("_rn") == 1).drop("_rn", *sort_only_cols))
+        elif multiple_match == "all":
+            right_resolved = right_subset
+        else:  # all_as_list
+            agg_cols = [c for c in added_cols if c not in key_right]
+            if agg_cols:
+                right_resolved = right_subset.groupBy(*key_right).agg(
+                    *[F.collect_list(c).alias(c) for c in agg_cols]
+                )
+            else:
+                right_resolved = right_subset.dropDuplicates(key_right)
+
+        if rename:
+            for old, new in rename.items():
+                if old in right_resolved.columns:
+                    right_resolved = right_resolved.withColumnRenamed(old, new)
+
+        merged = _spark_keyed_join(df, right_resolved, key_left, key_right, how="left")
+
+        if match_flag_column:
+            probe2 = right_keys_only.withColumn(match_flag_column, F.lit(True))
+            merged = _spark_keyed_join(merged, probe2, key_left, key_right, how="left")
+            merged = merged.fillna({match_flag_column: False})
+        return merged
+    if kind == "window_calculation":
+        from pyspark.sql.window import Window
+        function = (op.get("function") or "").lower()
+        if function not in ("ntile", "cume_dist"):
+            raise ValueError(
+                f"window_calculation: function must be 'ntile' or 'cume_dist', got {op.get('function')!r}"
+            )
+        order_by = op.get("order_by")
+        if not order_by:
+            raise ValueError("window_calculation: 'order_by' is required")
+        order_cols = order_by if isinstance(order_by, list) else [order_by]
+        group_by = op.get("group_by")
+        group_cols = (group_by if isinstance(group_by, list) else [group_by]) if group_by else []
+        output_column = op.get("output_column")
+        if not output_column:
+            raise ValueError("window_calculation: 'output_column' is required")
+        w = Window.partitionBy(*group_cols).orderBy(*[F.col(c) for c in order_cols])
+        if function == "ntile":
+            n = op.get("n")
+            if not n:
+                raise ValueError("window_calculation: function='ntile' requires 'n'")
+            return df.withColumn(output_column, F.ntile(n).over(w))
+        return df.withColumn(output_column, F.cume_dist().over(w))
+    if kind == "unpivot":
+        # Spark 3.4+'s native DataFrame.unpivot() -- same id_columns/value_columns/
+        # var_name/value_name shape as the standalone `transforms/unpivot` component
+        # and the sibling pandas_pipeline/polars_pipeline pipeline ops.
+        id_columns = op.get("id_columns")
+        if not id_columns:
+            raise ValueError("unpivot op requires 'id_columns'")
+        id_columns = id_columns if isinstance(id_columns, list) else [id_columns]
+        value_columns = op.get("value_columns")
+        if value_columns is not None and not isinstance(value_columns, list):
+            value_columns = [value_columns]
+        var_name = op.get("var_name", "variable")
+        value_name = op.get("value_name", "value")
+        out = df.unpivot(ids=id_columns, values=value_columns,
+                          variableColumnName=var_name, valueColumnName=value_name)
+        if op.get("drop_null_values", False):
+            out = out.na.drop(subset=[value_name])
+        return out
+    if kind == "rank":
+        from pyspark.sql.window import Window
+        order_by = op.get("order_by")
+        if not order_by:
+            raise ValueError("rank op requires 'order_by'")
+        cols = list(order_by) if isinstance(order_by, (list, tuple)) else [order_by]
+        method = (op.get("method") or "rank").lower()
+        if method not in _SPARK_RANK_METHODS:
+            raise ValueError(
+                f"rank op: method must be one of {sorted(_SPARK_RANK_METHODS)} (Spark-native "
+                f"window-function vocabulary -- pandas_pipeline/polars_pipeline's tie-breaking "
+                f"vocabulary 'average'/'min'/'max'/'first'/'dense' has no native Spark equivalent "
+                f"and isn't supported here; use one of those sibling components for that "
+                f"vocabulary), got {op.get('method')!r}"
+            )
+        ascending = op.get("ascending", True)
+        if isinstance(ascending, (list, tuple)):
+            if len(ascending) != len(cols):
+                raise ValueError(
+                    f"rank op: 'ascending' list length ({len(ascending)}) must match "
+                    f"'order_by' length ({len(cols)})"
+                )
+            asc_list = list(ascending)
+        else:
+            asc_list = [ascending] * len(cols)
+        group_by = op.get("group_by")
+        group_cols = (group_by if isinstance(group_by, list) else [group_by]) if group_by else []
+        output_column = op.get("output_column") or f"{'_'.join(str(c) for c in cols)}_rank"
+        order_exprs = [(F.col(c).asc() if a else F.col(c).desc()) for c, a in zip(cols, asc_list)]
+        w = Window.partitionBy(*group_cols).orderBy(*order_exprs)
+        if method == "rank":
+            return df.withColumn(output_column, F.rank().over(w))
+        if method == "dense_rank":
+            return df.withColumn(output_column, F.dense_rank().over(w))
+        if method == "row_number":
+            return df.withColumn(output_column, F.row_number().over(w))
+        if method == "cume_dist":
+            return df.withColumn(output_column, F.cume_dist().over(w))
+        # ntile
+        n = op.get("ntile_buckets")
+        if not n:
+            raise ValueError("rank op: method='ntile' requires 'ntile_buckets'")
+        return df.withColumn(output_column, F.ntile(n).over(w))
     raise ValueError(f"pyspark_pipeline: unsupported op {kind!r}. Valid: {sorted(_VALID_OPS)}")
 
 
@@ -437,7 +786,9 @@ class PySparkPipelineComponent(Component, Model, Resolvable):
       * Multi-step: `steps:` (each with `source`/`operations`) + `sinks:` (list).
 
     Supported ops: filter, select, drop, rename, with_columns, group_by,
-    sort, limit, distinct, drop_nulls, join, union, sql.
+    sort, head, tail, head_per_group, limit, distinct, unique, drop_nulls,
+    fill_null, cast, join, union, sql, pivot, lookup, window_calculation,
+    unpivot, rank.
 
     `op: sql` registers the current chain as `self` and every prior step
     output by its id, then runs `spark.sql(...)`.

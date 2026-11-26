@@ -58,11 +58,12 @@
       "description": "Single-sink table name"
     },
     "mode": {"label": "Mode",
-      "description": "Sink mode (flat shape): 'replace', 'create_if_not_exists', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field.",
+      "description": "Sink mode (flat shape): 'replace', 'create_if_not_exists', 'append', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field.",
       "type": "string",
       "enum": [
         "replace",
         "create_if_not_exists",
+        "append",
         "view",
         "truncate_insert"
       ],

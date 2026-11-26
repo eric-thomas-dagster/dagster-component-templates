@@ -816,6 +816,12 @@ def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
     Supported modes (dbt-analog):
       - `replace` / `overwrite` — CREATE OR REPLACE TABLE (default).
       - `create_if_not_exists` — CREATE TABLE IF NOT EXISTS.
+      - `append` — plain INSERT INTO target SELECT ... (creating the table
+        first if it doesn't exist yet). No truncation, no incremental
+        watermark filter, no dedup — every materialization adds the full
+        SELECT's rows on top of whatever is already there. The
+        unconditional-insert counterpart to `incremental` (which filters by
+        a watermark column) and `truncate_insert` (which wipes first).
       - `view` — CREATE OR REPLACE VIEW. Cheap; the query re-runs on read.
       - `incremental` — INSERT INTO target SELECT ... WHERE
         <incremental_key> > (SELECT COALESCE(MAX(<incremental_key>), <bootstrap>)
@@ -849,6 +855,16 @@ def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
         return None
     if mode == "create_if_not_exists":
         return f"CREATE TABLE IF NOT EXISTS {out_quoted} AS\n{select_sql}"
+    if mode == "append":
+        # Unconditional INSERT — bootstrap the table (schema only, no rows)
+        # the first time it doesn't exist yet, same as truncate_insert's own
+        # bootstrap, then insert every time with no truncate/filter/dedup.
+        create_sql = (
+            f"CREATE TABLE IF NOT EXISTS {out_quoted} AS\n"
+            f"WITH _schema AS (\n{select_sql}\n)\n"
+            f"SELECT * FROM _schema WHERE 1=0"
+        )
+        return f"{create_sql};\nINSERT INTO {out_quoted}\n{select_sql}"
     if mode == "view":
         return f"CREATE OR REPLACE VIEW {out_quoted} AS\n{select_sql}"
     if mode == "incremental":
@@ -974,7 +990,7 @@ def _emit_sink_sql(sink: Dict[str, Any], step_refs: Dict[str, str],
         return ";\n".join(statements)
     raise ValueError(
         f"sink.mode must be 'replace' | 'overwrite' | 'create_if_not_exists' | "
-        f"'view' | 'incremental' | 'truncate_insert' | 'merge', got {mode!r}"
+        f"'append' | 'view' | 'incremental' | 'truncate_insert' | 'merge', got {mode!r}"
     )
 
 
@@ -1047,7 +1063,7 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
         description="Flat shape: ordered list of ops applied to 'source'. Compiles to one anonymous step.",
     )
     output_table: Optional[str] = Field(default=None, description="Flat shape: destination table for the single-source shape")
-    mode: Optional[str] = Field(default=None, description="Sink mode (flat shape): 'replace', 'create_if_not_exists', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field.")
+    mode: Optional[str] = Field(default=None, description="Sink mode (flat shape): 'replace', 'create_if_not_exists', 'append', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field.")
 
     # Multi-step shape -----------------------------------------------------
     steps: Optional[List[Dict[str, Any]]] = Field(
@@ -1061,7 +1077,9 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Output sinks. Each: {from: <step_id>, table: 'schema.table', "
-            "mode: replace|create_if_not_exists|view|incremental|truncate_insert|merge}. "
+            "mode: replace|create_if_not_exists|append|view|incremental|truncate_insert|merge}. "
+            "'append' is a plain unconditional INSERT (no truncate, no watermark filter, "
+            "no dedup) -- for incremental/dedup'd inserts use 'incremental'/'merge' instead. "
             "'incremental' needs incremental_key (+ optional incremental_merge_key for "
             "insert-only dedup). 'truncate_insert' keeps the existing table (schema, "
             "grants, indexes) and replaces its rows. 'merge' needs merge_keys: "

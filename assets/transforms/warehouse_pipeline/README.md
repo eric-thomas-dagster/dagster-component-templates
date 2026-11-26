@@ -67,7 +67,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `output_table` | `str` | — | Flat shape: destination table for the single-source shape |
-| `mode` | `str` | — | Sink mode (flat shape): 'replace', 'create_if_not_exists', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field. |
+| `mode` | `str` | — | Sink mode (flat shape): 'replace', 'create_if_not_exists', 'append', 'view', or 'truncate_insert'. 'incremental'/'merge' need per-sink params only available via the multi-sink 'sinks' field. |
 
 ### Other
 
@@ -77,7 +77,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | `source` | `Dict[str, Any]` | — | Single-source sugar: {upstream_table: 'schema.table'} or {kind: table\|sql, ...} |
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to 'source'. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: table\|ref\|sql, ...}, operations: [...]}. Required when using the multi-step form. |
-| `sinks` | `List[Dict[str, Any]]` | — | Output sinks. Each: {from: <step_id>, table: 'schema.table', mode: replace\|create_if_not_exists\|view\|incremental\|truncate_insert\|merge}. 'incremental' needs incremental_key (+ optional incremental_merge_key for inse… _(full docs in schema.json + component README)_ |
+| `sinks` | `List[Dict[str, Any]]` | — | Output sinks. Each: {from: <step_id>, table: 'schema.table', mode: replace\|create_if_not_exists\|append\|view\|incremental\|truncate_insert\|merge}. 'append' is a plain unconditional INSERT (no truncate, no watermark fi… _(full docs in schema.json + component README)_ |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 | `include_preview_metadata` | `bool` | `false` | — |
@@ -289,8 +289,13 @@ WITH "_step_1" AS (
 SELECT * FROM "_step_3"
 ```
 
-## Sink modes beyond CTAS: `truncate_insert` and `merge`
+## Sink modes beyond CTAS: `append`, `truncate_insert`, and `merge`
 
+- `append` is a plain, unconditional `INSERT INTO target SELECT ...` (bootstrapping the
+  table first if it doesn't exist yet). No truncation, no incremental watermark filter, no
+  dedup — every materialization adds the full `SELECT`'s rows on top of whatever is already
+  there. Use `incremental` instead if you need a watermark-filtered insert, or `merge` for
+  an upsert.
 - `truncate_insert` keeps the existing table (schema, grants, indexes) and replaces its
   rows: `TRUNCATE TABLE` (`DELETE FROM` on SQLite, which has no `TRUNCATE` statement) then
   `INSERT`. Unlike `replace` (`CREATE OR REPLACE TABLE`, a real drop + recreate), nothing

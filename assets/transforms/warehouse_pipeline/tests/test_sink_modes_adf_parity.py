@@ -111,6 +111,31 @@ def test_truncate_insert_replaces_rows_not_appends(mod, tmp_path):
 
 
 @requires_duckdb
+def test_append_adds_rows_without_truncating(mod, tmp_path):
+    import dagster as dg
+
+    db_path = tmp_path / "wp.duckdb"
+    _exec(db_path, "CREATE TABLE orders (id BIGINT, total DOUBLE)", "INSERT INTO orders VALUES (1, 10.0), (2, 20.0)")
+
+    comp = mod.WarehousePipelineComponent(
+        asset_name="out_asset",
+        dialect="duckdb",
+        database_url=f"duckdb:///{db_path}",
+        steps=[{"id": "s1", "source": {"upstream_table": "orders"}, "operations": []}],
+        sinks=[{"from": "s1", "table": "orders_append", "mode": "append"}],
+    )
+    defs = comp.build_defs(None)
+    assert dg.materialize(defs.assets).success  # bootstraps orders_append with 2 rows
+
+    _exec(db_path, "DELETE FROM orders", "INSERT INTO orders VALUES (9, 90.0)")
+
+    assert dg.materialize(defs.assets).success  # appends 1 more row on top
+
+    rows = _fetch(db_path, "SELECT id, total FROM orders_append ORDER BY id")
+    assert rows == [(1, 10.0), (2, 20.0), (9, 90.0)]  # old rows kept, new row added
+
+
+@requires_duckdb
 def test_merge_requires_merge_keys(mod, tmp_path):
     import dagster as dg
 
@@ -184,3 +209,13 @@ def test_truncate_insert_postgres_uses_truncate(mod):
     sink = {"from": "s1", "table": "t", "mode": "truncate_insert"}
     sql = mod._emit_sink_sql(sink, step_refs, all_ctes, "postgresql")
     assert "TRUNCATE TABLE" in sql
+
+
+def test_append_emits_insert_with_no_truncate_or_delete(mod):
+    step_refs, all_ctes = _ctes_and_refs()
+    sink = {"from": "s1", "table": "t", "mode": "append"}
+    sql = mod._emit_sink_sql(sink, step_refs, all_ctes, "postgresql")
+    assert "CREATE TABLE IF NOT EXISTS" in sql
+    assert "INSERT INTO" in sql
+    assert "TRUNCATE" not in sql
+    assert "DELETE FROM" not in sql

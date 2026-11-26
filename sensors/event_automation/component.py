@@ -294,7 +294,10 @@ class SetConcurrencyLimitAction(_ActionBase):
 
     Works on OSS (uses `instance.event_log_storage.set_concurrency_slots`).
     Common use: scheduled scaling (bump warehouse pool during business hours,
-    drop overnight) or reactive (concurrency_hit fires → auto-bump).
+    drop overnight) or reactive (concurrency_hit fires → auto-bump). Pair with
+    `on_load` to declare a pool's limit ONCE, right next to the assets that use it,
+    instead of as separate `dagster-instance.yaml` instance configuration living
+    somewhere else entirely.
     """
     type: Literal["set_concurrency_limit"] = "set_concurrency_limit"
     concurrency_key: str = Field(description="Pool name. Templated.")

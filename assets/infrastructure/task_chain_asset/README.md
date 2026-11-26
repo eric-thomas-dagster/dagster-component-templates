@@ -59,6 +59,34 @@ a separate `CronScheduleComponent` targeting this asset, and use `run_window` on
 *within* that cadence (e.g. a schedule that fires hourly, but should only actually do work
 during a business-hours sub-window).
 
+**Sharing one `run_window` across several assets** instead of repeating the same literal string
+in every component instance: Dagster's own `template_vars_module` mechanism (real, built-in —
+not anything new here) lets several `defs.yaml` files reference one Python-defined value by
+name. Define it once:
+
+```python
+# template_vars.py (sibling to the defs.yaml files that reference it)
+import dagster as dg
+
+@dg.template_var
+def business_hours() -> str:
+    return "09:00-17:00 America/New_York mon,tue,wed,thu,fri"
+```
+
+then in each asset's `defs.yaml`:
+
+```yaml
+template_vars_module: .template_vars   # relative to this defs.yaml; or an absolute module path
+                                        # (e.g. my_project.shared.template_vars) to share across
+                                        # defs.yaml files in different directories
+attributes:
+  run_window: "{{ business_hours }}"   # no parens -- business_hours() already returned the string at load time
+```
+
+Changing the window means editing one function, not every asset that uses it. (Confirmed from
+Dagster's own `dagster.components.component.template_vars` docstring and source directly — not
+live-tested against a running `dg` project in this environment.)
+
 ## `dry_run`
 
 ```yaml

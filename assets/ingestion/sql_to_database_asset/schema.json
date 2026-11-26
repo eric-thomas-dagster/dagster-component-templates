@@ -76,7 +76,8 @@
       "enum": [
         "fail",
         "replace",
-        "append"
+        "append",
+        "upsert"
       ],
       "ui:widget": "select"
     },

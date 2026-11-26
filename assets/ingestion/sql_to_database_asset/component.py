@@ -395,7 +395,7 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     source_query: Optional[str] = Field(default=None, description="Custom SQL query (overrides source_table)")
     destination_table: str = Field(description="Destination table name")
     destination_schema: Optional[str] = Field(default=None, description="Destination schema name")
-    if_exists: str = Field(default="append", description="fail, replace, append, or upsert (requires upsert_key_columns)")
+    if_exists: Literal["fail", "replace", "append", "upsert"] = Field(default="append", description="fail, replace, append, or upsert (requires upsert_key_columns)")
     upsert_key_columns: Optional[List[str]] = Field(
         default=None,
         description=(

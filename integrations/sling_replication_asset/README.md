@@ -74,6 +74,38 @@ streams:
 
 You also need a SlingResource set up at the project level (with `SlingConnectionResource`s for `PG_PROD` and `SNOWFLAKE_DW`) — see the [official `dagster-sling` docs](https://docs.dagster.io/integrations/libraries/sling) for connection setup.
 
+## Wildcard table patterns ("replicate every table in a schema")
+
+This isn't a feature of this wrapper component — it's native Sling `replication.yaml` syntax
+(confirmed against [Sling's own structure docs](https://docs.slingdata.io/concepts/replication/structure)),
+and it works here automatically since this component just points `@sling_assets` at whatever
+replication YAML you write:
+
+```yaml
+source: PG_PROD
+target: SNOWFLAKE_DW
+
+defaults:
+  mode: incremental
+  object: 'raw.{stream_table}'        # {stream_table} maps each matched table to a same-named target
+
+streams:
+  public.*:                           # matches every table in the public schema
+    primary_key: [id]
+    update_key: updated_at
+  public.orders:                      # an explicit entry below a wildcard overrides it for that table
+    primary_key: [order_id]
+    update_key: updated_at
+    select: [order_id, customer_id, total, updated_at]
+  '!public.scratch_tmp':               # exclude one table the wildcard would otherwise match
+```
+
+Each matched table still becomes its own Dagster asset (Sling's `@sling_assets` already does this
+for every stream, wildcard-expanded or not) with its own incremental watermark (`update_key`,
+tracked by Sling per-stream, independent of Dagster's own partitioning) — this is what "one asset
+per table with its own watermark" already means in practice here, no extra configuration on this
+component's own fields.
+
 ## Companion components
 
 - [`database_replication`](https://dagster-component-ui.vercel.app/c/database_replication) — the dedicated/opinionated version. 7-field surface, no Sling YAML, automatic resource setup. Use when one-table-one-asset is what you want.

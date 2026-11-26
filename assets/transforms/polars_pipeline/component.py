@@ -1182,11 +1182,11 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|avro|"
-            "encrypted_file|table, path: '...'}. `kind: encrypted_file` additionally takes "
+            "ndjson|encrypted_file|table, path: '...'}. `kind: encrypted_file` additionally takes "
             "`format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, "
             "encryption_context?` — encrypts the serialized bytes via the real AWS "
             "Encryption SDK before writing (same mechanism as FieldEncryptionComponent, "
-            "file-level instead of per-cell). `parquet`/`csv`/`avro` additionally take "
+            "file-level instead of per-cell). `parquet`/`csv`/`avro`/`ndjson` additionally take "
             "`mode: overwrite|append` (append reads-concats-rewrites; single-writer, not "
             "concurrent-safe) and, for `kind: parquet` only, `partition_by: [col, ...]` to "
             "write a Hive-style directory of part-files instead of one file (polars' native "
@@ -1582,7 +1582,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                 kind = (sink.get("kind") or "parquet").lower()
                 df = step_outputs[from_id].collect()  # materialize side-output
 
-                if kind in ("parquet", "csv", "avro"):
+                if kind in ("parquet", "csv", "avro", "ndjson"):
                     path = sink.get("path")
                     if not path:
                         raise ValueError(f"sink from={from_id!r}: 'path' is required")
@@ -1594,13 +1594,18 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                     if partition_by and kind != "parquet":
                         raise ValueError(f"sink from={from_id!r}: 'partition_by' (directory/partitioned output) is only supported for kind=parquet")
                     if mode == "append" and os.path.exists(path):
-                        # Polars has no native append for parquet/csv -- read the
-                        # existing file, concat, rewrite. Single-writer assumption
-                        # (same as every other file sink in this component); not
-                        # concurrent-write-safe.
+                        # Polars has no native append for parquet/csv/avro/ndjson -- read the
+                        # existing file, concat, rewrite. Single-writer assumption (same as every
+                        # other file sink in this component); not concurrent-write-safe. Each
+                        # format reads back as ITSELF -- a prior version of this branch read every
+                        # non-parquet kind as CSV, which would have corrupted an avro append.
                         if kind == "parquet":
                             existing = pl.read_parquet(path)
-                        else:
+                        elif kind == "avro":
+                            existing = pl.read_avro(path)
+                        elif kind == "ndjson":
+                            existing = pl.read_ndjson(path)
+                        else:  # csv
                             existing = pl.read_csv(path)
                         df = pl.concat([existing, df], how="diagonal_relaxed")
                     if kind == "parquet":
@@ -1610,6 +1615,8 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                             df.write_parquet(path)
                     elif kind == "csv":
                         df.write_csv(path)
+                    elif kind == "ndjson":
+                        df.write_ndjson(path)
                     else:  # avro
                         df.write_avro(path)
                     sink_metadata[f"polars/sink/{from_id}/path"] = MetadataValue.path(path)
@@ -1793,7 +1800,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
                     )
                 else:
                     raise ValueError(
-                        f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'avro' | 'encrypted_file' | 'table'."
+                        f"sink.kind={kind!r} not supported. Use 'parquet' | 'csv' | 'avro' | 'ndjson' | 'encrypted_file' | 'table'."
                     )
                 sink_metadata[f"polars/sink/{from_id}/row_count"] = MetadataValue.int(df.height)
 

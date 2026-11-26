@@ -69,7 +69,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | `source` | `Dict[str, Any]` | — | File / URL source shape. `{kind: file, path, format?, delimiter?, has_header?, quote_char?, schema_overrides?}` or `{kind: url, url, format?, delimiter?, has_header?, quote_char?, schema_overrides?}` (CSV only: has_heade… _(full docs in schema.json + component README)_ |
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to upstream_asset_key OR source. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: upstream\|ref, upstream_asset_key\|ref}, operations: [...]}. |
-| `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv\|avro\|encrypted_file\|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?… _(full docs in schema.json + component README)_ |
+| `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv\|avro\|ndjson\|encrypted_file\|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?… _(full docs in schema.json + component README)_ |
 | `primary_step` | `str` | — | Step id whose frame is returned as the asset's output (default: last step). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. Must match the sensor's `dynamic_partitions_name`. |
@@ -164,9 +164,14 @@ column is still inferred normally.
 
 ## New sink capabilities
 
-`sinks:` entries of `kind: parquet`/`csv`/`avro` additionally take:
+`sinks:` entries of `kind: parquet`/`csv`/`avro`/`ndjson` additionally take:
 - `mode: overwrite` (default) \| `append` — append reads the existing file, concatenates, and rewrites (single-writer, not concurrent-write-safe).
 - `partition_by: [col, ...]` (kind: parquet only) — writes a Hive-style directory of part-files via polars' native `write_parquet(partition_by=...)`, instead of one file.
+
+`kind: ndjson` (newline-delimited JSON, via polars' native `write_ndjson`) closes a real gap:
+until now, writing JSON output needed a second asset (`dataframe_to_json`) even though
+`kind: encrypted_file` already supported `format: ndjson` for the encrypted path -- the plain
+(unencrypted) file sink just never got the same format.
 
 ## Encrypted file I/O
 

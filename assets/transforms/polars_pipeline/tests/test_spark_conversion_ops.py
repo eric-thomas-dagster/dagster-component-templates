@@ -4,6 +4,7 @@ converting a StreamSets Transformer (Spark) pipeline: inline source, sql source
 to_datetime (Java pattern translation), struct-path select, coalesce, route,
 join suffix, avro/append/partition_by sinks, and the output_type=pandas/pyarrow fix.
 """
+import json
 import os
 
 import dagster as dg
@@ -194,6 +195,58 @@ def test_avro_sink(mod, tmp_path):
     _materialize(comp)
     assert os.path.exists(path)
     assert pl.read_avro(path).to_pandas()["a"].tolist() == [1]
+
+
+def test_ndjson_sink(mod, tmp_path):
+    path = str(tmp_path / "out.ndjson")
+    comp = mod.PolarsPipelineComponent(
+        asset_name="ndjson_out",
+        steps=[{"id": "s", "source": {"kind": "inline", "rows": [{"a": 1}, {"a": 2}]}, "operations": []}],
+        sinks=[{"from": "s", "kind": "ndjson", "path": path}],
+    )
+    _materialize(comp)
+    assert os.path.exists(path)
+    out = pl.read_ndjson(path)
+    assert out["a"].to_list() == [1, 2]
+    # genuinely newline-delimited, one JSON object per line -- not a JSON array
+    lines = [l for l in open(path).read().splitlines() if l.strip()]
+    assert len(lines) == 2
+    assert json.loads(lines[0]) == {"a": 1}
+
+
+def test_ndjson_append_mode(mod, tmp_path):
+    path = str(tmp_path / "out.ndjson")
+
+    def _comp():
+        return mod.PolarsPipelineComponent(
+            asset_name="ndjson_append",
+            steps=[{"id": "s", "source": {"kind": "inline", "rows": [{"a": 1}]}, "operations": []}],
+            sinks=[{"from": "s", "kind": "ndjson", "path": path, "mode": "append"}],
+        )
+
+    _materialize(_comp())
+    _materialize(_comp())
+    assert pl.read_ndjson(path).height == 2
+
+
+def test_avro_append_mode_reads_back_as_avro_not_csv(mod, tmp_path):
+    """Regression: a prior version of the append-mode read branch treated every non-parquet kind
+    (including avro) as CSV when reading the existing file back to concat -- which would have
+    corrupted an avro append (parsing avro's binary container format as if it were CSV text)."""
+    path = str(tmp_path / "out.avro")
+
+    def _comp():
+        return mod.PolarsPipelineComponent(
+            asset_name="avro_append",
+            steps=[{"id": "s", "source": {"kind": "inline", "rows": [{"a": 1}]}, "operations": []}],
+            sinks=[{"from": "s", "kind": "avro", "path": path, "mode": "append"}],
+        )
+
+    _materialize(_comp())
+    _materialize(_comp())
+    out = pl.read_avro(path)
+    assert out.height == 2
+    assert sorted(out["a"].to_list()) == [1, 1]
 
 
 def test_csv_append_mode(mod, tmp_path):

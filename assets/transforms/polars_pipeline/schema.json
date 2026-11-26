@@ -47,7 +47,7 @@
       "items": {
         "type": "object"
       },
-      "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|avro|encrypted_file|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, encryption_context?` \u2014 encrypts the serialized bytes via the real AWS Encryption SDK before writing (same mechanism as FieldEncryptionComponent, file-level instead of per-cell). `parquet`/`csv`/`avro` additionally take `mode: overwrite|append` (append reads-concats-rewrites; single-writer, not concurrent-safe) and, for `kind: parquet` only, `partition_by: [col, ...]` to write a Hive-style directory of part-files instead of one file (polars' native `write_parquet(partition_by=...)`). These run after the chain finishes; the asset's return value comes from primary_step."
+      "description": "Optional side-output writes. Each: {from: <step_id>, kind: parquet|csv|avro|ndjson|encrypted_file|table, path: '...'}. `kind: encrypted_file` additionally takes `format?, key_source?, raw_key_env_var?, kms_key_ids?, key_id?, encryption_context?` \u2014 encrypts the serialized bytes via the real AWS Encryption SDK before writing (same mechanism as FieldEncryptionComponent, file-level instead of per-cell). `parquet`/`csv`/`avro`/`ndjson` additionally take `mode: overwrite|append` (append reads-concats-rewrites; single-writer, not concurrent-safe) and, for `kind: parquet` only, `partition_by: [col, ...]` to write a Hive-style directory of part-files instead of one file (polars' native `write_parquet(partition_by=...)`). These run after the chain finishes; the asset's return value comes from primary_step."
     },
     "primary_step": {
       "label": "Primary Step",

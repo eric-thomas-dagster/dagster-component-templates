@@ -1219,6 +1219,11 @@ def build_mcp_server(tools: DagsterEvidenceTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's EvidenceToolError -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("dagster-evidence-tools")
     allowed = set(tools.tool_names())
 
@@ -1227,29 +1232,46 @@ def build_mcp_server(tools: DagsterEvidenceTools):
             mcp.tool()(fn)
         return fn
 
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see module docstring) -- a bad-arguments or failure comes back as a plain
+        {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL (isError=False) tool
+        result indistinguishable from success. Re-raising here lets the `mcp` package's own exception handling
+        (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a registered tool function and
+        turn it into a real isError=True CallToolResult) make the failure visible to whatever's counting failed
+        calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError), not this module's
+        EvidenceToolError: the SDK's tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a
+        raised exception's own message when it recognizes the exception as ITS OWN ToolError/ResourceError --
+        anything else (including a same-named ToolError class defined elsewhere) is treated as an unexpected
+        crash and replaced with a generic 'Error executing tool <name>' before it reaches the client, throwing
+        away the reason the agent needs to act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def project_overview(location: str) -> dict:
         """For ONE code location: every asset's freshness/automation/schedules/repository-file refs, steps
         that retried recently (error + whether the retry ultimately succeeded), partition + asset-check
         health, slower-than-before runs, pinned-dependency versions + known OSV vulnerabilities, failures in
         the last 24h, and repo_notes (what's deliberate here). Refuses an excluded location."""
-        return tools.call("project_overview", {"location": location})
+        return _mcp_call("project_overview", {"location": location})
 
     @_tool
     def deprecation_report(max_files: int = None) -> dict:
         """Deprecated, superseded or removed Dagster API usage across the repository's Python files."""
-        return tools.call("deprecation_report", {"max_files": max_files})
+        return _mcp_call("deprecation_report", {"max_files": max_files})
 
     @_tool
     def check_dagster_api(names: List[str]) -> dict:
         """Whether Dagster names (e.g. `dg.load_from_defs_folder`) exist in the installed Dagster, with their real
         signatures. Use it while reasoning, before relying on an API. At most 12 names."""
-        return tools.call("check_dagster_api", {"names": names})
+        return _mcp_call("check_dagster_api", {"names": names})
 
     @_tool
     def latest_dagster_release() -> dict:
         """The newest published `dagster` version and its GitHub release notes."""
-        return tools.call("latest_dagster_release")
+        return _mcp_call("latest_dagster_release", {})
 
     return mcp
 

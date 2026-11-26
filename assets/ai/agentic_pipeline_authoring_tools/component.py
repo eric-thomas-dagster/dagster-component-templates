@@ -522,6 +522,11 @@ def build_mcp_server(tools: AgenticPipelineAuthoringTools):
     except ImportError:  # mcp 1.x
         from mcp.server.fastmcp import FastMCP as _Server
 
+    try:  # the SDK's own ToolError, not this module's -- see _mcp_call below for why that distinction matters.
+        from mcp.server.mcpserver.exceptions import ToolError as _SdkToolError  # mcp 2.x (confirmed live, 2.3.0)
+    except ImportError:
+        from mcp.server.fastmcp.exceptions import ToolError as _SdkToolError  # mcp 1.x (stable FastMCP API, not live-verified here)
+
     mcp = _Server("agentic-pipeline-authoring-tools")
     allowed = set(tools.tool_names())
 
@@ -530,35 +535,52 @@ def build_mcp_server(tools: AgenticPipelineAuthoringTools):
             mcp.tool()(fn)
         return fn
 
+    def _mcp_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """tools.call() never raises (see module docstring) -- a bad-arguments or failure comes back as a plain
+        {"error": ...} dict, which the MCP transport would otherwise hand back as a NORMAL (isError=False) tool
+        result indistinguishable from success. Re-raising here lets the `mcp` package's own exception handling
+        (both fastmcp 1.x and mcp.server.mcpserver 2.x catch any exception from a registered tool function and
+        turn it into a real isError=True CallToolResult) make the failure visible to whatever's counting failed
+        calls in the agent loop. MUST be the SDK's own ToolError (_SdkToolError), not this module's: the SDK's
+        tool dispatch (mcp/server/mcpserver/tools/base.py `Tool.run`) only keeps a raised exception's own message
+        when it recognizes the exception as ITS OWN ToolError/ResourceError -- anything else (including a
+        same-named ToolError class defined elsewhere) is treated as an unexpected crash and replaced with a
+        generic 'Error executing tool <name>' before it reaches the client, throwing away the reason the agent
+        needs to act on."""
+        result = tools.call(name, args)
+        if isinstance(result, dict) and "error" in result:
+            raise _SdkToolError(result["error"])
+        return result
+
     @_tool
     def list_ops() -> dict:
         """Every agentic_pipeline op name + one-line summary."""
-        return tools.call("list_ops")
+        return _mcp_call("list_ops", {})
 
     @_tool
     def describe_op(op: str) -> dict:
         """That op's real JSON Schema (fields/types/defaults/descriptions), generated live from the real model."""
-        return tools.call("describe_op", {"op": op})
+        return _mcp_call("describe_op", {"op": op})
 
     @_tool
     def list_examples() -> dict:
         """Every shipped agentic_pipeline example's name + title + one-paragraph summary."""
-        return tools.call("list_examples")
+        return _mcp_call("list_examples", {})
 
     @_tool
     def get_example(name: str) -> dict:
         """That example's pipeline.yaml + README.md, verbatim."""
-        return tools.call("get_example", {"name": name})
+        return _mcp_call("get_example", {"name": name})
 
     @_tool
     def validate_pipeline(yaml: str) -> dict:
         """agentic_pipeline's own load-time validation (real construction + build_defs); errors carry step index/id/op/field where resolvable."""
-        return tools.call("validate_pipeline", {"yaml": yaml})
+        return _mcp_call("validate_pipeline", {"yaml": yaml})
 
     @_tool
     def preview_pipeline(yaml: str) -> dict:
         """The assets a pipeline YAML would create, the edges between steps, its partitioning, and the env vars / MCP servers / skill keys it needs -- without running a single step."""
-        return tools.call("preview_pipeline", {"yaml": yaml})
+        return _mcp_call("preview_pipeline", {"yaml": yaml})
 
     return mcp
 

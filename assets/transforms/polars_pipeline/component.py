@@ -83,7 +83,8 @@ from pydantic import Field
 _VALID_OPS = {"filter", "with_columns", "select", "drop", "rename",
               "group_by", "sort", "head", "tail", "head_per_group", "limit",
               "unique", "join", "union", "drop_nulls", "fill_null", "cast", "sql",
-              "explode", "to_datetime", "coalesce", "route"}
+              "explode", "to_datetime", "coalesce", "route",
+              "pivot", "lookup", "window_calculation"}
 
 
 # Java SimpleDateFormat/DateTimeFormatter -> polars (Rust chrono) strptime token
@@ -876,7 +877,16 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
         # order kept, but an unsorted head/limit right after group_by absolutely does).
         return lf.group_by(group_by, maintain_order=True).agg(aggs)
     if kind == "sort":
-        return lf.sort(by=op["by"], descending=op.get("descending", False))
+        # nulls_last: polars' own LazyFrame.sort() kwarg (verified against the
+        # installed polars 2.0's real signature) -- bool, or a list of bools
+        # matching `by` for per-column control. ADF's Sort transform default
+        # is nulls FIRST, matching polars' own nulls_last=False default, so
+        # this is a pure opt-in addition, no behavior change when unset.
+        return lf.sort(
+            by=op["by"],
+            descending=op.get("descending", False),
+            nulls_last=op.get("nulls_last", False),
+        )
     if kind == "head" or kind == "limit":
         return lf.head(op["n"])
     if kind == "tail":
@@ -957,6 +967,188 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
         # `self` is the current chain; prior step ids are usable by name.
         ctx = pl.SQLContext({"self": lf, **step_outputs})
         return ctx.execute(sql, eager=False)
+    if kind == "pivot":
+        # ADF's Pivot transform. Polars' pivot is eager-only in the sense
+        # that matters here (a restricted/declared `pivot_values` output
+        # schema can't be known from a lazy plan alone) -- collect first,
+        # same pattern this file's sink handling already uses for an
+        # eager-only step (see `df = step_outputs[from_id].collect()` in
+        # build_defs). Note: polars' own pivot kwargs are `on`/`index`/
+        # `values`/`aggregate_function` -- NOT pandas pivot_table's
+        # `columns`/`index`/`values` names, verified against the installed
+        # polars 2.0 DataFrame.pivot signature directly.
+        index_cols = op["index"] if isinstance(op["index"], list) else [op["index"]]
+        pivot_col = op["pivot_column"]
+        value_cols = op["value_columns"] if isinstance(op["value_columns"], list) else [op["value_columns"]]
+        agg_func = str(op.get("agg_func", "sum")).lower()
+        _PIVOT_AGG_ALIASES = {"avg": "mean", "count": "len", "countdistinct": "len", "n_unique": "len"}
+        agg_func = _PIVOT_AGG_ALIASES.get(agg_func, agg_func)
+        fill_value = op.get("fill_value", 0)
+        pivot_values = op.get("pivot_values")
+
+        df = lf.collect()
+        # Passing `values` as a list (even a 1-element list) is what makes
+        # polars itself pick the right naming convention: bare pivot-value
+        # column names when there's exactly one value column, "<value_col>_
+        # <pivot_value>" when there are several -- confirmed directly
+        # against the installed polars version, not assumed.
+        pivoted = df.pivot(
+            on=pivot_col, index=index_cols, values=value_cols,
+            aggregate_function=agg_func, maintain_order=True,
+        )
+        single_value_col = len(value_cols) == 1
+        if pivot_values:
+            # ADF's declared-schema Pivot: a pivot_values entry absent from
+            # the data still produces a column (filled/null), and the output
+            # is restricted to EXACTLY these pivot values, nothing else.
+            expected_cols = [
+                (str(pv) if single_value_col else f"{vc}_{pv}", vc)
+                for vc in value_cols for pv in pivot_values
+            ]
+            existing = set(pivoted.columns)
+            missing = [(name, vc) for name, vc in expected_cols if name not in existing]
+            if missing:
+                fill_exprs = []
+                for name, vc in missing:
+                    # Match the dtype of an actual pivoted sibling column for
+                    # this value_col (e.g. Float64 for a mean aggregate)
+                    # rather than the raw un-aggregated column's dtype, which
+                    # agg_func may not preserve (sum of ints stays int, mean
+                    # of ints becomes float).
+                    siblings = [
+                        c for c in pivoted.columns
+                        if c not in index_cols and (single_value_col or c.startswith(f"{vc}_"))
+                    ]
+                    dtype = pivoted.schema[siblings[0]] if siblings else df.schema.get(vc)
+                    lit = pl.lit(fill_value, dtype=dtype) if fill_value is not None else pl.lit(None, dtype=dtype)
+                    fill_exprs.append(lit.alias(name))
+                pivoted = pivoted.with_columns(fill_exprs)
+            pivoted = pivoted.select(index_cols + [name for name, _ in expected_cols])
+        if fill_value is not None:
+            value_pivot_cols = [c for c in pivoted.columns if c not in index_cols]
+            pivoted = pivoted.with_columns([pl.col(c).fill_null(fill_value) for c in value_pivot_cols])
+        return pivoted.lazy()
+    if kind == "lookup":
+        # ADF's Lookup transform. Reuses `join`'s own {ref: <step_id>} right-
+        # side shape.
+        right_spec = op["right"]
+        if not isinstance(right_spec, dict) or "ref" not in right_spec:
+            raise ValueError("polars_pipeline lookup.right must be {ref: <step_id>}")
+        right_id = right_spec["ref"]
+        if right_id not in step_outputs:
+            raise ValueError(f"lookup.right.ref={right_id!r} doesn't match any earlier step id")
+        right_lf = step_outputs[right_id]
+
+        on_cols = op.get("on_columns") or op.get("on")
+        if on_cols:
+            on_cols = on_cols if isinstance(on_cols, list) else [on_cols]
+            left_on, right_on = on_cols, on_cols
+        else:
+            left_on, right_on = op.get("left_on"), op.get("right_on")
+            if not (left_on and right_on):
+                raise ValueError("lookup op: provide 'on_columns' OR 'left_on' + 'right_on'")
+            left_on = left_on if isinstance(left_on, list) else [left_on]
+            right_on = right_on if isinstance(right_on, list) else [right_on]
+
+        match_sort_by = op.get("match_sort_by")
+        if match_sort_by:
+            # Multiple right-side rows sharing a key: sort the right side by
+            # match_sort_by (direction via match_sort_ascending) THEN take
+            # exactly one row per key with unique(keep='first') BEFORE the
+            # join -- guarantees a true 1:1 lookup regardless of how many
+            # right rows share a key, instead of a join fan-out.
+            sort_by = match_sort_by if isinstance(match_sort_by, list) else [match_sort_by]
+            ascending = op.get("match_sort_ascending", True)
+            descending = [not a for a in ascending] if isinstance(ascending, list) else (not ascending)
+            right_lf = right_lf.sort(by=sort_by, descending=descending).unique(
+                subset=right_on, keep="first", maintain_order=True
+            )
+
+        output_mode = (op.get("output_mode") or "columns").lower()
+        if output_mode == "is_match":
+            # Existence-only check -- reduce the right side to just its join
+            # keys (deduped to one row per key, independent of match_sort_by)
+            # plus a marker column, so the join can neither fan out nor pull
+            # in any other right-side column; a semi-join-shaped result.
+            output_column = op.get("output_column") or "is_match"
+            probe_col = f"__lookup_probe_{output_column}__"
+            right_probe = right_lf.select(right_on).with_columns(
+                pl.lit(True).alias(probe_col)
+            ).unique(subset=right_on, keep="first", maintain_order=True)
+            joined = lf.join(right_probe, left_on=left_on, right_on=right_on, how="left", maintain_order="left")
+            return joined.with_columns(
+                pl.col(probe_col).fill_null(False).alias(output_column)
+            ).drop(probe_col)
+        if output_mode != "columns":
+            raise ValueError(f"lookup op: output_mode must be 'columns' or 'is_match', got {output_mode!r}")
+
+        # output_mode == 'columns': behaves like a left join -- null for no
+        # match, every right-side column kept (renamed via `suffix` on an
+        # overlapping non-join column name, same default as `join`).
+        suffix = op.get("suffix", "_right")
+        return lf.join(right_lf, left_on=left_on, right_on=right_on, how="left", suffix=suffix, maintain_order="left")
+    if kind == "window_calculation":
+        # ADF's Window transform, scoped to JUST the two statistical
+        # functions not already covered by this file's own `sort`/`group_by`
+        # or the standalone `rank` component: ntile and cume_dist. Polars has
+        # no built-in ntile/cume_dist expression (verified against the
+        # installed polars 2.0's `pl`/`Expr` namespace) -- both are built
+        # from `rank`/`cum_count` + arithmetic, each formula hand-verified
+        # against the standard SQL NTILE/CUME_DIST definitions before use.
+        function = str(op["function"]).lower()
+        if function not in ("ntile", "cume_dist"):
+            raise ValueError(
+                f"window_calculation.function must be 'ntile' or 'cume_dist', got {op['function']!r}"
+            )
+        order_by = op["order_by"] if isinstance(op["order_by"], list) else [op["order_by"]]
+        group_by = op.get("group_by")
+        if group_by and not isinstance(group_by, list):
+            group_by = [group_by]
+        output_column = op["output_column"]
+
+        if function == "ntile":
+            n = op.get("n")
+            if not n or int(n) < 1:
+                raise ValueError("window_calculation.function='ntile' requires a positive integer 'n'")
+            n = int(n)
+            # Sort the whole frame by (group_by + order_by) so that a
+            # per-group cumulative row count below becomes a true 1..N rank
+            # -- polars' own cum_count()/len() over a partition key follow
+            # the frame's CURRENT physical row order, they don't re-sort, so
+            # the sort has to happen first.
+            lf = lf.sort(by=(group_by or []) + order_by, maintain_order=True)
+            order_expr = pl.col(order_by[0])
+            if group_by:
+                r = order_expr.cum_count().over(group_by)
+                count_n = pl.len().over(group_by)
+            else:
+                r = order_expr.cum_count()
+                count_n = pl.len()
+            # Standard SQL NTILE bucket assignment: base = N // n rows per
+            # bucket, the first (N % n) buckets get one extra row each. Hand-
+            # verified: N=10, n=4 -> bucket sizes [3, 3, 2, 2] (ranks 1-3,
+            # 4-6, 7-8, 9-10), matching Postgres' own NTILE(4) over 10 rows.
+            base = count_n // n
+            rem = count_n % n
+            threshold = rem * (base + 1)
+            bucket_low = ((r - 1) // (base + 1)) + 1
+            bucket_high = rem + ((r - threshold - 1) // base) + 1
+            bucket = pl.when(r <= threshold).then(bucket_low).otherwise(bucket_high)
+            return lf.with_columns(bucket.cast(pl.Int64).alias(output_column))
+
+        # cume_dist: standard SQL CUME_DIST() = (count of rows with value <=
+        # this row's value) / (total rows in partition). rank(method='max')
+        # over an ascending order gives exactly that numerator for every row
+        # in a tie group -- hand-verified: values [10, 20, 20, 30] ->
+        # cume_dist [0.25, 0.75, 0.75, 1.0].
+        order_expr = pl.struct(order_by) if len(order_by) > 1 else pl.col(order_by[0])
+        if group_by:
+            r = order_expr.rank(method="max").over(group_by)
+            count_n = pl.len().over(group_by)
+        else:
+            r = order_expr.rank(method="max")
+            count_n = pl.len()
+        return lf.with_columns((r.cast(pl.Float64) / count_n.cast(pl.Float64)).alias(output_column))
     raise ValueError(f"polars_pipeline op={kind!r} not supported. Valid: {sorted(_VALID_OPS)}")
 
 
@@ -1055,7 +1247,8 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
 
     Supported ops: filter, with_columns, select, drop, rename, group_by,
     sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null,
-    cast, join, union, sql, explode, to_datetime, coalesce, route.
+    cast, join, union, sql, explode, to_datetime, coalesce, route, pivot,
+    lookup, window_calculation.
 
     **Converting a Spark/StreamSets Transformer pipeline:**
       - `select`/`rename` accept a StreamSets-style nested field path
@@ -1085,7 +1278,48 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
         step, or as a sink's `from:`; if `default` is set, the bare step id
         also resolves to that lane.
       - `join` accepts `suffix:` (default `_right`, polars' own default) for
-        disambiguating overlapping non-join column names.
+        disambiguating overlapping non-join column names. `how: semi`/
+        `how: anti` are ADF's "Exists" transform -- semi keeps left rows
+        WITH a match (no right-side columns in the output), anti keeps left
+        rows WITHOUT one.
+      - `sort` accepts `nulls_last: bool | [bool, ...]` (default `False` --
+        nulls first, matching ADF's Sort transform default) for per-column
+        null-ordering control, passed straight through to polars'
+        `LazyFrame.sort(nulls_last=...)`.
+      - `pivot` (ADF's Pivot transform): `{op: pivot, index: [col, ...],
+        pivot_column: col, value_columns: [col, ...], agg_func: sum,
+        pivot_values: [v1, v2, ...]?, fill_value: 0?}`. Multiple `index`
+        columns group by all of them; multiple `value_columns` each get
+        their own set of pivoted columns (named `<value_col>_<pivot_value>`
+        when there's more than one value column, a bare `<pivot_value>` when
+        there's just one). `pivot_values`, when set, restricts the output to
+        exactly those pivot_column values becoming columns -- ADF's
+        declared-schema Pivot behavior -- and a value in the list absent
+        from the data still produces a column filled with `fill_value`
+        (or null if `fill_value` is unset).
+      - `lookup` (ADF's Lookup transform): `{op: lookup, right: {ref:
+        <step_id>}, on_columns: [...] | left_on/right_on, match_sort_by:
+        [...]?, match_sort_ascending: true | [...]?, output_mode:
+        columns|is_match, output_column: <name>}`. Same `right: {ref: ...}`
+        shape as `join`. `output_mode: columns` (default) behaves like a
+        left join. `output_mode: is_match` instead produces a single boolean
+        `output_column` (existence check only, every other right-side
+        column dropped). When `match_sort_by` is set, multiple right-side
+        rows sharing a key are resolved to exactly one match by sorting the
+        right side (direction via `match_sort_ascending`) and keeping the
+        first row per key before the join -- a true 1:1 lookup regardless of
+        how many right rows share a key.
+      - `window_calculation` (ADF's Window transform, scoped to its
+        statistical functions NOT already covered by `sort`/`group_by`/the
+        standalone `rank` component): `{op: window_calculation, function:
+        ntile|cume_dist, order_by: [...], group_by: [...]?, n: <int>
+        (ntile only), output_column: <name>}`. `ntile` buckets each
+        `group_by` partition (or the whole frame if unset) into `n` roughly
+        equal groups ordered by `order_by` (standard SQL NTILE semantics:
+        extra rows go to the earliest buckets). `cume_dist` computes each
+        row's cumulative distribution (fraction of rows in its partition
+        with an `order_by` value <= its own, standard SQL CUME_DIST
+        semantics).
       - Spark-SQL-function compatibility, for converting `with_columns`/
         `filter` expressions: most string/math/date functions have a direct
         polars-SQL equivalent (see the SQL reference link below). Functions

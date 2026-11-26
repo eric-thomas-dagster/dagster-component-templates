@@ -31,7 +31,7 @@
       "items": {
         "type": "object"
       },
-      "description": "Flat shape: ordered list of polars ops applied to upstream_asset_key. Supported: filter, with_columns, select, drop, group_by, sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null, cast, join, union, sql."
+      "description": "Flat shape: ordered list of polars ops applied to upstream_asset_key. Supported: filter, with_columns, select, drop, rename, group_by, sort, head/limit, tail, head_per_group, unique, drop_nulls, fill_null, cast, join, union, sql, explode, to_datetime, coalesce, route, pivot, lookup, window_calculation."
     },
     "steps": {
       "label": "Steps",

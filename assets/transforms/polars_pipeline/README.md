@@ -118,22 +118,87 @@ Each entry in `operations:` is `{op: <kind>, ...op-specific params}`:
 | `drop` | `columns: [a, b]` | Drop these columns (top-level only — not nested struct paths) |
 | `rename` | `mapping: {old: new}` | Rename columns (top-level only — not nested struct paths; use `select` to extract + alias a nested field to a new name instead) |
 | `group_by` | `group_by: [cols]`, `aggregations: {out: {col, agg}}` | Same agg shape as `summarize` |
-| `sort` | `by: [cols]`, `descending: bool/list` | Sort |
+| `sort` | `by: [cols]`, `descending: bool/list`, `nulls_last: bool/list` (default `false` — nulls first) | Sort. `nulls_last` controls null ordering per-column (list) or overall (bool), passed straight through to polars' own `LazyFrame.sort(nulls_last=...)`. |
 | `head` / `tail` | `n: int` | Take first/last N rows |
 | `head_per_group` | `group_by: [cols]`, `n: int` | Top-N per group; sort first if order matters |
 | `unique` | `subset: [cols]`, `keep: first/last/none` | Dedup |
 | `drop_nulls` | `subset: [cols]` (optional) | Drop rows with null in subset |
 | `fill_null` | `value: <any>` | Fill nulls |
 | `cast` | `mapping: {col: 'Int64'}` | Type cast |
-| `join` | `right: {ref: <step_id>}`, `how`, `on_columns`/`left_on`+`right_on`, `suffix` (default `_right`) | Join against another step's output (multi-step form only) |
+| `join` | `right: {ref: <step_id>}`, `how`, `on_columns`/`left_on`+`right_on`, `suffix` (default `_right`) | Join against another step's output (multi-step form only). `how: semi`/`how: anti` are ADF's **Exists** transform — `semi` keeps left rows WITH a match (no right-side columns in the output), `anti` keeps left rows WITHOUT one. |
 | `union` | `other: {ref: <step_id>}`, `mode: by_name\|by_position` (default `by_name`), `distinct: bool` | Stack another step's rows on top (multi-step form only). `by_name` matches columns by name, filling missing ones with null (`dataframe_union`'s own default); `by_position` takes column order from this step and stacks positionally. |
 | `sql` | `sql: "<query>"` | Escape hatch via polars' SQLContext (`self` = current chain; prior steps usable by id) |
 | `explode` | `column: <name>` (or `columns: [...]`) | Explode a list/array column into one row per element |
 | `to_datetime` | `column`, `pattern`, `output_column?`, `pattern_style?` (`java` default \| `polars`), `type?` (`datetime` default \| `date`) | Parse a string column into a datetime. `pattern` is a JAVA SimpleDateFormat/DateTimeFormatter string by default (StreamSets' convention) and is translated to polars' own format automatically — pass `pattern_style: polars` to use a native polars/chrono format as-is. Known limitation: chrono's `%z` needs an explicit numeric offset, not a bare `Z`. |
 | `coalesce` | `columns: [a, b]`, `output_column` | First non-null across the listed columns |
 | `route` | `routes: [{name, predicate}]`, `default?` | Fan one step out into several named lanes by predicate (same SQL dialect as `filter`), with an optional catch-all `default` lane. Reference a lane from a later step via `source: {kind: ref, ref: "<step_id>.<lane>"}` or a sink's `from:`. If `default` is set, the bare step id also resolves to that lane. |
+| `pivot` | `index: [cols]`, `pivot_column`, `value_columns: [cols]`, `agg_func` (default `sum`), `pivot_values?`, `fill_value?` (default `0`) | ADF's **Pivot** transform — see below. |
+| `lookup` | `right: {ref: <step_id>}`, `on_columns`/`left_on`+`right_on`, `match_sort_by?`, `match_sort_ascending?`, `output_mode`, `output_column?` | ADF's **Lookup** transform — see below. |
+| `window_calculation` | `function: ntile\|cume_dist`, `order_by: [cols]`, `group_by?: [cols]`, `n?` (ntile only), `output_column` | ADF's **Window** transform's `ntile`/`cume_dist` statistical functions — see below. Rank-equivalent functions are already covered by the standalone `rank` component. |
 
 Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / median / std / var / first / last / nunique`.
+
+### `pivot` (ADF's Pivot transform)
+
+```yaml
+- op: pivot
+  index: [region, segment]        # one or more group-by/row-label columns
+  pivot_column: quarter            # column whose unique values become new columns
+  value_columns: [revenue, cost]   # one or more columns to aggregate
+  agg_func: sum                    # sum/mean/avg/min/max/median/first/last/count
+  pivot_values: [Q1, Q2, Q3, Q4]    # optional: restrict + declare the exact output
+                                    # columns -- a value absent from the data still
+                                    # produces a fill_value column instead of being
+                                    # silently missing (ADF's declared-schema Pivot)
+  fill_value: 0                    # fill null cells after pivoting (default 0)
+```
+
+Built on polars' own `DataFrame.pivot` (`on`/`index`/`values`/`aggregate_function` — NOT
+pandas `pivot_table`'s `columns`/`index`/`values` names). A single `value_columns` entry
+produces bare pivot-value column names (`Q1`, `Q2`, ...); more than one produces
+`<value_column>_<pivot_value>` names (`revenue_Q1`, `cost_Q1`, ...) so the columns stay
+disambiguated.
+
+### `lookup` (ADF's Lookup transform)
+
+```yaml
+- op: lookup
+  right: {ref: customer_dim}
+  on_columns: [customer_id]         # or left_on: [...] + right_on: [...]
+  match_sort_by: [priority]          # optional: resolve multiple right-side matches
+  match_sort_ascending: false        # to exactly one row per key before the join
+  output_mode: columns               # columns (default, left-join-shaped) | is_match
+  output_column: found                # is_match mode only: name of the boolean column
+```
+
+Reuses `join`'s own `right: {ref: <step_id>}` shape. `output_mode: columns` behaves like a
+left join (null for no match). `output_mode: is_match` instead produces a single boolean
+`output_column` — an existence check only, every other right-side column dropped (a
+semi-join-shaped result). When `match_sort_by` is set, multiple right-side rows sharing a
+key are resolved to exactly one match by sorting the right side (direction via
+`match_sort_ascending`) and keeping the first row per key before the join — a true 1:1
+lookup regardless of how many right rows share a key.
+
+### `window_calculation` (ADF's Window transform — ntile / cume_dist)
+
+```yaml
+- op: window_calculation
+  function: ntile                  # or cume_dist
+  order_by: [score]
+  group_by: [region]               # optional — whole frame if unset
+  n: 4                              # required for ntile: number of buckets
+  output_column: quartile
+```
+
+`ntile` buckets each `group_by` partition (or the whole frame) into `n` roughly-equal
+groups ordered by `order_by`, using the standard SQL `NTILE` rule: extra rows go to the
+earliest buckets (e.g. 10 rows into 4 buckets → sizes `[3, 3, 2, 2]`). `cume_dist`
+computes each row's cumulative distribution — the fraction of rows in its partition with
+an `order_by` value less than or equal to its own (standard SQL `CUME_DIST` semantics).
+Polars has no built-in `ntile`/`cume_dist` expression, so both are built from
+`rank`/`cum_count` + arithmetic. Rank-equivalent window functions are already covered by
+the standalone `rank` component and this component's own `sort`/`group_by`, so this op is
+scoped to just these two statistical functions.
 
 ## `inline` and `sql` sources
 

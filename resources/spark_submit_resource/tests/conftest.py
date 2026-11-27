@@ -4,7 +4,7 @@ from pathlib import Path
 
 def load_component_module():
     here = Path(__file__).resolve().parent.parent
-    spec = importlib.util.spec_from_file_location("spark_submit_asset_component", here / "component.py")
+    spec = importlib.util.spec_from_file_location("spark_submit_resource_component", here / "component.py")
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

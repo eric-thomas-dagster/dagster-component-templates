@@ -1,4 +1,4 @@
-"""Real, committed tests for SparkSubmitAssetComponent.
+"""Real, committed tests for SparkSubmitResource.submit.
 
 Most tests run a real subprocess via a tiny fake `spark-submit` shim (parses
 the real spark-submit flag vocabulary just enough to find the application
@@ -53,24 +53,17 @@ def _write_script(tmp_path, body):
     return str(p)
 
 
-def _comp(tmp_path, **kw):
-    args = dict(asset_name="out", application="app.py", spark_submit_binary=_write_shim(tmp_path))
-    args.update(kw)
-    return mod.SparkSubmitAssetComponent(**args)
+def _resource(tmp_path):
+    return mod.SparkSubmitResource(spark_submit_binary=_write_shim(tmp_path))
 
 
-def test_successful_run_materializes_with_exit_code_zero(tmp_path):
+def test_successful_run_returns_exit_code_zero(tmp_path):
     script = _write_script(tmp_path, """
         print("hello from spark job")
     """)
-    comp = _comp(tmp_path, application=script)
-    defs = comp.build_defs(None)
-    result = dg.materialize(list(defs.assets))
-    assert result.success
-    mats = [e for e in result.all_events if e.event_type_value == "ASSET_MATERIALIZATION"]
-    meta = mats[0].event_specific_data.materialization.metadata
-    assert meta["exit_code"].value == 0
-    assert "hello from spark job" in meta["stdout_preview"].value
+    result = _resource(tmp_path).submit(application=script)
+    assert result["exit_code"] == 0
+    assert "hello from spark job" in result["stdout_preview"]
 
 
 def test_nonzero_exit_raises_with_stderr(tmp_path):
@@ -79,13 +72,8 @@ def test_nonzero_exit_raises_with_stderr(tmp_path):
         print("boom", file=sys.stderr)
         sys.exit(7)
     """)
-    comp = _comp(tmp_path, application=script)
-    defs = comp.build_defs(None)
-    result = dg.materialize(list(defs.assets), raise_on_error=False)
-    assert not result.success
-    failure = next(e for e in result.all_events if e.event_type_value == "STEP_FAILURE")
-    err = str(failure.event_specific_data.error)
-    assert "exited 7" in err
+    with pytest.raises(dg.Failure, match="exited 7"):
+        _resource(tmp_path).submit(application=script)
 
 
 def test_success_exit_codes_allows_nonzero(tmp_path):
@@ -93,12 +81,8 @@ def test_success_exit_codes_allows_nonzero(tmp_path):
         import sys
         sys.exit(3)
     """)
-    comp = _comp(tmp_path, application=script, success_exit_codes=[3])
-    defs = comp.build_defs(None)
-    result = dg.materialize(list(defs.assets))
-    assert result.success
-    mats = [e for e in result.all_events if e.event_type_value == "ASSET_MATERIALIZATION"]
-    assert mats[0].event_specific_data.materialization.metadata["exit_code"].value == 3
+    result = _resource(tmp_path).submit(application=script, success_exit_codes=[3])
+    assert result["exit_code"] == 3
 
 
 def test_timeout_kills_process_and_raises(tmp_path):
@@ -106,12 +90,8 @@ def test_timeout_kills_process_and_raises(tmp_path):
         import time
         time.sleep(30)
     """)
-    comp = _comp(tmp_path, application=script, timeout_seconds=1)
-    defs = comp.build_defs(None)
-    result = dg.materialize(list(defs.assets), raise_on_error=False)
-    assert not result.success
-    failure = next(e for e in result.all_events if e.event_type_value == "STEP_FAILURE")
-    assert "timed out" in str(failure.event_specific_data.error)
+    with pytest.raises(dg.Failure, match="timed out"):
+        _resource(tmp_path).submit(application=script, timeout_seconds=1)
 
 
 def test_env_vars_are_merged_into_subprocess_env(tmp_path):
@@ -119,18 +99,13 @@ def test_env_vars_are_merged_into_subprocess_env(tmp_path):
         import os
         print(os.environ.get("MY_SPARK_VAR", "MISSING"))
     """)
-    comp = _comp(tmp_path, application=script, env_vars={"MY_SPARK_VAR": "present"})
-    defs = comp.build_defs(None)
-    result = dg.materialize(list(defs.assets))
-    assert result.success
-    mats = [e for e in result.all_events if e.event_type_value == "ASSET_MATERIALIZATION"]
-    assert "present" in mats[0].event_specific_data.materialization.metadata["stdout_preview"].value
+    result = _resource(tmp_path).submit(application=script, env_vars={"MY_SPARK_VAR": "present"})
+    assert "present" in result["stdout_preview"]
 
 
 def test_invalid_deploy_mode_is_rejected(tmp_path):
-    comp = _comp(tmp_path, deploy_mode="bogus")
     with pytest.raises(ValueError, match="deploy_mode"):
-        comp.build_defs(None)
+        _resource(tmp_path).submit(application="app.py", deploy_mode="bogus")
 
 
 def test_command_construction_matches_real_spark_submit_flags():
@@ -170,3 +145,9 @@ def test_command_construction_matches_real_spark_submit_flags():
         "s3://bucket/job.py",
         "--date", "2024-01-01",
     ]
+
+
+def test_component_registers_resource():
+    component = mod.SparkSubmitResourceComponent()
+    defs = component.build_defs(None)
+    assert isinstance(defs.resources["spark_submit_resource"], mod.SparkSubmitResource)

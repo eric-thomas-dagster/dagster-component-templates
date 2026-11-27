@@ -1,0 +1,4 @@
+type: dagster_community_components.EmrResourceComponent
+attributes:
+  resource_key: emr_resource
+  region_name: us-east-1

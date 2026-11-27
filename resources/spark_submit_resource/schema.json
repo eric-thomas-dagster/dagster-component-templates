@@ -1,0 +1,34 @@
+{
+  "component_type": "dagster_community_components.SparkSubmitResourceComponent",
+  "name": "Spark Submit Resource",
+  "category": "resource",
+  "icon": "si:apachespark",
+  "description": "Register a SparkSubmitResource (run spark-submit as a reusable resource method) for use by other components -- the Airflow SparkSubmitOperator equivalent as an injectable resource.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "spark_submit_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "spark_submit_resource"
+    },
+    "spark_submit_binary": {
+      "type": "string",
+      "label": "Spark Submit Binary",
+      "description": "Path to the spark-submit binary. Defaults to 'spark-submit' on PATH.",
+      "required": false,
+      "default": "spark-submit"
+    }
+  },
+  "tags": [
+    "resource",
+    "spark",
+    "emr"
+  ]
+}

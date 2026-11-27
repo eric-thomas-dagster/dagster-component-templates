@@ -316,6 +316,22 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=False,
         description="Only with return_last_stdout_line: if that last line parses as valid JSON, return the parsed value instead of the raw string. Falls back to the raw string when it isn't valid JSON.",
     )
+    cron_schedule: Optional[str] = Field(
+        default=None,
+        description=(
+            "Cron expression (e.g. '0 */6 * * *') to run this asset on a schedule, wrapped in "
+            "an asset job targeting just this asset. Unset (default): no schedule is created -- "
+            "materialize manually, via a sensor, or via another schedule targeting this asset."
+        ),
+    )
+    schedule_job_name: Optional[str] = Field(
+        default=None,
+        description="Name for the asset job the schedule targets, when cron_schedule is set. Defaults to '{asset_name}_job'.",
+    )
+    schedule_default_status: str = Field(
+        default="STOPPED",
+        description="STOPPED | RUNNING -- initial status of the schedule created from cron_schedule.",
+    )
     group_name: str = Field(default="shell", description="Asset group.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys for lineage (in addition to command_asset_key, which is added automatically).")
@@ -542,4 +558,23 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 yield dg.Output(_last_line_value(), metadata=metadata)
             else:
                 yield dg.MaterializeResult(metadata=metadata)
-        return dg.Definitions(assets=[_shell_asset])
+
+        defs_kwargs: Dict[str, Any] = {"assets": [_shell_asset]}
+        if self.cron_schedule:
+            job = dg.define_asset_job(
+                name=self.schedule_job_name or f"{self.asset_name}_job",
+                selection=dg.AssetSelection.assets(dg.AssetKey.from_user_string(self.asset_name)),
+            )
+            schedule = dg.ScheduleDefinition(
+                name=f"{self.schedule_job_name or self.asset_name}_schedule",
+                cron_schedule=self.cron_schedule,
+                job=job,
+                default_status=(
+                    dg.DefaultScheduleStatus.RUNNING
+                    if self.schedule_default_status.upper() == "RUNNING"
+                    else dg.DefaultScheduleStatus.STOPPED
+                ),
+            )
+            defs_kwargs["jobs"] = [job]
+            defs_kwargs["schedules"] = [schedule]
+        return dg.Definitions(**defs_kwargs)

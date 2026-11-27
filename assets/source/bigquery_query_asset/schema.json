@@ -78,6 +78,21 @@
       "default": null,
       "description": "Hard cap on result rows fetched."
     },
+    "destination_table": {
+      "type": "string",
+      "label": "Destination Table",
+      "required": false,
+      "default": null,
+      "description": "Write the query result into this BigQuery table, e.g. 'project.dataset.table' or 'dataset.table'."
+    },
+    "write_disposition": {
+      "type": "string",
+      "enum": ["WRITE_TRUNCATE", "WRITE_APPEND", "WRITE_EMPTY"],
+      "label": "Write Disposition",
+      "required": false,
+      "default": "WRITE_EMPTY",
+      "description": "What to do if destination_table already has data. Only used when destination_table is set."
+    },
     "description": {
       "description": "Asset description.",
       "type": "string",

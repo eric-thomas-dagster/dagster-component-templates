@@ -242,6 +242,27 @@
       "description": "Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.yaml's concurrency: pools:, or the Dagster+ UI), not here.",
       "required": false
     },
+    "cron_schedule": {
+      "type": "string",
+      "label": "Cron Schedule",
+      "description": "Cron expression (e.g. '0 */6 * * *') to run this asset on a schedule, wrapped in an asset job targeting just this asset. Unset (default): no schedule is created.",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "schedule_job_name": {
+      "type": "string",
+      "label": "Schedule Job Name",
+      "description": "Name for the asset job the schedule targets, when cron_schedule is set. Defaults to '{asset_name}_job'.",
+      "required": false
+    },
+    "schedule_default_status": {
+      "type": "string",
+      "enum": ["STOPPED", "RUNNING"],
+      "label": "Schedule Default Status",
+      "description": "Initial status of the schedule created from cron_schedule.",
+      "required": false,
+      "default": "STOPPED"
+    },
     "return_last_stdout_line": {
       "type": "boolean",
       "label": "Return Last Stdout Line",

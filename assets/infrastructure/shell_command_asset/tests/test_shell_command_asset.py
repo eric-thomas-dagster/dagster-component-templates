@@ -271,3 +271,35 @@ def test_run_window_malformed_spec_fails_open_and_still_runs(tmp_path, mod):
     result = materialize(component)
     assert result.success
     assert marker.exists()
+
+
+def test_no_schedule_by_default(mod):
+    component = mod.ShellCommandAssetComponent(asset_name="t", command="echo hello")
+    defs = component.build_defs(context=None)
+    assert defs.jobs is None or len(defs.jobs) == 0
+    assert defs.schedules is None or len(defs.schedules) == 0
+
+
+def test_cron_schedule_wires_a_job_and_schedule_targeting_this_asset(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="echo hello", cron_schedule="0 */6 * * *",
+    )
+    defs = component.build_defs(context=None)
+    assert len(defs.jobs) == 1
+    assert defs.jobs[0].name == "t_job"
+    assert len(defs.schedules) == 1
+    schedule = defs.schedules[0]
+    assert schedule.cron_schedule == "0 */6 * * *"
+    assert schedule.name == "t_schedule"
+    assert schedule.default_status == dg.DefaultScheduleStatus.STOPPED
+
+
+def test_cron_schedule_respects_custom_job_name_and_running_default_status(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="t", command="echo hello", cron_schedule="0 0 * * *",
+        schedule_job_name="my_job", schedule_default_status="RUNNING",
+    )
+    defs = component.build_defs(context=None)
+    assert defs.jobs[0].name == "my_job"
+    assert defs.schedules[0].name == "my_job_schedule"
+    assert defs.schedules[0].default_status == dg.DefaultScheduleStatus.RUNNING

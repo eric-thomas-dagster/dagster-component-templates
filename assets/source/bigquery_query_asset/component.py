@@ -201,6 +201,24 @@ class BigQueryQueryAssetComponent(Component, Model, Resolvable):
         default=None,
         description="Optional hard cap on result rows fetched into the DataFrame.",
     )
+    destination_table: Optional[str] = Field(
+        default=None,
+        description=(
+            "Write the query result into this BigQuery table instead of just "
+            "returning it as a DataFrame, e.g. 'project.dataset.table' or "
+            "'dataset.table' (uses project_id). The asset still materializes "
+            "the result as a DataFrame as before; this additionally persists "
+            "it server-side via the query job itself."
+        ),
+    )
+    write_disposition: str = Field(
+        default="WRITE_EMPTY",
+        description=(
+            "What to do if destination_table already has data: 'WRITE_TRUNCATE' "
+            "(overwrite), 'WRITE_APPEND' (append), or 'WRITE_EMPTY' (fail if "
+            "the table already has rows). Only used when destination_table is set."
+        ),
+    )
 
     # Standard Dagster attrs
     description: Optional[str] = Field(default=None)
@@ -319,6 +337,8 @@ class BigQueryQueryAssetComponent(Component, Model, Resolvable):
         use_legacy_sql = self.use_legacy_sql
         dry_run = self.dry_run
         max_rows = self.max_rows
+        destination_table = self.destination_table
+        write_disposition = self.write_disposition
 
         @asset(
             key=AssetKey.from_user_string(asset_name),
@@ -368,6 +388,11 @@ class BigQueryQueryAssetComponent(Component, Model, Resolvable):
                 dry_run=dry_run,
                 use_query_cache=True,
             )
+            if destination_table:
+                job_config.destination = bigquery.TableReference.from_string(
+                    destination_table, default_project=project_id
+                )
+                job_config.write_disposition = write_disposition
 
             try:
                 job = client.query(rendered_query, job_config=job_config)
@@ -416,6 +441,9 @@ class BigQueryQueryAssetComponent(Component, Model, Resolvable):
                 "preview":         MetadataValue.md(preview_md or ""),
                 "rendered_query":  MetadataValue.text(rendered_query),
             }
+            if destination_table:
+                md["destination_table"] = MetadataValue.text(str(job_config.destination))
+                md["write_disposition"] = MetadataValue.text(write_disposition)
             return Output(value=df, metadata=md)
 
         return Definitions(assets=[_asset])

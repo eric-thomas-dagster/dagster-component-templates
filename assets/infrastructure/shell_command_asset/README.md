@@ -178,6 +178,9 @@ partition_start: "2024-01-01"
 | `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
 | `return_last_stdout_line` | `bool` | `false` | Return the command's last non-empty stdout line as this asset's materialized value (via the IO manager), not just metadata, so a downstream asset can take it as an input the usual way. Mirrors what a source system's last… _(full docs in schema.json + component README)_ |
 | `parse_json_output` | `bool` | `false` | Only with return_last_stdout_line: if that last line parses as valid JSON, return the parsed value instead of the raw string. Falls back to the raw string when it isn't valid JSON. |
+| `cron_schedule` | `str` | — | Cron expression (e.g. '0 */6 * * *') to run this asset on a schedule, wrapped in an asset job targeting just this asset. Unset (default): no schedule is created -- materialize manually, via a sensor, or via another sched… _(full docs in schema.json + component README)_ |
+| `schedule_job_name` | `str` | — | Name for the asset job the schedule targets, when cron_schedule is set. Defaults to '{asset_name}_job'. |
+| `schedule_default_status` | `str` | `"STOPPED"` | STOPPED \| RUNNING -- initial status of the schedule created from cron_schedule. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (partition_type='dynamic'). |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. |
 

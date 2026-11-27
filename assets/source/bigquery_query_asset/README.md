@@ -67,6 +67,8 @@ db-dtypes>=1.0.0
 | `partition_type` | `str` | — | — |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `Union[str, List[str]]` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
@@ -79,6 +81,12 @@ db-dtypes>=1.0.0
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `write_disposition` | `str` | `"WRITE_EMPTY"` | What to do if destination_table already has data: 'WRITE_TRUNCATE' (overwrite), 'WRITE_APPEND' (append), or 'WRITE_EMPTY' (fail if the table already has rows). Only used when destination_table is set. |
+
 ### Other
 
 | Field | Type | Default | Description |
@@ -90,6 +98,7 @@ db-dtypes>=1.0.0
 | `query_params` | `Dict[str, Any]` | `dict()` | Mapping substituted into {placeholder} segments of `query` before submission. |
 | `use_legacy_sql` | `bool` | `false` | Use legacy SQL (default: standard SQL). |
 | `dry_run` | `bool` | `false` | If True, validate the query and return its byte estimate without scanning data. |
+| `destination_table` | `str` | — | Write the query result into this BigQuery table instead of just returning it as a DataFrame, e.g. 'project.dataset.table' or 'dataset.table' (uses project_id). The asset still materializes the result as a DataFrame as be… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | — |
 
 [//]: # (FIELDS:END)

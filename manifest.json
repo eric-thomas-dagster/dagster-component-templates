@@ -66826,7 +66826,8 @@
       "dependencies": {
         "pip": [
           "dagster",
-          "sqlalchemy"
+          "sqlalchemy",
+          "sqlparse"
         ]
       },
       "version": "1.0.0",

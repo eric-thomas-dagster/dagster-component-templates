@@ -116,3 +116,30 @@ def test_timeout_seconds_passed_to_smtp_constructor(mod):
     resource = _resource(mod)
     resource.send_email(to="a@b.com", subject="s", body="b", timeout_seconds=5)
     assert _FakeSMTP.instances[-1].timeout == 5
+
+
+def test_no_credentials_connects_without_login(mod):
+    resource = _resource(mod, username=None, password=None)
+    resource.send_email(to="a@b.com", subject="s", body="b", from_addr="me@example.com")
+    fake = _FakeSMTP.instances[-1]
+    assert fake.login_args is None
+    assert fake.sent["from_addr"] == "me@example.com"
+
+
+def test_only_username_set_raises(mod):
+    resource = _resource(mod, username="me@example.com", password=None)
+    with pytest.raises(ValueError, match="set both username and password"):
+        resource.send_email(to="a@b.com", subject="s", body="b")
+
+
+def test_only_password_set_raises(mod):
+    resource = _resource(mod, username=None, password="secret")
+    with pytest.raises(ValueError, match="set both username and password"):
+        resource.send_email(to="a@b.com", subject="s", body="b")
+
+
+def test_component_allows_omitting_username_and_password_env_var(mod):
+    component = mod.SMTPResourceComponent(host="smtp.example.com")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["smtp_resource"]
+    assert resource.username is None and resource.password is None

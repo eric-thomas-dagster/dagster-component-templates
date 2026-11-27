@@ -214,7 +214,7 @@ class HTTPResource(dg.ConfigurableResource):
             session.headers.update(headers)
 
         url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}" if not path.startswith(("http://", "https://")) else path
-        request_kwargs: Dict[str, Any] = {"headers": dict(session.headers), "timeout": timeout_seconds or self.timeout_seconds}
+        request_kwargs: Dict[str, Any] = {"headers": dict(session.headers), "timeout": timeout_seconds if timeout_seconds is not None else self.timeout_seconds}
         if params is not None:
             request_kwargs["params"] = params
         if json_body is not None:
@@ -296,7 +296,7 @@ class HTTPResource(dg.ConfigurableResource):
         if headers:
             session.headers.update(headers)
         url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}" if not path.startswith(("http://", "https://")) else path
-        request_kwargs: Dict[str, Any] = {"headers": dict(session.headers), "timeout": timeout_seconds or self.timeout_seconds}
+        request_kwargs: Dict[str, Any] = {"headers": dict(session.headers), "timeout": timeout_seconds if timeout_seconds is not None else self.timeout_seconds}
         if params is not None:
             request_kwargs["params"] = params
 

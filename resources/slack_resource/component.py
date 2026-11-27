@@ -31,10 +31,21 @@ class SlackPostResource(dg.ConfigurableResource):
     ) -> Dict[str, Any]:
         """Post one message. Uses `webhook_url` (param, falling back to the configured one) if
         set, else the real Slack `chat.postMessage` Web API via a `slack_sdk.WebClient` built
-        from the configured bot token. `channel` is required for the token path, ignored
-        (the webhook already targets a channel) for the webhook path."""
+        from the configured bot token. `channel` is required for the token path. Modern,
+        app-based incoming webhooks are bound to one fixed channel and have no JSON-payload
+        channel override (that only existed for Slack's now-deprecated legacy webhooks), so
+        `channel` must be omitted on the webhook path -- passing it raises rather than
+        silently having no effect."""
         url = webhook_url or self.webhook_url
         if url:
+            if channel:
+                raise ValueError(
+                    "slack_resource: `channel` has no effect when posting via an incoming "
+                    "webhook -- modern Slack app-based webhooks are bound to one fixed channel "
+                    "and do not support a per-request channel override (that capability only "
+                    "existed for Slack's legacy webhooks, which are deprecated). Omit `channel`, "
+                    "or post via a bot token (chat.postMessage) instead."
+                )
             import requests
             payload: Dict[str, Any] = {}
             if text is not None:

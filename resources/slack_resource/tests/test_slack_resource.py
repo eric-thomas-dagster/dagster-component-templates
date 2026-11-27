@@ -74,6 +74,15 @@ def test_webhook_failure_raises(mod, monkeypatch):
         run_probe(mod, component, {"text": "hello"})
 
 
+def test_webhook_path_with_channel_raises(mod, monkeypatch):
+    monkeypatch.setattr("requests.post", lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not POST")))
+    monkeypatch.setenv("SLACK_WEBHOOK", "https://hooks.slack.com/services/T/B/X")
+
+    component = mod.SlackResourceComponent(webhook_url_env_var="SLACK_WEBHOOK")
+    with pytest.raises(ValueError, match="`channel` has no effect"):
+        run_probe(mod, component, {"channel": "#noise", "text": "hello"})
+
+
 def test_token_path_without_channel_raises(mod, monkeypatch):
     monkeypatch.setenv("SLACK_TOKEN", "xoxb-fake")
     component = mod.SlackResourceComponent(token_env_var="SLACK_TOKEN")

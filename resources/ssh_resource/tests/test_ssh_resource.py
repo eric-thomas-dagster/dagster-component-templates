@@ -76,3 +76,19 @@ def test_component_registers_resource():
     defs = component.build_defs(context=None)
     resource = defs.resources["ssh_resource"]
     assert isinstance(resource, mod.SSHResource)
+
+
+def test_timeout_zero_is_not_replaced_by_default(mod, monkeypatch):
+    seen_timeouts = []
+
+    class TimeoutCapturingClient(FakeSSHClient):
+        def exec_command(self, command, timeout=None):
+            seen_timeouts.append(timeout)
+            return super().exec_command(command, timeout=timeout)
+
+    fake_client = TimeoutCapturingClient({"echo hi": ([], 0, "")})
+    install_fake_paramiko(monkeypatch, lambda: fake_client)
+
+    _resource(mod, timeout_seconds=300).run_command("echo hi", timeout=0)
+
+    assert seen_timeouts == [0]

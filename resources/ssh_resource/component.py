@@ -99,7 +99,7 @@ class SSHResource(dg.ConfigurableResource):
             if log:
                 log.info(f"ssh_resource: running on {self.host}: {full_command}")
 
-            stdin, stdout, stderr = client.exec_command(full_command, timeout=timeout or self.timeout_seconds)
+            stdin, stdout, stderr = client.exec_command(full_command, timeout=timeout if timeout is not None else self.timeout_seconds)
             stdin.close()
             stdout_text = stdout.read().decode("utf-8", errors="replace")
             stderr_text = stderr.read().decode("utf-8", errors="replace")

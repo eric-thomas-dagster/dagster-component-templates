@@ -328,3 +328,29 @@ def test_poke_passes_params(mod, monkeypatch):
     resource = mod.HTTPResource(base_url="https://api.example.com")
     resource.poke("GET", "/ready", params={"check": "1"})
     assert seen_params[0] == {"check": "1"}
+
+
+def test_request_timeout_seconds_zero_is_not_replaced_by_default(mod, monkeypatch):
+    seen_timeout = []
+
+    def fake_request(self, method, url, **kwargs):
+        seen_timeout.append(kwargs.get("timeout"))
+        return FakeResponse(status_code=200)
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    component = mod.HTTPResourceComponent(base_url="https://api.example.com", timeout_seconds=30)
+    run_request(mod, component, call_kwargs={"method": "GET", "path": "/ping", "timeout_seconds": 0})
+    assert seen_timeout[0] == 0
+
+
+def test_poke_timeout_seconds_zero_is_not_replaced_by_default(mod, monkeypatch):
+    seen_timeout = []
+
+    def fake_request(self, method, url, **kwargs):
+        seen_timeout.append(kwargs.get("timeout"))
+        return FakeResponse(status_code=200)
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    resource = mod.HTTPResource(base_url="https://api.example.com", timeout_seconds=30)
+    resource.poke("GET", "/ready", timeout_seconds=0)
+    assert seen_timeout[0] == 0

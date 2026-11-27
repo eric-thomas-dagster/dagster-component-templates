@@ -303,3 +303,86 @@ def test_static_partition_type_wires_through(mod, monkeypatch):
         [asset_def], resources={"io_manager": dg.InMemoryIOManager()}, partition_key="b",
     )
     assert result.success
+
+
+def test_no_job_name_override_by_default(mod, monkeypatch):
+    """Real pre-existing bug: k8s_job_name was hardcoded to context.run.run_id[:32], which is
+    IDENTICAL across every step of the same run -- two k8s_job_asset steps in one run collided on
+    the same Kubernetes Job name. Leaving k8s_job_name unset now lets dagster-k8s derive its own
+    name, which it already guarantees is unique per run AND per op/asset."""
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
+    materialize(component)
+    assert calls[0]["k8s_job_name"] is None
+
+
+def test_explicit_k8s_job_name_passes_through(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", k8s_job_name="my-fixed-job-name")
+    materialize(component)
+    assert calls[0]["k8s_job_name"] == "my-fixed-job-name"
+
+
+def test_kube_context_passed_as_private_kwarg_to_execute_k8s_job(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", kubeconfig_file="/home/me/.kube/config", kube_context="staging",
+    )
+    materialize(component)
+    assert calls[0]["_kubeconfig_file_context"] == "staging"
+
+
+def test_kube_context_passed_to_pipes_client_constructor(mod, monkeypatch):
+    import dagster as dg
+
+    kwargs_seen = {}
+
+    class FakeInvocation:
+        def get_materialize_result(self):
+            return dg.MaterializeResult()
+
+    class FakePipesK8sClient:
+        def __init__(self, **kwargs):
+            kwargs_seen.update(kwargs)
+
+        def run(self, **kwargs):
+            return FakeInvocation()
+
+    import dagster_k8s
+    monkeypatch.setattr(dagster_k8s, "PipesK8sClient", FakePipesK8sClient)
+
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", use_pipes=True,
+        kubeconfig_file="/home/me/.kube/config", kube_context="staging",
+    )
+    materialize(component)
+    assert kwargs_seen["kube_context"] == "staging"
+
+
+def test_delete_failed_k8s_jobs_unset_omits_kwarg(mod, monkeypatch):
+    """Unset: don't pass delete_failed_k8s_jobs at all, so dagster-k8s's own default (True) applies."""
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
+    materialize(component)
+    assert "delete_failed_k8s_jobs" not in calls[0]
+
+
+def test_delete_failed_k8s_jobs_false_passes_through(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", delete_failed_k8s_jobs=False)
+    materialize(component)
+    assert calls[0]["delete_failed_k8s_jobs"] is False
+
+
+def test_ttl_seconds_after_finished_merged_into_job_spec_config(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", ttl_seconds_after_finished=3600)
+    materialize(component)
+    assert calls[0]["job_spec_config"] == {"ttl_seconds_after_finished": 3600}
+
+
+def test_no_ttl_passes_none_job_spec_config(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
+    materialize(component)
+    assert calls[0]["job_spec_config"] is None

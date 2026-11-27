@@ -243,6 +243,22 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Path to a kubeconfig file for out-of-cluster execution (e.g. a local dev machine or a CI runner outside the target cluster). When set, in-cluster config loading is disabled in favor of this file.",
     )
+    kube_context: Optional[str] = Field(
+        default=None,
+        description="Select a specific context within kubeconfig_file (for a kubeconfig with multiple cluster contexts). Ignored if kubeconfig_file is unset (in-cluster config has no notion of contexts). Defaults to the kubeconfig's own current-context.",
+    )
+    k8s_job_name: Optional[str] = Field(
+        default=None,
+        description="Override the Kubernetes Job name. Leave unset (recommended): dagster-k8s then derives a name that is already unique per run AND per op/asset. Setting this explicitly is only for when you need a fixed, predictable name -- be aware two steps sharing the same explicit name in the same run will collide.",
+    )
+    delete_failed_k8s_jobs: Optional[bool] = Field(
+        default=None,
+        description="Whether to immediately delete a failed Kubernetes Job object (dagster-k8s's own default: True). Set False to leave failed Jobs/Pods in the cluster for inspection -- pair with ttl_seconds_after_finished for automatic cleanup instead of leaving them forever. Only applies to the execute_k8s_job path (use_pipes=False); PipesK8sClient manages bare Pods, not Jobs, and always deletes its Pod on completion regardless of this field.",
+    )
+    ttl_seconds_after_finished: Optional[int] = Field(
+        default=None,
+        description="Sets the Job's native Kubernetes .spec.ttlSecondsAfterFinished -- the cluster's own TTL controller deletes the finished Job (success OR failure) after this many seconds, regardless of delete_failed_k8s_jobs. Only applies to the execute_k8s_job path (use_pipes=False).",
+    )
     use_pipes: bool = Field(
         default=False,
         description=(
@@ -324,6 +340,10 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         env_from_config_maps = self.env_from_config_maps
         env_from_secrets = self.env_from_secrets
         kubeconfig_file = self.kubeconfig_file
+        kube_context = self.kube_context
+        k8s_job_name = self.k8s_job_name
+        delete_failed_k8s_jobs = self.delete_failed_k8s_jobs
+        ttl_seconds_after_finished = self.ttl_seconds_after_finished
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
@@ -414,6 +434,7 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 client = PipesK8sClient(
                     load_incluster_config=False if kubeconfig_file else None,
                     kubeconfig_file=kubeconfig_file,
+                    kube_context=kube_context,
                 )
                 return client.run(
                     context=context,
@@ -443,12 +464,24 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             if affinity:
                 _pod_spec_config["affinity"] = affinity
 
+            _job_spec_config: Dict[str, Any] = {}
+            if ttl_seconds_after_finished is not None:
+                _job_spec_config["ttl_seconds_after_finished"] = ttl_seconds_after_finished
+
+            _execute_kwargs: Dict[str, Any] = {}
+            if delete_failed_k8s_jobs is not None:
+                _execute_kwargs["delete_failed_k8s_jobs"] = delete_failed_k8s_jobs
+
             execute_k8s_job(
                 context=context,
                 image=image,
                 command=cmd,
                 args=args,
-                k8s_job_name=context.run.run_id[:32],
+                # No k8s_job_name override by default: dagster-k8s derives a name that's already
+                # unique per run AND per op/asset. The previous `run_id[:32]` override discarded
+                # that uniqueness -- run_id is shared by every step in a run, so two k8s_job_asset
+                # steps (or two ops) in the same run collided on the identical Job name.
+                k8s_job_name=k8s_job_name,
                 namespace=ns,
                 resources=resources,
                 env_vars=env_var_list,
@@ -462,8 +495,11 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 labels=labels,
                 timeout=timeout_seconds,
                 pod_spec_config=_pod_spec_config or None,
+                job_spec_config=_job_spec_config or None,
                 kubeconfig_file=kubeconfig_file,
                 load_incluster_config=kubeconfig_file is None,
+                _kubeconfig_file_context=kube_context,
+                **_execute_kwargs,
             )
             return dg.MaterializeResult(metadata={"image": dg.MetadataValue.text(image), "namespace": dg.MetadataValue.text(ns)})
         return dg.Definitions(assets=[_k8s_asset])

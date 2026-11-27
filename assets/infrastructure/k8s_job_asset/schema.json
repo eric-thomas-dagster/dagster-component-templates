@@ -327,6 +327,30 @@
       "description": "Path to a kubeconfig file for out-of-cluster execution (e.g. a local dev machine or a CI runner outside the target cluster). When set, in-cluster config loading is disabled in favor of this file.",
       "required": false
     },
+    "kube_context": {
+      "type": "string",
+      "label": "Kube Context",
+      "description": "Select a specific context within kubeconfig_file (for a kubeconfig with multiple cluster contexts). Ignored if kubeconfig_file is unset (in-cluster config has no notion of contexts). Defaults to the kubeconfig's own current-context.",
+      "required": false
+    },
+    "k8s_job_name": {
+      "type": "string",
+      "label": "K8s Job Name",
+      "description": "Override the Kubernetes Job name. Leave unset (recommended): dagster-k8s then derives a name that is already unique per run AND per op/asset. Setting this explicitly is only for when you need a fixed, predictable name -- be aware two steps sharing the same explicit name in the same run will collide.",
+      "required": false
+    },
+    "delete_failed_k8s_jobs": {
+      "type": "boolean",
+      "label": "Delete Failed K8s Jobs",
+      "description": "Whether to immediately delete a failed Kubernetes Job object (dagster-k8s's own default: True). Set False to leave failed Jobs/Pods in the cluster for inspection -- pair with ttl_seconds_after_finished for automatic cleanup instead of leaving them forever. Only applies to the execute_k8s_job path (use_pipes=False); PipesK8sClient manages bare Pods, not Jobs, and always deletes its Pod on completion regardless of this field.",
+      "required": false
+    },
+    "ttl_seconds_after_finished": {
+      "type": "integer",
+      "label": "Ttl Seconds After Finished",
+      "description": "Sets the Job's native Kubernetes .spec.ttlSecondsAfterFinished -- the cluster's own TTL controller deletes the finished Job (success OR failure) after this many seconds, regardless of delete_failed_k8s_jobs. Only applies to the execute_k8s_job path (use_pipes=False).",
+      "required": false
+    },
     "use_pipes": {
       "type": "boolean",
       "label": "Use Pipes",

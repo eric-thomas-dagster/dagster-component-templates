@@ -1,0 +1,286 @@
+{
+  "component_type": "dagster_community_components.DbtCommandAssetComponent",
+  "description": "Run an arbitrary dbt CLI command (run, build, test, snapshot, seed, source freshness) as a single materializable Dagster asset -- no per-model asset graph required.",
+  "category": "dbt",
+  "icon": "Dbt",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Materializes once the dbt command exits successfully; metadata includes exit code, stdout preview, and (best-effort) run_results.json node-status counts."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "project_dir": {
+      "description": "Path to the dbt project root (where dbt_project.yml lives).",
+      "type": "string",
+      "label": "Project Dir",
+      "required": true
+    },
+    "profiles_dir": {
+      "description": "Path to profiles.yml (default: ~/.dbt).",
+      "type": "string",
+      "label": "Profiles Dir",
+      "required": false
+    },
+    "target": {
+      "description": "dbt target name (overrides the project default).",
+      "type": "string",
+      "label": "Target",
+      "required": false
+    },
+    "command": {
+      "default": "run",
+      "description": "dbt subcommand to run. 'source' runs `dbt source freshness`.",
+      "enum": ["run", "build", "test", "snapshot", "seed", "source"],
+      "type": "string",
+      "label": "Command",
+      "required": false,
+      "ui:widget": "select"
+    },
+    "select": {
+      "description": "--select expression. Supports `{partition_key}` when partition_type is set.",
+      "type": "string",
+      "label": "Select",
+      "required": false
+    },
+    "exclude": {
+      "description": "--exclude expression.",
+      "type": "string",
+      "label": "Exclude",
+      "required": false
+    },
+    "full_refresh": {
+      "default": false,
+      "description": "Pass --full-refresh.",
+      "type": "boolean",
+      "label": "Full Refresh",
+      "required": false
+    },
+    "vars": {
+      "description": "--vars, passed through as JSON. Supports `{partition_key}` values when partition_type is set.",
+      "type": "object",
+      "label": "Vars",
+      "required": false
+    },
+    "extra_args": {
+      "description": "Additional raw CLI args appended after the built command, for flags this component doesn't have a dedicated field for.",
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Extra Args",
+      "required": false
+    },
+    "cwd": {
+      "description": "Working directory to run dbt from. Defaults to project_dir when unset.",
+      "type": "string",
+      "label": "Cwd",
+      "required": false
+    },
+    "env_vars": {
+      "description": "Additional env vars to pass to the dbt subprocess.",
+      "type": "object",
+      "label": "Env Vars",
+      "required": false
+    },
+    "timeout_seconds": {
+      "description": "Kill the command and fail the run if it runs longer than this many seconds. Unset: no timeout.",
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": false
+    },
+    "dry_run": {
+      "description": "If True, log the fully-resolved dbt command (after {partition_key} substitution) and skip actually running it -- no subprocess is spawned. Output metadata always includes dry_run so a materialization history shows which runs were real.",
+      "type": "boolean",
+      "label": "Dry Run",
+      "required": false
+    },
+    "run_window": {
+      "description": "'HH:MM-HH:MM tz [day,day,...]' (e.g. '09:00-17:00 America/New_York mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of running or failing. Checked once per materialization, before dry_run or the command itself. A malformed spec fails open (never blocks). Unset (default): always runs.",
+      "type": "string",
+      "label": "Run Window",
+      "required": false
+    },
+    "pool": {
+      "description": "Dagster's native named concurrency pool. The pool's own slot count is configured at the deployment level, not here.",
+      "type": "string",
+      "label": "Pool",
+      "required": false
+    },
+    "parse_run_results": {
+      "default": true,
+      "description": "After a non-dry-run invocation, best-effort parse the dbt project's own target/run_results.json for per-status node counts + elapsed time and attach as asset metadata. Silently skipped if the file doesn't exist or isn't parseable.",
+      "type": "boolean",
+      "label": "Parse Run Results",
+      "required": false
+    },
+    "target_path": {
+      "description": "dbt's target-path (default 'target') -- only used to locate run_results.json for parse_run_results, not passed to the CLI.",
+      "type": "string",
+      "label": "Target Path",
+      "required": false
+    },
+    "group_name": {
+      "default": "dbt",
+      "description": "Asset group.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "description": "Upstream Dagster asset keys for lineage.",
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "required": false
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values; 'multi' for date × static; 'dynamic' for a DynamicPartitionsDefinition. Leave empty for unpartitioned.",
+      "enum": ["daily", "weekly", "monthly", "hourly", "cron", "static", "dynamic", "multi"],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "description": "Required when partition_type='cron'.",
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "default": "%Y-%m-%d",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "required": false
+    },
+    "partition_end_offset": {
+      "default": 0,
+      "description": "0 (default): a time-based partition set only ever holds COMPLETED windows. 1: include the current, still-in-progress window.",
+      "type": "integer",
+      "label": "Partition End Offset",
+      "required": false
+    },
+    "partition_timezone": {
+      "description": "IANA timezone for the partitions definition (defaults to UTC).",
+      "type": "string",
+      "label": "Partition Timezone",
+      "required": false
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Partition Dimensions",
+      "required": false
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning. Required for static and multi types.",
+      "type": "string",
+      "label": "Partition Values",
+      "required": false
+    },
+    "backfill_policy": {
+      "description": "Backfill execution strategy for a partitioned asset.",
+      "enum": ["single_run", "multi_run"],
+      "type": "string",
+      "label": "Backfill Policy",
+      "required": false
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "description": "For backfill_policy='multi_run' only.",
+      "type": "integer",
+      "label": "Backfill Policy Max Partitions Per Run",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": ["exponential", "linear", "fixed"],
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "ui:widget": "select"
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds for the catalog. Defaults to ['dbt'].",
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy.",
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "x-dagster-widget": "cron"
+    }
+  },
+  "tags": ["dbt", "airflow-parity", "official"],
+  "name": "DbtCommandAsset"
+}

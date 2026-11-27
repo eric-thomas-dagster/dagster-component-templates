@@ -1,0 +1,10 @@
+type: dagster_community_components.DbtCommandAssetComponent
+attributes:
+  asset_name: run_marts_models
+  project_dir: "{{ project_root }}/dbt_project"
+  target: prod
+  command: build
+  select: "marts.*"
+  full_refresh: false
+  group_name: dbt
+  description: "Builds the marts layer via a plain dbt build command, no per-model asset graph."

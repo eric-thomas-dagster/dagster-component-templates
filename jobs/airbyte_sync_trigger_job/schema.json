@@ -7,8 +7,8 @@
     "job_name": {
       "type": "string",
       "label": "Job Name",
-      "description": "Dagster job name",
-      "required": true
+      "description": "Dagster job name. Required unless `asset_name` is set.",
+      "required": false
     },
     "schedule": {
       "type": "string",

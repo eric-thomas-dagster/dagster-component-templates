@@ -21227,6 +21227,66 @@
       "vendor": "dbt"
     },
     {
+      "id": "dbt_command_asset",
+      "name": "dbt Command Asset",
+      "category": "dbt",
+      "description": "Run an arbitrary dbt CLI command (run, build, test, snapshot, seed, source freshness) as a single materializable Dagster asset — no per-model asset graph required.",
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "path": "assets/dbt/dbt_command_asset",
+      "tags": [
+        "dbt",
+        "asset",
+        "airflow-parity"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dbt-core"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "Real dbt-core + dbt-duckdb end-to-end tests committed in assets/dbt/dbt_command_asset/tests/ (run/build/test, failure path, dry_run, run_window, vars, extra_args).",
+        "last_validated": "2026-11-26"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to run a plain dbt command (dbt run/build/test/snapshot/seed, or source freshness) as ONE materializable Dagster asset, without a full manifest-based per-model asset graph. For that richer per-model graph use enriched_dbt_project; for a non-asset job/op use dbt_run_job; for triggering an existing dbt Cloud job use dbt_cloud_trigger_job or enriched_dbt_cloud_workspace.",
+        "typical_upstream": "Upstream data-loading assets the dbt models depend on.",
+        "typical_downstream": "Downstream assets/sensors depending on the materialized asset, or automation conditions reacting to its data_version.",
+        "example_prompts": [
+          "Run `dbt build --select marts.*` as a single Dagster asset",
+          "Materialize an asset that runs dbt tests for the staging layer",
+          "Run dbt source freshness as a scheduled Dagster asset"
+        ],
+        "anti_uses": "Do NOT use this for a per-dbt-model asset graph (use enriched_dbt_project). Do NOT use this to trigger a dbt Cloud job (use dbt_cloud_trigger_job or enriched_dbt_cloud_workspace).",
+        "requires_pip": [
+          "dagster",
+          "dbt-core"
+        ]
+      },
+      "keywords": [
+        "data build tool",
+        "dbt-core",
+        "dbt run",
+        "dbt build",
+        "dbt test",
+        "run_results.json",
+        "asset",
+        "shell_command_asset parity"
+      ],
+      "icon": "si:dbt",
+      "vendor": "dbt"
+    },
+    {
       "id": "dbt_run_job",
       "name": "dbt_run_job",
       "category": "jobs",
@@ -54776,6 +54836,112 @@
       "vertical": "streaming"
     },
     {
+      "id": "pubsub_topic_asset",
+      "name": "Pub/Sub Topic Asset",
+      "category": "infrastructure",
+      "description": "Ensure a Google Cloud Pub/Sub topic is present or absent -- create_topic/delete_topic, idempotent against AlreadyExists/NotFound.",
+      "path": "assets/infrastructure/pubsub_topic_asset",
+      "tags": [
+        "gcp",
+        "pubsub",
+        "messaging",
+        "infrastructure"
+      ],
+      "icon": "si:googlepubsub",
+      "type": "dagster_community_components.PubsubTopicAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/requirements.txt",
+      "component_type": "dagster_community_components.PubsubTopicAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-pubsub"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the topic's final state in metadata.",
+        "requires_pip": [
+          "google-cloud-pubsub"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "gcp",
+        "pubsub",
+        "topic",
+        "create",
+        "delete",
+        "airflow migration"
+      ]
+    },
+    {
+      "id": "pubsub_subscription_asset",
+      "name": "Pub/Sub Subscription Asset",
+      "category": "infrastructure",
+      "description": "Ensure a Google Cloud Pub/Sub subscription on a topic is present or absent -- create_subscription/delete_subscription, idempotent against AlreadyExists/NotFound.",
+      "path": "assets/infrastructure/pubsub_subscription_asset",
+      "tags": [
+        "gcp",
+        "pubsub",
+        "messaging",
+        "infrastructure"
+      ],
+      "icon": "si:googlepubsub",
+      "type": "dagster_community_components.PubsubSubscriptionAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/requirements.txt",
+      "component_type": "dagster_community_components.PubsubSubscriptionAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-pubsub"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the subscription's final state in metadata.",
+        "requires_pip": [
+          "google-cloud-pubsub"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "gcp",
+        "pubsub",
+        "subscription",
+        "create",
+        "delete",
+        "airflow migration"
+      ]
+    },
+    {
       "id": "pulsar_monitor",
       "name": "Apache Pulsar Monitor",
       "category": "sensor",
@@ -77694,5 +77860,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1479
+  "total": 1481
 }

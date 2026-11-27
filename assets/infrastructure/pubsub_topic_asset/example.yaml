@@ -1,0 +1,11 @@
+type: dagster_community_components.PubsubTopicAssetComponent
+attributes:
+  asset_name: orders_topic
+  project_id: my-gcp-project
+  topic_id: orders
+  credentials_env_var: GOOGLE_APPLICATION_CREDENTIALS
+  desired_state: present
+  labels:
+    team: data-platform
+  message_retention_duration_seconds: 86400
+  group_name: infrastructure

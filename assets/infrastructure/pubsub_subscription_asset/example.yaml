@@ -1,0 +1,12 @@
+type: dagster_community_components.PubsubSubscriptionAssetComponent
+attributes:
+  asset_name: orders_worker_subscription
+  project_id: my-gcp-project
+  topic_id: orders
+  subscription_id: orders-worker
+  credentials_env_var: GOOGLE_APPLICATION_CREDENTIALS
+  desired_state: present
+  ack_deadline_seconds: 30
+  deps:
+    - orders_topic
+  group_name: infrastructure

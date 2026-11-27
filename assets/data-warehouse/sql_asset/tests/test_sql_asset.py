@@ -16,21 +16,35 @@ class FakeCursor:
     def __init__(self, conn):
         self.conn = conn
         self.rowcount = 3
+        self.description = None
+        self._rows = []
 
     def execute(self, sql, parameters=None):
         self.conn.executed.append({"sql": sql, "parameters": parameters})
+        hit = self.conn.rows_by_statement.get(sql)
+        if hit is not None:
+            columns, rows = hit
+            self.description = [(c,) for c in columns]
+            self._rows = rows
+        else:
+            self.description = None
+            self._rows = []
+
+    def fetchmany(self, n):
+        return self._rows[:n]
 
     def close(self):
         self.conn.cursor_closed = True
 
 
 class FakeConn:
-    def __init__(self, commit_raises=False):
+    def __init__(self, commit_raises=False, rows_by_statement=None):
         self.executed = []
         self.commit_calls = 0
         self.close_calls = 0
         self.cursor_closed = False
         self._commit_raises = commit_raises
+        self.rows_by_statement = rows_by_statement or {}
 
     def cursor(self):
         return FakeCursor(self)
@@ -327,3 +341,95 @@ def test_connection_env_missing_env_var_fails_at_run_time_not_load_time(mod, mon
     failure_data = result.failure_data_for_node(asset_def.op.name)
     assert "SQL_ASSET_TEST_DB_URL_UNSET" in failure_data.error.message
     assert "is empty/unset" in failure_data.error.message
+
+
+def test_positional_parameters_passed_through(mod):
+    conn = FakeConn()
+    asset_def = _comp(mod, sql="DELETE FROM a WHERE d < %s", parameters=["2026-01-01"]).build_defs(None).assets[0]
+    assert dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)}).success
+    assert conn.executed[0]["parameters"] == ["2026-01-01"]
+
+
+def test_commit_per_statement_commits_after_each(mod):
+    conn = FakeConn()
+    asset_def = _comp(mod, sql_statements=["DELETE FROM a", "INSERT INTO a VALUES (1)"], commit_per_statement=True).build_defs(None).assets[0]
+    assert dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)}).success
+    assert conn.commit_calls == 2  # one per statement, not one final commit
+
+
+def test_commit_per_statement_also_commits_pre_sql(mod):
+    conn = FakeConn()
+    asset_def = _comp(mod, sql="SELECT 1", pre_sql=["SET x = 1"], commit_per_statement=True).build_defs(None).assets[0]
+    assert dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)}).success
+    assert conn.commit_calls == 2  # pre_sql statement + the one main statement
+
+
+def test_default_commit_is_once_at_the_end(mod):
+    conn = FakeConn()
+    asset_def = _comp(mod, sql_statements=["DELETE FROM a", "INSERT INTO a VALUES (1)"]).build_defs(None).assets[0]
+    assert dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)}).success
+    assert conn.commit_calls == 1
+
+
+def test_fetch_last_statement_rows_returns_the_final_selects_rows(mod):
+    sql = "CREATE TABLE a (id int); SELECT id FROM a"
+    conn = FakeConn(rows_by_statement={
+        "SELECT id FROM a": (["id"], [(1,), (2,)]),
+    })
+    asset_def = _comp(mod, sql=sql, split_statements=True, fetch_last_statement_rows=True).build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
+    assert result.success
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    rows = md["last_statement_rows"].value
+    assert rows == [{"id": 1}, {"id": 2}]
+
+
+def test_fetch_last_statement_rows_off_by_default(mod):
+    sql = "CREATE TABLE a (id int); SELECT id FROM a"
+    conn = FakeConn(rows_by_statement={"SELECT id FROM a": (["id"], [(1,)])})
+    asset_def = _comp(mod, sql=sql, split_statements=True).build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)})
+    assert result.success
+    md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
+    assert "last_statement_rows" not in md
+
+
+def test_split_statements_runs_one_execute_per_statement(mod):
+    conn = FakeConn()
+    sql = "DELETE FROM a; INSERT INTO a VALUES (1); INSERT INTO a VALUES (2)"
+    asset_def = _comp(mod, sql=sql, split_statements=True).build_defs(None).assets[0]
+    assert dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)}).success
+    assert [e["sql"] for e in conn.executed] == ["DELETE FROM a;", "INSERT INTO a VALUES (1);", "INSERT INTO a VALUES (2)"]
+
+
+def test_split_statements_is_string_literal_aware(mod):
+    """A naive ';'.split() would break on a semicolon inside a string literal -- sqlparse.split() doesn't."""
+    conn = FakeConn()
+    sql = "INSERT INTO a (note) VALUES ('a;b'); SELECT 1"
+    asset_def = _comp(mod, sql=sql, split_statements=True).build_defs(None).assets[0]
+    assert dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)}).success
+    assert len(conn.executed) == 2
+    assert conn.executed[0]["sql"] == "INSERT INTO a (note) VALUES ('a;b');"
+
+
+def test_split_statements_rejected_with_sql_statements(mod):
+    with pytest.raises(Exception, match="split_statements"):
+        _comp(mod, sql_statements=["SELECT 1"], split_statements=True)
+
+
+def test_split_statements_without_sqlparse_fails_clearly(mod, monkeypatch):
+    import builtins
+    real_import = builtins.__import__
+
+    def _blocked_import(name, *args, **kwargs):
+        if name == "sqlparse":
+            raise ImportError("No module named 'sqlparse'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _blocked_import)
+    conn = FakeConn()
+    asset_def = _comp(mod, sql="SELECT 1; SELECT 2", split_statements=True).build_defs(None).assets[0]
+    result = dg.materialize([asset_def], resources={"db": RawConnectionResource(conn)}, raise_on_error=False)
+    assert not result.success
+    failure_data = result.failure_data_for_node(asset_def.op.name)
+    assert "sqlparse" in failure_data.error.message

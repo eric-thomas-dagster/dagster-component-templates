@@ -23,7 +23,7 @@
       "required": false
     },
     "sql": {
-      "description": "SQL text, run in a single cursor.execute() call. Whether multiple ;-separated statements run in one call is driver-dependent (works for psycopg2/duckdb; most other drivers run only the first). Set exactly one of sql / sql_file / sql_statements.",
+      "description": "SQL text, run in a single cursor.execute() call unless split_statements is set. Whether multiple ;-separated statements run in one call is otherwise driver-dependent (works for psycopg2/duckdb; most other drivers run only the first). Set exactly one of sql / sql_file / sql_statements.",
       "type": "string",
       "label": "Sql",
       "required": false
@@ -42,10 +42,16 @@
       "description": "Path (relative to the Dagster process working directory) to a .sql file, read and treated the same as `sql`. Set exactly one of sql / sql_file / sql_statements.",
       "required": false
     },
+    "split_statements": {
+      "type": "boolean",
+      "label": "Split Statements",
+      "description": "Only applies to sql/sql_file (a single string, possibly containing several semicolon-separated statements). When True, splits it into individual statements with sqlparse.split() (string-literal/comment aware, unlike a naive ';'.split()) and runs each as its own cursor.execute() call -- the same guaranteed-multi-statement behavior sql_statements already has, without writing it as a list. Requires the sqlparse package; raises a clear error at materialization time if it isn't installed. Invalid together with sql_statements (already a list of statements).",
+      "required": false,
+      "default": false
+    },
     "parameters": {
-      "type": "object",
       "label": "Parameters",
-      "description": "Bind parameters applied to every statement. Placeholder style is whatever the underlying driver's DBAPI paramstyle is (e.g. pyformat %(name)s for psycopg2/mysql-connector, qmark ? or named :name for pyodbc/oracledb) -- passed through as-is, not translated.",
+      "description": "Bind parameters applied to every statement -- a dict for named placeholders, or a list/tuple for positional ones. Placeholder style is whatever the underlying driver's DBAPI paramstyle is (e.g. pyformat %(name)s for psycopg2/mysql-connector, qmark ? or named :name for pyodbc/oracledb, positional %s for psycopg2) -- passed through as-is, not translated.",
       "required": false
     },
     "pre_sql": {
@@ -56,6 +62,20 @@
       "label": "Pre Sql",
       "description": "Dialect-specific statements run before the main SQL, e.g. ['SET search_path TO analytics'] (Postgres) or ['USE mydb'] (MySQL) -- write whatever your dialect needs; this component doesn't guess it for you.",
       "required": false
+    },
+    "commit_per_statement": {
+      "type": "boolean",
+      "label": "Commit Per Statement",
+      "description": "Commit after EACH statement (pre_sql and main) instead of once at the end. Use this if a later statement's failure shouldn't roll back earlier statements that already committed (the default, single final commit, treats the whole run as one transaction on drivers that support it).",
+      "required": false,
+      "default": false
+    },
+    "fetch_last_statement_rows": {
+      "type": "boolean",
+      "label": "Fetch Last Statement Rows",
+      "description": "If the LAST statement run returns rows (cursor.description is not None after it -- e.g. a closing SELECT after some setup/DDL statements), fetch them with cursor.fetchall() and include them in this asset's metadata as last_statement_rows (capped at 1000 rows). Off by default, since calling fetchall() on a cursor that never returned rows is itself driver-dependent in how it behaves.",
+      "required": false,
+      "default": false
     },
     "group_name": {
       "type": "string",

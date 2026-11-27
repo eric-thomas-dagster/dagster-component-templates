@@ -16,7 +16,6 @@ By default a Lambda-side error (`FunctionError` in the real boto3 response -- th
 |---|---|---|
 | `asset_name` | `str` | Dagster asset key. |
 | `function_name` | `str` | Lambda function name, partial ARN, or full ARN. |
-| `region_name` | `str` | AWS region, e.g. 'us-east-1'. |
 
 ### Catalog metadata
 
@@ -47,6 +46,8 @@ By default a Lambda-side error (`FunctionError` in the real boto3 response -- th
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only. |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 
 ### Retry policy
 
@@ -60,6 +61,7 @@ By default a Lambda-side error (`FunctionError` in the real boto3 response -- th
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `region_name` | `str` | — | AWS region, e.g. 'us-east-1'. Omit to use the default boto3 credential/region chain (env vars, profile config, instance role). |
 | `aws_profile` | `str` | — | Named AWS profile. Omit to use the default boto3 credential chain (env vars, instance role, etc.). |
 | `payload` | `Dict[str, Any]` | — | Static JSON payload sent as the Lambda event. Mutually exclusive with payload_template. |
 | `payload_template` | `str` | — | Jinja2 template rendered to a JSON string and sent as the Lambda event -- use for a payload that needs `{{ partition_key }}`/`{{ env.* }}`/etc. Mutually exclusive with payload. |

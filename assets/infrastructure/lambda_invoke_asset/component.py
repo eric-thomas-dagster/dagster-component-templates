@@ -236,9 +236,14 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
-def _make_lambda_client(region_name: str, aws_profile: Optional[str]):
+def _make_lambda_client(region_name: Optional[str], aws_profile: Optional[str]):
     import boto3
-    session = boto3.Session(profile_name=aws_profile, region_name=region_name)
+    kwargs: Dict[str, Any] = {}
+    if aws_profile:
+        kwargs["profile_name"] = aws_profile
+    if region_name:
+        kwargs["region_name"] = region_name
+    session = boto3.Session(**kwargs)
     return session.client("lambda")
 
 
@@ -307,7 +312,7 @@ class LambdaInvokeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     asset_name: str = Field(description="Dagster asset key.")
     function_name: str = Field(description="Lambda function name, partial ARN, or full ARN.")
-    region_name: str = Field(description="AWS region, e.g. 'us-east-1'.")
+    region_name: Optional[str] = Field(default=None, description="AWS region, e.g. 'us-east-1'. Omit to use the default boto3 credential/region chain (env vars, profile config, instance role).")
     aws_profile: Optional[str] = Field(default=None, description="Named AWS profile. Omit to use the default boto3 credential chain (env vars, instance role, etc.).")
 
     payload: Optional[Dict[str, Any]] = Field(default=None, description="Static JSON payload sent as the Lambda event. Mutually exclusive with payload_template.")

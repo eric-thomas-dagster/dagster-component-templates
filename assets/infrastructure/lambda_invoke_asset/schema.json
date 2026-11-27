@@ -26,10 +26,10 @@
       "required": true
     },
     "region_name": {
-      "description": "AWS region, e.g. 'us-east-1'.",
+      "description": "AWS region, e.g. 'us-east-1'. Omit to use the default boto3 credential/region chain (env vars, profile config, instance role).",
       "type": "string",
       "label": "AWS Region",
-      "required": true
+      "required": false
     },
     "aws_profile": {
       "type": "string",

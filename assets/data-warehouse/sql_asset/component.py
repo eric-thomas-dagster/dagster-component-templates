@@ -188,11 +188,42 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
-    sql: Optional[str] = Field(default=None, description="SQL text, run in a single cursor.execute() call. Whether multiple ;-separated statements run in one call is driver-dependent (works for psycopg2/duckdb; most other drivers run only the first). Set exactly one of sql / sql_file / sql_statements.")
+    sql: Optional[str] = Field(default=None, description="SQL text, run in a single cursor.execute() call unless split_statements is set. Whether multiple ;-separated statements run in one call is otherwise driver-dependent (works for psycopg2/duckdb; most other drivers run only the first). Set exactly one of sql / sql_file / sql_statements.")
     sql_file: Optional[str] = Field(default=None, description="Path (relative to the Dagster process working directory) to a .sql file, read and treated the same as `sql`. Set exactly one of sql / sql_file / sql_statements.")
     sql_statements: Optional[List[str]] = Field(default=None, description="Explicit list of statements, each run as its own cursor.execute() call -- the one way to run multiple statements that works regardless of driver. Set exactly one of sql / sql_file / sql_statements.")
-    parameters: Optional[Dict[str, Any]] = Field(default=None, description="Bind parameters applied to every statement. Placeholder style is whatever the underlying driver's DBAPI paramstyle is (e.g. pyformat %(name)s for psycopg2/mysql-connector, qmark ? or named :name for pyodbc/oracledb) -- passed through as-is, not translated.")
+    split_statements: bool = Field(
+        default=False,
+        description=(
+            "Only applies to `sql`/`sql_file` (a single string, possibly containing several "
+            "semicolon-separated statements). When True, splits it into individual statements "
+            "with `sqlparse.split()` (string-literal/comment aware, unlike a naive ';'.split()) "
+            "and runs each as its own cursor.execute() call -- the same guaranteed-multi-statement "
+            "behavior `sql_statements` already has, without writing it as a list. Requires the "
+            "`sqlparse` package; raises a clear error at materialization time if it isn't "
+            "installed. Invalid together with `sql_statements` (already a list of statements)."
+        ),
+    )
+    parameters: Optional[Union[Dict[str, Any], List[Any]]] = Field(default=None, description="Bind parameters applied to every statement -- a dict for named placeholders, or a list/tuple for positional ones. Placeholder style is whatever the underlying driver's DBAPI paramstyle is (e.g. pyformat %(name)s for psycopg2/mysql-connector, qmark ? or named :name for pyodbc/oracledb, positional %s for psycopg2) -- passed through as-is, not translated.")
     pre_sql: Optional[List[str]] = Field(default=None, description="Dialect-specific statements run before the main SQL, e.g. ['SET search_path TO analytics'] (Postgres) or ['USE mydb'] (MySQL) -- write whatever your dialect needs; this component doesn't guess it for you.")
+    commit_per_statement: bool = Field(
+        default=False,
+        description=(
+            "Commit after EACH statement (pre_sql and main) instead of once at the end. Use this "
+            "if a later statement's failure shouldn't roll back earlier statements that already "
+            "committed (the default, single final commit, treats the whole run as one transaction "
+            "on drivers that support it)."
+        ),
+    )
+    fetch_last_statement_rows: bool = Field(
+        default=False,
+        description=(
+            "If the LAST statement run returns rows (cursor.description is not None after it -- "
+            "e.g. a closing SELECT after some setup/DDL statements), fetch them with "
+            "cursor.fetchall() and include them in this asset's metadata as `last_statement_rows` "
+            "(capped at 1000 rows). Off by default, since calling fetchall() on a cursor that "
+            "never returned rows is itself driver-dependent in how it behaves."
+        ),
+    )
 
     group_name: str = Field(default="data_warehouse", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -238,6 +269,8 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         sources = [s for s in (self.sql, self.sql_file, self.sql_statements) if s]
         if len(sources) != 1:
             raise ValueError("SqlAssetComponent: set exactly one of `sql`, `sql_file`, `sql_statements`.")
+        if self.split_statements and self.sql_statements:
+            raise ValueError("SqlAssetComponent: `split_statements` only applies to `sql`/`sql_file` -- `sql_statements` is already a list of statements.")
         return self
 
     @model_validator(mode="after")
@@ -316,13 +349,31 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 return
             yield _run_with_timeout(_execute, timeout_seconds, context)
 
+        def _resolve_main_statements() -> List[str]:
+            """The real list of main statements that will each get their own cursor.execute()
+            call -- `sql_statements` as-is, or `sql`/`sql_file` split via sqlparse when
+            split_statements is set, or `sql`/`sql_file` as a single statement otherwise."""
+            if component.sql_statements:
+                return list(component.sql_statements)
+            sql_text = component.sql if component.sql else open(component.sql_file).read()
+            if component.split_statements:
+                try:
+                    import sqlparse
+                except ImportError:
+                    raise dg.Failure(
+                        description=(
+                            "SqlAssetComponent: split_statements=True requires the `sqlparse` "
+                            "package (not installed). Install it, or write the statements out "
+                            "explicitly via `sql_statements` instead."
+                        ),
+                    )
+                return [s.strip() for s in sqlparse.split(sql_text) if s.strip()]
+            return [sql_text]
+
         def _dry_run_preview(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             for stmt in (component.pre_sql or []):
                 context.log.info(f"[dry_run] would run: {stmt}")
-            if component.sql_statements:
-                statements = list(component.sql_statements)
-            else:
-                statements = [component.sql if component.sql else open(component.sql_file).read()]
+            statements = _resolve_main_statements()
             for stmt in statements:
                 context.log.info(f"[dry_run] would run: {stmt}")
             return dg.MaterializeResult(metadata={
@@ -367,29 +418,43 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             return raw_or_cm if hasattr(raw_or_cm, "__enter__") else nullcontext(raw_or_cm)
 
         def _execute(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+            commit_per_statement = component.commit_per_statement
+
+            def _maybe_commit():
+                if not commit_per_statement:
+                    return
+                try:
+                    conn.commit()
+                except Exception as e:  # not every dialect supports/needs commit (e.g. autocommit engines)
+                    context.log.debug(f"conn.commit() raised (tolerated): {e}")
+
             with _resolve_connection(context) as conn:
                 cursor = conn.cursor()
+                last_statement_rows = None
                 try:
                     for stmt in (component.pre_sql or []):
                         context.log.info(stmt)
                         cursor.execute(stmt)
+                        _maybe_commit()
 
+                    statements = _resolve_main_statements()
                     results: List[Dict[str, Any]] = []
-                    if component.sql_statements:
-                        for stmt in component.sql_statements:
-                            context.log.info(stmt)
-                            cursor.execute(stmt, component.parameters) if component.parameters else cursor.execute(stmt)
-                            results.append({"statement": stmt, "rowcount": getattr(cursor, "rowcount", None)})
-                    else:
-                        sql_text = component.sql if component.sql else open(component.sql_file).read()
-                        context.log.info(sql_text)
-                        cursor.execute(sql_text, component.parameters) if component.parameters else cursor.execute(sql_text)
-                        results.append({"statement": sql_text, "rowcount": getattr(cursor, "rowcount", None)})
+                    for i, stmt in enumerate(statements):
+                        context.log.info(stmt)
+                        cursor.execute(stmt, component.parameters) if component.parameters else cursor.execute(stmt)
+                        results.append({"statement": stmt, "rowcount": getattr(cursor, "rowcount", None)})
+                        is_last = i == len(statements) - 1
+                        if is_last and component.fetch_last_statement_rows and cursor.description is not None:
+                            columns = [d[0] for d in cursor.description]
+                            rows = cursor.fetchmany(1000)
+                            last_statement_rows = [dict(zip(columns, row)) for row in rows]
+                        _maybe_commit()
 
-                    try:
-                        conn.commit()
-                    except Exception as e:  # not every dialect supports/needs commit (e.g. autocommit engines)
-                        context.log.debug(f"conn.commit() raised (tolerated): {e}")
+                    if not commit_per_statement:
+                        try:
+                            conn.commit()
+                        except Exception as e:  # not every dialect supports/needs commit (e.g. autocommit engines)
+                            context.log.debug(f"conn.commit() raised (tolerated): {e}")
                 finally:
                     try:
                         cursor.close()
@@ -400,12 +465,15 @@ class SqlAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     except Exception:
                         pass
 
-            return dg.MaterializeResult(metadata={
+            metadata: Dict[str, Any] = {
                 "resource_key": dg.MetadataValue.text(resource_key) if resource_key else dg.MetadataValue.null(),
                 "connection_env": dg.MetadataValue.text(connection_env) if connection_env else dg.MetadataValue.null(),
                 "dry_run": dg.MetadataValue.bool(False),
                 "statement_count": dg.MetadataValue.int(len(results)),
                 "results": dg.MetadataValue.json(results),
-            })
+            }
+            if last_statement_rows is not None:
+                metadata["last_statement_rows"] = dg.MetadataValue.json(last_statement_rows)
+            return dg.MaterializeResult(metadata=metadata)
 
         return dg.Definitions(assets=[_sql_asset])

@@ -3,13 +3,12 @@ import importlib.util
 import pathlib
 from types import ModuleType
 
-import dagster as dg
 import pytest
 
 
 def load_component_module() -> ModuleType:
     component_py = pathlib.Path(__file__).resolve().parent.parent / "component.py"
-    spec = importlib.util.spec_from_file_location("bigquery_dataset_asset_component", component_py)
+    spec = importlib.util.spec_from_file_location("bigquery_ddl_resource_component", component_py)
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -19,8 +18,3 @@ def load_component_module() -> ModuleType:
 @pytest.fixture()
 def mod():
     return load_component_module()
-
-
-def materialize(component, **kwargs):
-    asset_def = component.build_defs(context=None).assets[0]
-    return dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()}, **kwargs)

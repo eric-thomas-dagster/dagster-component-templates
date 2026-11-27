@@ -1,0 +1,6 @@
+type: dagster_community_components.BigQueryDdlResourceComponent
+attributes:
+  resource_key: bigquery_ddl_resource
+  credentials_path: "{{ env.GOOGLE_APPLICATION_CREDENTIALS }}"
+  project_id: my-project
+  location: US

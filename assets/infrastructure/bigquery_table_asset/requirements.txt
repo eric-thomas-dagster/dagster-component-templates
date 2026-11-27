@@ -1,3 +1,0 @@
-dagster
-google-cloud-bigquery
-google-auth

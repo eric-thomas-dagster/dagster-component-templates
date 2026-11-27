@@ -1,0 +1,53 @@
+{
+  "component_type": "dagster_community_components.BigQueryDdlResourceComponent",
+  "description": "Register a BigQueryDdlResource (dataset/table lifecycle + scalar value-check actions) for use by other components",
+  "category": "resource",
+  "icon": "si:googlebigquery",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "bigquery_ddl_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "bigquery_ddl_resource"
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "description": "Service-account JSON as a dict.",
+      "required": false,
+      "default": null
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "description": "Path to a service-account JSON file. Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
+      "required": false,
+      "default": null
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "description": "GCP project. Defaults to the service account's own project.",
+      "required": false,
+      "default": null
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "description": "Default BigQuery location, e.g. 'US' or 'EU'. Can be overridden per ensure_dataset() call.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "resource",
+    "gcp",
+    "bigquery"
+  ],
+  "name": "BigQuery Ddl Resource"
+}

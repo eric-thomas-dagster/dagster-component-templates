@@ -9539,25 +9539,27 @@
       "icon": "si:googlebigquery"
     },
     {
-      "id": "bigquery_dataset_asset",
-      "name": "Big Query Dataset Asset",
-      "category": "infrastructure",
-      "description": "Create, ensure-exists, recreate, or delete a BigQuery dataset as a Dagster asset -- the Airflow BigQueryCreateEmptyDatasetOperator / BigQueryDeleteDatasetOperator equivalent.",
-      "path": "assets/infrastructure/bigquery_dataset_asset",
+      "id": "bigquery_ddl_resource",
+      "name": "BigQuery Ddl Resource",
+      "category": "resource",
+      "description": "Register a BigQueryDdlResource (dataset/table lifecycle + scalar value-check actions) for use by other components",
+      "path": "resources/bigquery_ddl_resource",
       "tags": [
+        "resource",
         "gcp",
-        "bigquery",
-        "infrastructure",
-        "dataset"
+        "bigquery"
       ],
       "icon": "si:googlebigquery",
-      "type": "dagster_community_components.BigQueryDatasetAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/requirements.txt",
-      "component_type": "dagster_community_components.BigQueryDatasetAssetComponent",
+      "type": "dagster_community_components.BigQueryDdlResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_ddl_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_ddl_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_ddl_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_ddl_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_ddl_resource/requirements.txt",
+      "component_type": "dagster_community_components.BigQueryDdlResourceComponent",
+      "x-dagster-provides": [
+        "bigquery_ddl_resource"
+      ],
       "validation": {
         "level": "code",
         "last_validated": "2026-11-26"
@@ -9572,12 +9574,10 @@
         ]
       },
       "produces": [
-        "asset"
+        "resource"
       ],
       "agent_hints": {
-        "input_type": "None",
-        "output_type": "Any",
-        "outputs": "MaterializeResult with the dataset id, mode, location, and labels in metadata.",
+        "outputs": "Reusable ensure_dataset/delete_dataset, ensure_table/delete_table, and run_value_check methods for any op or asset to call -- the Airflow BigQueryCreateEmptyDatasetOperator/BigQueryDeleteDatasetOperator/BigQueryCreateEmptyTableOperator/BigQueryDeleteTableOperator/BigQueryCheckOperator/BigQueryValueCheckOperator equivalent, reusable action code rather than a dedicated asset per operator.",
         "requires_pip": [
           "google-cloud-bigquery",
           "google-auth"
@@ -9588,115 +9588,13 @@
         "gcp",
         "bigquery",
         "dataset",
-        "lifecycle"
-      ]
-    },
-    {
-      "id": "bigquery_table_asset",
-      "name": "Big Query Table Asset",
-      "category": "infrastructure",
-      "description": "Create, ensure-exists, recreate, or delete an empty BigQuery table (explicit schema, optional time partitioning + clustering) as a Dagster asset -- the Airflow BigQueryCreateEmptyTableOperator / BigQueryDeleteTableOperator / BigQueryTableExistenceSensor equivalent.",
-      "path": "assets/infrastructure/bigquery_table_asset",
-      "tags": [
-        "gcp",
-        "bigquery",
-        "infrastructure",
-        "table"
-      ],
-      "icon": "si:googlebigquery",
-      "type": "dagster_community_components.BigQueryTableAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/requirements.txt",
-      "component_type": "dagster_community_components.BigQueryTableAssetComponent",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-26"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "google-cloud-bigquery",
-          "google-auth"
-        ]
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "None",
-        "output_type": "Any",
-        "outputs": "MaterializeResult with the table ref, mode, and resulting columns in metadata.",
-        "requires_pip": [
-          "google-cloud-bigquery",
-          "google-auth"
-        ]
-      },
-      "keywords": [
-        "infra",
-        "gcp",
-        "bigquery",
         "table",
         "lifecycle",
-        "ddl"
-      ]
-    },
-    {
-      "id": "bigquery_value_check_asset",
-      "name": "Big Query Value Check Asset",
-      "category": "infrastructure",
-      "description": "Run a scalar SQL query against BigQuery and assert the result against an expectation -- the Airflow BigQueryCheckOperator / BigQueryValueCheckOperator data-quality-check equivalent.",
-      "path": "assets/infrastructure/bigquery_value_check_asset",
-      "tags": [
-        "gcp",
-        "bigquery",
-        "infrastructure",
-        "data-quality"
-      ],
-      "icon": "si:googlebigquery",
-      "type": "dagster_community_components.BigQueryValueCheckAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/requirements.txt",
-      "component_type": "dagster_community_components.BigQueryValueCheckAssetComponent",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-26"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "google-cloud-bigquery",
-          "google-auth"
-        ]
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "None",
-        "output_type": "Any",
-        "outputs": "MaterializeResult with the actual value, expected value, comparison, and check_passed in metadata.",
-        "requires_pip": [
-          "google-cloud-bigquery",
-          "google-auth"
-        ]
-      },
-      "keywords": [
-        "infra",
-        "gcp",
-        "bigquery",
+        "ddl",
         "data quality",
         "check",
-        "assertion"
+        "assertion",
+        "resource"
       ]
     },
     {
@@ -25298,27 +25196,26 @@
       ]
     },
     {
-      "id": "emr_step_asset",
-      "name": "EMR Step",
-      "category": "infrastructure",
-      "description": "Add a step to an AWS EMR cluster and poll it to completion as a Dagster asset -- the Airflow EmrAddStepsOperator + EmrStepSensor equivalent in one asset.",
-      "path": "assets/infrastructure/emr_step_asset",
-      "tags": ["aws", "emr", "infrastructure", "spark"],
+      "id": "emr_resource",
+      "name": "EMR Resource",
+      "category": "resource",
+      "description": "Register an EmrResource (submit-step-and-wait on an AWS EMR cluster) for use by other components -- the Airflow EmrAddStepsOperator + EmrStepSensor equivalent as an injectable resource method.",
+      "path": "resources/emr_resource",
+      "tags": ["resource", "aws", "emr", "spark"],
       "icon": "si:amazonaws",
-      "type": "dagster_community_components.EmrStepAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/requirements.txt",
-      "component_type": "dagster_community_components.EmrStepAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/emr_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/emr_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/emr_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/emr_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/emr_resource/requirements.txt",
+      "x-dagster-provides": ["emr_resource"],
       "validation": {"level": "code", "last_validated": "2026-11-26"},
       "version": "1.0.0",
       "author": "Eric Thomas",
       "dependencies": {"pip": ["dagster", "boto3"]},
-      "produces": ["asset"],
-      "agent_hints": {"input_type": "None", "output_type": "Any", "outputs": "MaterializeResult with the cluster id, step id, and terminal state in metadata.", "requires_pip": ["boto3"]},
-      "keywords": ["infra", "aws", "emr", "spark", "hadoop", "step", "airflow migration"]
+      "produces": ["resource"],
+      "agent_hints": {"outputs": "EmrResource.submit_step_and_wait(...) returns {cluster_id, step_id} or {cluster_id, step_id, state} once terminal.", "requires_pip": ["boto3"]},
+      "keywords": ["infra", "aws", "emr", "spark", "hadoop", "step", "airflow migration", "resource"]
     },
     {
       "id": "enhanced_data_quality_checks",
@@ -78384,5 +78281,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1493
+  "total": 1491
 }

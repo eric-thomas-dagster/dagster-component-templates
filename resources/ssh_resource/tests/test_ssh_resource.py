@@ -161,3 +161,36 @@ def test_component_requires_username_or_username_env_var(mod):
     component = mod.SSHResourceComponent(host="literal.example.com")
     with pytest.raises(ValueError, match="username"):
         component.build_defs(context=None)
+
+
+def test_connection_uri_env_var_derives_host_login_port_keypath(mod, monkeypatch):
+    monkeypatch.setenv("TEST_SSH_URI", "ssh://carol:p%40ss@host.example.com:2222?key_path=/tmp/id_rsa")
+    component = mod.SSHResourceComponent(connection_uri_env_var="TEST_SSH_URI")
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        defs = component.build_defs(context=None)
+    resource = defs.resources["ssh_resource"]
+    assert resource.host == "host.example.com"
+    assert resource.port == 2222
+    assert resource.username == "carol"
+    assert resource.password == "p@ss"
+    assert resource.private_key_path == "/tmp/id_rsa"
+
+
+def test_explicit_host_wins_over_connection_uri_env_var(mod, monkeypatch):
+    monkeypatch.setenv("TEST_SSH_URI2", "ssh://x:y@other.example.com")
+    component = mod.SSHResourceComponent(host="explicit.example.com", username="bob", connection_uri_env_var="TEST_SSH_URI2")
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        defs = component.build_defs(context=None)
+    resource = defs.resources["ssh_resource"]
+    assert resource.host == "explicit.example.com"
+    assert resource.username == "bob"
+
+
+def test_missing_host_and_connection_uri_raises(mod):
+    import pytest
+    with pytest.raises(ValueError, match="host"):
+        mod.SSHResourceComponent(username="bob").build_defs(context=None)

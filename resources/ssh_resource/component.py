@@ -14,9 +14,26 @@ import shlex
 import tempfile
 import warnings
 from typing import Any, Dict, Optional
+from urllib.parse import urlsplit, unquote, parse_qsl
 
 import dagster as dg
 from pydantic import Field
+
+
+def _parse_connection_uri(uri: str) -> Dict[str, Any]:
+    """Parse an Airflow-style connection URI
+    ('ssh://login:password@host:port?key_path=/path/to/key', per
+    https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html)
+    into its parts. Login/password are percent-decoded."""
+    parts = urlsplit(uri)
+    extra = dict(parse_qsl(parts.query))
+    return {
+        "login": unquote(parts.username) if parts.username else None,
+        "password": unquote(parts.password) if parts.password else None,
+        "host": parts.hostname,
+        "port": parts.port,
+        "key_path": extra.get("key_path"),
+    }
 
 
 def _build_command_with_environment(command: str, environment: Optional[Dict[str, str]]) -> str:
@@ -144,8 +161,9 @@ class SSHResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     resource_key: str = Field(default="ssh_resource", description="Key used to register this resource. Other components/assets reference it via resource_key.")
-    host: Optional[str] = Field(default=None, description="SSH host/IP, as a literal value. Set this OR host_env_var.")
+    host: Optional[str] = Field(default=None, description="SSH host/IP, as a literal value. Set this OR host_env_var OR connection_uri_env_var.")
     host_env_var: Optional[str] = Field(default=None, description="Env var containing the SSH host/IP. Set this OR host.")
+    connection_uri_env_var: Optional[str] = Field(default=None, description="Env var holding an Airflow-style connection URI ('ssh://login:password@host:port?key_path=/path/to/key') as an alternative to setting host/username/password_env_var individually. Explicit fields, if also set, win over the URI's corresponding value.")
     username: Optional[str] = Field(default=None, description="SSH username, as a literal value. Set this OR username_env_var.")
     username_env_var: Optional[str] = Field(default=None, description="Env var containing the SSH username. Set this OR username.")
     port: int = Field(default=22, description="SSH port.")
@@ -161,27 +179,53 @@ class SSHResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label='SSH Resource', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        uri_parsed: Optional[Dict[str, Any]] = None
+        if self.connection_uri_env_var:
+            uri_value = dg.EnvVar(self.connection_uri_env_var).get_value()
+            if uri_value:
+                uri_parsed = _parse_connection_uri(uri_value)
+
         if self.host:
-            host = self.host
+            host: Any = self.host
         elif self.host_env_var:
             host = dg.EnvVar(self.host_env_var)
+        elif uri_parsed and uri_parsed["host"]:
+            host = uri_parsed["host"]
         else:
-            raise ValueError("Set either 'host' or 'host_env_var'.")
+            raise ValueError("Set either 'host', 'host_env_var', or 'connection_uri_env_var' (with a URI that includes a host).")
 
         if self.username:
-            username = self.username
+            username: Any = self.username
         elif self.username_env_var:
             username = dg.EnvVar(self.username_env_var)
+        elif uri_parsed and uri_parsed["login"]:
+            username = uri_parsed["login"]
         else:
-            raise ValueError("Set either 'username' or 'username_env_var'.")
+            raise ValueError("Set either 'username', 'username_env_var', or 'connection_uri_env_var' (with a URI that includes a login).")
+
+        port = self.port
+        if port == 22 and uri_parsed and uri_parsed["port"]:
+            port = uri_parsed["port"]
+
+        password: Any = ""
+        if self.password_env_var:
+            password = dg.EnvVar(self.password_env_var)
+        elif uri_parsed and uri_parsed["password"]:
+            password = uri_parsed["password"]
+
+        private_key_path: Any = ""
+        if self.private_key_path_env_var:
+            private_key_path = dg.EnvVar(self.private_key_path_env_var)
+        elif uri_parsed and uri_parsed["key_path"]:
+            private_key_path = uri_parsed["key_path"]
 
         resource = SSHResource(
             host=host,
             username=username,
-            port=self.port,
-            password=dg.EnvVar(self.password_env_var) if self.password_env_var else "",
+            port=port,
+            password=password,
             private_key=dg.EnvVar(self.private_key_env_var) if self.private_key_env_var else "",
-            private_key_path=dg.EnvVar(self.private_key_path_env_var) if self.private_key_path_env_var else "",
+            private_key_path=private_key_path,
             known_hosts_check=self.known_hosts_check,
             timeout_seconds=self.timeout_seconds,
         )

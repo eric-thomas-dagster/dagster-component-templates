@@ -1,0 +1,5 @@
+type: dagster_community_components.DatabricksJobsResourceComponent
+attributes:
+  resource_key: databricks_jobs_resource
+  workspace_host: https://dbc-abc123.cloud.databricks.com
+  workspace_token_env_var: DATABRICKS_TOKEN

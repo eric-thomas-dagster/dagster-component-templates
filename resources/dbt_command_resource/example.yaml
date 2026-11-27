@@ -1,0 +1,4 @@
+type: dagster_community_components.DbtCommandResourceComponent
+attributes:
+  resource_key: dbt_command_resource
+  project_dir: /path/to/dbt_project

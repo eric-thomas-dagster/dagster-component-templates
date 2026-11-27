@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_community_components.DatabricksJobsResourceComponent",
+  "name": "Databricks Jobs Resource",
+  "category": "resource",
+  "icon": "si:databricks",
+  "description": "Register a DatabricksJobsResource (run_now + wait for an existing job) for use by any op/asset -- the reusable Airflow DatabricksRunNowOperator-equivalent action, not itself an asset.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "databricks_jobs_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components/assets reference it via resource_key.",
+      "required": false,
+      "default": "databricks_jobs_resource"
+    },
+    "workspace_host": {
+      "type": "string",
+      "label": "Workspace Host",
+      "description": "Databricks workspace URL, e.g. 'https://dbc-abc123.cloud.databricks.com'.",
+      "required": true
+    },
+    "workspace_token_env_var": {
+      "type": "string",
+      "label": "Workspace Token Env Var",
+      "description": "Env var holding a Databricks personal access token (or workspace-scoped token).",
+      "required": true,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "databricks",
+    "run_now",
+    "airflow-parity"
+  ],
+  "vendor": "Databricks"
+}

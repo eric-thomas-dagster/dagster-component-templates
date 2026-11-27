@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_community_components.DbtCommandResourceComponent",
+  "name": "Dbt Command Resource",
+  "category": "resource",
+  "icon": "si:dbt",
+  "description": "Register a DbtCommandResource (run an arbitrary dbt CLI command) for use by any op/asset -- the reusable action, not itself an asset.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "dbt_command_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components/assets reference it via resource_key.",
+      "required": false,
+      "default": "dbt_command_resource"
+    },
+    "project_dir": {
+      "type": "string",
+      "label": "Project Dir",
+      "description": "Path to the dbt project root (where dbt_project.yml lives).",
+      "required": true
+    },
+    "profiles_dir": {
+      "type": "string",
+      "label": "Profiles Dir",
+      "description": "Path to profiles.yml (default: ~/.dbt).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "resource",
+    "dbt",
+    "airflow-parity"
+  ],
+  "vendor": "dbt"
+}

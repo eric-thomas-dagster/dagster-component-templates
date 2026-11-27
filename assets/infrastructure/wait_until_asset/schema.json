@@ -98,7 +98,14 @@
     "sftp_path": {
       "type": "string",
       "label": "Sftp Path",
-      "description": "condition='sftp_file_exists' only (required then): exact remote file path checked via SFTP stat each poll (no glob support -- SFTP has no native wildcard listing the way local file_exists does).",
+      "description": "condition='sftp_file_exists' only (required then): remote file path checked via SFTP each poll. Exact path for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched against a directory listing (see sftp_match_mode).",
+      "required": false
+    },
+    "sftp_match_mode": {
+      "type": "string",
+      "enum": ["exact", "prefix", "wildcard"],
+      "label": "Sftp Match Mode",
+      "description": "condition='sftp_file_exists': 'exact' stats sftp_path directly. 'prefix' lists sftp_path's directory and succeeds if any entry's name starts with sftp_path's basename. 'wildcard' lists the same directory and succeeds if any entry matches sftp_path's basename as an fnmatch glob (e.g. '*.csv').",
       "required": false
     },
     "s3_bucket": {
@@ -110,7 +117,14 @@
     "s3_key": {
       "type": "string",
       "label": "S3 Key",
-      "description": "condition='s3_key_exists' only (required then): exact S3 object key checked via head_object each poll.",
+      "description": "condition='s3_key_exists' only (required then): checked each poll. Exact object key for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched via list_objects_v2.",
+      "required": false
+    },
+    "s3_match_mode": {
+      "type": "string",
+      "enum": ["exact", "prefix", "wildcard"],
+      "label": "S3 Match Mode",
+      "description": "condition='s3_key_exists': 'exact' calls head_object on s3_key directly. 'prefix' lists objects under s3_key as a prefix and succeeds if at least one exists. 'wildcard' lists objects under the portion of s3_key before its first '*'/'?' and succeeds if any listed key matches the full s3_key pattern via fnmatch.",
       "required": false
     },
     "aws_region": {
@@ -128,7 +142,14 @@
     "gcs_blob_name": {
       "type": "string",
       "label": "Gcs Blob Name",
-      "description": "condition='gcs_object_exists' only (required then): exact GCS object name checked each poll.",
+      "description": "condition='gcs_object_exists' only (required then): checked each poll. Exact object name for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched via list_blobs.",
+      "required": false
+    },
+    "gcs_match_mode": {
+      "type": "string",
+      "enum": ["exact", "prefix", "wildcard"],
+      "label": "Gcs Match Mode",
+      "description": "condition='gcs_object_exists': 'exact' checks gcs_blob_name directly via blob.exists(). 'prefix' lists blobs under gcs_blob_name as a prefix and succeeds if at least one exists. 'wildcard' lists blobs under the portion of gcs_blob_name before its first '*'/'?' and succeeds if any listed name matches the full gcs_blob_name pattern via fnmatch.",
       "required": false
     },
     "gcs_credentials_env_var": {
@@ -140,14 +161,36 @@
     "http_url": {
       "type": "string",
       "label": "Http Url",
-      "description": "condition='http_ok' only (required then): URL checked via GET each poll. A 2xx response means met; anything else (including a connection error) means not yet met.",
+      "description": "condition='http_ok' only (required then): URL checked each poll. A response whose status is in http_success_status_codes (default 2xx) means met; anything else (including a connection error) means not yet met.",
       "required": false
+    },
+    "http_method": {
+      "type": "string",
+      "label": "Http Method",
+      "description": "condition='http_ok': HTTP method used for each poll (GET, POST, HEAD, ...).",
+      "required": false
+    },
+    "http_headers": {
+      "description": "condition='http_ok': extra headers sent with each poll request, on top of any auth header from http_auth_type.",
+      "label": "Http Headers",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "http_success_status_codes": {
+      "description": "condition='http_ok': explicit list of status codes that count as met (e.g. [200] if 202/404 should mean 'not yet' rather than success). Unset defaults to any 2xx status, matching prior behavior.",
+      "items": {
+        "type": "integer"
+      },
+      "label": "Http Success Status Codes",
+      "required": false,
+      "type": "array"
     },
     "http_auth_type": {
       "type": "string",
       "enum": ["none", "basic", "bearer"],
       "label": "Http Auth Type",
-      "description": "condition='http_ok': auth to attach to the GET request. Same convention as per_row_http_fetcher's auth_type (oauth2 not offered here -- a poll check has no use for a short-lived token refresh loop).",
+      "description": "condition='http_ok': auth to attach to the request. Same convention as per_row_http_fetcher's auth_type (oauth2 not offered here -- a poll check has no use for a short-lived token refresh loop).",
       "required": false
     },
     "http_auth_username_env_var": {
@@ -171,7 +214,7 @@
     "http_timeout_seconds": {
       "type": "number",
       "label": "Http Timeout Seconds",
-      "description": "condition='http_ok': request timeout in seconds for each poll's GET.",
+      "description": "condition='http_ok': request timeout in seconds for each poll.",
       "required": false
     },
     "poll_seconds": {
@@ -193,7 +236,7 @@
         "skip"
       ],
       "label": "On Timeout",
-      "description": "'fail' (default): raise and fail the run. 'skip': materialize successfully with metadata timed_out=true (Dagster has no native per-asset 'skipped' status; same convention as shell_command_asset's skip_on_exit_code).",
+      "description": "'fail' (default): raise and fail the run. 'skip': a real Dagster structural skip (AssetOut(is_required=False), the output is never yielded) -- this asset and every downstream asset depending on it are marked skipped, not materialized, matching Airflow's soft_fail semantics. Same mechanism conditional_asset uses for its gate/branch outputs.",
       "required": false
     },
     "group_name": {

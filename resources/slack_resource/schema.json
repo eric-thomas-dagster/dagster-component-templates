@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SlackResourceComponent",
-  "description": "Register a dagster-slack SlackResource for use by other components",
+  "description": "Register a SlackPostResource (bot-token chat.postMessage, or an incoming-webhook URL) for use by other components",
   "category": "resource",
   "icon": "si:slack",
   "x-dagster-io": {},
@@ -18,8 +18,15 @@
     "token_env_var": {
       "type": "string",
       "label": "Token Env Var",
-      "description": "Environment variable holding the Slack bot token (xoxb-...)",
-      "required": true,
+      "description": "Environment variable holding the Slack bot token (xoxb-...). Omit if using webhook_url_env_var instead.",
+      "required": false,
+      "ui:widget": "env_var"
+    },
+    "webhook_url_env_var": {
+      "type": "string",
+      "label": "Webhook URL Env Var",
+      "description": "Environment variable holding a Slack incoming-webhook URL. Omit if using token_env_var instead.",
+      "required": false,
       "ui:widget": "env_var"
     }
   },

@@ -1,1 +1,2 @@
-dagster-slack
+slack-sdk
+requests

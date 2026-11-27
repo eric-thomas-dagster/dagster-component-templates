@@ -1,0 +1,33 @@
+{
+  "component_type": "dagster_community_components.PubsubResourceComponent",
+  "description": "Register a reusable Google Cloud Pub/Sub topic/subscription lifecycle helper (create/delete, idempotent) for use by other components",
+  "category": "resource",
+  "icon": "si:googlecloud",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "pubsub_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "pubsub_resource"
+    },
+    "credentials_env_var": {
+      "type": "string",
+      "label": "Credentials Env Var",
+      "description": "Env var pointing to a GCP service account JSON path. If unset, uses Application Default Credentials.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "gcp",
+    "pubsub"
+  ],
+  "name": "Pub/Sub Resource"
+}

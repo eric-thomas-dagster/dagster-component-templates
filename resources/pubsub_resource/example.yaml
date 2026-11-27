@@ -1,0 +1,4 @@
+type: dagster_community_components.PubsubResourceComponent
+attributes:
+  resource_key: pubsub_resource
+  credentials_env_var: GCP_SERVICE_ACCOUNT_JSON_PATH

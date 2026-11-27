@@ -5,9 +5,10 @@
    `uniqueness_check` only asserts strict zero-duplicates, not a count/ratio
    expectation.
 2. Tolerance on `uniqueness_check`: each column config can now optionally set
-   `max_duplicates` (absolute row count, default 0 -- preserves the original
-   strict behavior) and/or `max_duplicate_pct` (percentage of total rows)
-   instead of requiring exactly zero duplicates.
+   `max_duplicates` (excess row count beyond each group's first occurrence --
+   i.e. group size minus one, summed across groups; default 0 preserves the
+   original strict behavior) and/or `max_duplicate_pct` (that excess as a
+   percentage of total rows) instead of requiring exactly zero duplicates.
 
 Nothing is mocked: dataframe-mode tests use real pandas DataFrames; the
 database-mode test uses a real, temp-file-backed DuckDB via
@@ -173,9 +174,9 @@ def test_uniqueness_check_default_tolerance_is_still_zero():
 
 
 def test_uniqueness_check_max_duplicates_tolerates_some_duplication():
-    # duplicate_count counts every row that belongs to a duplicate group (both
-    # "2"s here, not just the extra occurrence beyond the first) -- so this is
-    # 2 duplicate rows out of 4, tolerated by max_duplicates=2
+    # duplicate_count is the EXCESS beyond each group's first occurrence (group size - 1,
+    # summed across groups) -- one group of two "2"s here is 1 excess row, tolerated by
+    # max_duplicates=2
     df = pd.DataFrame({"id": [1, 2, 2, 3]})
     c = _asset_component(
         data_source_type="dataframe",
@@ -187,11 +188,11 @@ def test_uniqueness_check_max_duplicates_tolerates_some_duplication():
 
 
 def test_uniqueness_check_max_duplicates_still_fails_above_tolerance():
-    # 3 duplicate rows (every "2"), max_duplicates=2 is not enough
+    # one group of three "2"s is 2 excess rows (3 - 1); max_duplicates=1 is not enough
     df = pd.DataFrame({"id": [1, 2, 2, 2]})
     c = _asset_component(
         data_source_type="dataframe",
-        uniqueness_check=[{"columns": [{"column": "id", "max_duplicates": 2}]}],
+        uniqueness_check=[{"columns": [{"column": "id", "max_duplicates": 1}]}],
     )
     checks = c._build_single_asset_checks()
     result = _only_check(checks)(_fake_df_context(), df)
@@ -220,3 +221,38 @@ def test_uniqueness_check_max_duplicate_pct_fails_above_ceiling():
     checks = c._build_single_asset_checks()
     result = _only_check(checks)(_fake_df_context(), df)
     assert result.passed is False
+
+
+# ---------------------------------------------------------------------------
+# regression: _is_polars pandas>=3.1 misdetection, max_duplicates excess counting
+# ---------------------------------------------------------------------------
+
+def test_is_polars_still_identifies_pandas_frame_with_a_select_like_attribute():
+    """pandas 3.1+ added DataFrame.select, so a bare hasattr(df, 'select') duck-type
+    check misidentifies every pandas>=3.1 frame as polars. Simulate that shape here
+    (a real pandas DataFrame carrying its own `.select`) regardless of the pandas
+    version actually installed, and confirm it's still correctly identified as pandas."""
+    df = pd.DataFrame({"id": [1, 2, 2, 3]})
+    assert not hasattr(df, "select")
+    df.select = lambda *a, **kw: df  # simulate pandas>=3.1's own DataFrame.select
+    assert hasattr(df, "select")
+    assert _mod._is_polars(df) is False
+
+
+def test_uniqueness_check_max_duplicates_counts_excess_not_group_size():
+    # [1,2,3,3]: one duplicate group of size 2 -> 1 excess row (not 2, the group's full size).
+    # max_duplicates=0 (strict) must still fail; max_duplicates=1 (the real excess) must pass.
+    df = pd.DataFrame({"id": [1, 2, 3, 3]})
+    c_strict = _asset_component(
+        data_source_type="dataframe",
+        uniqueness_check=[{"columns": [{"column": "id", "max_duplicates": 0}]}],
+    )
+    result_strict = _only_check(c_strict._build_single_asset_checks())(_fake_df_context(), df)
+    assert result_strict.passed is False
+
+    c_tolerant = _asset_component(
+        data_source_type="dataframe",
+        uniqueness_check=[{"columns": [{"column": "id", "max_duplicates": 1}]}],
+    )
+    result_tolerant = _only_check(c_tolerant._build_single_asset_checks())(_fake_df_context(), df)
+    assert result_tolerant.passed is True

@@ -32,7 +32,13 @@ def _build_spark_submit_command(
     files: Optional[List[str]] = None, archives: Optional[List[str]] = None,
     driver_class_path: Optional[str] = None, executor_cores: Optional[int] = None,
     verbose: bool = False, properties_file: Optional[str] = None,
+    keytab: Optional[str] = None, principal: Optional[str] = None,
+    proxy_user: Optional[str] = None, supervise: bool = False,
 ) -> List[str]:
+    if proxy_user and (keytab or principal):
+        # spark-submit's own documented restriction (confirmed via `spark-submit --help`):
+        # "--proxy-user ... does not work with --principal / --keytab."
+        raise ValueError("proxy_user cannot be combined with keytab/principal (spark-submit does not support this).")
     cmd: List[str] = [spark_submit_binary]
     if master:
         cmd += ["--master", master]
@@ -72,10 +78,18 @@ def _build_spark_submit_command(
         cmd += ["--driver-class-path", driver_class_path]
     if properties_file:
         cmd += ["--properties-file", properties_file]
+    if keytab:
+        cmd += ["--keytab", keytab]
+    if principal:
+        cmd += ["--principal", principal]
+    if proxy_user:
+        cmd += ["--proxy-user", proxy_user]
     for k, v in (conf or {}).items():
         cmd += ["--conf", f"{k}={v}"]
     if verbose:
         cmd.append("--verbose")
+    if supervise:
+        cmd.append("--supervise")
     cmd += list(extra_args or [])
     cmd.append(application)
     cmd += list(application_args or [])
@@ -120,17 +134,40 @@ class SparkSubmitResource(dg.ConfigurableResource):
         executor_cores: Optional[int] = None,
         verbose: bool = False,
         properties_file: Optional[str] = None,
+        keytab: Optional[str] = None,
+        principal: Optional[str] = None,
+        proxy_user: Optional[str] = None,
+        supervise: bool = False,
+        wait_for_cluster_completion: bool = False,
+        status_poll_interval_seconds: float = 10.0,
+        status_poll_timeout_seconds: Optional[float] = None,
         log=None,
     ) -> Dict[str, Any]:
         """Run spark-submit and return {"exit_code", "command", "stdout_preview"}.
 
         Raises dg.Failure on a non-zero exit code (unless it's in
         success_exit_codes) or on a timeout.
+
+        `wait_for_cluster_completion` only applies when `deploy_mode="cluster"`:
+        standalone cluster-mode submission returns as soon as the driver is
+        accepted (the real driver keeps running on the cluster after this call
+        returns), so this parses the `driver-...` submission id spark-submit
+        prints to stdout and polls the real `spark-submit --status SUBMISSION_ID
+        --master MASTER` command (confirmed via `spark-submit --help` -- this is
+        a genuinely separate invocation, not a flag on the original submit) at
+        `status_poll_interval_seconds` until the driver reaches FINISHED/FAILED/
+        KILLED/ERROR (the real `DriverState` terminal values), raising
+        `dg.Failure`/`TimeoutError` as appropriate. There is no such concept for
+        client-mode or YARN/Kubernetes submissions (spark-submit itself blocks
+        until completion in client mode), so this is a no-op unless
+        `deploy_mode="cluster"`.
         """
         import os
+        import re
         import subprocess
         import sys
         import threading
+        import time
 
         if deploy_mode is not None and deploy_mode not in ("client", "cluster"):
             raise ValueError(f"deploy_mode must be 'client' or 'cluster', got {deploy_mode!r}")
@@ -143,6 +180,7 @@ class SparkSubmitResource(dg.ConfigurableResource):
             exclude_packages=exclude_packages, repositories=repositories,
             files=files, archives=archives, driver_class_path=driver_class_path,
             executor_cores=executor_cores, verbose=verbose, properties_file=properties_file,
+            keytab=keytab, principal=principal, proxy_user=proxy_user, supervise=supervise,
         )
         merged_env = {**os.environ, **(env_vars or {})}
         if log:
@@ -191,11 +229,68 @@ class SparkSubmitResource(dg.ConfigurableResource):
                 metadata={"stderr": dg.MetadataValue.text(stderr_data[-2000:])},
             )
 
-        return {
+        result: Dict[str, Any] = {
             "exit_code": proc.returncode,
             "command": " ".join(cmd),
             "stdout_preview": "".join(stdout_lines)[-2000:],
         }
+
+        if wait_for_cluster_completion and deploy_mode == "cluster":
+            stdout_text = "".join(stdout_lines)
+            match = re.search(r"driver-[\w-]+", stdout_text)
+            if not match:
+                raise dg.Failure(
+                    description="wait_for_cluster_completion=True but no driver submission id "
+                    "(expected a 'driver-...' id in spark-submit's stdout) was found.",
+                    metadata={"stdout": dg.MetadataValue.text(stdout_text[-2000:])},
+                )
+            submission_id = match.group(0)
+            result["submission_id"] = submission_id
+            final_state = self._poll_cluster_status(
+                submission_id, master, status_poll_interval_seconds, status_poll_timeout_seconds, log,
+            )
+            result["driver_state"] = final_state
+            if final_state in ("FAILED", "ERROR", "KILLED"):
+                raise dg.Failure(
+                    description=f"spark cluster-mode driver {submission_id} ended in state {final_state!r}.",
+                    metadata={"submission_id": dg.MetadataValue.text(submission_id)},
+                )
+
+        return result
+
+    def _poll_cluster_status(
+        self, submission_id: str, master: Optional[str], poll_interval_seconds: float,
+        poll_timeout_seconds: Optional[float], log,
+    ) -> str:
+        """Shells out to the real, separate `spark-submit --status SUBMISSION_ID --master
+        MASTER` command (confirmed via `spark-submit --help`) in a loop, parsing its
+        stdout for `State: <DRIVER_STATE>` until a terminal `DriverState`
+        (SUBMITTED, RUNNING, RELAUNCHING, UNKNOWN are non-terminal; FINISHED, KILLED,
+        FAILED, ERROR are terminal -- the real Spark `DriverState` enum values)."""
+        import re
+        import subprocess
+        import time
+
+        terminal_states = {"FINISHED", "KILLED", "FAILED", "ERROR"}
+        deadline = (time.monotonic() + poll_timeout_seconds) if poll_timeout_seconds is not None else None
+        while True:
+            status_cmd = [self.spark_submit_binary, "--status", submission_id]
+            if master:
+                status_cmd += ["--master", master]
+            proc = subprocess.run(status_cmd, capture_output=True, text=True)
+            output = (proc.stdout or "") + (proc.stderr or "")
+            if log:
+                log.info(f"spark_submit_resource: polling status of {submission_id}: {output.strip()[:200]}")
+            match = re.search(r"State:\s*(\w+)", output)
+            state = match.group(1) if match else "UNKNOWN"
+            if state in terminal_states:
+                return state
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"spark cluster-mode driver {submission_id} did not reach a terminal state "
+                    f"within {poll_timeout_seconds}s (last state={state!r})."
+                )
+            time.sleep(poll_interval_seconds)
 
 
 class SparkSubmitResourceComponent(dg.Component, dg.Model, dg.Resolvable):

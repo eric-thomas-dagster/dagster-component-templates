@@ -48,4 +48,22 @@ def my_asset(spark: SparkSubmitResource):
 `success_exit_codes`, `log` (optional object with `.info(msg)`, e.g.
 `context.log`).
 
-Returns `{"exit_code", "command", "stdout_preview"}`.
+Kerberos/impersonation (real `spark-submit` flags, confirmed via
+`spark-submit --help`): `keytab`, `principal` (mutually exclusive with
+`proxy_user` -- spark-submit itself rejects the combination), `proxy_user`.
+Standalone cluster-mode driver supervision: `supervise` (`--supervise`,
+restarts the driver on failure).
+
+Cluster-mode completion: `wait_for_cluster_completion` (only meaningful with
+`deploy_mode="cluster"` -- standalone cluster-mode submission returns as soon
+as the driver is accepted, with the real job still running on the cluster;
+this parses the `driver-...` submission id from spark-submit's stdout and
+polls the real, separate `spark-submit --status SUBMISSION_ID --master
+MASTER` command at `status_poll_interval_seconds` until the driver reaches a
+terminal state, raising `dg.Failure`/`TimeoutError` as appropriate), along
+with `status_poll_interval_seconds` and `status_poll_timeout_seconds`. A
+no-op for client-mode/YARN/Kubernetes submissions, which already block until
+completion.
+
+Returns `{"exit_code", "command", "stdout_preview"}`, plus `"submission_id"`/
+`"driver_state"` when `wait_for_cluster_completion=True` was honored.

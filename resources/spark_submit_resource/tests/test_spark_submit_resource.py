@@ -24,9 +24,10 @@ _FLAGS_WITH_VALUE = (
     "--queue", "--packages", "--jars", "--py-files", "--conf",
     "--exclude-packages", "--repositories", "--files", "--archives",
     "--driver-class-path", "--executor-cores", "--properties-file",
+    "--keytab", "--principal", "--proxy-user",
 )
 
-_FLAGS_NO_VALUE = ("--verbose",)
+_FLAGS_NO_VALUE = ("--verbose", "--supervise")
 
 _SHIM_BODY = f"""#!{sys.executable}
 import sys, subprocess
@@ -203,6 +204,133 @@ def test_submit_runs_real_subprocess_with_new_flags(tmp_path):
     )
     assert result["exit_code"] == 0
     assert "ran with new flags" in result["stdout_preview"]
+
+
+def test_keytab_principal_proxy_user_supervise_construction():
+    cmd = mod._build_spark_submit_command(
+        spark_submit_binary="spark-submit",
+        application="job.py",
+        master="spark://cluster:7077", deploy_mode="cluster", class_name=None, name=None,
+        driver_memory=None, executor_memory=None, num_executors=None,
+        total_executor_cores=None, queue=None, packages=None, jars=None,
+        py_files=None, conf=None, extra_args=None, application_args=None,
+        keytab="/etc/spark.keytab", principal="spark@EXAMPLE.COM", supervise=True,
+    )
+    assert cmd == [
+        "spark-submit",
+        "--master", "spark://cluster:7077",
+        "--deploy-mode", "cluster",
+        "--keytab", "/etc/spark.keytab",
+        "--principal", "spark@EXAMPLE.COM",
+        "--supervise",
+        "job.py",
+    ]
+
+
+def test_proxy_user_construction():
+    cmd = mod._build_spark_submit_command(
+        spark_submit_binary="spark-submit", application="job.py",
+        master=None, deploy_mode=None, class_name=None, name=None,
+        driver_memory=None, executor_memory=None, num_executors=None,
+        total_executor_cores=None, queue=None, packages=None, jars=None,
+        py_files=None, conf=None, extra_args=None, application_args=None,
+        proxy_user="alice",
+    )
+    assert cmd == ["spark-submit", "--proxy-user", "alice", "job.py"]
+
+
+def test_proxy_user_with_principal_raises():
+    with pytest.raises(ValueError, match="proxy_user cannot be combined"):
+        mod._build_spark_submit_command(
+            spark_submit_binary="spark-submit", application="job.py",
+            master=None, deploy_mode=None, class_name=None, name=None,
+            driver_memory=None, executor_memory=None, num_executors=None,
+            total_executor_cores=None, queue=None, packages=None, jars=None,
+            py_files=None, conf=None, extra_args=None, application_args=None,
+            proxy_user="alice", principal="spark@EXAMPLE.COM",
+        )
+
+
+def test_submit_runs_real_subprocess_with_keytab_principal_supervise(tmp_path):
+    script = _write_script(tmp_path, """
+        print("ran with kerberos flags")
+    """)
+    result = _resource(tmp_path).submit(
+        application=script, keytab="/etc/spark.keytab", principal="spark@EXAMPLE.COM", supervise=True,
+    )
+    assert result["exit_code"] == 0
+    assert "ran with kerberos flags" in result["stdout_preview"]
+
+
+def _write_status_polling_shim(tmp_path, states):
+    """A fake spark-submit that: on a normal submit, prints a fake driver submission id
+    and exits 0; on `--status SUBMISSION_ID`, pops the next state off `states` (a file-backed
+    queue, since each `--status` call is a separate subprocess) and prints `State: <STATE>`."""
+    import stat
+
+    states_file = tmp_path / "states.txt"
+    states_file.write_text("\n".join(states) + "\n")
+    shim_body = f"""#!{sys.executable}
+import sys
+args = sys.argv[1:]
+if "--status" in args:
+    states_path = {str(states_file)!r}
+    with open(states_path) as f:
+        lines = [l for l in f.read().splitlines() if l]
+    state = lines[0] if lines else "FINISHED"
+    rest = lines[1:]
+    with open(states_path, "w") as f:
+        f.write("\\n".join(rest) + "\\n" if rest else "")
+    print(f"State: {{state}}")
+    sys.exit(0)
+print("Driver successfully submitted as driver-20261128000000-0001")
+sys.exit(0)
+"""
+    p = tmp_path / "fake_spark_submit_status.py"
+    p.write_text(shim_body)
+    p.chmod(p.stat().st_mode | stat.S_IEXEC)
+    return str(p)
+
+
+def test_wait_for_cluster_completion_polls_until_finished(tmp_path):
+    binary = _write_status_polling_shim(tmp_path, ["RUNNING", "RUNNING", "FINISHED"])
+    resource = mod.SparkSubmitResource(spark_submit_binary=binary)
+    result = resource.submit(
+        application="job.py", deploy_mode="cluster", master="spark://cluster:7077",
+        wait_for_cluster_completion=True, status_poll_interval_seconds=0,
+    )
+    assert result["submission_id"] == "driver-20261128000000-0001"
+    assert result["driver_state"] == "FINISHED"
+
+
+def test_wait_for_cluster_completion_raises_on_failed_state(tmp_path):
+    binary = _write_status_polling_shim(tmp_path, ["RUNNING", "FAILED"])
+    resource = mod.SparkSubmitResource(spark_submit_binary=binary)
+    with pytest.raises(dg.Failure, match="ended in state 'FAILED'"):
+        resource.submit(
+            application="job.py", deploy_mode="cluster", master="spark://cluster:7077",
+            wait_for_cluster_completion=True, status_poll_interval_seconds=0,
+        )
+
+
+def test_wait_for_cluster_completion_timeout(tmp_path):
+    binary = _write_status_polling_shim(tmp_path, ["RUNNING", "RUNNING", "RUNNING", "RUNNING"])
+    resource = mod.SparkSubmitResource(spark_submit_binary=binary)
+    with pytest.raises(TimeoutError, match="did not reach a terminal state"):
+        resource.submit(
+            application="job.py", deploy_mode="cluster", master="spark://cluster:7077",
+            wait_for_cluster_completion=True, status_poll_interval_seconds=0,
+            status_poll_timeout_seconds=0,
+        )
+
+
+def test_wait_for_cluster_completion_is_noop_for_client_mode(tmp_path):
+    script = _write_script(tmp_path, "print('client mode run')")
+    result = _resource(tmp_path).submit(
+        application=script, deploy_mode="client", wait_for_cluster_completion=True,
+    )
+    assert "submission_id" not in result
+    assert "driver_state" not in result
 
 
 def test_component_registers_resource():

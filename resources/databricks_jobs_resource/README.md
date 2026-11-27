@@ -20,6 +20,14 @@ All three wait for a terminal state and return the same result shape
 (`run_id`/`run_page_url`/`life_cycle_state`/`result_state`/`state_message`), raising
 `dagster.Failure` on a non-SUCCESS `result_state` unless `fail_on_non_success=False`.
 
+All three also take `poll_interval_seconds` (default `5.0`) controlling how often the
+resource polls for completion -- polling is done directly against `jobs.get_run`, not the
+SDK's own `wait_get_run_job_terminated_or_skipped` helper, which hard-codes its own cadence
+with no way to control it. `submit_run_and_wait` also takes `idempotency_token` (a real
+`jobs.submit` parameter, taking precedence over any `idempotency_token` already present in
+`run_json`). `repair_run_and_wait` has no `idempotency_token` parameter -- the installed
+databricks-sdk's `JobsAPI.repair_run` has no such argument, confirmed directly.
+
 ## Installation
 
 `pip install databricks-sdk`

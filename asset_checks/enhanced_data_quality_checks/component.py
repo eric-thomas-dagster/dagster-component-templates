@@ -104,8 +104,18 @@ class SampleMethod(str, Enum):
 # ═══════════════════════════════════════════════════════════════
 
 def _is_polars(df) -> bool:
-    """Check if dataframe is a Polars DataFrame."""
-    return hasattr(df, 'select')
+    """Check if dataframe is a Polars DataFrame.
+
+    Pandas DataFrames are checked for explicitly first: pandas 3.1+ added its own
+    `DataFrame.select`, so a bare `hasattr(df, 'select')` duck-type check (the previous
+    implementation) misidentifies every pandas>=3.1 DataFrame as polars."""
+    if isinstance(df, pd.DataFrame):
+        return False
+    try:
+        import polars as pl
+    except ImportError:
+        return hasattr(df, 'select')
+    return isinstance(df, pl.DataFrame)
 
 
 def _get_unique_values(df, column: str) -> list:
@@ -7445,10 +7455,22 @@ len(result['failed_column_names'])
                 subset_df = adapter.select_columns(columns_to_check)
                 duplicate_mask = adapter.is_duplicated(subset_df, columns_to_check)
                 filtered_df = adapter.apply_condition(duplicate_mask)
-                # Count rows in the filtered dataframe (duplicates)
+                # `filtered_df` holds every row belonging to a duplicate group (both the first
+                # occurrence and its repeats -- is_duplicated's keep=False semantics on both
+                # backends). The tolerance fields below mean "how many EXTRA rows beyond each
+                # group's first occurrence", so duplicate_count must be that excess, not the raw
+                # row count of filtered_df (which double-counts the first occurrence of every
+                # group): excess = (rows in duplicate groups) - (distinct duplicate groups).
                 if filtered_df is not None:
                     filtered_adapter = DataFrameAdapter(filtered_df)
-                    duplicate_count = filtered_adapter.count_rows()
+                    duplicate_rows_total = filtered_adapter.count_rows()
+                    if duplicate_rows_total:
+                        distinct_duplicate_groups = DataFrameAdapter(
+                            filtered_adapter.drop_duplicates(subset=columns_to_check)
+                        ).count_rows()
+                    else:
+                        distinct_duplicate_groups = 0
+                    duplicate_count = duplicate_rows_total - distinct_duplicate_groups
                 else:
                     duplicate_count = 0
                 

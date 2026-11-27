@@ -10,7 +10,7 @@ from pathlib import Path
 import dagster as dg
 import pytest
 
-from .conftest import materialize
+from .conftest import materialize, metadata_for
 
 # `callable_path` is a real dotted-import path (matches production: component.py's
 # _resolve_callable() does the same `importlib.import_module(mod_path)`), so it needs
@@ -59,7 +59,7 @@ def test_callable_condition_met_immediately(mod, fx):
     )
     result = materialize(component)
     assert result.success
-    md = result.asset_materializations_for_node("t")[0].metadata
+    md = metadata_for(result, "t")
     assert md["met"].value is True
     assert md["attempts"].value == 1
 
@@ -72,7 +72,7 @@ def test_callable_condition_met_after_a_few_polls(mod, fx):
     )
     result = materialize(component)
     assert result.success
-    md = result.asset_materializations_for_node("t")[0].metadata
+    md = metadata_for(result, "t")
     assert md["attempts"].value == 3
 
 
@@ -97,17 +97,39 @@ def test_timeout_fails_by_default(mod, fx):
     assert not result.success
 
 
-def test_timeout_skip_materializes_successfully_with_timed_out_metadata(mod, fx):
+def test_timeout_skip_is_a_real_structural_skip_not_a_fake_metadata_flag(mod, fx):
+    """Regression: on_timeout='skip' used to materialize successfully with a timed_out=true
+    metadata flag -- indistinguishable from any other successful run unless a caller happened
+    to check that one key. Dagster has a real mechanism for this (AssetOut(is_required=False),
+    the same one conditional_asset uses): the step succeeds, but the asset is never
+    materialized at all, and a downstream asset depending on it is marked skipped."""
     fx.reset(true_after=10_000)
     component = mod.WaitUntilAssetComponent(
         asset_name="t", condition="callable", callable_path=f"{FIXTURES_PATH}:becomes_true_after_n_calls",
         poll_seconds=0.01, timeout_seconds=0.05, on_timeout="skip",
     )
-    result = materialize(component)
+    waiter_def = component.build_defs(context=None).assets[0]
+
+    @dg.asset(deps=[dg.AssetKey("t")])
+    def downstream():
+        return 1
+
+    result = dg.materialize([waiter_def, downstream], resources={"io_manager": dg.InMemoryIOManager()})
     assert result.success
-    md = result.asset_materializations_for_node("t")[0].metadata
-    assert md["timed_out"].value is True
-    assert md["met"].value is False
+    materialized = {str(e.asset_key) for e in result.get_asset_materialization_events()}
+    assert str(dg.AssetKey("t")) not in materialized
+    assert str(dg.AssetKey("downstream")) not in materialized
+
+
+def test_timeout_fail_still_materializes_nothing_and_raises(mod, fx):
+    fx.reset(true_after=10_000)
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="callable", callable_path=f"{FIXTURES_PATH}:becomes_true_after_n_calls",
+        poll_seconds=0.01, timeout_seconds=0.05, on_timeout="fail",
+    )
+    result = materialize(component, raise_on_error=False)
+    assert not result.success
+    assert metadata_for(result, "t") is None
 
 
 # --- condition='file_exists' ---------------------------------------------------------
@@ -182,7 +204,7 @@ def test_delay_condition_met_once_enough_time_has_passed(mod):
     )
     result = materialize(component)
     assert result.success
-    md = result.asset_materializations_for_node("t")[0].metadata
+    md = metadata_for(result, "t")
     assert md["waited_seconds"].value >= 0.1
 
 

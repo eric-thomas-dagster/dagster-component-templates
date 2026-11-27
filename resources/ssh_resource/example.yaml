@@ -1,0 +1,7 @@
+type: dagster_community_components.SSHResourceComponent
+attributes:
+  resource_key: ssh_resource
+  host_env_var: SSH_HOST
+  username_env_var: SSH_USERNAME
+  private_key_env_var: SSH_PRIVATE_KEY
+  port: 22

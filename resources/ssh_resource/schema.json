@@ -1,0 +1,84 @@
+{
+  "component_type": "dagster_community_components.SSHResourceComponent",
+  "description": "Register an SSHResource (run_command over a real paramiko SSH connection) for use by other components -- the Airflow SSHOperator equivalent as reusable, injectable logic.",
+  "category": "resource",
+  "icon": "si:gnubash",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "ssh_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components/assets reference it via resource_key.",
+      "required": false,
+      "default": "ssh_resource"
+    },
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "description": "Env var containing the SSH host/IP.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var containing the SSH username.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "SSH port.",
+      "required": false,
+      "default": 22
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var containing the SSH password. Fallback when no private key option is set.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "private_key_env_var": {
+      "type": "string",
+      "label": "Private Key Env Var",
+      "description": "Env var containing PEM-encoded private key content.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "private_key_path_env_var": {
+      "type": "string",
+      "label": "Private Key Path Env Var",
+      "description": "Env var containing a path to a private key file already on disk. Takes precedence over private_key_env_var when both are set.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "known_hosts_check": {
+      "type": "boolean",
+      "label": "Known Hosts Check",
+      "description": "When False (default), accept any host key (AutoAddPolicy). When True, use the system known_hosts file and reject unknown host keys.",
+      "required": false,
+      "default": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Default connection + per-command timeout in seconds.",
+      "required": false,
+      "default": 300
+    }
+  },
+  "tags": [
+    "resource",
+    "ssh",
+    "infrastructure"
+  ],
+  "name": "SSH Resource"
+}

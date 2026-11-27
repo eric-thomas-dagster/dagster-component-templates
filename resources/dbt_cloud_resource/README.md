@@ -23,6 +23,12 @@ Register a dagster-dbt DbtCloudClientResource for use by other components
 |---|---|---|---|
 | `resource_key` | `str` | `"dbt_cloud_resource"` | Key used to register this resource. Other components reference it via resource_key. |
 
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `disable_schedule_on_trigger` | `bool` | `false` | Whether triggering a job run through this resource also disables that job's own cron schedule in dbt Cloud. The underlying dagster-dbt DbtCloudResource defaults this to True; this component defaults it to False instead… _(full docs in schema.json + component README)_ |
+
 [//]: # (FIELDS:END)
 
 ## Configuration

@@ -140,6 +140,73 @@ def test_execute_real_named_params_still_work_after_the_fix(mod, db_url):
     assert rows == [{"name": "Bea"}]
 
 
+def test_execute_positional_params(mod, db_url):
+    resource = mod.SQLUrlResource(connection_url=db_url)
+    _seed(resource, mod)
+
+    rows = resource.execute("SELECT name FROM users WHERE id = ?", [2])
+
+    assert rows == [{"name": "Bea"}]
+
+
+def test_execute_max_rows_caps_returned_rows(mod, db_url):
+    resource = mod.SQLUrlResource(connection_url=db_url)
+    _seed(resource, mod)
+    resource.execute("INSERT INTO users (id, name, active) VALUES (3, 'Cleo', 1)")
+
+    rows = resource.execute("SELECT id FROM users ORDER BY id", max_rows=2)
+
+    assert rows == [{"id": 1}, {"id": 2}]
+
+
+def test_execute_autocommit_false_does_not_persist(mod, db_url):
+    resource = mod.SQLUrlResource(connection_url=db_url)
+    resource.execute("CREATE TABLE t2 (id INTEGER)")
+
+    resource.execute("INSERT INTO t2 (id) VALUES (99)", autocommit=False)
+
+    resource2 = mod.SQLUrlResource(connection_url=db_url)
+    rows = resource2.execute("SELECT id FROM t2")
+    assert rows == []
+
+
+def test_execute_many_commits_all_statements_together(mod, db_url):
+    resource = mod.SQLUrlResource(connection_url=db_url)
+
+    results = resource.execute_many([
+        "CREATE TABLE t3 (id INTEGER, name TEXT)",
+        "INSERT INTO t3 (id, name) VALUES (:id, :name)",
+        "SELECT id, name FROM t3",
+    ], [None, {"id": 1, "name": "Ada"}, None])
+
+    assert results[2] == [{"id": 1, "name": "Ada"}]
+
+    # A second, separate resource instance sees the committed rows.
+    resource2 = mod.SQLUrlResource(connection_url=db_url)
+    assert resource2.execute("SELECT id FROM t3") == [{"id": 1}]
+
+
+def test_execute_many_rolls_back_all_statements_on_failure(mod, db_url):
+    resource = mod.SQLUrlResource(connection_url=db_url)
+    resource.execute("CREATE TABLE t4 (id INTEGER PRIMARY KEY, name TEXT)")
+
+    with pytest.raises(Exception):
+        resource.execute_many([
+            "INSERT INTO t4 (id, name) VALUES (1, 'Ada')",
+            "INSERT INTO t4 (id, name) VALUES (1, 'Duplicate PK fails')",
+        ])
+
+    resource2 = mod.SQLUrlResource(connection_url=db_url)
+    assert resource2.execute("SELECT id FROM t4") == []
+
+
+def test_execute_many_requires_matching_length_params_list(mod, db_url):
+    resource = mod.SQLUrlResource(connection_url=db_url)
+
+    with pytest.raises(ValueError, match="same length"):
+        resource.execute_many(["SELECT 1", "SELECT 2"], [None])
+
+
 def test_execute_literal_colon_alongside_real_params_is_a_known_limitation(mod, db_url):
     """When params ARE supplied, text() parsing is unavoidable (that's how the real
     substitution happens), so an unrelated literal colon in the same query string can

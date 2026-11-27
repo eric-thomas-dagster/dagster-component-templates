@@ -206,6 +206,50 @@ def test_submit_job_hive_with_query_list(monkeypatch):
     assert submit_call[1]["job"]["hive_job"]["query_list"] == {"queries": ["SELECT 1"]}
 
 
+# ---- batch create ----------------------------------------------------
+
+class FakeBatchClient:
+    def __init__(self, final_state="SUCCEEDED", state_message=""):
+        self.calls = []
+        self._final_state = final_state
+        self._state_message = state_message
+
+    def create_batch(self, parent, batch, batch_id):
+        self.calls.append(("create_batch", parent, batch, batch_id))
+        final_state = self._final_state
+        state_message = self._state_message
+
+        class _Op:
+            def result(_self, timeout):
+                return SimpleNamespace(state=SimpleNamespace(name=final_state), state_message=state_message)
+        return _Op()
+
+
+def test_create_batch_and_wait_returns_succeeded_state(monkeypatch):
+    client = FakeBatchClient(final_state="SUCCEEDED")
+    monkeypatch.setattr(mod.DataprocResource, "_batch_client", lambda self, region: client)
+    r = _resource()
+
+    result = r.create_batch_and_wait(
+        "proj", "us-central1", "my-batch",
+        batch_config={"pyspark_batch": {"main_python_file_uri": "gs://bucket/job.py"}},
+    )
+    assert result == {"batch_id": "my-batch", "state": "SUCCEEDED"}
+
+    create_call = next(c for c in client.calls if c[0] == "create_batch")
+    assert create_call[1] == "projects/proj/regions/us-central1"
+    assert create_call[3] == "my-batch"
+
+
+def test_create_batch_and_wait_raises_on_failed(monkeypatch):
+    client = FakeBatchClient(final_state="FAILED", state_message="boom")
+    monkeypatch.setattr(mod.DataprocResource, "_batch_client", lambda self, region: client)
+    r = _resource()
+
+    with pytest.raises(RuntimeError, match="boom"):
+        r.create_batch_and_wait("proj", "us-central1", "my-batch", batch_config={"spark_batch": {"main_class": "Main"}})
+
+
 # ---- component registration ----------------------------------------------
 
 def test_component_registers_resource_under_key():

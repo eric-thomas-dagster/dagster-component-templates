@@ -58,6 +58,8 @@ def train_job(context: dg.AssetExecutionContext, dataproc_resource):
 
 `ensure_cluster()`/`delete_cluster()` are idempotent (a no-op when the cluster is already in the desired state). `submit_job_and_wait()` supports `job_type` of `pyspark`, `spark`, `hive`, or `pig` -- see `component.py`'s `_build_job_body()` for the exact `job_config` keys each type accepts (e.g. `main_python_file_uri`/`args` for pyspark, `main_jar_file_uri`/`main_class` for spark, `query_file_uri`/`query_list` for hive/pig; `jar_file_uris`/`file_uris`/`archive_uris`/`properties`/`labels` are shared across types). It polls to a terminal `JobStatus.State`, raising `RuntimeError` on `ERROR`/`CANCELLED` and `TimeoutError` if the job never reaches one within `timeout_seconds`.
 
+`create_batch_and_wait(project_id, region, batch_id, batch_config, timeout_seconds=3600, log=None)` -- the `DataprocCreateBatchOperator` equivalent: creates a Dataproc Serverless batch workload (ephemeral, Google-managed compute -- no cluster to create first) and waits for it to finish. `batch_config` is the real `google.cloud.dataproc_v1.Batch` message shape passed straight through, e.g. `{"pyspark_batch": {"main_python_file_uri": "gs://bucket/job.py", "args": [...]}, "runtime_config": {"version": "2.1"}}` -- exactly one of `pyspark_batch`/`spark_batch`/`spark_r_batch`/`spark_sql_batch` must be set. Returns `{"batch_id", "state"}` once terminal; raises `RuntimeError` on `FAILED`/`CANCELLED`.
+
 ## Authentication
 
 All secret fields accept an **environment variable name** (not the secret value itself).

@@ -176,6 +176,15 @@ class DataprocResource(dg.ConfigurableResource):
             kwargs["credentials"] = creds
         return dataproc_v1.JobControllerClient(**kwargs)
 
+    def _batch_client(self, region: str):
+        from google.cloud import dataproc_v1
+
+        kwargs: Dict[str, Any] = {"client_options": {"api_endpoint": f"{region}-dataproc.googleapis.com:443"}}
+        creds = self._credentials()
+        if creds is not None:
+            kwargs["credentials"] = creds
+        return dataproc_v1.BatchControllerClient(**kwargs)
+
     def get_cluster(self, project_id: str, region: str, cluster_name: str):
         """Returns the Cluster proto, or None if it doesn't exist."""
         from google.api_core.exceptions import NotFound
@@ -291,6 +300,51 @@ class DataprocResource(dg.ConfigurableResource):
         if job.driver_output_resource_uri:
             result["driver_output_uri"] = job.driver_output_resource_uri
         return result
+
+    def create_batch_and_wait(
+        self,
+        project_id: str,
+        region: str,
+        batch_id: str,
+        batch_config: Dict[str, Any],
+        timeout_seconds: int = 3600,
+        log=None,
+    ) -> Dict[str, Any]:
+        """Creates a Dataproc Serverless batch workload (`BatchControllerClient.create_batch`)
+        and waits for it to finish -- the `DataprocCreateBatchOperator` equivalent.
+
+        Dataproc Serverless batches are a distinct resource type from the
+        cluster-based jobs `submit_job_and_wait` targets above -- a batch runs
+        on ephemeral, Google-managed compute with no cluster to create or
+        manage first.
+
+        `batch_config` is the real `google.cloud.dataproc_v1.Batch` message
+        shape, passed straight through -- e.g.
+        `{"pyspark_batch": {"main_python_file_uri": "gs://bucket/job.py",
+        "args": [...]}, "runtime_config": {"version": "2.1"}}`. Exactly one of
+        `pyspark_batch`/`spark_batch`/`spark_r_batch`/`spark_sql_batch` must be
+        set, matching the API's own oneof requirement.
+
+        Returns {"batch_id", "state"} once terminal (SUCCEEDED/CANCELLED/
+        FAILED/STATE_UNSPECIFIED). Raises RuntimeError on FAILED/CANCELLED.
+        """
+        from google.cloud import dataproc_v1
+
+        client = self._batch_client(region)
+        batch = dataproc_v1.Batch(**batch_config)
+        if log:
+            log.info(f"dataproc_resource: creating batch {batch_id!r}, waiting up to {timeout_seconds}s.")
+        op = client.create_batch(
+            parent=f"projects/{project_id}/regions/{region}",
+            batch=batch,
+            batch_id=batch_id,
+        )
+        result_batch = op.result(timeout=timeout_seconds)
+        state = result_batch.state.name
+
+        if state in ("FAILED", "CANCELLED"):
+            raise RuntimeError(f"Dataproc batch {batch_id!r} finished with state={state!r}: {result_batch.state_message!r}")
+        return {"batch_id": batch_id, "state": state}
 
 
 class DataprocResourceComponent(dg.Component, dg.Model, dg.Resolvable):

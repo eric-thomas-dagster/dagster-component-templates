@@ -62,7 +62,7 @@ def _resource(monkeypatch, client, **kw):
     args.update(kw)
     monkeypatch.setenv("DATABRICKS_TOKEN", "fake-token")
     resource = mod.DatabricksJobsResource(**args)
-    monkeypatch.setattr(resource, "_client", lambda: client)
+    monkeypatch.setattr(mod.DatabricksJobsResource, "_client", lambda self: client)
     return resource
 
 

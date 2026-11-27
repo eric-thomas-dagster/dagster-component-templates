@@ -48,7 +48,7 @@ class FakeEmrClient:
 
 def _resource(monkeypatch, client):
     resource = mod.EmrResource()
-    monkeypatch.setattr(resource, "_client", lambda: client)
+    monkeypatch.setattr(mod.EmrResource, "_client", lambda self: client)
     return resource
 
 

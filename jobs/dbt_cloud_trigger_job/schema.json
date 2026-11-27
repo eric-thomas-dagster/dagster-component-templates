@@ -112,6 +112,27 @@
       "description": "Dagster job tags — applied to every run of this job.",
       "required": false,
       "ui:widget": "key-value"
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "If set, this component emits a real materializable `@dg.asset` (with `deps`) instead of a plain op-job — so the triggered dbt Cloud run can sit in the asset graph with upstream dependencies, be targeted by automation conditions, etc. `job_name` is ignored when this is set (no op-job/schedule is created). Richer per-run trigger fields (`cause`/`schema_override`/`git_branch`/`git_sha`) are still forwarded via the real dbt Cloud REST API's trigger-run endpoint; `enriched_dbt_cloud_workspace`'s own `mirror_jobs: executable` mode only forwards `steps_override` to the newer Cloud v2 client, so use this instead when you need those.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name. Only used when `asset_name` is set.",
+      "required": false
     }
   },
   "tags": ["jobs", "dbt", "dbt-cloud", "trigger"],

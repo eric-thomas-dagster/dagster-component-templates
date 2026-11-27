@@ -62,7 +62,6 @@ The chain: Snowpipe load → sensor tick → sensor emits `RunRequest(job_name="
 
 | Field | Type | Description |
 |---|---|---|
-| `job_name` | `str` | Dagster op-job name. Use this in sensor/schedule `job_name:` fields to target this job for triggering. |
 | `dbt_cloud_job_id` | `int` | dbt Cloud job ID to trigger (numeric — from the dbt Cloud UI URL or the dbt Cloud REST API). |
 
 ### Execution
@@ -77,11 +76,15 @@ The chain: Snowpipe load → sensor tick → sensor emits `RunRequest(job_name="
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags — applied to every run of this job. |
+| `asset_name` | `str` | — | If set, this component emits a real materializable `@dg.asset` (with `deps`) instead of a plain op-job — so the triggered dbt Cloud run can sit in the asset graph with upstream dependencies, be targeted by automation con… _(full docs in schema.json + component README)_ |
+| `deps` | `List[str]` | — | Upstream asset keys (slash-separated form, e.g. 'raw/snowpipe_landing'). Only used when `asset_name` is set. |
+| `group_name` | `str` | — | Asset group name. Only used when `asset_name` is set. |
 
 ### Sensor configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `job_name` | `str` | — | Dagster op-job name. Use this in sensor/schedule `job_name:` fields to target this job for triggering. Required unless `asset_name` is set. |
 | `default_status` | `str` | `"STOPPED"` | Initial schedule status: STOPPED or RUNNING. |
 
 ### Other
@@ -96,7 +99,7 @@ The chain: Snowpipe load → sensor tick → sensor emits `RunRequest(job_name="
 | `git_branch` | `str` | — | dbt Cloud per-run `git_branch` — run against this branch instead of the job's configured branch. |
 | `git_sha` | `str` | — | dbt Cloud per-run `git_sha` — run against this exact commit. |
 | `emit_materializations_for` | `List[str]` | — | Optional list of asset keys (slash-separated form, e.g. 'mart/daily_summary'). After the dbt Cloud run succeeds, the op emits one `AssetMaterialization` event per key so the run edges into Dagster's asset graph. Requires… _(full docs in schema.json + component README)_ |
-| `schedule` | `str` | — | Optional cron string (e.g. '0 3 * * *'). If set, attaches a `ScheduleDefinition` that triggers this job on cron. |
+| `schedule` | `str` | — | Optional cron string (e.g. '0 3 * * *'). If set, attaches a `ScheduleDefinition` that triggers this job on cron. Ignored when `asset_name` is set (use an automation condition or a separate schedule/sensor targeting the asset instead). |
 
 [//]: # (FIELDS:END)
 

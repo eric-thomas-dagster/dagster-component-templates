@@ -61,6 +61,45 @@
       "description": "Sync even if no changes detected",
       "required": false,
       "default": false
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "Poll the connector's GET endpoint until the sync finishes. Fivetran's API has no discrete sync/job id -- completion is detected by comparing `succeeded_at`/`failed_at` timestamps (and `status.sync_state`) against the values recorded just before triggering, per Fivetran's own documented poll-for-completion pattern.",
+      "required": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Poll Interval Seconds",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Timeout Seconds",
+      "required": false
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "If set, this component emits a real materializable `@dg.asset` (with `deps`) instead of a plain op-job. `job_name`/`schedule` are ignored when this is set.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name. Only used when `asset_name` is set.",
+      "required": false
     }
   }
 }

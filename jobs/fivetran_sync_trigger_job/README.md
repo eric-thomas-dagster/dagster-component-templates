@@ -13,26 +13,37 @@ Trigger a Fivetran connector sync via REST API.
 
 | Field | Type | Description |
 |---|---|---|
-| `job_name` | `str` | Dagster job name |
 | `connector_id` | `str` | Fivetran connector ID |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `wait_for_completion` | `bool` | `false` | Poll the connector's GET endpoint until the sync finishes. Fivetran's API has no discrete sync/job id -- completion is detected by comparing `succeeded_at`/`failed_at` timestamps (and `status.sync_state`) against the val… _(full docs in schema.json + component README)_ |
+| `poll_interval_seconds` | `int` | `15` | — |
+| `timeout_seconds` | `int` | `3600` | — |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
+| `asset_name` | `str` | — | If set, this component emits a real materializable `@dg.asset` (with `deps`) instead of a plain op-job. `job_name`/`schedule` are ignored when this is set. |
+| `deps` | `List[str]` | — | Upstream asset keys. Only used when `asset_name` is set. |
+| `group_name` | `str` | — | Asset group name. Only used when `asset_name` is set. |
 
 ### Sensor configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `job_name` | `str` | — | Dagster job name. Required unless `asset_name` is set. |
 | `default_status` | `str` | `"STOPPED"` | STOPPED \| RUNNING |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `schedule` | `str` | — | Cron schedule (None = no schedule) |
+| `schedule` | `str` | — | Cron schedule (None = no schedule). Ignored when `asset_name` is set. |
 | `api_key_env` | `str` | `"FIVETRAN_API_KEY"` | — |
 | `api_secret_env` | `str` | `"FIVETRAN_API_SECRET"` | — |
 | `force` | `bool` | `false` | Sync even if no changes detected |

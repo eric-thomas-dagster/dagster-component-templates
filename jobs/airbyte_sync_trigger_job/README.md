@@ -13,7 +13,6 @@ Trigger an Airbyte connection sync via REST API — fire-and-forget or wait for 
 
 | Field | Type | Description |
 |---|---|---|
-| `job_name` | `str` | Dagster job name |
 | `airbyte_url` | `str` | Airbyte server URL (e.g. 'https://airbyte.acme.com') |
 | `connection_id` | `str` | Connection UUID to sync |
 
@@ -30,18 +29,22 @@ Trigger an Airbyte connection sync via REST API — fire-and-forget or wait for 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
+| `asset_name` | `str` | — | If set, this component emits a real materializable `@dg.asset` (with `deps`) instead of a plain op-job, returning the real Airbyte job id in metadata. `job_name`/`schedule` are ignored when this is set. For connections m… _(full docs in schema.json + component README)_ |
+| `deps` | `List[str]` | — | Upstream asset keys. Only used when `asset_name` is set. |
+| `group_name` | `str` | — | Asset group name. Only used when `asset_name` is set. |
 
 ### Sensor configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `job_name` | `str` | — | Dagster job name. Required unless `asset_name` is set. |
 | `default_status` | `str` | `"STOPPED"` | STOPPED \| RUNNING |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `schedule` | `str` | — | Cron schedule (None = no schedule) |
+| `schedule` | `str` | — | Cron schedule (None = no schedule). Ignored when `asset_name` is set. |
 | `username_env` | `str` | `"AIRBYTE_USER"` | — |
 | `password_env` | `str` | `"AIRBYTE_PASSWORD"` | — |
 

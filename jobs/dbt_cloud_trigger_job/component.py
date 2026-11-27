@@ -80,9 +80,11 @@ class DbtCloudTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
     forget behavior (returns as soon as dbt Cloud accepts the trigger).
     """
 
-    job_name: str = Field(
+    job_name: Optional[str] = Field(
+        default=None,
         description="Dagster op-job name. Use this in sensor/schedule "
-        "`job_name:` fields to target this job for triggering."
+        "`job_name:` fields to target this job for triggering. Required "
+        "unless `asset_name` is set.",
     )
     dbt_cloud_job_id: int = Field(
         description="dbt Cloud job ID to trigger (numeric — from the dbt "
@@ -144,7 +146,9 @@ class DbtCloudTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
     schedule: Optional[str] = Field(
         default=None,
         description="Optional cron string (e.g. '0 3 * * *'). If set, "
-        "attaches a `ScheduleDefinition` that triggers this job on cron.",
+        "attaches a `ScheduleDefinition` that triggers this job on cron. "
+        "Ignored when `asset_name` is set (use an automation condition or "
+        "a separate schedule/sensor targeting the asset instead).",
     )
     default_status: str = Field(
         default="STOPPED",
@@ -154,20 +158,142 @@ class DbtCloudTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Dagster job tags — applied to every run of this job.",
     )
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="If set, this component emits a real materializable "
+        "`@dg.asset` (with `deps`) instead of a plain op-job — so the "
+        "triggered dbt Cloud run can sit in the asset graph with upstream "
+        "dependencies, be targeted by automation conditions, etc. `job_name` "
+        "is ignored when this is set (no op-job/schedule is created). Richer "
+        "per-run trigger fields (`cause`/`schema_override`/`git_branch`/"
+        "`git_sha`) are still forwarded via the real dbt Cloud REST API's "
+        "trigger-run endpoint; `enriched_dbt_cloud_workspace`'s own "
+        "`mirror_jobs: executable` mode only forwards `steps_override` to "
+        "the newer Cloud v2 client, so use this instead when you need those.",
+    )
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Upstream asset keys (slash-separated form, e.g. "
+        "'raw/snowpipe_landing'). Only used when `asset_name` is set.",
+    )
+    group_name: Optional[str] = Field(
+        default=None, description="Asset group name. Only used when `asset_name` is set.",
+    )
 
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=(), csv=(), tags=('tags',))
+        return coerce_field_shapes(data, lists=('deps',), csv=(), tags=('tags',))
+
+    @model_validator(mode="after")
+    def _require_job_name_or_asset_name(self):
+        if not self.asset_name and not self.job_name:
+            raise ValueError("Set either `job_name` (op-job shape) or `asset_name` (asset shape).")
+        return self
 
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
         return ComponentFormConfig(label='Dbt Cloud Trigger Job', editable=True)
 
+    def _run_trigger(self, context, resource) -> Dict[str, Any]:
+        """Trigger + (optionally) poll the dbt Cloud job; return a metadata dict.
+        Shared by the op-job shape and the asset shape -- same trigger logic either way."""
+        _self = self
+
+        # Build **kwargs for the dbt Cloud API's `run_job` / `run_job_and_poll`
+        # -- only forward fields the user actually set, so dbt Cloud's own
+        # defaults win otherwise.
+        kwargs: Dict[str, Any] = {"cause": _self.cause}
+        if _self.steps_override is not None:
+            kwargs["steps_override"] = _self.steps_override
+        if _self.schema_override is not None:
+            kwargs["schema_override"] = _self.schema_override
+        if _self.git_branch is not None:
+            kwargs["git_branch"] = _self.git_branch
+        if _self.git_sha is not None:
+            kwargs["git_sha"] = _self.git_sha
+
+        if _self.wait_for_completion:
+            context.log.info(
+                f"Triggering dbt Cloud job {_self.dbt_cloud_job_id} "
+                f"(waiting up to {_self.poll_timeout_seconds or 'unlimited'}s)"
+            )
+            output = resource.run_job_and_poll(
+                job_id=_self.dbt_cloud_job_id,
+                poll_interval=_self.poll_interval_seconds,
+                poll_timeout=_self.poll_timeout_seconds,
+                **kwargs,
+            )
+            # `output` is a DbtCloudOutput with .run_details (dict) +
+            # .result (parsed run_results.json when available).
+            run_details = getattr(output, "run_details", {}) or {}
+            run_id = run_details.get("id")
+            run_url = (
+                run_details.get("href")
+                or resource.build_url_for_job(_self.dbt_cloud_job_id)
+            )
+            status = run_details.get("status_humanized", "unknown")
+            context.log.info(f"dbt Cloud run {run_id} finished: status={status!r}")
+
+            metadata = {
+                "dbt_cloud/run_id": run_id,
+                "dbt_cloud/run_url": dg.MetadataValue.url(run_url) if run_url else "n/a",
+                "dbt_cloud/job_id": _self.dbt_cloud_job_id,
+                "dbt_cloud/status": status,
+            }
+
+            # Emit per-model materialization events so this run edges into
+            # the asset graph. `context.log_event` doesn't require declaring
+            # these as outputs on the op -- cleaner than yielding
+            # AssetMaterialization from a plain @op. (Only meaningful in the
+            # op-job shape; the asset shape already IS an asset.)
+            for key_str in _self.emit_materializations_for or []:
+                context.log_event(
+                    dg.AssetMaterialization(
+                        asset_key=dg.AssetKey.from_user_string(key_str),
+                        description=(
+                            f"Materialized via dbt Cloud job {_self.dbt_cloud_job_id} "
+                            f"(run {run_id})"
+                        ),
+                        metadata={
+                            "dbt_cloud/run_id": run_id,
+                            "dbt_cloud/run_url": dg.MetadataValue.url(run_url) if run_url else "n/a",
+                            "dbt_cloud/status": status,
+                        },
+                    )
+                )
+            return metadata
+        else:
+            context.log.info(
+                f"Triggering dbt Cloud job {_self.dbt_cloud_job_id} (async — not waiting)"
+            )
+            run = resource.run_job(job_id=_self.dbt_cloud_job_id, **kwargs)
+            run_id = run.get("id") if isinstance(run, dict) else None
+            return {
+                "dbt_cloud/run_id": run_id,
+                "dbt_cloud/job_id": _self.dbt_cloud_job_id,
+                "dbt_cloud/mode": "async",
+            }
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         resource_key = self.dbt_cloud_resource_key
+
+        if self.asset_name:
+            @dg.asset(
+                key=dg.AssetKey.from_user_string(self.asset_name),
+                group_name=self.group_name,
+                deps=[dg.AssetKey.from_user_string(d) for d in (self.deps or [])],
+                required_resource_keys={resource_key},
+                description=f"Triggers dbt Cloud job {self.dbt_cloud_job_id} and waits for completion.",
+            )
+            def _dbt_cloud_trigger_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+                resource = getattr(context.resources, resource_key)
+                metadata = _self._run_trigger(context, resource)
+                return dg.MaterializeResult(metadata=metadata)
+
+            return dg.Definitions(assets=[_dbt_cloud_trigger_asset])
 
         @dg.op(
             name=f"{self.job_name}_op",
@@ -175,92 +301,8 @@ class DbtCloudTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _trigger_op(context: dg.OpExecutionContext) -> None:
             resource = getattr(context.resources, resource_key)
-
-            # Build **kwargs for the dbt Cloud API's `run_job` /
-            # `run_job_and_poll` — only forward fields the user actually
-            # set, so dbt Cloud's own defaults win otherwise.
-            kwargs: Dict[str, Any] = {"cause": _self.cause}
-            if _self.steps_override is not None:
-                kwargs["steps_override"] = _self.steps_override
-            if _self.schema_override is not None:
-                kwargs["schema_override"] = _self.schema_override
-            if _self.git_branch is not None:
-                kwargs["git_branch"] = _self.git_branch
-            if _self.git_sha is not None:
-                kwargs["git_sha"] = _self.git_sha
-
-            if _self.wait_for_completion:
-                context.log.info(
-                    f"Triggering dbt Cloud job {_self.dbt_cloud_job_id} "
-                    f"(waiting up to {_self.poll_timeout_seconds or 'unlimited'}s)"
-                )
-                output = resource.run_job_and_poll(
-                    job_id=_self.dbt_cloud_job_id,
-                    poll_interval=_self.poll_interval_seconds,
-                    poll_timeout=_self.poll_timeout_seconds,
-                    **kwargs,
-                )
-                # `output` is a DbtCloudOutput with .run_details (dict) +
-                # .result (parsed run_results.json when available).
-                run_details = getattr(output, "run_details", {}) or {}
-                run_id = run_details.get("id")
-                run_url = (
-                    run_details.get("href")
-                    or resource.build_url_for_job(_self.dbt_cloud_job_id)
-                )
-                status = run_details.get("status_humanized", "unknown")
-                context.log.info(
-                    f"dbt Cloud run {run_id} finished: status={status!r}"
-                )
-
-                context.add_output_metadata(
-                    {
-                        "dbt_cloud/run_id": run_id,
-                        "dbt_cloud/run_url": (
-                            dg.MetadataValue.url(run_url) if run_url else "n/a"
-                        ),
-                        "dbt_cloud/job_id": _self.dbt_cloud_job_id,
-                        "dbt_cloud/status": status,
-                    }
-                )
-
-                # Emit per-model materialization events so this run edges
-                # into the asset graph. `context.log_event` doesn't require
-                # declaring these as outputs on the op — cleaner than
-                # yielding AssetMaterialization from a plain @op.
-                for key_str in _self.emit_materializations_for or []:
-                    context.log_event(
-                        dg.AssetMaterialization(
-                            asset_key=dg.AssetKey.from_user_string(key_str),
-                            description=(
-                                f"Materialized via dbt Cloud job "
-                                f"{_self.dbt_cloud_job_id} (run {run_id})"
-                            ),
-                            metadata={
-                                "dbt_cloud/run_id": run_id,
-                                "dbt_cloud/run_url": (
-                                    dg.MetadataValue.url(run_url)
-                                    if run_url
-                                    else "n/a"
-                                ),
-                                "dbt_cloud/status": status,
-                            },
-                        )
-                    )
-            else:
-                context.log.info(
-                    f"Triggering dbt Cloud job {_self.dbt_cloud_job_id} "
-                    f"(async — not waiting)"
-                )
-                run = resource.run_job(job_id=_self.dbt_cloud_job_id, **kwargs)
-                run_id = run.get("id") if isinstance(run, dict) else None
-                context.add_output_metadata(
-                    {
-                        "dbt_cloud/run_id": run_id,
-                        "dbt_cloud/job_id": _self.dbt_cloud_job_id,
-                        "dbt_cloud/mode": "async",
-                    }
-                )
+            metadata = _self._run_trigger(context, resource)
+            context.add_output_metadata(metadata)
 
         @dg.job(name=self.job_name, tags=self.tags or None)
         def _the_job() -> None:

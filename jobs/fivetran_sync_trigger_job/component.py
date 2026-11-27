@@ -57,8 +57,8 @@ def _require_env(name: str) -> str:
 class FivetranSyncTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
     """Trigger a Fivetran connector sync via REST API."""
 
-    job_name: str = Field(description="Dagster job name")
-    schedule: Optional[str] = Field(default=None, description="Cron schedule (None = no schedule)")
+    job_name: Optional[str] = Field(default=None, description="Dagster job name. Required unless `asset_name` is set.")
+    schedule: Optional[str] = Field(default=None, description="Cron schedule (None = no schedule). Ignored when `asset_name` is set.")
     default_status: str = Field(default="STOPPED", description="STOPPED | RUNNING")
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Dagster job tags")
 
@@ -66,31 +66,105 @@ class FivetranSyncTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
     api_secret_env: str = Field(default="FIVETRAN_API_SECRET")
     connector_id: str = Field(description="Fivetran connector ID")
     force: bool = Field(default=False, description="Sync even if no changes detected")
+    wait_for_completion: bool = Field(
+        default=False,
+        description="Poll the connector's GET endpoint until the sync finishes. Fivetran's API "
+        "has no discrete sync/job id -- completion is detected by comparing `succeeded_at`/"
+        "`failed_at` timestamps (and `status.sync_state`) against the values recorded just "
+        "before triggering, per Fivetran's own documented poll-for-completion pattern.",
+    )
+    poll_interval_seconds: int = Field(default=15)
+    timeout_seconds: int = Field(default=3600)
+
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="If set, this component emits a real materializable `@dg.asset` (with "
+        "`deps`) instead of a plain op-job. `job_name`/`schedule` are ignored when this is set.",
+    )
+    deps: Optional[List[str]] = Field(default=None, description="Upstream asset keys. Only used when `asset_name` is set.")
+    group_name: Optional[str] = Field(default=None, description="Asset group name. Only used when `asset_name` is set.")
 
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=(), csv=(), tags=('tags',))
+        return coerce_field_shapes(data, lists=('deps',), csv=(), tags=('tags',))
 
+    @model_validator(mode="after")
+    def _require_job_name_or_asset_name(self):
+        if not self.asset_name and not self.job_name:
+            raise ValueError("Set either `job_name` (op-job shape) or `asset_name` (asset shape).")
+        return self
 
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
         return ComponentFormConfig(label='Fivetran Sync Trigger Job', editable=True)
 
+    def _trigger_and_wait(self, context) -> Dict[str, Any]:
+        """Trigger the sync, optionally poll to completion; return a metadata dict.
+        Shared by the op-job shape and the asset shape.
+
+        Fivetran's API has no sync/job id to poll directly -- the documented pattern
+        (fivetran.com/docs/rest-api/how-to/run-manual-sync-and-poll-for-completion) is to
+        record `succeeded_at`/`failed_at` before triggering, then poll the connector GET
+        endpoint until one of them changes."""
+        import requests, time
+        auth = (_require_env(self.api_key_env), _require_env(self.api_secret_env))
+        base_url = f"https://api.fivetran.com/v1/connectors/{self.connector_id}"
+
+        baseline_succeeded_at = baseline_failed_at = None
+        if self.wait_for_completion:
+            gr = requests.get(base_url, auth=auth, timeout=30)
+            if gr.status_code >= 300:
+                raise Exception(f"fivetran connector lookup failed: {gr.status_code} {gr.text[:200]}")
+            data = gr.json().get("data", {})
+            baseline_succeeded_at = data.get("succeeded_at")
+            baseline_failed_at = data.get("failed_at")
+
+        r = requests.post(f"{base_url}/force", json={"force": self.force}, auth=auth, timeout=60)
+        if r.status_code >= 300:
+            raise Exception(f"fivetran trigger failed: {r.status_code} {r.text[:200]}")
+        context.log.info(f"triggered {self.connector_id}")
+
+        status = "triggered"
+        if self.wait_for_completion:
+            deadline = time.time() + self.timeout_seconds
+            while time.time() < deadline:
+                time.sleep(self.poll_interval_seconds)
+                gr = requests.get(base_url, auth=auth, timeout=30)
+                data = gr.json().get("data", {})
+                succeeded_at, failed_at = data.get("succeeded_at"), data.get("failed_at")
+                sync_state = (data.get("status") or {}).get("sync_state")
+                context.log.info(f"poll: sync_state={sync_state} succeeded_at={succeeded_at} failed_at={failed_at}")
+                if failed_at and failed_at != baseline_failed_at:
+                    raise Exception(f"fivetran connector {self.connector_id} sync failed at {failed_at}")
+                if succeeded_at and succeeded_at != baseline_succeeded_at:
+                    status = "succeeded"
+                    break
+            else:
+                raise Exception(f"timed out waiting for connector {self.connector_id} to finish syncing")
+
+        return {"fivetran/connector_id": self.connector_id, "fivetran/status": status}
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
+        if self.asset_name:
+            @dg.asset(
+                key=dg.AssetKey.from_user_string(self.asset_name),
+                group_name=self.group_name,
+                deps=[dg.AssetKey.from_user_string(d) for d in (self.deps or [])],
+                description=f"Triggers a Fivetran sync for connector {self.connector_id}.",
+            )
+            def _fivetran_trigger_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+                metadata = _self._trigger_and_wait(context)
+                return dg.MaterializeResult(metadata=metadata)
+
+            return dg.Definitions(assets=[_fivetran_trigger_asset])
+
         @dg.op(name=f"{self.job_name}_op")
         def _the_op(context: dg.OpExecutionContext):
-            self = _self  # so body can use `self.<field>`
-            import requests, os
-            auth = (_require_env(self.api_key_env), _require_env(self.api_secret_env))
-            url = f"https://api.fivetran.com/v1/connectors/{self.connector_id}/force"
-            r = requests.post(url, json={"force": self.force}, auth=auth, timeout=60)
-            if r.status_code >= 300:
-                raise Exception(f"fivetran trigger failed: {r.status_code} {r.text[:200]}")
-            context.log.info(f"triggered {self.connector_id}")
+            context.add_output_metadata(_self._trigger_and_wait(context))
 
         @dg.job(name=self.job_name, tags=self.tags or None)
         def _the_job():

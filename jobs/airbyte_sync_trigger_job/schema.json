@@ -81,6 +81,27 @@
       "description": "Timeout Seconds",
       "required": false,
       "default": 3600
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "If set, this component emits a real materializable `@dg.asset` (with `deps`) instead of a plain op-job, returning the real Airbyte job id in metadata. `job_name`/`schedule` are ignored when this is set. For connections managed by a declared Airbyte workspace, `integrations/airbyte_assets` (the official `dagster_airbyte` wrapper) is usually the better fit -- this component is for triggering a self-hosted/legacy Airbyte instance directly via its basic-auth `/api/v1/` REST endpoints, which is a different auth/API surface.",
+      "required": false
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name. Only used when `asset_name` is set.",
+      "required": false
     }
   }
 }

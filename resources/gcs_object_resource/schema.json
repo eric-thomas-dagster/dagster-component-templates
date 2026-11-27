@@ -1,0 +1,34 @@
+{
+  "component_type": "dagster_community_components.GcsObjectResourceComponent",
+  "description": "Register a GcsObjectResource (upload/download/list/delete/exists for objects within a bucket) for use by other components -- fills the gap left by gcs_resource (raw client only) and gcs_bucket_resource (bucket lifecycle only).",
+  "category": "resource",
+  "icon": "si:googlecloudstorage",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "gcs_object_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "gcs_object_resource"
+    },
+    "credentials_env_var": {
+      "type": "string",
+      "label": "Credentials Env Var",
+      "description": "Env var holding a path to a GCP service account JSON key file. Unset uses application-default credentials (same convention as gcs_bucket_resource's credentials_env_var).",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "gcp",
+    "gcs",
+    "storage"
+  ],
+  "name": "GCS Object Resource"
+}

@@ -627,6 +627,7 @@ _CLASS_PATHS: dict[str, str] = {
     "GcpAuditLogIngestionComponent": "ingestion/gcp_audit_log_ingestion/component.py",
     "GcpDeploymentManagerAssetComponent": "assets/infrastructure/gcp_deployment_manager_asset/component.py",
     "GcsBucketResourceComponent": "resources/gcs_bucket_resource/component.py",
+    "GcsObjectResourceComponent": "resources/gcs_object_resource/component.py",
     "SQLUrlResourceComponent": "resources/sql_url_resource/component.py",
     "GcsCleanupJobComponent": "jobs/gcs_cleanup_job/component.py",
     "GcsObservationSensorComponent": "observations/gcs_observation_sensor/component.py",

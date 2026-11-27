@@ -30853,6 +30853,57 @@
       ]
     },
     {
+      "id": "gcs_object_resource",
+      "name": "GCS Object Resource",
+      "category": "resource",
+      "description": "Register a GcsObjectResource (upload/download/list/delete/exists for objects within a bucket) for use by other components -- fills the gap left by gcs_resource (raw client only) and gcs_bucket_resource (bucket lifecycle only).",
+      "path": "resources/gcs_object_resource",
+      "tags": [
+        "resource",
+        "gcp",
+        "gcs",
+        "storage"
+      ],
+      "icon": "si:googlecloudstorage",
+      "type": "dagster_community_components.GcsObjectResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_object_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_object_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_object_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_object_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_object_resource/requirements.txt",
+      "component_type": "dagster_community_components.GcsObjectResourceComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-28"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-storage"
+        ]
+      },
+      "produces": [
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "gcs_object_resource"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "Register a GcsObjectResource (upload/download/list/delete/exists) for use by other components",
+        "requires_pip": [
+          "google-cloud-storage"
+        ]
+      },
+      "keywords": [
+        "connection",
+        "connect"
+      ]
+    },
+    {
       "id": "sql_url_resource",
       "name": "SQL URL Resource",
       "category": "resource",
@@ -78373,5 +78424,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1493
+  "total": 1494
 }

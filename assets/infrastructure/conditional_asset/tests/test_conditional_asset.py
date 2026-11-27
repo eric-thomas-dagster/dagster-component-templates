@@ -3,11 +3,26 @@ asserting actual STEP_SKIPPED/STEP_SUCCESS outcomes (the real, verified Dagster 
 component is built on), not just construction.
 """
 import importlib
+import sys
+from pathlib import Path
 
 import dagster as dg
 import pytest
 
 from .conftest import load_component_module, step_statuses
+
+# `FIXTURES_PATH` is a real dotted-import path, so it needs the repo root on sys.path --
+# true when pytest runs from the repo root, not guaranteed when invoked from elsewhere
+# (e.g. this component's own directory). Make it robust to either by walking up from this
+# file to the repo root (marked by manifest.json) and adding it to sys.path ourselves,
+# rather than relying on the caller's cwd.
+_repo_root = Path(__file__).resolve()
+for _parent in _repo_root.parents:
+    if (_parent / "manifest.json").exists():
+        _repo_root = _parent
+        break
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
 FIXTURES_PATH = "assets.infrastructure.conditional_asset.tests.fixture_callables"
 

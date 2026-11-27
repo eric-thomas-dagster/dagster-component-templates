@@ -1,13 +1,69 @@
 """Slack Resource component."""
+from typing import Any, Dict, Optional
+
 import dagster as dg
 from pydantic import Field
 
 
+class SlackPostResource(dg.ConfigurableResource):
+    """Post messages to Slack -- via a bot token (real `chat.postMessage` Web API call,
+    same `slack_sdk.WebClient` convention this repo's `slack_reply`/`slack_chat_tools`
+    already use) or via an incoming-webhook URL. Also exposes `get_client()` for anything
+    that needs the raw `slack_sdk.WebClient`, same as `dagster_slack.SlackResource`."""
+
+    token: Optional[str] = None
+    webhook_url: Optional[str] = None
+
+    def get_client(self):
+        """Returns a real `slack_sdk.WebClient` built from the configured token."""
+        from slack_sdk import WebClient
+        if not self.token:
+            raise ValueError("slack_resource: get_client() requires a bot token; none configured.")
+        return WebClient(token=self.token)
+
+    def post_message(
+        self,
+        channel: Optional[str] = None,
+        text: Optional[str] = None,
+        blocks: Optional[Any] = None,
+        webhook_url: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Post one message. Uses `webhook_url` (param, falling back to the configured one) if
+        set, else the real Slack `chat.postMessage` Web API via a `slack_sdk.WebClient` built
+        from the configured bot token. `channel` is required for the token path, ignored
+        (the webhook already targets a channel) for the webhook path."""
+        url = webhook_url or self.webhook_url
+        if url:
+            import requests
+            payload: Dict[str, Any] = {}
+            if text is not None:
+                payload["text"] = text
+            if blocks is not None:
+                payload["blocks"] = blocks
+            payload.update(kwargs)
+            resp = requests.post(url, json=payload, timeout=30)
+            if resp.status_code != 200 or resp.text != "ok":
+                raise RuntimeError(f"Slack webhook post failed: {resp.status_code} {resp.text!r}")
+            return {"ok": True, "via": "webhook"}
+
+        if not channel:
+            raise ValueError("slack_resource: post_message() requires `channel` when posting via a bot token.")
+        client = self.get_client()
+        resp = client.chat_postMessage(channel=channel, text=text, blocks=blocks, **kwargs)
+        if not resp.get("ok", True) or resp.get("error"):
+            raise RuntimeError(f"Slack chat_postMessage failed: {resp.get('error')}")
+        return dict(resp.data) if hasattr(resp, "data") else dict(resp)
+
+
 class SlackResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Register a dagster-slack SlackResource for use by other components."""
+    """Register a SlackPostResource (bot-token `chat.postMessage`, or an incoming-webhook URL)
+    for use by other components, ops, or assets. `get_client()` still returns a real
+    `slack_sdk.WebClient`, same contract as the official `dagster_slack.SlackResource`."""
 
     resource_key: str = Field(default="slack_resource", description="Key used to register this resource. Other components reference it via resource_key.")
-    token_env_var: str = Field(description="Environment variable holding the Slack bot token (xoxb-...)")
+    token_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Slack bot token (xoxb-...). Omit if using webhook_url_env_var instead.")
+    webhook_url_env_var: Optional[str] = Field(default=None, description="Environment variable holding a Slack incoming-webhook URL. Omit if using token_env_var instead.")
 
     @classmethod
     def get_form_config(cls):
@@ -15,6 +71,8 @@ class SlackResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label='Slack Resource', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        from dagster_slack import SlackResource
-        resource = SlackResource(token=dg.EnvVar(self.token_env_var))
+        resource = SlackPostResource(
+            token=dg.EnvVar(self.token_env_var) if self.token_env_var else None,
+            webhook_url=dg.EnvVar(self.webhook_url_env_var) if self.webhook_url_env_var else None,
+        )
         return dg.Definitions(resources={self.resource_key: resource})

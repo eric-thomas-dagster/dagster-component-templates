@@ -17,12 +17,27 @@ already documents). BAPI_XMI_LOGON/BAPI_XMI_CLOSE and the BAPI_XBP_* family are
 SAP's own publicly documented External Interface for job scheduling (XBP),
 not a guess at an undocumented API. The exact shape of each BAPI's RETURN
 table (TYPE/ID/NUMBER/MESSAGE) follows SAP's standard BAPI convention and is
-checked generically. The RSPC_API_* process-chain function modules are
-widely used in practice (BW consulting references, not an SAP-supported
-external interface the way XBP is) -- confirm they exist on your BW release
-before relying on process_chain mode. `status_field`/`success_statuses`/
+checked generically.
+
+The RSPC_API_* process-chain function modules are widely used in practice
+(BW consulting references and third-party function-module catalogs, not an
+SAP-supported external interface the way XBP is) -- confirm their exact
+signature on your BW release before relying on process_chain mode. Their
+importing/exporting parameter names below (I_CHAIN/I_LOGID/E_LOGID/E_STATUS/
+E_T_LOG) are taken from those community/catalog sources, not SAP's own
+documentation, so they are more trustworthy than a guess but still worth
+checking against SE37 on your system: RSPC_API_CHAIN_START takes I_CHAIN
+(+ optional I_T_VARIABLES/I_SYNCHRONOUS/I_SIMULATE/I_NOPLAN), returns
+E_LOGID, and raises the ABAP exception FAILED on error (surfaced by the RFC
+layer itself, not a RETURN table). RSPC_API_CHAIN_GET_STATUS (not
+RSPC_API_CHAIN_STATUS, which does not exist) takes I_CHAIN/I_LOGID and
+returns E_STATUS/E_MANUAL_ABORT/E_MESSAGE. RSPC_API_CHAIN_GET_LOG (not
+RSPC_API_CHAIN_VIEW_LOG, which does not exist) takes I_CHAIN/I_LOGID and
+returns a table, E_T_LOG. `status_field`/`success_statuses`/
 `failure_statuses` are deliberately configurable rather than hardcoded,
-since the exact status vocabulary a given system returns can vary.
+since the exact status vocabulary a given system returns can vary --
+process_chain's defaults (G/F success, R/X/J failure) are themselves
+forum-sourced, not SAP-documented.
 """
 import time
 from datetime import datetime, timezone
@@ -158,7 +173,7 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     **`target_type: process_chain`** -- starts a BW process chain
     (`RSPC_API_CHAIN_START`) and polls its status
-    (`RSPC_API_CHAIN_STATUS`), reading `RSPC_API_CHAIN_VIEW_LOG` on failure.
+    (`RSPC_API_CHAIN_GET_STATUS`), reading `RSPC_API_CHAIN_GET_LOG` on failure.
 
     ```yaml
     type: dagster_community_components.SapJobTriggerAssetComponent
@@ -252,18 +267,23 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=3600,
         description="Max seconds to wait for the job/chain to finish before raising a timeout error.",
     )
-    status_field: str = Field(
-        default="STATUS",
-        description="Field name read off the status-poll response (BAPI_XBP_JOB_STATUS_GET / RSPC_API_CHAIN_STATUS) to determine job/chain state.",
+    status_field: Optional[str] = Field(
+        default=None,
+        description=(
+            "Field name read off the status-poll response to determine job/chain state. Defaults "
+            "by target_type when unset: background_job -> 'STATUS' (BAPI_XBP_JOB_STATUS_GET's "
+            "documented one-character STATUS code); process_chain -> 'E_STATUS' "
+            "(RSPC_API_CHAIN_GET_STATUS's exporting parameter)."
+        ),
     )
     success_statuses: Optional[List[str]] = Field(
         default=None,
         description=(
             "status_field values (case-insensitive) treated as success. Defaults by target_type "
             "when unset: background_job -> ['F'] (BAPI_XBP_JOB_STATUS_GET's documented "
-            "one-character STATUS code for 'finished'); process_chain -> "
-            "['FINISHED','COMPLETED','GREEN'] (unverified -- RSPC_API_CHAIN_STATUS's vocabulary "
-            "isn't SAP-documented; confirm on your BW system)."
+            "one-character STATUS code for 'finished'); process_chain -> ['G','F'] (forum-sourced "
+            "RSPCLOGCHAIN/RSPC_API_CHAIN_GET_STATUS codes for 'completed' -- not SAP-documented; "
+            "confirm on your BW system)."
         ),
     )
     failure_statuses: Optional[List[str]] = Field(
@@ -271,7 +291,8 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description=(
             "status_field values (case-insensitive) treated as failure. Any other value keeps "
             "polling. Defaults by target_type when unset: background_job -> ['A'] ('cancelled'); "
-            "process_chain -> ['ABORTED','CANCELLED','RED','ERROR','FAILED'] (unverified)."
+            "process_chain -> ['R','X','J'] (forum-sourced 'ended with errors'/'cancelled' codes "
+            "-- not SAP-documented)."
         ),
     )
     trigger_params: Optional[Dict[str, Any]] = Field(
@@ -353,10 +374,12 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     @model_validator(mode="after")
     def _apply_status_defaults(self):
+        if self.status_field is None:
+            self.status_field = "STATUS" if self.target_type == "background_job" else "E_STATUS"
         if self.success_statuses is None:
-            self.success_statuses = ["F"] if self.target_type == "background_job" else ["FINISHED", "COMPLETED", "GREEN"]
+            self.success_statuses = ["F"] if self.target_type == "background_job" else ["G", "F"]
         if self.failure_statuses is None:
-            self.failure_statuses = ["A"] if self.target_type == "background_job" else ["ABORTED", "CANCELLED", "RED", "ERROR", "FAILED"]
+            self.failure_statuses = ["A"] if self.target_type == "background_job" else ["R", "X", "J"]
         return self
 
     @classmethod
@@ -517,24 +540,33 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                             except Exception as e:
                                 return f"(could not read job log: {e})"
                     else:
-                        params = {"CHAIN_ID": component.process_chain_id}
+                        params = {"I_CHAIN": component.process_chain_id}
                         params.update(component.trigger_params or {})
                         start_result = conn.call("RSPC_API_CHAIN_START", **params)
-                        run_id = str(start_result.get("LOG_ID") or start_result.get("RUN_ID") or component.process_chain_id)
+                        run_id = str(start_result.get("E_LOGID") or component.process_chain_id)
                         context.log.info(
                             f"SAP process chain triggered. process_chain_id={component.process_chain_id} run_id={run_id}"
                         )
 
                         def _poll():
-                            return conn.call("RSPC_API_CHAIN_STATUS", CHAIN_ID=component.process_chain_id, LOG_ID=run_id)
+                            return conn.call(
+                                "RSPC_API_CHAIN_GET_STATUS", I_CHAIN=component.process_chain_id, I_LOGID=run_id,
+                            )
 
                         def _joblog():
                             try:
                                 log_result = conn.call(
-                                    "RSPC_API_CHAIN_VIEW_LOG", CHAIN_ID=component.process_chain_id, LOG_ID=run_id,
+                                    "RSPC_API_CHAIN_GET_LOG", I_CHAIN=component.process_chain_id, I_LOGID=run_id,
                                 )
-                                lines = log_result.get("MESSAGES") or log_result.get("LOG") or []
-                                return "\n".join(str(l.get("MESSAGE", l)) if isinstance(l, dict) else str(l) for l in lines)
+                                lines = log_result.get("E_T_LOG") or []
+                                def _line_text(l):
+                                    if not isinstance(l, dict):
+                                        return str(l)
+                                    for key in ("MESSAGE", "MSGTEXT", "TEXT", "VALUE"):
+                                        if key in l:
+                                            return str(l[key])
+                                    return str(l)
+                                return "\n".join(_line_text(l) for l in lines)
                             except Exception as e:
                                 return f"(could not read process chain log: {e})"
 
@@ -549,6 +581,13 @@ class SapJobTriggerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                             continue
                         raw_status = str(status_data.get(component.status_field, "")).strip().upper()
                         context.log.info(f"SAP {component.target_type} {run_id} status: {raw_status or '(empty)'}")
+                        if component.target_type == "process_chain" and isinstance(status_data, dict) and status_data.get("E_MANUAL_ABORT"):
+                            # RSPC_API_CHAIN_GET_STATUS's manual-abort flag -- treat as failure even
+                            # if E_STATUS hasn't settled into one of failure_statuses yet.
+                            log_text = _joblog()
+                            raise Exception(
+                                f"SAP process_chain {run_id} manually aborted (E_MANUAL_ABORT). {log_text}"
+                            )
                         if raw_status in {s.upper() for s in component.success_statuses}:
                             return dg.MaterializeResult(metadata={
                                 "sap/target_type": dg.MetadataValue.text(component.target_type),

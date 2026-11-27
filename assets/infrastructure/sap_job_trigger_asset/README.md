@@ -6,7 +6,7 @@ Pairs with [`sap_rfc_resource`](../../../resources/sap_rfc_resource/) which hold
 
 ## Not verified against a live SAP system
 
-No pyrfc/SAP sandbox is available in this repo's development environment — the same constraint `sap_rfc_ingestion` already documents. `BAPI_XMI_LOGON`/`BAPI_XMI_CLOSE` and the `BAPI_XBP_*` family are SAP's own publicly documented **XBP (External Background Processing) interface** — the same one third-party schedulers (RunMyJobs, Control-M, Automic, Redwood) use to trigger and monitor SAP background jobs — not a guess at an undocumented API. Each BAPI's `RETURN` table is checked generically against the standard BAPI convention (`{TYPE, ID, NUMBER, MESSAGE}` structs, `TYPE` in `S`/`W`/`E`/`A`/`I`). The `RSPC_API_*` process-chain function modules are widely used in practice (BW consulting references) but, unlike XBP, are **not** an SAP-supported external interface — confirm they exist on your BW release before relying on `process_chain` mode. `status_field`/`success_statuses`/`failure_statuses` are deliberately configurable rather than hardcoded, since the exact status vocabulary a given system returns can vary by release.
+No pyrfc/SAP sandbox is available in this repo's development environment — the same constraint `sap_rfc_ingestion` already documents. `BAPI_XMI_LOGON`/`BAPI_XMI_CLOSE` and the `BAPI_XBP_*` family are SAP's own publicly documented **XBP (External Background Processing) interface** — the same one third-party schedulers (RunMyJobs, Control-M, Automic, Redwood) use to trigger and monitor SAP background jobs — not a guess at an undocumented API. Each BAPI's `RETURN` table is checked generically against the standard BAPI convention (`{TYPE, ID, NUMBER, MESSAGE}` structs, `TYPE` in `S`/`W`/`E`/`A`/`I`). The `RSPC_API_*` process-chain function modules are widely used in practice (BW consulting references and third-party function-module catalogs such as se80.co.uk/sapdatasheet.org) but, unlike XBP, are **not** an SAP-supported external interface — confirm their exact signature on your BW release before relying on `process_chain` mode. Their parameter names below (`I_CHAIN`/`I_LOGID`/`E_LOGID`/`E_STATUS`/`E_MANUAL_ABORT`/`E_T_LOG`) come from those community/catalog sources, not SAP's own documentation, so they're a real improvement over guessing but still worth checking in SE37 on your system. `status_field`/`success_statuses`/`failure_statuses` are deliberately configurable rather than hardcoded, since the exact status vocabulary a given system returns can vary by release — `process_chain`'s defaults (`G`/`F` success, `R`/`X`/`J` failure) are themselves forum-sourced, not SAP-documented.
 
 The exact XBP call signatures (`BAPI_XMI_LOGON` requiring `EXTCOMPANY`/`EXTPRODUCT`, `EXTERNAL_USER_NAME` on every job call, `BAPI_XBP_JOB_ADD_ABAP_STEP`/`_START_IMMEDIATELY`/`_JOBLOG_READ`'s real names and parameters, and `BAPI_XBP_JOB_STATUS_GET`'s one-character `STATUS` vocabulary) were checked against SAP's XBP 6.10 interface documentation and corrected to match it. Still confirm against a current ABAP system before relying on this in production — XBP 2.0 has been stable for a long time, but the documentation used to check this is old.
 
@@ -40,7 +40,7 @@ On failure, the asset raises with the job's own log (`BAPI_XBP_JOB_JOBLOG_READ`)
 
 ## `target_type: process_chain`
 
-Starts a BW process chain and polls its status:
+Starts a BW process chain (`RSPC_API_CHAIN_START`, `I_CHAIN=process_chain_id`) and polls its status (`RSPC_API_CHAIN_GET_STATUS`, `I_CHAIN`/`I_LOGID`):
 
 ```yaml
 type: dagster_community_components.SapJobTriggerAssetComponent
@@ -51,13 +51,13 @@ attributes:
   process_chain_id: ZDAILY_LOAD_CHAIN
 ```
 
-On failure, the asset raises with the chain's own log (`RSPC_API_CHAIN_VIEW_LOG`) appended.
+On failure, the asset raises with the chain's own log (`RSPC_API_CHAIN_GET_LOG`) appended. If `RSPC_API_CHAIN_GET_STATUS`'s `E_MANUAL_ABORT` flag comes back set, the run is treated as failed immediately, even if `E_STATUS` hasn't yet settled into one of `failure_statuses`.
 
 ## Polling and status vocabulary
 
 `poll_interval_seconds` / `timeout_seconds` bound the wait the same way as `abinitio_run_asset` — the poll loop's own `while elapsed < timeout_seconds` enforces the timeout, not a background-thread wrapper. A poll call that itself errors (a transient RFC communication blip) is logged and retried, not treated as job failure.
 
-`status_field` (default `STATUS`) names the field read off each poll response; `success_statuses`/`failure_statuses` classify its value (case-insensitive). Anything not in either list keeps polling — tune these to match what your system's `BAPI_XBP_JOB_STATUS_GET`/`RSPC_API_CHAIN_STATUS` actually returns.
+`status_field` names the field read off each poll response; `success_statuses`/`failure_statuses` classify its value (case-insensitive). Anything not in either list keeps polling. Defaults are per `target_type`: `background_job` reads `STATUS` from `BAPI_XBP_JOB_STATUS_GET` (`['F']` success, `['A']` failure); `process_chain` reads `E_STATUS` from `RSPC_API_CHAIN_GET_STATUS` (`['G','F']` success, `['R','X','J']` failure — forum-sourced, confirm against your system).
 
 ## `run_window`, `pool`, `dry_run`
 
@@ -127,9 +127,9 @@ Same conventions as `sql_asset`/`task_chain_asset`: `run_window` skips cleanly o
 | `xmi_version` | `str` | `"3.0"` | BAPI_XMI_LOGON VERSION value. |
 | `external_user_name` | `str` | `"DAGSTER"` | EXTERNAL_USER_NAME sent on every XBP call -- required by BAPI_XBP_JOB_OPEN / _ADD_ABAP_STEP / _CLOSE / _START_IMMEDIATELY; optional on _STATUS_GET / _JOBLOG_READ (sent there too, for consistency). |
 | `job_class` | `str` | — | Optional ABAP job class (BAPI_XBP_JOB_OPEN's JOBCLASS, e.g. 'A'/'B'/'C'). |
-| `status_field` | `str` | `"STATUS"` | Field name read off the status-poll response (BAPI_XBP_JOB_STATUS_GET / RSPC_API_CHAIN_STATUS) to determine job/chain state. |
-| `success_statuses` | `List[str]` | — | status_field values (case-insensitive) treated as success. Defaults by target_type when unset: background_job -> ['F'] (BAPI_XBP_JOB_STATUS_GET's documented one-character STATUS code for 'finished'); process_chain -> ['F… _(full docs in schema.json + component README)_ |
-| `failure_statuses` | `List[str]` | — | status_field values (case-insensitive) treated as failure. Any other value keeps polling. Defaults by target_type when unset: background_job -> ['A'] ('cancelled'); process_chain -> ['ABORTED','CANCELLED','RED','ERROR','… _(full docs in schema.json + component README)_ |
+| `status_field` | `str` | — | Field name read off the status-poll response to determine job/chain state. Defaults by target_type when unset: background_job -> 'STATUS' (BAPI_XBP_JOB_STATUS_GET's documented one-character STATUS code); process_chain ->… _(full docs in schema.json + component README)_ |
+| `success_statuses` | `List[str]` | — | status_field values (case-insensitive) treated as success. Defaults by target_type when unset: background_job -> ['F'] (BAPI_XBP_JOB_STATUS_GET's documented one-character STATUS code for 'finished'); process_chain -> ['G… _(full docs in schema.json + component README)_ |
+| `failure_statuses` | `List[str]` | — | status_field values (case-insensitive) treated as failure. Any other value keeps polling. Defaults by target_type when unset: background_job -> ['A'] ('cancelled'); process_chain -> ['R','X','J'] (forum-sourced 'ended wi… _(full docs in schema.json + component README)_ |
 | `trigger_params` | `Dict[str, Any]` | — | Extra kwargs merged into the trigger call (e.g. job-step print parameters not covered by variant_name). |
 | `dry_run` | `bool` | `false` | Log what would be triggered and skip opening a connection entirely -- no resource is looked up, no RFC call is made. Output metadata always includes dry_run so a materialization history shows which runs were real. |
 | `run_window` | `str` | — | 'HH:MM-HH:MM tz [day,day,...]' (e.g. '22:00-05:00 Europe/Berlin mon,tue,wed,thu,fri'). Outside this window, the asset SKIPS cleanly instead of triggering or failing -- no SAP job/chain is started, and real downstream dep… _(full docs in schema.json + component README)_ |

@@ -270,8 +270,8 @@ def test_success_and_failure_statuses_default_to_the_documented_one_character_co
 def test_process_chain_success(mod, monkeypatch):
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     conn = FakeRFCConnection({
-        "RSPC_API_CHAIN_START": {"LOG_ID": "LOGID001"},
-        "RSPC_API_CHAIN_STATUS": [{"STATUS": "RUNNING"}, {"STATUS": "GREEN"}],
+        "RSPC_API_CHAIN_START": {"E_LOGID": "LOGID001"},
+        "RSPC_API_CHAIN_GET_STATUS": [{"E_STATUS": "Y"}, {"E_STATUS": "G"}],
     })
     component = _make_component(
         mod, target_type="process_chain", job_name=None, program_name=None, process_chain_id="ZDAILY_LOAD_CHAIN",
@@ -281,31 +281,52 @@ def test_process_chain_success(mod, monkeypatch):
     assert result.success
     md = result.asset_materializations_for_node(asset_def.op.name)[0].metadata
     assert md["sap/run_id"].value == "LOGID001"
-    assert md["sap/status"].value == "GREEN"
+    assert md["sap/status"].value == "G"
     # No XMI logon/close for process_chain mode.
     assert [c[0] for c in conn.calls if c[0].startswith("BAPI_XMI")] == []
+    start_kwargs = conn.calls[0][1]
+    assert start_kwargs == {"I_CHAIN": "ZDAILY_LOAD_CHAIN"}
+    poll_kwargs = conn.calls[1][1]
+    assert poll_kwargs == {"I_CHAIN": "ZDAILY_LOAD_CHAIN", "I_LOGID": "LOGID001"}
 
 
 def test_process_chain_failure_raises_with_log(mod, monkeypatch):
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     conn = FakeRFCConnection({
-        "RSPC_API_CHAIN_START": {"LOG_ID": "LOGID002"},
-        "RSPC_API_CHAIN_STATUS": {"STATUS": "RED"},
-        "RSPC_API_CHAIN_VIEW_LOG": {"MESSAGES": [{"MESSAGE": "process DTP_LOAD failed"}]},
+        "RSPC_API_CHAIN_START": {"E_LOGID": "LOGID002"},
+        "RSPC_API_CHAIN_GET_STATUS": {"E_STATUS": "R"},
+        "RSPC_API_CHAIN_GET_LOG": {"E_T_LOG": [{"MESSAGE": "process DTP_LOAD failed"}]},
     })
     component = _make_component(
         mod, target_type="process_chain", job_name=None, program_name=None, process_chain_id="ZDAILY_LOAD_CHAIN",
     )
     with pytest.raises(Exception, match="process DTP_LOAD failed"):
         _materialize(component, FakeRFCResource(conn))
+    log_kwargs = conn.calls[-1][1]
+    assert log_kwargs == {"I_CHAIN": "ZDAILY_LOAD_CHAIN", "I_LOGID": "LOGID002"}
 
 
-def test_process_chain_statuses_keep_the_unverified_guessed_defaults(mod):
+def test_process_chain_manual_abort_flag_is_treated_as_failure_even_with_a_non_failure_status(mod, monkeypatch):
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    conn = FakeRFCConnection({
+        "RSPC_API_CHAIN_START": {"E_LOGID": "LOGID003"},
+        "RSPC_API_CHAIN_GET_STATUS": {"E_STATUS": "Y", "E_MANUAL_ABORT": True},
+        "RSPC_API_CHAIN_GET_LOG": {"E_T_LOG": [{"MESSAGE": "operator cancelled the chain"}]},
+    })
+    component = _make_component(
+        mod, target_type="process_chain", job_name=None, program_name=None, process_chain_id="ZDAILY_LOAD_CHAIN",
+    )
+    with pytest.raises(Exception, match="manually aborted"):
+        _materialize(component, FakeRFCResource(conn))
+
+
+def test_process_chain_statuses_default_to_the_forum_sourced_codes(mod):
     component = _make_component(
         mod, target_type="process_chain", job_name=None, program_name=None, process_chain_id="X",
     )
-    assert component.success_statuses == ["FINISHED", "COMPLETED", "GREEN"]
-    assert component.failure_statuses == ["ABORTED", "CANCELLED", "RED", "ERROR", "FAILED"]
+    assert component.status_field == "E_STATUS"
+    assert component.success_statuses == ["G", "F"]
+    assert component.failure_statuses == ["R", "X", "J"]
 
 
 # --- config validation ---------------------------------------------------------------------------

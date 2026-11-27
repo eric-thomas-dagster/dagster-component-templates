@@ -89,7 +89,7 @@
     "status_field": {
       "type": "string",
       "label": "Status Field",
-      "description": "Field name read off the status-poll response (BAPI_XBP_JOB_STATUS_GET / RSPC_API_CHAIN_STATUS) to determine job/chain state.",
+      "description": "Field name read off the status-poll response to determine job/chain state. Defaults by target_type when unset: background_job -> 'STATUS' (BAPI_XBP_JOB_STATUS_GET's documented one-character STATUS code); process_chain -> 'E_STATUS' (RSPC_API_CHAIN_GET_STATUS's exporting parameter).",
       "required": false
     },
     "success_statuses": {
@@ -98,7 +98,7 @@
         "type": "string"
       },
       "label": "Success Statuses",
-      "description": "status_field values (case-insensitive) treated as success.",
+      "description": "status_field values (case-insensitive) treated as success. Defaults by target_type when unset: background_job -> ['F']; process_chain -> ['G','F'] (forum-sourced, not SAP-documented).",
       "required": false
     },
     "failure_statuses": {
@@ -107,7 +107,7 @@
         "type": "string"
       },
       "label": "Failure Statuses",
-      "description": "status_field values (case-insensitive) treated as failure. Any other value keeps polling.",
+      "description": "status_field values (case-insensitive) treated as failure. Any other value keeps polling. Defaults by target_type when unset: background_job -> ['A']; process_chain -> ['R','X','J'] (forum-sourced, not SAP-documented).",
       "required": false
     },
     "trigger_params": {

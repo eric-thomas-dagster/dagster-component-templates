@@ -88,11 +88,17 @@ def _derive_decision_asset_key(mode: str, asset_key: Optional[str], branches: Op
         parts[-1] = parts[-1] + "_decision"
         return parts
     # branch mode: auto-derive only if every branch key shares the same parent path: the
-    # decision asset then lives alongside them as "<shared_parent>/decision". Otherwise there's
-    # no single sensible location to put it, so an explicit `decision_asset_key` is required.
+    # decision asset then lives alongside them as "<shared_parent>/decision_<branch leaves>".
+    # The branch leaves (not just the shared parent) are folded into the key so that two
+    # SEPARATE component instances that both happen to branch under the same parent path
+    # don't derive the identical decision key and collide at repository-build time -- each
+    # instance's own distinct set of branch leaf names keeps its derived key unique. Otherwise
+    # there's no single sensible location to put it, so an explicit `decision_asset_key` is
+    # required.
     parent_paths = {tuple(key.split("/")[:-1]) for key in branches.values()}
     if len(parent_paths) == 1:
-        return list(next(iter(parent_paths))) + ["decision"]
+        leaves = sorted(key.split("/")[-1] for key in branches.values())
+        return list(next(iter(parent_paths))) + ["decision_" + "_".join(leaves)]
     raise ValueError(
         "ConditionalAssetComponent: mode='branch' branches don't share a common parent path, "
         "so `decision_asset_key` must be set explicitly."
@@ -157,8 +163,10 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "outcome as metadata -- whether the gate passed (short_circuit) or which branch "
             "was chosen (branch) -- regardless of whether the gated/branch asset(s) "
             "materialize. Auto-derived if omitted: short_circuit -> '<asset_key>_decision'; "
-            "branch -> '<branches' common parent path>/decision' (required explicitly if the "
-            "branches don't share one)."
+            "branch -> '<branches' common parent path>/decision_<sorted branch leaf names>' "
+            "(required explicitly if the branches don't share one). The branch leaf names are "
+            "folded into the auto-derived key so two separate component instances branching "
+            "under the same parent path don't collide on the same decision asset key."
         ),
     )
 

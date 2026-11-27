@@ -72,6 +72,37 @@ def test_successful_synchronous_invoke_parses_json_response(monkeypatch):
     assert "Qualifier" not in call
 
 
+def test_string_payload_is_sent_raw_not_json_wrapped(monkeypatch):
+    client = FakeLambdaClient(response={
+        "StatusCode": 200,
+        "Payload": _FakeStreamingBody(b"{}"),
+    })
+    _patch_client(monkeypatch, client)
+    comp = _comp(payload="raw string body")
+    defs = comp.build_defs(None)
+    result = dg.materialize(list(defs.assets))
+    assert result.success
+
+    call = client.calls[0]
+    # Sent as-is (utf-8), NOT json.dumps("raw string body") which would add quotes.
+    assert call["Payload"] == b"raw string body"
+
+
+def test_list_payload_is_json_encoded(monkeypatch):
+    client = FakeLambdaClient(response={
+        "StatusCode": 200,
+        "Payload": _FakeStreamingBody(b"{}"),
+    })
+    _patch_client(monkeypatch, client)
+    comp = _comp(payload=[1, 2, "three"])
+    defs = comp.build_defs(None)
+    result = dg.materialize(list(defs.assets))
+    assert result.success
+
+    call = client.calls[0]
+    assert json.loads(call["Payload"]) == [1, 2, "three"]
+
+
 def test_function_error_raises_by_default(monkeypatch):
     client = FakeLambdaClient(response={
         "StatusCode": 200,

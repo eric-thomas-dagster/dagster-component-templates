@@ -40,7 +40,7 @@
     "payload": {
       "type": "object",
       "label": "Payload",
-      "description": "Static JSON payload sent as the Lambda event. Mutually exclusive with payload_template.",
+      "description": "Static payload sent as the Lambda event. A dict or list is JSON-encoded; a str is sent as-is (utf-8), unwrapped, for a function expecting a raw string body. Mutually exclusive with payload_template.",
       "required": false
     },
     "payload_template": {

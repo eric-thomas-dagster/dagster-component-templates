@@ -247,10 +247,26 @@ def _make_lambda_client(region_name: Optional[str], aws_profile: Optional[str]):
     return session.client("lambda")
 
 
+def _encode_lambda_payload(payload: Optional[Union[Dict[str, Any], List[Any], str]]) -> bytes:
+    """Encode an invoke payload for the real boto3 `Payload` (blob) argument.
+
+    dict/list -> JSON-encoded, the common "event payload" shape. str is sent
+    as-is (utf-8 encoded) without JSON-wrapping, since some Lambda functions
+    expect a raw string body rather than a JSON-encoded string.
+    """
+    import json
+
+    if payload is None:
+        return json.dumps({}).encode("utf-8")
+    if isinstance(payload, str):
+        return payload.encode("utf-8")
+    return json.dumps(payload).encode("utf-8")
+
+
 def _invoke_lambda(
     client,
     function_name: str,
-    payload: Dict[str, Any],
+    payload: Optional[Union[Dict[str, Any], List[Any], str]],
     invocation_type: str,
     qualifier: Optional[str],
     include_logs: bool,
@@ -263,7 +279,7 @@ def _invoke_lambda(
     kwargs: Dict[str, Any] = {
         "FunctionName": function_name,
         "InvocationType": invocation_type,
-        "Payload": json.dumps(payload).encode("utf-8"),
+        "Payload": _encode_lambda_payload(payload),
     }
     if qualifier:
         kwargs["Qualifier"] = qualifier
@@ -315,7 +331,7 @@ class LambdaInvokeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     region_name: Optional[str] = Field(default=None, description="AWS region, e.g. 'us-east-1'. Omit to use the default boto3 credential/region chain (env vars, profile config, instance role).")
     aws_profile: Optional[str] = Field(default=None, description="Named AWS profile. Omit to use the default boto3 credential chain (env vars, instance role, etc.).")
 
-    payload: Optional[Dict[str, Any]] = Field(default=None, description="Static JSON payload sent as the Lambda event. Mutually exclusive with payload_template.")
+    payload: Optional[Union[Dict[str, Any], List[Any], str]] = Field(default=None, description="Static payload sent as the Lambda event. A dict or list is JSON-encoded; a str is sent as-is (utf-8), unwrapped, for a function expecting a raw string body. Mutually exclusive with payload_template.")
     payload_template: Optional[str] = Field(
         default=None,
         description=(
@@ -452,9 +468,9 @@ class LambdaInvokeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _lambda_invoke_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             self = _self
-            payload: Dict[str, Any] = {}
+            payload: Optional[Union[Dict[str, Any], List[Any], str]] = None
             if self.payload is not None:
-                payload = dict(self.payload)
+                payload = self.payload
             elif self.payload_template is not None:
                 import json as _json
                 from jinja2 import Template

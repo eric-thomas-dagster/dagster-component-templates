@@ -118,3 +118,38 @@ def test_component_env_var_connection_url_resolves_in_a_real_run(mod, db_url, mo
 
     assert result.success
     assert box["rows"] == [{"one": 1}]
+
+
+def test_execute_literal_colon_in_string_with_no_params_does_not_raise(mod, db_url):
+    """A `:name`-shaped substring inside a string literal, with no params supplied,
+    must not be mistaken for an unfilled bind parameter (regression -- previously
+    always went through text(), which parses `:ab` as a placeholder regardless)."""
+    resource = mod.SQLUrlResource(connection_url=db_url)
+
+    rows = resource.execute("SELECT ':ab' AS x")
+
+    assert rows == [{"x": ":ab"}]
+
+
+def test_execute_real_named_params_still_work_after_the_fix(mod, db_url):
+    resource = mod.SQLUrlResource(connection_url=db_url)
+    _seed(resource, mod)
+
+    rows = resource.execute("SELECT name FROM users WHERE id = :id", {"id": 2})
+
+    assert rows == [{"name": "Bea"}]
+
+
+def test_execute_literal_colon_alongside_real_params_is_a_known_limitation(mod, db_url):
+    """When params ARE supplied, text() parsing is unavoidable (that's how the real
+    substitution happens), so an unrelated literal colon in the same query string can
+    still collide with the `:name` syntax. This is a documented SQLAlchemy/DBAPI
+    limitation, not something this resource silently papers over -- assert it still
+    raises rather than silently returning a wrong result."""
+    from sqlalchemy.exc import StatementError
+
+    resource = mod.SQLUrlResource(connection_url=db_url)
+    _seed(resource, mod)
+
+    with pytest.raises(StatementError):
+        resource.execute("SELECT ':unbound', name FROM users WHERE id = :id", {"id": 1})

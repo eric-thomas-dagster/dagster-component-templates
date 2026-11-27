@@ -27,12 +27,27 @@ class SQLUrlResource(dg.ConfigurableResource):
 
     def execute(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Run a query and return rows as a list of dicts. A SELECT's rows are
-        returned; DDL/DML (no rows) returns an empty list after committing."""
+        returned; DDL/DML (no rows) returns an empty list after committing.
+
+        When `params` is omitted, the query is sent via the DBAPI driver directly
+        (`Connection.exec_driver_sql`), bypassing SQLAlchemy's `:name` bind-parameter
+        parsing entirely -- so a literal colon in a string, e.g. `SELECT ':ab'`, is
+        never mistaken for an unfilled bind parameter. When `params` IS supplied,
+        `text(query)` is used so the named substitution actually happens; this means
+        a query that both uses real `:name` params AND contains an unrelated literal
+        colon in the same string can still collide (SQLAlchemy/DBAPI's `:name` syntax
+        can't otherwise distinguish a real placeholder from one inside a literal) --
+        a known limitation of named-parameter SQL, not something this resource works
+        around.
+        """
         from sqlalchemy import text
 
         engine = self.get_engine()
         with engine.connect() as conn:
-            result = conn.execute(text(query), params or {})
+            if params:
+                result = conn.execute(text(query), params)
+            else:
+                result = conn.exec_driver_sql(query)
             if result.returns_rows:
                 rows = [dict(row._mapping) for row in result]
             else:

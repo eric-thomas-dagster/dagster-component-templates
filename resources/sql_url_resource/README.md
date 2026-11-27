@@ -70,3 +70,14 @@ def my_asset(sql_url_resource: SQLUrlResource):
 returns an empty list). Any SQLAlchemy URL scheme whose driver is installed works --
 postgresql, mysql, mssql, sqlite, snowflake, bigquery, a `postgresql+psycopg2://` URL for
 Redshift, duckdb, and others -- this resource doesn't restrict the dialect itself.
+
+**A note on `:name` syntax and string literals.** When `params` is omitted, the query is
+sent straight to the DBAPI driver, so a literal colon inside a string -- `SELECT ':ab'` --
+is never mistaken for a bind parameter. When `params` IS supplied, the query goes through
+SQLAlchemy's `text()` parser to do the real named substitution, and that parser can't tell
+a real `:name` placeholder apart from an unrelated `:name`-shaped literal elsewhere in the
+same query string -- if both appear together, the literal one will raise just like an
+unfilled parameter would. This is an inherent limitation of named-parameter SQL, not
+something this resource works around; if you need a literal colon in a query that also
+has real bind parameters, escape or avoid it in that string (e.g. build it outside the
+query and bind it as its own parameter instead).

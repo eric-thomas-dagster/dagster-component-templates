@@ -163,3 +163,24 @@ def test_component_region_name_optional():
     defs = component.build_defs(context=None)
     resource = defs.resources["lambda_resource"]
     assert resource.region_name is None
+
+
+def test_connection_uri_env_var_json_blob(monkeypatch):
+    monkeypatch.setenv(
+        "TEST_LAMBDA_BLOB",
+        '{"region_name": "eu-west-1", "aws_access_key_id": "AKIA_BLOB", "aws_secret_access_key": "secret_blob"}',
+    )
+    component = mod.LambdaResourceComponent(connection_uri_env_var="TEST_LAMBDA_BLOB")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["lambda_resource"]
+    assert resource.region_name == "eu-west-1"
+    assert resource.aws_access_key_id == "AKIA_BLOB"
+    assert resource.aws_secret_access_key == "secret_blob"
+
+
+def test_explicit_region_name_wins_over_connection_uri_env_var(monkeypatch):
+    monkeypatch.setenv("TEST_LAMBDA_BLOB2", '{"region_name": "eu-west-1"}')
+    component = mod.LambdaResourceComponent(region_name="us-east-1", connection_uri_env_var="TEST_LAMBDA_BLOB2")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["lambda_resource"]
+    assert resource.region_name == "us-east-1"

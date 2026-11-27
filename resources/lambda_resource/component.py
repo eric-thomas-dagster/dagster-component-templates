@@ -24,6 +24,23 @@ import dagster as dg
 from pydantic import Field
 
 
+def _parse_connection_json(value: str) -> Dict[str, Optional[str]]:
+    """Parse a JSON blob ('{"region_name": ..., "aws_access_key_id": ..., ...}') for AWS
+    credentials. AWS access keys/secrets routinely contain characters needing care to
+    URL-encode correctly, and boto3's own credential surface (region, profile, key id,
+    secret, session token) doesn't map onto a single scheme://login:password@host URI
+    the way a database or HTTP connection does, so this resource accepts a JSON blob
+    instead of the Airflow-style connection URI the other resources in this repo use."""
+    data = json.loads(value)
+    return {
+        "region_name": data.get("region_name"),
+        "profile_name": data.get("profile_name"),
+        "aws_access_key_id": data.get("aws_access_key_id"),
+        "aws_secret_access_key": data.get("aws_secret_access_key"),
+        "aws_session_token": data.get("aws_session_token"),
+    }
+
+
 def _encode_payload(payload: Optional[Union[Dict[str, Any], List[Any], str, bytes, bytearray]]) -> bytes:
     """Encode an invoke() payload for the real boto3 `Payload` (blob) argument.
 
@@ -148,6 +165,7 @@ class LambdaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     aws_access_key_id_env_var: Optional[str] = Field(default=None, description="Env var holding the AWS access key ID.")
     aws_secret_access_key_env_var: Optional[str] = Field(default=None, description="Env var holding the AWS secret access key.")
     aws_session_token_env_var: Optional[str] = Field(default=None, description="Env var holding a temporary AWS session token, paired with the access key/secret above.")
+    connection_uri_env_var: Optional[str] = Field(default=None, description="Env var holding a JSON blob ('{\"region_name\": ..., \"aws_access_key_id\": ..., \"aws_secret_access_key\": ..., \"aws_session_token\": ..., \"profile_name\": ...}') as an alternative to the individual fields above. AWS credentials don't map onto an Airflow-style connection URI the way other resources' do, so this is JSON rather than a URI. Explicit fields, if also set, win over the blob's corresponding value.")
 
     @classmethod
     def get_form_config(cls):
@@ -155,11 +173,31 @@ class LambdaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label='Lambda Resource', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        region_name = self.region_name
+        profile_name = self.profile_name
+        access_key_id: Any = dg.EnvVar(self.aws_access_key_id_env_var) if self.aws_access_key_id_env_var else None
+        secret_access_key: Any = dg.EnvVar(self.aws_secret_access_key_env_var) if self.aws_secret_access_key_env_var else None
+        session_token: Any = dg.EnvVar(self.aws_session_token_env_var) if self.aws_session_token_env_var else None
+        if self.connection_uri_env_var:
+            blob_value = dg.EnvVar(self.connection_uri_env_var).get_value()
+            if blob_value:
+                parsed = _parse_connection_json(blob_value)
+                if not region_name and parsed["region_name"]:
+                    region_name = parsed["region_name"]
+                if not profile_name and parsed["profile_name"]:
+                    profile_name = parsed["profile_name"]
+                if access_key_id is None and parsed["aws_access_key_id"]:
+                    access_key_id = parsed["aws_access_key_id"]
+                if secret_access_key is None and parsed["aws_secret_access_key"]:
+                    secret_access_key = parsed["aws_secret_access_key"]
+                if session_token is None and parsed["aws_session_token"]:
+                    session_token = parsed["aws_session_token"]
+
         resource = LambdaResource(
-            region_name=self.region_name,
-            profile_name=self.profile_name,
-            aws_access_key_id=dg.EnvVar(self.aws_access_key_id_env_var) if self.aws_access_key_id_env_var else None,
-            aws_secret_access_key=dg.EnvVar(self.aws_secret_access_key_env_var) if self.aws_secret_access_key_env_var else None,
-            aws_session_token=dg.EnvVar(self.aws_session_token_env_var) if self.aws_session_token_env_var else None,
+            region_name=region_name,
+            profile_name=profile_name,
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            aws_session_token=session_token,
         )
         return dg.Definitions(resources={self.resource_key: resource})

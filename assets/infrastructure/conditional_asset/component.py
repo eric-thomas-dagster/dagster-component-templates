@@ -67,6 +67,38 @@ def _run_with_timeout(fn, timeout_seconds, *args, **kwargs):
 # END generic timeout wrapper
 
 
+def _sanitize_identifier(s: str) -> str:
+    """Turn an arbitrary string (e.g. a slash-delimited asset key) into a valid Python
+    identifier, so it can be used to build a unique op/graph name."""
+    import re as _re
+    out = _re.sub(r"\W", "_", s)
+    if not out or out[0].isdigit():
+        out = "_" + out
+    return out
+
+
+def _derive_decision_asset_key(mode: str, asset_key: Optional[str], branches: Optional[Dict[str, str]], decision_asset_key: Optional[str]) -> List[str]:
+    """The always-materialized decision/outcome asset's key: explicit `decision_asset_key` if
+    given, else auto-derived so it never collides with the gate/branch asset(s) it sits
+    alongside."""
+    if decision_asset_key:
+        return decision_asset_key.split("/")
+    if mode == "short_circuit":
+        parts = asset_key.split("/")
+        parts[-1] = parts[-1] + "_decision"
+        return parts
+    # branch mode: auto-derive only if every branch key shares the same parent path: the
+    # decision asset then lives alongside them as "<shared_parent>/decision". Otherwise there's
+    # no single sensible location to put it, so an explicit `decision_asset_key` is required.
+    parent_paths = {tuple(key.split("/")[:-1]) for key in branches.values()}
+    if len(parent_paths) == 1:
+        return list(next(iter(parent_paths))) + ["decision"]
+    raise ValueError(
+        "ConditionalAssetComponent: mode='branch' branches don't share a common parent path, "
+        "so `decision_asset_key` must be set explicitly."
+    )
+
+
 def _resolve_callable(callable_path: str):
     import importlib
     if ":" not in callable_path:
@@ -117,6 +149,17 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     branches: Optional[Dict[str, str]] = Field(
         default=None,
         description="mode='branch' only (required then): {branch_name: asset_key}. asset_key is slash-delimited. The callable must return one of these branch_name values.",
+    )
+    decision_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Slash-delimited key for an always-materialized decision asset, recording the "
+            "outcome as metadata -- whether the gate passed (short_circuit) or which branch "
+            "was chosen (branch) -- regardless of whether the gated/branch asset(s) "
+            "materialize. Auto-derived if omitted: short_circuit -> '<asset_key>_decision'; "
+            "branch -> '<branches' common parent path>/decision' (required explicitly if the "
+            "branches don't share one)."
+        ),
     )
 
     group_name: str = Field(default="infrastructure", description="Dagster asset group name (applied to every branch uniformly in branch mode).")
@@ -185,8 +228,19 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 backoff=Backoff[component.retry_policy_backoff.upper()],
             )
 
+        decision_key = _derive_decision_asset_key(component.mode, component.asset_key, component.branches, component.decision_asset_key)
+        op_name = "_conditional_" + _sanitize_identifier("_".join(decision_key))
+
         if component.mode == "short_circuit":
             outs = {
+                "decision": dg.AssetOut(
+                    key=dg.AssetKey(decision_key),
+                    description="Always-materialized record of the short_circuit gate's outcome.",
+                    is_required=True,
+                    owners=component.owners or None,
+                    tags=tags,
+                    kinds=kinds,
+                ),
                 "gate": dg.AssetOut(
                     key=dg.AssetKey(component.asset_key.split("/")),
                     description=component.description,
@@ -198,7 +252,7 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             }
 
             @dg.multi_asset(
-                outs=outs, ins=ins or None, deps=deps_keys, group_name=component.group_name,
+                name=op_name, outs=outs, ins=ins or None, deps=deps_keys, group_name=component.group_name,
                 retry_policy=_retry_policy, pool=component.pool,
             )
             def _conditional(context: dg.AssetExecutionContext, **upstream_kwargs):
@@ -206,7 +260,12 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 result = _run_with_timeout(
                     lambda: _bind_call(fn, component.args, component.kwargs, upstream_kwargs), component.timeout_seconds,
                 )
-                if result:
+                passed = bool(result)
+                yield dg.Output(
+                    {"passed": passed}, output_name="decision",
+                    metadata={"passed": dg.MetadataValue.bool(passed)},
+                )
+                if passed:
                     yield dg.Output(result, output_name="gate")
                 else:
                     context.log.info("short_circuit: callable returned falsy -- gate asset not materialized, downstream will skip.")
@@ -215,6 +274,16 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
         branches = component.branches
         outs = {
+            "decision": dg.AssetOut(
+                key=dg.AssetKey(decision_key),
+                description="Always-materialized record of which branch was chosen.",
+                is_required=True,
+                owners=component.owners or None,
+                tags=tags,
+                kinds=kinds,
+            ),
+        }
+        outs.update({
             name: dg.AssetOut(
                 key=dg.AssetKey(key.split("/")),
                 description=component.description,
@@ -224,10 +293,10 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 kinds=kinds,
             )
             for name, key in branches.items()
-        }
+        })
 
         @dg.multi_asset(
-            outs=outs, ins=ins or None, deps=deps_keys, group_name=component.group_name,
+            name=op_name, outs=outs, ins=ins or None, deps=deps_keys, group_name=component.group_name,
             retry_policy=_retry_policy, pool=component.pool,
         )
         def _conditional(context: dg.AssetExecutionContext, **upstream_kwargs):
@@ -245,6 +314,10 @@ class ConditionalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"not one of the declared branches {sorted(branches)}."
                 )
             context.log.info(f"branch: chose {chosen!r}; {sorted(set(branches) - {chosen})} will skip.")
+            yield dg.Output(
+                {"chosen": chosen}, output_name="decision",
+                metadata={"chosen_branch": dg.MetadataValue.text(chosen)},
+            )
             yield dg.Output(payload, output_name=chosen)
 
         return dg.Definitions(assets=[_conditional])

@@ -144,8 +144,8 @@ def test_branch_with_explicit_payload_tuple(mod):
     branch_def = component.build_defs(context=None).assets[0]
     result = dg.materialize([branch_def], resources={"io_manager": dg.InMemoryIOManager()})
     assert result.success
-    mats = result.asset_materializations_for_node("_conditional")
-    assert len(mats) == 1  # branch_a materialized (branch_b skipped, no Output for it)
+    mats = result.asset_materializations_for_node(branch_def.node_def.name)
+    assert len(mats) == 2  # decision (always) + branch_a (branch_b skipped, no Output for it)
 
 
 def test_branch_returning_an_undeclared_name_fails_clearly(mod):
@@ -216,3 +216,52 @@ def test_timeout_seconds_fails_a_slow_short_circuit_callable(mod):
     result = dg.materialize([gate_def], resources={"io_manager": dg.InMemoryIOManager()}, raise_on_error=False)
     assert not result.success
     assert time.monotonic() - start < 1
+
+
+def test_two_branch_instances_in_one_project_do_not_clash(mod):
+    """Regression: both instances used to name their op '_conditional' unconditionally,
+    so merging two of them crashed at repository construction with
+    DagsterInvalidDefinitionError: conflicting node definitions with the same name."""
+    c1 = mod.ConditionalAssetComponent(mode="branch", callable_path=f"{FIXTURES_PATH}:choose_a", branches={"a": "p/a", "b": "p/b"})
+    c2 = mod.ConditionalAssetComponent(mode="branch", callable_path=f"{FIXTURES_PATH}:choose_b", branches={"a": "q/a", "b": "q/b"})
+    defs1 = c1.build_defs(context=None)
+    defs2 = c2.build_defs(context=None)
+    merged = dg.Definitions.merge(defs1, defs2)
+    merged.get_repository_def().get_all_jobs()  # raises DagsterInvalidDefinitionError if it clashes
+    assert defs1.assets[0].node_def.name != defs2.assets[0].node_def.name
+
+
+def test_branch_mode_decision_asset_always_materializes(mod):
+    """Regression: branch mode had no asset representing the decision itself -- only the
+    chosen branch's own asset materialized, with nothing a consumer could depend on to know
+    a decision was made at all."""
+    component = mod.ConditionalAssetComponent(mode="branch", callable_path=f"{FIXTURES_PATH}:choose_a", branches={"a": "r/a", "b": "r/b"})
+    branch_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([branch_def], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    materialized = {str(e.asset_key) for e in result.get_asset_materialization_events()}
+    assert str(dg.AssetKey(["r", "decision"])) in materialized
+    assert str(dg.AssetKey(["r", "a"])) in materialized
+    decision_event = next(e for e in result.get_asset_materialization_events() if e.asset_key == dg.AssetKey(["r", "decision"]))
+    assert decision_event.materialization.metadata["chosen_branch"].value == "a"
+
+
+def test_short_circuit_falsy_still_materializes_a_decision_asset(mod):
+    """Regression: a falsy short_circuit result materialized nothing at all, making
+    'the gate correctly failed' indistinguishable from an unrelated skip/crash."""
+    component = mod.ConditionalAssetComponent(mode="short_circuit", callable_path=f"{FIXTURES_PATH}:returns_false", asset_key="s/gate")
+    gate_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize([gate_def], resources={"io_manager": dg.InMemoryIOManager()})
+    assert result.success
+    materialized = {str(e.asset_key) for e in result.get_asset_materialization_events()}
+    assert str(dg.AssetKey(["s", "gate_decision"])) in materialized
+    assert str(dg.AssetKey(["s", "gate"])) not in materialized
+    decision_event = next(e for e in result.get_asset_materialization_events() if e.asset_key == dg.AssetKey(["s", "gate_decision"]))
+    assert decision_event.materialization.metadata["passed"].value is False
+
+
+def test_branch_mode_without_shared_parent_requires_explicit_decision_key(mod):
+    with pytest.raises(ValueError, match="decision_asset_key"):
+        mod.ConditionalAssetComponent(
+            mode="branch", callable_path=f"{FIXTURES_PATH}:choose_a", branches={"a": "t/a", "b": "u/b"},
+        ).build_defs(context=None)

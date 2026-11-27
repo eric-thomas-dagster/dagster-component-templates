@@ -64,7 +64,7 @@ class FivetranSyncTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
     api_key_env: str = Field(default="FIVETRAN_API_KEY")
     api_secret_env: str = Field(default="FIVETRAN_API_SECRET")
-    connector_id: str = Field(description="Fivetran connector ID")
+    connector_id: str = Field(description="Fivetran connection ID (Fivetran's REST API and UI now call this resource a 'connection'; the field keeps its original name for backward compatibility).")
     force: bool = Field(default=False, description="Sync even if no changes detected")
     wait_for_completion: bool = Field(
         default=False,
@@ -104,13 +104,22 @@ class FivetranSyncTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
         """Trigger the sync, optionally poll to completion; return a metadata dict.
         Shared by the op-job shape and the asset shape.
 
+        Fivetran's current REST API (fivetran.com/docs/rest-api/api-reference/connections/
+        sync-connection) exposes this under `/v1/connections/{connectionId}/sync`, not the
+        older `/connectors/.../force` path this component used to call -- confirmed against
+        the live docs, which list no `/connectors/.../force`/`/sync` path at all; requesting
+        `/connectors/{id}/sync-connector`'s URL redirects to the `/connections/` reference
+        page. `force` is a JSON body field on that `/sync` call, not a URL segment.
+
         Fivetran's API has no sync/job id to poll directly -- the documented pattern
         (fivetran.com/docs/rest-api/how-to/run-manual-sync-and-poll-for-completion) is to
-        record `succeeded_at`/`failed_at` before triggering, then poll the connector GET
-        endpoint until one of them changes."""
+        record `succeeded_at`/`failed_at` before triggering, then poll the connection GET
+        endpoint (fivetran.com/docs/rest-api/api-reference/connections/connection-details,
+        confirmed `succeeded_at`/`failed_at` live at the top level of `data` and
+        `status.sync_state` nested under `status`) until one of them changes."""
         import requests, time
         auth = (_require_env(self.api_key_env), _require_env(self.api_secret_env))
-        base_url = f"https://api.fivetran.com/v1/connectors/{self.connector_id}"
+        base_url = f"https://api.fivetran.com/v1/connections/{self.connector_id}"
 
         baseline_succeeded_at = baseline_failed_at = None
         if self.wait_for_completion:
@@ -121,7 +130,7 @@ class FivetranSyncTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
             baseline_succeeded_at = data.get("succeeded_at")
             baseline_failed_at = data.get("failed_at")
 
-        r = requests.post(f"{base_url}/force", json={"force": self.force}, auth=auth, timeout=60)
+        r = requests.post(f"{base_url}/sync", json={"force": self.force}, auth=auth, timeout=60)
         if r.status_code >= 300:
             raise Exception(f"fivetran trigger failed: {r.status_code} {r.text[:200]}")
         context.log.info(f"triggered {self.connector_id}")

@@ -41,6 +41,21 @@ def test_requires_job_name_or_asset_name(mod):
 
 
 @patch("requests.post")
+def test_trigger_hits_current_connections_sync_endpoint_with_force_body(mock_post, mod):
+    """Fivetran's current REST API is /v1/connections/{id}/sync with `force` as a JSON body
+    field -- the old /v1/connectors/{id}/force path this component used to call no longer
+    appears anywhere in Fivetran's live docs (verified 2026-11-27)."""
+    mock_post.return_value = _resp({})
+    component = mod.FivetranSyncTriggerJobComponent(job_name="sync_c1", connector_id="c1", force=True)
+    defs = component.build_defs(context=None)
+    defs.get_job_def("sync_c1").execute_in_process()
+
+    url, kwargs = mock_post.call_args.args[0], mock_post.call_args.kwargs
+    assert url == "https://api.fivetran.com/v1/connections/c1/sync"
+    assert kwargs["json"] == {"force": True}
+
+
+@patch("requests.post")
 def test_asset_shape_fire_and_forget(mock_post, mod):
     mock_post.return_value = _resp({})
     component = mod.FivetranSyncTriggerJobComponent(
@@ -56,7 +71,7 @@ def test_asset_shape_fire_and_forget(mock_post, mod):
     assert result.success
     mats = result.asset_materializations_for_node(asset_defs[0].node_def.name)
     assert mats[0].metadata["fivetran/connector_id"].value == "c1"
-    assert mock_post.call_args.args[0].endswith("/connectors/c1/force")
+    assert mock_post.call_args.args[0].endswith("/connections/c1/sync")
 
 
 @patch("requests.post")

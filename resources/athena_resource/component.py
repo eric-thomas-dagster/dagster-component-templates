@@ -51,7 +51,7 @@ class AthenaResource(dg.ConfigurableResource):
         if log:
             log.info(f"athena_resource: started QueryExecutionId={query_execution_id!r}")
 
-        deadline = (time.monotonic() + timeout_seconds) if timeout_seconds else None
+        deadline = (time.monotonic() + timeout_seconds) if timeout_seconds is not None else None
         while True:
             resp = client.get_query_execution(QueryExecutionId=query_execution_id)
             execution = resp["QueryExecution"]

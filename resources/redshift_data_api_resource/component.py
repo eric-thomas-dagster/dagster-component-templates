@@ -72,7 +72,7 @@ class RedshiftDataApiResource(dg.ConfigurableResource):
         if log:
             log.info(f"redshift_data_api_resource: started statement Id={statement_id!r}")
 
-        deadline = (time.monotonic() + timeout_seconds) if timeout_seconds else None
+        deadline = (time.monotonic() + timeout_seconds) if timeout_seconds is not None else None
         while True:
             resp = client.describe_statement(Id=statement_id)
             status = resp["Status"]

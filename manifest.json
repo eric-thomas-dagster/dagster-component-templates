@@ -21286,16 +21286,16 @@
       "vendor": "dbt"
     },
     {
-      "id": "dbt_command_asset",
-      "name": "dbt Command Asset",
-      "category": "dbt",
-      "description": "Run an arbitrary dbt CLI command (run, build, test, snapshot, seed, source freshness) as a single materializable Dagster asset — no per-model asset graph required.",
+      "id": "dbt_command_resource",
+      "name": "dbt Command Resource",
+      "category": "resource",
+      "description": "Register a DbtCommandResource (run an arbitrary dbt CLI command -- run, build, test, snapshot, seed, source freshness -- parsing run_results.json) for use by other components -- reusable, injectable dbt execution logic, not locked inside a single-purpose asset.",
       "version": "1.0.0",
       "author": "Eric Thomas",
-      "path": "assets/dbt/dbt_command_asset",
+      "path": "resources/dbt_command_resource",
       "tags": [
+        "resource",
         "dbt",
-        "asset",
         "airflow-parity"
       ],
       "dependencies": {
@@ -21304,27 +21304,31 @@
           "dbt-core"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_command_asset/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_command_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_command_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_command_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_command_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_command_resource/requirements.txt",
+      "component_type": "dagster_community_components.DbtCommandResourceComponent",
       "validation": {
         "level": "code",
-        "evidence": "Real dbt-core + dbt-duckdb end-to-end tests committed in assets/dbt/dbt_command_asset/tests/ (run/build/test, failure path, dry_run, run_window, vars, extra_args).",
-        "last_validated": "2026-11-26"
+        "evidence": "Real dbt-core + dbt-duckdb end-to-end tests committed in resources/dbt_command_resource/tests/ (run/build/test, failure path, dry_run, run_window, vars, extra_args).",
+        "last_validated": "2026-11-27"
       },
       "produces": [
-        "asset"
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "dbt_command_resource"
       ],
       "agent_hints": {
-        "when_to_use": "User wants to run a plain dbt command (dbt run/build/test/snapshot/seed, or source freshness) as ONE materializable Dagster asset, without a full manifest-based per-model asset graph. For that richer per-model graph use enriched_dbt_project; for a non-asset job/op use dbt_run_job; for triggering an existing dbt Cloud job use dbt_cloud_trigger_job or enriched_dbt_cloud_workspace.",
+        "when_to_use": "User wants to run a plain dbt command (dbt run/build/test/snapshot/seed, or source freshness) from any op or asset they write, without a full manifest-based per-model asset graph. For that richer per-model graph use enriched_dbt_project; for triggering an existing dbt Cloud job use dbt_cloud_trigger_job or enriched_dbt_cloud_workspace.",
         "typical_upstream": "Upstream data-loading assets the dbt models depend on.",
-        "typical_downstream": "Downstream assets/sensors depending on the materialized asset, or automation conditions reacting to its data_version.",
+        "typical_downstream": "Downstream assets/sensors depending on the asset that calls this resource.",
         "example_prompts": [
-          "Run `dbt build --select marts.*` as a single Dagster asset",
-          "Materialize an asset that runs dbt tests for the staging layer",
-          "Run dbt source freshness as a scheduled Dagster asset"
+          "Call dbt_command_resource.run(command='build', select='marts.*') from my own asset",
+          "Run dbt tests for the staging layer via the injected dbt command resource",
+          "Run dbt source freshness from a custom Dagster op"
         ],
         "anti_uses": "Do NOT use this for a per-dbt-model asset graph (use enriched_dbt_project). Do NOT use this to trigger a dbt Cloud job (use dbt_cloud_trigger_job or enriched_dbt_cloud_workspace).",
         "requires_pip": [
@@ -21339,7 +21343,7 @@
         "dbt build",
         "dbt test",
         "run_results.json",
-        "asset",
+        "resource",
         "shell_command_asset parity"
       ],
       "icon": "si:dbt",
@@ -78011,27 +78015,27 @@
       ]
     },
     {
-      "id": "databricks_run_now_asset",
-      "name": "Databricks Run Now",
-      "category": "integrations",
-      "description": "Trigger an existing Databricks job by job_id via the real jobs.run_now API and wait for completion -- the Airflow DatabricksRunNowOperator equivalent.",
-      "path": "integrations/databricks_run_now_asset",
+      "id": "databricks_jobs_resource",
+      "name": "Databricks Jobs Resource",
+      "category": "resource",
+      "description": "Register a DatabricksJobsResource (run_now_and_wait against an existing job) for use by other components -- the Airflow DatabricksRunNowOperator equivalent as reusable, injectable logic.",
+      "path": "resources/databricks_jobs_resource",
       "tags": [
+        "resource",
         "databricks",
-        "integrations",
         "run_now"
       ],
       "icon": "si:databricks",
-      "type": "dagster_community_components.DatabricksRunNowAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/requirements.txt",
-      "component_type": "dagster_community_components.DatabricksRunNowAssetComponent",
+      "type": "dagster_community_components.DatabricksJobsResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_jobs_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_jobs_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_jobs_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_jobs_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_jobs_resource/requirements.txt",
+      "component_type": "dagster_community_components.DatabricksJobsResourceComponent",
       "validation": {
         "level": "code",
-        "last_validated": "2026-11-26"
+        "last_validated": "2026-11-27"
       },
       "version": "1.0.0",
       "author": "Eric Thomas",
@@ -78042,12 +78046,15 @@
         ]
       },
       "produces": [
-        "asset"
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "databricks_jobs_resource"
       ],
       "agent_hints": {
         "input_type": "None",
         "output_type": "Any",
-        "outputs": "MaterializeResult with the Databricks run id, result state, and run page URL in metadata.",
+        "outputs": "Register a DatabricksJobsResource (run_now_and_wait) for use by other components",
         "requires_pip": [
           "databricks-sdk"
         ]
@@ -78057,33 +78064,34 @@
         "databricks",
         "run now",
         "job trigger",
-        "airflow parity"
+        "airflow parity",
+        "resource"
       ]
     },
     {
-      "id": "dataproc_cluster_asset",
-      "name": "Dataproc Cluster Asset",
-      "category": "infrastructure",
-      "description": "Ensure a Google Cloud Dataproc cluster is present or absent -- create_cluster/delete_cluster, polled until it settles.",
-      "path": "assets/infrastructure/dataproc_cluster_asset",
+      "id": "dataproc_resource",
+      "name": "Dataproc Resource",
+      "category": "resource",
+      "description": "Register a DataprocResource (cluster create/delete/ensure-exists plus submit_job_and_wait for PySpark/Spark/Hive/Pig) for use by other components -- the Airflow Dataproc provider's operators as reusable, injectable logic.",
+      "path": "resources/dataproc_resource",
       "tags": [
+        "resource",
         "gcp",
         "dataproc",
-        "infrastructure",
         "spark",
         "hadoop"
       ],
       "icon": "si:googlecloud",
-      "type": "dagster_community_components.DataprocClusterAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/requirements.txt",
-      "component_type": "dagster_community_components.DataprocClusterAssetComponent",
+      "type": "dagster_community_components.DataprocResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataproc_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataproc_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataproc_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataproc_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataproc_resource/requirements.txt",
+      "component_type": "dagster_community_components.DataprocResourceComponent",
       "validation": {
         "level": "code",
-        "last_validated": "2026-11-26"
+        "last_validated": "2026-11-27"
       },
       "version": "1.0.0",
       "author": "Eric Thomas",
@@ -78094,12 +78102,15 @@
         ]
       },
       "produces": [
-        "asset"
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "dataproc_resource"
       ],
       "agent_hints": {
         "input_type": "None",
         "output_type": "Any",
-        "outputs": "MaterializeResult with the cluster's final status in metadata.",
+        "outputs": "Register a DataprocResource (cluster lifecycle + submit_job_and_wait) for use by other components",
         "requires_pip": [
           "google-cloud-dataproc"
         ]
@@ -78109,108 +78120,58 @@
         "gcp",
         "dataproc",
         "spark",
-        "hadoop cluster"
-      ]
-    },
-    {
-      "id": "dataproc_job_asset",
-      "name": "Dataproc Job Asset",
-      "category": "infrastructure",
-      "description": "Submit a PySpark/Spark/Hive/Pig job to an existing Dataproc cluster and wait for completion -- submit_job, polled via get_job until terminal.",
-      "path": "assets/infrastructure/dataproc_job_asset",
-      "tags": [
-        "gcp",
-        "dataproc",
-        "infrastructure",
-        "spark",
-        "hadoop",
-        "hive",
-        "pig"
-      ],
-      "icon": "si:googlecloud",
-      "type": "dagster_community_components.DataprocJobAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/requirements.txt",
-      "component_type": "dagster_community_components.DataprocJobAssetComponent",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-26"
-      },
-      "version": "1.0.0",
-      "author": "Eric Thomas",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "google-cloud-dataproc"
-        ]
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "None",
-        "output_type": "Any",
-        "outputs": "MaterializeResult with the job's final status and driver output URI in metadata.",
-        "requires_pip": [
-          "google-cloud-dataproc"
-        ]
-      },
-      "keywords": [
-        "infra",
-        "gcp",
-        "dataproc",
+        "hadoop cluster",
         "pyspark",
         "hive",
-        "pig"
+        "pig",
+        "resource"
       ]
     },
     {
-      "id": "athena_query_asset",
-      "name": "Athena Query Asset",
-      "category": "infrastructure",
-      "description": "Run a SQL query against Amazon Athena as a Dagster asset -- starts the query, polls to a terminal state, and raises with the real failure reason on anything but success.",
-      "path": "assets/infrastructure/athena_query_asset",
+      "id": "athena_resource",
+      "name": "Athena Resource",
+      "category": "resource",
+      "description": "Register an AthenaResource (run_query_and_wait against Amazon Athena) for use by other components -- the Airflow AthenaOperator equivalent as reusable, injectable logic.",
+      "path": "resources/athena_resource",
       "tags": [
+        "resource",
         "aws",
         "athena",
-        "infrastructure",
         "sql",
         "query"
       ],
       "icon": "si:amazonaws",
-      "type": "dagster_community_components.AthenaQueryAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/requirements.txt",
-      "component_type": "dagster_community_components.AthenaQueryAssetComponent",
+      "type": "dagster_community_components.AthenaResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/athena_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/athena_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/athena_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/athena_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/athena_resource/requirements.txt",
+      "component_type": "dagster_community_components.AthenaResourceComponent",
       "validation": {
         "level": "code",
-        "last_validated": "2026-11-26"
+        "last_validated": "2026-11-27"
       },
       "version": "1.0.0",
-      "author": "Dagster Community",
+      "author": "Eric Thomas",
       "dependencies": {
         "pip": [
           "dagster",
-          "boto3",
-          "jinja2"
+          "boto3"
         ]
       },
       "produces": [
-        "asset"
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "athena_resource"
       ],
       "agent_hints": {
         "input_type": "None",
         "output_type": "Any",
-        "outputs": "MaterializeResult with the query execution id, state, data scanned bytes, and result location in metadata.",
+        "outputs": "Register an AthenaResource (run_query_and_wait) for use by other components",
         "requires_pip": [
-          "boto3",
-          "jinja2"
+          "boto3"
         ]
       },
       "keywords": [
@@ -78219,53 +78180,55 @@
         "athena",
         "sql",
         "query",
-        "airflow"
+        "airflow",
+        "resource"
       ]
     },
     {
-      "id": "redshift_data_api_asset",
-      "name": "Redshift Data API Asset",
-      "category": "infrastructure",
-      "description": "Run a SQL query against Amazon Redshift (provisioned cluster or Serverless) via the Redshift Data API as a Dagster asset -- executes the statement, polls to a terminal state, and raises with the real failure reason on anything but success.",
-      "path": "assets/infrastructure/redshift_data_api_asset",
+      "id": "redshift_data_api_resource",
+      "name": "Redshift Data API Resource",
+      "category": "resource",
+      "description": "Register a RedshiftDataApiResource (execute_and_wait against a provisioned Redshift cluster or Redshift Serverless) for use by other components -- the Airflow RedshiftDataOperator equivalent as reusable, injectable logic.",
+      "path": "resources/redshift_data_api_resource",
       "tags": [
+        "resource",
         "aws",
         "redshift",
-        "infrastructure",
         "sql",
         "query"
       ],
       "icon": "si:amazonredshift",
-      "type": "dagster_community_components.RedshiftDataApiAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/requirements.txt",
-      "component_type": "dagster_community_components.RedshiftDataApiAssetComponent",
+      "type": "dagster_community_components.RedshiftDataApiResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_data_api_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_data_api_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_data_api_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_data_api_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_data_api_resource/requirements.txt",
+      "component_type": "dagster_community_components.RedshiftDataApiResourceComponent",
       "validation": {
         "level": "code",
-        "last_validated": "2026-11-26"
+        "last_validated": "2026-11-27"
       },
       "version": "1.0.0",
-      "author": "Dagster Community",
+      "author": "Eric Thomas",
       "dependencies": {
         "pip": [
           "dagster",
-          "boto3",
-          "jinja2"
+          "boto3"
         ]
       },
       "produces": [
-        "asset"
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "redshift_data_api_resource"
       ],
       "agent_hints": {
         "input_type": "None",
         "output_type": "Any",
-        "outputs": "MaterializeResult with the statement id, status, result row/size counts, and duration in metadata.",
+        "outputs": "Register a RedshiftDataApiResource (execute_and_wait) for use by other components",
         "requires_pip": [
-          "boto3",
-          "jinja2"
+          "boto3"
         ]
       },
       "keywords": [
@@ -78274,11 +78237,12 @@
         "redshift",
         "sql",
         "query",
-        "airflow"
+        "airflow",
+        "resource"
       ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1491
+  "total": 1490
 }

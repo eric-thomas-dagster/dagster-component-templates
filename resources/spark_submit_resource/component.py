@@ -123,7 +123,7 @@ class SparkSubmitResource(dg.ConfigurableResource):
 
         timed_out = {"flag": False}
         timer = None
-        if timeout_seconds:
+        if timeout_seconds is not None:
             def _kill():
                 timed_out["flag"] = True
                 proc.kill()

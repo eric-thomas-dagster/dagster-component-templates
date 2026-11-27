@@ -102,6 +102,54 @@ def test_invalid_invocation_type_raises():
         _resource().invoke(function_name="my-func", invocation_type="Bogus")
 
 
+def test_invoke_payload_list_is_json_encoded(monkeypatch):
+    client = MagicMock()
+    client.invoke.return_value = {"StatusCode": 200, "Payload": _stream(b"{}")}
+    _patch_client(monkeypatch, client)
+
+    _resource().invoke(function_name="my-func", payload=[1, 2, "three"])
+
+    import json
+    kwargs = client.invoke.call_args.kwargs
+    assert json.loads(kwargs["Payload"]) == [1, 2, "three"]
+
+
+def test_invoke_payload_str_is_sent_raw_not_json_wrapped(monkeypatch):
+    client = MagicMock()
+    client.invoke.return_value = {"StatusCode": 200, "Payload": _stream(b"{}")}
+    _patch_client(monkeypatch, client)
+
+    _resource().invoke(function_name="my-func", payload="raw string body")
+
+    kwargs = client.invoke.call_args.kwargs
+    # Sent as-is (utf-8), NOT json.dumps("raw string body") which would add quotes.
+    assert kwargs["Payload"] == b"raw string body"
+
+
+def test_invoke_payload_bytes_is_passed_through_unchanged(monkeypatch):
+    client = MagicMock()
+    client.invoke.return_value = {"StatusCode": 200, "Payload": _stream(b"{}")}
+    _patch_client(monkeypatch, client)
+
+    raw = b"\x00\x01binary-ish"
+    _resource().invoke(function_name="my-func", payload=raw)
+
+    kwargs = client.invoke.call_args.kwargs
+    assert kwargs["Payload"] == raw
+
+
+def test_invoke_payload_bytearray_is_passed_through_as_bytes(monkeypatch):
+    client = MagicMock()
+    client.invoke.return_value = {"StatusCode": 200, "Payload": _stream(b"{}")}
+    _patch_client(monkeypatch, client)
+
+    _resource().invoke(function_name="my-func", payload=bytearray(b"ba-payload"))
+
+    kwargs = client.invoke.call_args.kwargs
+    assert kwargs["Payload"] == b"ba-payload"
+    assert isinstance(kwargs["Payload"], bytes)
+
+
 def test_component_registers_resource():
     component = mod.LambdaResourceComponent(region_name="us-west-2")
     defs = component.build_defs(context=None)

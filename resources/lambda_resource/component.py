@@ -18,10 +18,27 @@ convention.
 """
 import base64
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from pydantic import Field
+
+
+def _encode_payload(payload: Optional[Union[Dict[str, Any], List[Any], str, bytes, bytearray]]) -> bytes:
+    """Encode an invoke() payload for the real boto3 `Payload` (blob) argument.
+
+    dict/list -> JSON-encoded, matching the common "event payload" shape. str
+    is sent as-is (utf-8 encoded) without JSON-wrapping, since some Lambda
+    functions expect a raw string body rather than a JSON-encoded string.
+    bytes/bytearray are passed through unchanged.
+    """
+    if payload is None:
+        return json.dumps({}).encode("utf-8")
+    if isinstance(payload, (bytes, bytearray)):
+        return bytes(payload)
+    if isinstance(payload, str):
+        return payload.encode("utf-8")
+    return json.dumps(payload).encode("utf-8")
 
 
 class LambdaResource(dg.ConfigurableResource):
@@ -56,7 +73,7 @@ class LambdaResource(dg.ConfigurableResource):
     def invoke(
         self,
         function_name: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[Union[Dict[str, Any], List[Any], str, bytes, bytearray]] = None,
         invocation_type: str = "RequestResponse",
         qualifier: Optional[str] = None,
         include_logs: bool = False,
@@ -81,7 +98,7 @@ class LambdaResource(dg.ConfigurableResource):
         kwargs: Dict[str, Any] = {
             "FunctionName": function_name,
             "InvocationType": invocation_type,
-            "Payload": json.dumps(payload or {}).encode("utf-8"),
+            "Payload": _encode_payload(payload),
         }
         if qualifier:
             kwargs["Qualifier"] = qualifier

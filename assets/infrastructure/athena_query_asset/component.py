@@ -83,6 +83,34 @@ def _partition_vars(context):
         for dimension, value in keys[0].keys_by_dimension.items():
             tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
     return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
 # END partition-vars helper
 
 

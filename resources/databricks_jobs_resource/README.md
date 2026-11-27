@@ -1,9 +1,24 @@
 # Databricks Jobs Resource
 
-Register a `DatabricksJobsResource` (run_now + wait for an existing job) for use by any
-op/asset in this code location -- the reusable Airflow `DatabricksRunNowOperator`-equivalent
-action. This component only registers the resource; it does not materialize anything on its
-own.
+Register a `DatabricksJobsResource` for use by any op/asset in this code location -- reusable
+Airflow-operator-equivalent actions against the real Databricks Jobs API. This component only
+registers the resource; it does not materialize anything on its own.
+
+- `run_now_and_wait(job_id=..., ...)` -- trigger an existing job and wait for completion (the
+  `DatabricksRunNowOperator` equivalent). Pass `job_name=...` instead of `job_id` to resolve the
+  id by name via `jobs.list(name=...)` (raises if zero or more than one job matches). Also
+  forwards `jar_params`/`spark_submit_params` alongside the existing `job_parameters`/
+  `notebook_params`/`python_params`.
+- `submit_run_and_wait(run_json, ...)` -- submit a one-time, ad-hoc run from a JSON body with no
+  pre-existing job required (the `DatabricksSubmitRunOperator` equivalent). `run_json` matches
+  the Jobs API's "submit a one-time run" request body (e.g. `{"run_name": ..., "tasks": [...],
+  "timeout_seconds": ...}`); each `tasks` entry is converted to a `SubmitTask` automatically.
+- `repair_run_and_wait(run_id, rerun_tasks=..., ...)` -- re-run only the failed tasks of a prior
+  run (or all failed tasks via `rerun_all_failed_tasks=True`), wait for completion.
+
+All three wait for a terminal state and return the same result shape
+(`run_id`/`run_page_url`/`life_cycle_state`/`result_state`/`state_message`), raising
+`dagster.Failure` on a non-SUCCESS `result_state` unless `fail_on_non_success=False`.
 
 ## Installation
 

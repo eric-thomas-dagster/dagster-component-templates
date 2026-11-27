@@ -1,9 +1,9 @@
 type: dagster_community_components.DockerContainerAssetComponent
 attributes:
-  asset_name: <fill in>
-  image: <fill in>
-  command: []
+  asset_name: docker_container_asset
+  image: python:3.11-slim
+  command: ["python", "-c", "print('hello from docker')"]
   env_vars: {}
-  network: <fill in>
-  group_name: <fill in>
+  network: bridge
+  group_name: infrastructure
   deps: []

@@ -12,8 +12,34 @@ def test_ensure_bucket_creates_when_missing(mock_client_cls, mod):
     result = resource.ensure_bucket("my-bucket", location="US", storage_class="STANDARD")
 
     assert result == {"already_existed": False}
-    mock_client.create_bucket.assert_called_once_with(bucket, location="US")
+    mock_client.create_bucket.assert_called_once_with(bucket, location="US", project=None)
     assert bucket.storage_class == "STANDARD"
+
+
+@patch("google.cloud.storage.Client")
+def test_create_bucket_passes_project_through(mock_client_cls, mod):
+    mock_client = MagicMock()
+    mock_client_cls.return_value = mock_client
+    bucket = MagicMock()
+    mock_client.bucket.return_value = bucket
+
+    resource = mod.GcsBucketResource()
+    resource.create_bucket("my-bucket", location="US", project="my-billing-project")
+
+    mock_client.create_bucket.assert_called_once_with(bucket, location="US", project="my-billing-project")
+
+
+@patch("google.cloud.storage.Client")
+def test_ensure_bucket_passes_project_through(mock_client_cls, mod):
+    mock_client = MagicMock()
+    mock_client_cls.return_value = mock_client
+    bucket = MagicMock()
+    mock_client.bucket.return_value = bucket
+
+    resource = mod.GcsBucketResource()
+    resource.ensure_bucket("my-bucket", project="my-billing-project")
+
+    mock_client.create_bucket.assert_called_once_with(bucket, location="US", project="my-billing-project")
 
 
 @patch("google.cloud.storage.Client")

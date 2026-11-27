@@ -46,16 +46,22 @@ class GcsBucketResource(dg.ConfigurableResource):
             os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", _require_env(self.credentials_env_var))
         return storage.Client()
 
-    def create_bucket(self, bucket_name: str, location: str = "US", storage_class: str = "STANDARD") -> None:
-        """Create a bucket. Raises google.api_core.exceptions.Conflict if it already exists."""
+    def create_bucket(self, bucket_name: str, location: str = "US", storage_class: str = "STANDARD", project: Optional[str] = None) -> None:
+        """Create a bucket. Raises google.api_core.exceptions.Conflict if it already exists.
+
+        project overrides which GCP project owns/bills the bucket -- useful when the
+        client's default project (from credentials) differs from where the bucket should
+        live. Omit to use the client's default project.
+        """
         client = self._client()
         bucket = client.bucket(bucket_name)
         bucket.storage_class = storage_class
-        client.create_bucket(bucket, location=location)
+        client.create_bucket(bucket, location=location, project=project)
 
-    def ensure_bucket(self, bucket_name: str, location: str = "US", storage_class: str = "STANDARD") -> dict:
+    def ensure_bucket(self, bucket_name: str, location: str = "US", storage_class: str = "STANDARD", project: Optional[str] = None) -> dict:
         """Idempotent create: a no-op if the bucket already exists and is owned by the caller.
 
+        project overrides which GCP project owns/bills the bucket (see create_bucket).
         Returns {"already_existed": bool}.
         """
         from google.api_core.exceptions import Conflict
@@ -64,7 +70,7 @@ class GcsBucketResource(dg.ConfigurableResource):
         bucket = client.bucket(bucket_name)
         bucket.storage_class = storage_class
         try:
-            client.create_bucket(bucket, location=location)
+            client.create_bucket(bucket, location=location, project=project)
             return {"already_existed": False}
         except Conflict:
             # GCS's 409 Conflict doesn't distinguish "exists and it's yours" from "someone

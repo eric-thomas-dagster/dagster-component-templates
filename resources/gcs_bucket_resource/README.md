@@ -56,8 +56,8 @@ def my_asset(gcs_bucket_resource: GcsBucketResource):
 
 ## Methods
 
-- `create_bucket(bucket_name, location="US", storage_class="STANDARD")` -- expects the bucket NOT to already exist; raises `google.api_core.exceptions.Conflict` if it does.
-- `ensure_bucket(bucket_name, location="US", storage_class="STANDARD")` -- idempotent: a no-op if the bucket already exists and is owned by the caller. Returns `{"already_existed": bool}`.
+- `create_bucket(bucket_name, location="US", storage_class="STANDARD", project=None)` -- expects the bucket NOT to already exist; raises `google.api_core.exceptions.Conflict` if it does. `project` overrides which GCP project owns/bills the bucket (defaults to the client's own project).
+- `ensure_bucket(bucket_name, location="US", storage_class="STANDARD", project=None)` -- idempotent: a no-op if the bucket already exists and is owned by the caller. Returns `{"already_existed": bool}`.
 - `delete_bucket(bucket_name, force=False)` -- idempotent: deleting an already-absent bucket succeeds. `force=True` empties the bucket first (not recommended by Google for buckets with more than ~256 objects). Returns `{"existed": bool, "objects_deleted": int}`.
 
 ## Authentication

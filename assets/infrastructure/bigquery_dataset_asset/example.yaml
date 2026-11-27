@@ -1,0 +1,10 @@
+type: dagster_community_components.BigQueryDatasetAssetComponent
+attributes:
+  asset_name: bq/analytics_dataset
+  credentials_path: "{{ env.GOOGLE_APPLICATION_CREDENTIALS }}"
+  dataset_id: analytics
+  location: US
+  mode: ensure_exists
+  labels:
+    team: data-platform
+  group_name: infrastructure

@@ -1,0 +1,9 @@
+type: dagster_community_components.BigQueryValueCheckAssetComponent
+attributes:
+  asset_name: bq/orders_row_count_check
+  credentials_path: "{{ env.GOOGLE_APPLICATION_CREDENTIALS }}"
+  deps: [bq/orders_table]
+  query: "SELECT COUNT(*) FROM `my-project.analytics.orders`"
+  expected_value: 0
+  comparison: greater_than
+  group_name: infrastructure

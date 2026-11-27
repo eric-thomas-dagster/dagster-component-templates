@@ -1,0 +1,12 @@
+type: dagster_community_components.RedshiftDataApiAssetComponent
+attributes:
+  asset_name: refresh_sales_summary
+  sql: |
+    CALL refresh_sales_summary('{{ partition_date }}');
+  database: analytics
+  workgroup_name: my-serverless-workgroup
+  region_name: us-east-1
+  partition_type: daily
+  partition_start: '2024-01-01'
+  group_name: analytics
+  kinds: [aws, redshift]

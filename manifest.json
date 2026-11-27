@@ -78372,10 +78372,119 @@
         "hive",
         "pig"
       ]
+    },
+    {
+      "id": "athena_query_asset",
+      "name": "Athena Query Asset",
+      "category": "infrastructure",
+      "description": "Run a SQL query against Amazon Athena as a Dagster asset -- starts the query, polls to a terminal state, and raises with the real failure reason on anything but success.",
+      "path": "assets/infrastructure/athena_query_asset",
+      "tags": [
+        "aws",
+        "athena",
+        "infrastructure",
+        "sql",
+        "query"
+      ],
+      "icon": "si:amazonaws",
+      "type": "dagster_community_components.AthenaQueryAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/athena_query_asset/requirements.txt",
+      "component_type": "dagster_community_components.AthenaQueryAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "boto3",
+          "jinja2"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the query execution id, state, data scanned bytes, and result location in metadata.",
+        "requires_pip": [
+          "boto3",
+          "jinja2"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "aws",
+        "athena",
+        "sql",
+        "query",
+        "airflow"
+      ]
+    },
+    {
+      "id": "redshift_data_api_asset",
+      "name": "Redshift Data API Asset",
+      "category": "infrastructure",
+      "description": "Run a SQL query against Amazon Redshift (provisioned cluster or Serverless) via the Redshift Data API as a Dagster asset -- executes the statement, polls to a terminal state, and raises with the real failure reason on anything but success.",
+      "path": "assets/infrastructure/redshift_data_api_asset",
+      "tags": [
+        "aws",
+        "redshift",
+        "infrastructure",
+        "sql",
+        "query"
+      ],
+      "icon": "si:amazonredshift",
+      "type": "dagster_community_components.RedshiftDataApiAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/redshift_data_api_asset/requirements.txt",
+      "component_type": "dagster_community_components.RedshiftDataApiAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "boto3",
+          "jinja2"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the statement id, status, result row/size counts, and duration in metadata.",
+        "requires_pip": [
+          "boto3",
+          "jinja2"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "aws",
+        "redshift",
+        "sql",
+        "query",
+        "airflow"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1488
+  "total": 1495
 }
-

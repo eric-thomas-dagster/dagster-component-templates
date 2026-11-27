@@ -561,12 +561,17 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
         defs_kwargs: Dict[str, Any] = {"assets": [_shell_asset]}
         if self.cron_schedule:
+            # `asset_name` may be slash-delimited (a hierarchical asset key, e.g. "sh/a") --
+            # not a valid job/schedule name on its own, so the auto-derived default sanitizes
+            # it the same way the op name above does. An explicit `schedule_job_name` is used
+            # verbatim (the user's own responsibility to make it valid).
+            _default_job_name = dg.AssetKey.from_user_string(self.asset_name).to_python_identifier()
             job = dg.define_asset_job(
-                name=self.schedule_job_name or f"{self.asset_name}_job",
+                name=self.schedule_job_name or f"{_default_job_name}_job",
                 selection=dg.AssetSelection.assets(dg.AssetKey.from_user_string(self.asset_name)),
             )
             schedule = dg.ScheduleDefinition(
-                name=f"{self.schedule_job_name or self.asset_name}_schedule",
+                name=f"{self.schedule_job_name or _default_job_name}_schedule",
                 cron_schedule=self.cron_schedule,
                 job=job,
                 default_status=(

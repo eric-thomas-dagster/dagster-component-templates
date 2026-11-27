@@ -55,6 +55,18 @@
       "label": "Memory Limit",
       "required": false
     },
+    "cpu_request": {
+      "description": "CPU request (e.g. '500m') -- the guaranteed minimum, as distinct from cpu_limit's ceiling.",
+      "type": "string",
+      "label": "Cpu Request",
+      "required": false
+    },
+    "memory_request": {
+      "description": "Memory request (e.g. '1Gi') -- the guaranteed minimum, as distinct from memory_limit's ceiling.",
+      "type": "string",
+      "label": "Memory Request",
+      "required": false
+    },
     "group_name": {
       "description": "Asset group.",
       "type": "string",
@@ -306,25 +318,31 @@
     "env_from_config_maps": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object"
       },
       "label": "Env From Config Maps",
-      "description": "Names of Kubernetes ConfigMaps whose entire contents are injected as env vars into the container (Kubernetes' envFrom.configMapRef).",
+      "description": "Kubernetes ConfigMaps whose contents are injected as env vars into the container. Each entry is either a plain ConfigMap name (string), or an object {name, prefix, optional} for a prefixed and/or optional reference (Kubernetes' envFrom.configMapRef).",
       "required": false
     },
     "env_from_secrets": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object"
       },
       "label": "Env From Secrets",
-      "description": "Names of Kubernetes Secrets whose entire contents are injected as env vars into the container (Kubernetes' envFrom.secretRef).",
+      "description": "Kubernetes Secrets whose contents are injected as env vars into the container. Same shape as env_from_config_maps (plain name, or {name, prefix, optional}).",
       "required": false
     },
     "kubeconfig_file": {
       "type": "string",
       "label": "Kubeconfig File",
       "description": "Path to a kubeconfig file for out-of-cluster execution (e.g. a local dev machine or a CI runner outside the target cluster). When set, in-cluster config loading is disabled in favor of this file.",
+      "required": false
+    },
+    "in_cluster": {
+      "type": "boolean",
+      "label": "In Cluster",
+      "description": "Force in-cluster service-account config (true) or the default local kubeconfig discovery -- ~/.kube/config or $KUBECONFIG (false) -- when kubeconfig_file is unset. Ignored when kubeconfig_file is set. Leave unset to keep this component's historical default.",
       "required": false
     },
     "kube_context": {

@@ -76,7 +76,76 @@
     "container_kwargs": {
       "type": "object",
       "label": "Container Kwargs",
-      "description": "Raw key-value pairs passed straight through to the Docker Python SDK's containers.create() (https://docker-py.readthedocs.io/en/stable/containers.html) -- e.g. volumes, labels, working_dir, user, mem_limit. Not simplified into dedicated fields since the available options vary too much.",
+      "description": "Raw key-value pairs passed straight through to the Docker Python SDK's containers.create() (https://docker-py.readthedocs.io/en/stable/containers.html) -- e.g. volumes, labels, working_dir, user, mem_limit. Not simplified into dedicated fields since the available options vary too much. Do NOT put 'name' here -- dagster-docker's own execute_docker_container always passes its own 'name=' first, so a 'name' key here raises 'got multiple values for keyword argument'; use container_name instead.",
+      "required": false
+    },
+    "container_name": {
+      "type": "string",
+      "label": "Container Name",
+      "description": "A fixed container name, instead of dagster-docker's auto-derived hash(run_id + op_name). Not possible via container_kwargs (see its description) -- setting this switches to this component's own direct container-creation path instead of delegating to execute_docker_container.",
+      "required": false
+    },
+    "force_pull": {
+      "type": "boolean",
+      "label": "Force Pull",
+      "description": "Pull `image` unconditionally before creating the container, even if a (possibly stale) copy is already cached locally. The delegate path only pulls on a cache MISS (docker.errors.ImageNotFound); this explicitly re-pulls every run.",
+      "required": false
+    },
+    "auto_remove": {
+      "type": "boolean",
+      "label": "Auto Remove",
+      "description": "Remove the container automatically once it exits (the real Docker auto_remove flag), instead of leaving a stopped container behind for later inspection.",
+      "required": false
+    },
+    "mounts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Mounts",
+      "description": "Docker volume/bind mounts, as a list of docker.types.Mount constructor kwargs, e.g. [{target: '/data', source: 'my-vol', type: 'volume'}] or [{target: '/host-dir', source: '/local/path', type: 'bind', read_only: true}].",
+      "required": false
+    },
+    "ports": {
+      "type": "object",
+      "label": "Ports",
+      "description": "Container->host port publishing, as the real Docker SDK 'ports' dict, e.g. {'8080/tcp': 8080}. Incompatible with network_mode='host' and, per the Docker SDK, with the single `network` field already set here when publishing requires default bridge networking -- test your specific combination.",
+      "required": false
+    },
+    "docker_base_url": {
+      "type": "string",
+      "label": "Docker Base Url",
+      "description": "Connect to a non-default Docker daemon (e.g. 'tcp://remote-host:2376') instead of the local daemon resolved by DOCKER_HOST/the default socket. Setting this switches to this component's own direct container-creation path, since dagster_docker.execute_docker_container always uses docker.client.from_env() with no override hook.",
+      "required": false
+    },
+    "tls_ca_cert_path": {
+      "type": "string",
+      "label": "Tls Ca Cert Path",
+      "description": "Path to a CA cert file, for connecting to a TLS-secured Docker daemon (usually set together with docker_base_url). Setting this switches to the direct path.",
+      "required": false
+    },
+    "tls_client_cert_path": {
+      "type": "string",
+      "label": "Tls Client Cert Path",
+      "description": "Path to a client cert file for TLS client auth. Requires tls_client_key_path too.",
+      "required": false
+    },
+    "tls_client_key_path": {
+      "type": "string",
+      "label": "Tls Client Key Path",
+      "description": "Path to a client key file for TLS client auth. Requires tls_client_cert_path too.",
+      "required": false
+    },
+    "tls_verify": {
+      "type": "boolean",
+      "label": "Tls Verify",
+      "description": "Verify the Docker daemon's TLS certificate. Only meaningful when docker_base_url/tls_ca_cert_path/tls_client_cert_path are set.",
+      "required": false
+    },
+    "retrieve_output": {
+      "type": "boolean",
+      "label": "Retrieve Output",
+      "description": "Capture the container's combined stdout/stderr and attach it as asset metadata ('container_output', truncated to the last 4000 characters). The delegate path only prints container output to the run log, with no way to also hand it back to the caller as a value -- enabling this switches to this component's own direct container-creation path, which keeps a handle to the container after it exits.",
       "required": false
     }
   },

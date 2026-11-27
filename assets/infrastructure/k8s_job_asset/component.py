@@ -151,7 +151,7 @@ from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
 
 
-def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=(), strs=()):
     """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
     if not isinstance(data, dict):
         return data
@@ -172,6 +172,14 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
             v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
         if isinstance(v, dict):
             out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    for k in strs:  # str (or Dict[str, str]) fields: a numeric-looking YAML scalar resolves to int/float/bool
+        v = out.get(k)
+        if isinstance(v, bool):
+            out[k] = "true" if v else "false"
+        elif isinstance(v, (int, float)):
+            out[k] = str(v)
+        elif isinstance(v, dict):
+            out[k] = {str(a): (("true" if b is True else "false") if isinstance(b, bool) else (str(b) if isinstance(b, (int, float)) else b)) for a, b in v.items()}
     return out
 # END field-shape normalization
 
@@ -187,6 +195,8 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     env_vars: Optional[Dict[str, str]] = Field(default=None, description="Env vars to inject into the container.")
     cpu_limit: Optional[str] = Field(default=None, description="CPU limit (e.g. '1000m').")
     memory_limit: Optional[str] = Field(default=None, description="Memory limit (e.g. '2Gi').")
+    cpu_request: Optional[str] = Field(default=None, description="CPU request (e.g. '500m') -- the guaranteed minimum, as distinct from cpu_limit's ceiling.")
+    memory_request: Optional[str] = Field(default=None, description="Memory request (e.g. '1Gi') -- the guaranteed minimum, as distinct from memory_limit's ceiling.")
     image_pull_policy: Optional[str] = Field(
         default=None,
         description="Override the image pull policy (e.g. 'Always', 'IfNotPresent', 'Never') -- useful for local testing with kind. Dagster-k8s default: 'Always'.",
@@ -231,17 +241,21 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Raw Kubernetes Affinity spec for the Pod (https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core), e.g. node/pod affinity or anti-affinity rules. Pass straight through -- not simplified, since affinity shapes vary too much.",
     )
-    env_from_config_maps: Optional[List[str]] = Field(
+    env_from_config_maps: Optional[List[Union[str, Dict[str, Any]]]] = Field(
         default=None,
-        description="Names of Kubernetes ConfigMaps whose entire contents are injected as env vars into the container (dagster-k8s execute_k8s_job's 'env_config_maps' / Kubernetes' envFrom.configMapRef).",
+        description="Kubernetes ConfigMaps whose contents are injected as env vars into the container. Each entry is either a plain ConfigMap name (string), or a dict {name, prefix, optional} for a prefixed (every key gets 'prefix' prepended) and/or optional (pod doesn't fail to schedule if the ConfigMap is missing) reference. Plain-name-only lists still go through dagster-k8s execute_k8s_job's simplified 'env_config_maps'; any entry using prefix/optional is built as a raw envFrom.configMapRef instead.",
     )
-    env_from_secrets: Optional[List[str]] = Field(
+    env_from_secrets: Optional[List[Union[str, Dict[str, Any]]]] = Field(
         default=None,
-        description="Names of Kubernetes Secrets whose entire contents are injected as env vars into the container (dagster-k8s execute_k8s_job's 'env_secrets' / Kubernetes' envFrom.secretRef).",
+        description="Kubernetes Secrets whose contents are injected as env vars into the container. Same shape as env_from_config_maps (plain name, or {name, prefix, optional}).",
     )
     kubeconfig_file: Optional[str] = Field(
         default=None,
         description="Path to a kubeconfig file for out-of-cluster execution (e.g. a local dev machine or a CI runner outside the target cluster). When set, in-cluster config loading is disabled in favor of this file.",
+    )
+    in_cluster: Optional[bool] = Field(
+        default=None,
+        description="Force in-cluster service-account config (True) or the default local kubeconfig discovery -- ~/.kube/config or $KUBECONFIG (False) -- when kubeconfig_file is unset. Ignored when kubeconfig_file is set (that file is always used). Leave unset to keep this component's historical default (assumes in-cluster on the execute_k8s_job path; auto-detects on the use_pipes=True path) -- set False explicitly to run against a remote cluster from a machine that is not itself in that cluster, without pointing at an explicit kubeconfig file.",
     )
     kube_context: Optional[str] = Field(
         default=None,
@@ -309,6 +323,7 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             lists=('deps', 'owners', 'kinds', 'image_pull_secrets', 'args', 'env_from_config_maps', 'env_from_secrets'),
             csv=('partition_values',),
             tags=('asset_tags', 'labels', 'node_selector'),
+            strs=('env_vars',),
         )
 
     @classmethod
@@ -322,6 +337,8 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         env_vars = self.env_vars or {}
         cpu = self.cpu_limit
         mem = self.memory_limit
+        cpu_request = self.cpu_request
+        mem_request = self.memory_request
         ns = self.namespace
         image = self.image
         image_pull_policy = self.image_pull_policy
@@ -341,6 +358,7 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         env_from_secrets = self.env_from_secrets
         kubeconfig_file = self.kubeconfig_file
         kube_context = self.kube_context
+        in_cluster = self.in_cluster
         k8s_job_name = self.k8s_job_name
         delete_failed_k8s_jobs = self.delete_failed_k8s_jobs
         ttl_seconds_after_finished = self.ttl_seconds_after_finished
@@ -374,6 +392,21 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
+        def _normalize_env_from_entry(e):
+            return {"name": e} if isinstance(e, str) else dict(e)
+
+        def _build_env_from_list(entries, ref_key):
+            out = []
+            for e in entries:
+                ref = {"name": e["name"]}
+                if e.get("optional") is not None:
+                    ref["optional"] = e["optional"]
+                item = {ref_key: ref}
+                if e.get("prefix"):
+                    item["prefix"] = e["prefix"]
+                out.append(item)
+            return out
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name,
@@ -389,8 +422,18 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _k8s_asset(context: dg.AssetExecutionContext):
             resources = None
-            if cpu or mem:
-                resources = {"limits": {k: v for k, v in {"cpu": cpu, "memory": mem}.items() if v}}
+            _limits = {k: v for k, v in {"cpu": cpu, "memory": mem}.items() if v}
+            _requests = {k: v for k, v in {"cpu": cpu_request, "memory": mem_request}.items() if v}
+            if _limits or _requests:
+                resources = {}
+                if _limits:
+                    resources["limits"] = _limits
+                if _requests:
+                    resources["requests"] = _requests
+
+            _cm_entries = [_normalize_env_from_entry(e) for e in (env_from_config_maps or [])]
+            _secret_entries = [_normalize_env_from_entry(e) for e in (env_from_secrets or [])]
+            _needs_raw_env_from = any(e.get("prefix") or e.get("optional") is not None for e in _cm_entries + _secret_entries)
 
             if use_pipes:
                 from dagster_k8s import PipesK8sClient
@@ -407,10 +450,10 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     container_overrides["image_pull_policy"] = image_pull_policy
                 if args:
                     container_overrides["args"] = args
-                if env_from_config_maps or env_from_secrets:
+                if _cm_entries or _secret_entries:
                     container_overrides["env_from"] = (
-                        [{"config_map_ref": {"name": n}} for n in (env_from_config_maps or [])]
-                        + [{"secret_ref": {"name": n}} for n in (env_from_secrets or [])]
+                        _build_env_from_list(_cm_entries, "config_map_ref")
+                        + _build_env_from_list(_secret_entries, "secret_ref")
                     )
 
                 base_pod_spec: Dict[str, Any] = {}
@@ -432,7 +475,10 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 base_pod_meta = {"labels": labels} if labels else None
 
                 client = PipesK8sClient(
-                    load_incluster_config=False if kubeconfig_file else None,
+                    load_incluster_config=(
+                        False if kubeconfig_file
+                        else (in_cluster if in_cluster is not None else None)
+                    ),
                     kubeconfig_file=kubeconfig_file,
                     kube_context=kube_context,
                 )
@@ -472,6 +518,32 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             if delete_failed_k8s_jobs is not None:
                 _execute_kwargs["delete_failed_k8s_jobs"] = delete_failed_k8s_jobs
 
+            # dagster-k8s's own env_config_maps/env_secrets params only take plain names (no
+            # prefix/optional) -- when any entry needs that richness, build the real envFrom
+            # list by hand and merge it in via container_config instead, rather than double-
+            # injecting through both paths.
+            _env_config_maps_arg = None
+            _env_secrets_arg = None
+            _container_config = None
+            if _needs_raw_env_from:
+                _container_config = {
+                    "env_from": (
+                        _build_env_from_list(_cm_entries, "config_map_ref")
+                        + _build_env_from_list(_secret_entries, "secret_ref")
+                    )
+                }
+            else:
+                _env_config_maps_arg = [e["name"] for e in _cm_entries] or None
+                _env_secrets_arg = [e["name"] for e in _secret_entries] or None
+
+            # kubeconfig_file always wins when set. Otherwise: in_cluster explicitly set wins;
+            # unset preserves this component's historical default (assume in-cluster), so
+            # existing deployments keep working unchanged.
+            _load_incluster_execute = (
+                False if kubeconfig_file
+                else (in_cluster if in_cluster is not None else True)
+            )
+
             execute_k8s_job(
                 context=context,
                 image=image,
@@ -485,8 +557,9 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 namespace=ns,
                 resources=resources,
                 env_vars=env_var_list,
-                env_config_maps=env_from_config_maps,
-                env_secrets=env_from_secrets,
+                env_config_maps=_env_config_maps_arg,
+                env_secrets=_env_secrets_arg,
+                container_config=_container_config,
                 image_pull_policy=image_pull_policy,
                 image_pull_secrets=image_pull_secrets,
                 service_account_name=service_account_name,
@@ -497,7 +570,7 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 pod_spec_config=_pod_spec_config or None,
                 job_spec_config=_job_spec_config or None,
                 kubeconfig_file=kubeconfig_file,
-                load_incluster_config=kubeconfig_file is None,
+                load_incluster_config=_load_incluster_execute,
                 _kubeconfig_file_context=kube_context,
                 **_execute_kwargs,
             )

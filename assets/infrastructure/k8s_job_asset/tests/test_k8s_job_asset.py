@@ -39,6 +39,19 @@ def test_no_env_vars_passes_none(mod, monkeypatch):
     assert calls[0]["env_vars"] is None
 
 
+def test_numeric_looking_env_var_value_is_coerced_to_str(mod, monkeypatch):
+    """Dagster's component-YAML loading can hand a str-typed field an int/bool even when the
+    YAML source was quoted (confirmed via a direct repro against create_defs_folder_sandbox) --
+    env_vars is Dict[str, str], so a numeric-looking value like {"N": 1} fails Pydantic
+    validation unless coerced back to a string first."""
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", env_vars={"N": 1, "FLAG": True},
+    )
+    materialize(component)
+    assert sorted(calls[0]["env_vars"]) == ["FLAG=true", "N=1"]
+
+
 def test_image_pull_policy_and_secrets_and_service_account_pass_through(mod, monkeypatch):
     calls = _patch_execute(monkeypatch, mod)
     component = mod.K8sJobAssetComponent(
@@ -386,3 +399,156 @@ def test_no_ttl_passes_none_job_spec_config(mod, monkeypatch):
     component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
     materialize(component)
     assert calls[0]["job_spec_config"] is None
+
+
+# --- resource requests (as distinct from limits) -----------------------------------------
+
+def test_cpu_and_memory_request_build_requests_block(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", cpu_request="500m", memory_request="1Gi",
+    )
+    materialize(component)
+    assert calls[0]["resources"] == {"requests": {"cpu": "500m", "memory": "1Gi"}}
+
+
+def test_limits_and_requests_both_set_build_both_blocks(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1",
+        cpu_limit="1000m", memory_limit="2Gi", cpu_request="500m", memory_request="1Gi",
+    )
+    materialize(component)
+    assert calls[0]["resources"] == {
+        "limits": {"cpu": "1000m", "memory": "2Gi"},
+        "requests": {"cpu": "500m", "memory": "1Gi"},
+    }
+
+
+def test_no_limits_or_requests_passes_none_resources(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
+    materialize(component)
+    assert calls[0]["resources"] is None
+
+
+# --- env_from: plain names still use dagster-k8s's simplified params --------------------
+
+def test_plain_env_from_names_still_use_simplified_params(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1",
+        env_from_config_maps=["my-cm"], env_from_secrets=["my-secret"],
+    )
+    materialize(component)
+    assert calls[0]["env_config_maps"] == ["my-cm"]
+    assert calls[0]["env_secrets"] == ["my-secret"]
+    assert calls[0]["container_config"] is None
+
+
+# --- env_from: prefix/optional builds a raw envFrom list via container_config -----------
+
+def test_env_from_prefix_builds_raw_container_config(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1",
+        env_from_config_maps=[{"name": "my-cm", "prefix": "APP_"}],
+    )
+    materialize(component)
+    assert calls[0]["env_config_maps"] is None
+    assert calls[0]["env_secrets"] is None
+    assert calls[0]["container_config"] == {
+        "env_from": [{"config_map_ref": {"name": "my-cm"}, "prefix": "APP_"}],
+    }
+
+
+def test_env_from_optional_builds_raw_container_config(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1",
+        env_from_secrets=[{"name": "my-secret", "optional": True}],
+    )
+    materialize(component)
+    assert calls[0]["container_config"] == {
+        "env_from": [{"secret_ref": {"name": "my-secret", "optional": True}}],
+    }
+
+
+def test_env_from_mixed_plain_and_rich_entries_all_go_through_container_config(mod, monkeypatch):
+    """One rich entry forces ALL entries through the raw path, avoiding double injection."""
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1",
+        env_from_config_maps=["plain-cm", {"name": "rich-cm", "prefix": "X_"}],
+    )
+    materialize(component)
+    assert calls[0]["env_config_maps"] is None
+    assert calls[0]["container_config"]["env_from"] == [
+        {"config_map_ref": {"name": "plain-cm"}},
+        {"config_map_ref": {"name": "rich-cm"}, "prefix": "X_"},
+    ]
+
+
+def test_env_from_prefix_with_use_pipes_builds_base_pod_spec_env_from(mod, monkeypatch):
+    pipes_calls = _patch_pipes_client(monkeypatch, mod, materialize_result=None)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", use_pipes=True,
+        env_from_config_maps=[{"name": "my-cm", "prefix": "APP_", "optional": True}],
+    )
+    materialize(component)
+    container = pipes_calls[0]["base_pod_spec"]["containers"][0]
+    assert container["env_from"] == [
+        {"config_map_ref": {"name": "my-cm", "optional": True}, "prefix": "APP_"},
+    ]
+
+
+# --- in_cluster: explicit kubeconfig discovery without an explicit file -----------------
+
+def test_in_cluster_unset_keeps_historical_default_true(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
+    materialize(component)
+    assert calls[0]["load_incluster_config"] is True
+
+
+def test_in_cluster_false_uses_default_kubeconfig_discovery(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", in_cluster=False)
+    materialize(component)
+    assert calls[0]["load_incluster_config"] is False
+    assert calls[0]["kubeconfig_file"] is None
+
+
+def test_kubeconfig_file_wins_over_in_cluster_true(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", in_cluster=True, kubeconfig_file="/home/me/.kube/config",
+    )
+    materialize(component)
+    assert calls[0]["load_incluster_config"] is False
+    assert calls[0]["kubeconfig_file"] == "/home/me/.kube/config"
+
+
+def test_in_cluster_false_with_use_pipes_passed_through(mod, monkeypatch):
+    pipes_calls = _patch_pipes_client(monkeypatch, mod, materialize_result=None)
+    import dagster_k8s
+
+    constructed = {}
+    real_init = dagster_k8s.PipesK8sClient.__init__ if hasattr(dagster_k8s.PipesK8sClient, "__init__") else None
+
+    class FakePipesK8sClient:
+        def __init__(self, **kwargs):
+            constructed.update(kwargs)
+
+        def run(self, **kwargs):
+            pipes_calls.append(kwargs)
+
+            class FakeInvocation:
+                def get_materialize_result(self):
+                    return None
+            return FakeInvocation()
+
+    monkeypatch.setattr(dagster_k8s, "PipesK8sClient", FakePipesK8sClient)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", use_pipes=True, in_cluster=False)
+    materialize(component)
+    assert constructed["load_incluster_config"] is False

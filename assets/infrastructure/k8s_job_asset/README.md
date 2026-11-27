@@ -127,6 +127,8 @@ dedicated kwargs for them (unlike `execute_k8s_job`), so this component folds th
 | `env_vars` | `Dict[str, str]` | — | Env vars to inject into the container. |
 | `cpu_limit` | `str` | — | CPU limit (e.g. '1000m'). |
 | `memory_limit` | `str` | — | Memory limit (e.g. '2Gi'). |
+| `cpu_request` | `str` | — | CPU request (e.g. '500m') -- the guaranteed minimum, as distinct from cpu_limit's ceiling. |
+| `memory_request` | `str` | — | Memory request (e.g. '1Gi') -- the guaranteed minimum, as distinct from memory_limit's ceiling. |
 | `image_pull_policy` | `str` | — | Override the image pull policy (e.g. 'Always', 'IfNotPresent', 'Never') -- useful for local testing with kind. Dagster-k8s default: 'Always'. |
 | `image_pull_secrets` | `List[str]` | — | Names of Kubernetes imagePullSecrets to use for this Job's Pod (e.g. ['my-registry-secret']). |
 | `service_account_name` | `str` | — | Kubernetes service account under which to run the Job. Defaults to the cluster's 'default' service account. |
@@ -137,9 +139,10 @@ dedicated kwargs for them (unlike `execute_k8s_job`), so this component folds th
 | `node_selector` | `Dict[str, str]` | — | Kubernetes nodeSelector for the Pod (e.g. {'disktype': 'ssd'}) -- constrains scheduling to nodes with matching labels. |
 | `tolerations` | `List[Dict[str, Any]]` | — | Raw Kubernetes Toleration specs for the Pod (https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core), e.g. [{'key': 'dedicated', 'operator': 'Equal', 'value': 'ml', 'effect': 'NoSchedule'… _(full docs in schema.json + component README)_ |
 | `affinity` | `Dict[str, Any]` | — | Raw Kubernetes Affinity spec for the Pod (https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core), e.g. node/pod affinity or anti-affinity rules. Pass straight through -- not simplified, si… _(full docs in schema.json + component README)_ |
-| `env_from_config_maps` | `List[str]` | — | Names of Kubernetes ConfigMaps whose entire contents are injected as env vars into the container (dagster-k8s execute_k8s_job's 'env_config_maps' / Kubernetes' envFrom.configMapRef). |
-| `env_from_secrets` | `List[str]` | — | Names of Kubernetes Secrets whose entire contents are injected as env vars into the container (dagster-k8s execute_k8s_job's 'env_secrets' / Kubernetes' envFrom.secretRef). |
+| `env_from_config_maps` | `List[Union[str, Dict[str, Any]]]` | — | Kubernetes ConfigMaps whose contents are injected as env vars into the container. Each entry is either a plain ConfigMap name (string), or a dict {name, prefix, optional} for a prefixed (every key gets 'prefix' prepended… _(full docs in schema.json + component README)_ |
+| `env_from_secrets` | `List[Union[str, Dict[str, Any]]]` | — | Kubernetes Secrets whose contents are injected as env vars into the container. Same shape as env_from_config_maps (plain name, or {name, prefix, optional}). |
 | `kubeconfig_file` | `str` | — | Path to a kubeconfig file for out-of-cluster execution (e.g. a local dev machine or a CI runner outside the target cluster). When set, in-cluster config loading is disabled in favor of this file. |
+| `in_cluster` | `bool` | — | Force in-cluster service-account config (True) or the default local kubeconfig discovery -- ~/.kube/config or $KUBECONFIG (False) -- when kubeconfig_file is unset. Ignored when kubeconfig_file is set (that file is always… _(full docs in schema.json + component README)_ |
 | `kube_context` | `str` | — | Select a specific context within kubeconfig_file (for a kubeconfig with multiple cluster contexts). Ignored if kubeconfig_file is unset (in-cluster config has no notion of contexts). Defaults to the kubeconfig's own current-context. |
 | `k8s_job_name` | `str` | — | Override the Kubernetes Job name. Leave unset (recommended): dagster-k8s then derives a name that is already unique per run AND per op/asset. Setting this explicitly is only for when you need a fixed, predictable name --… _(full docs in schema.json + component README)_ |
 | `delete_failed_k8s_jobs` | `bool` | — | Whether to immediately delete a failed Kubernetes Job object (dagster-k8s's own default: True). Set False to leave failed Jobs/Pods in the cluster for inspection -- pair with ttl_seconds_after_finished for automatic clea… _(full docs in schema.json + component README)_ |

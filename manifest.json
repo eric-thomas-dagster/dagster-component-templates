@@ -30879,25 +30879,25 @@
       "icon": "si:googlecloud"
     },
     {
-      "id": "gcs_bucket_asset",
-      "name": "GCS Bucket",
-      "category": "infrastructure",
-      "description": "Create, delete, or idempotently ensure a GCS bucket exists, as a materializable Dagster asset -- the Airflow GCSCreateBucketOperator/GCSDeleteBucketOperator equivalent.",
-      "path": "assets/infrastructure/gcs_bucket_asset",
+      "id": "gcs_bucket_resource",
+      "name": "GCS Bucket Resource",
+      "category": "resource",
+      "description": "Register a GcsBucketResource (bucket create/delete/ensure-exists) for use by other components -- the Airflow GCSCreateBucketOperator/GCSDeleteBucketOperator equivalent as reusable, injectable logic.",
+      "path": "resources/gcs_bucket_resource",
       "tags": [
+        "resource",
         "gcp",
         "gcs",
-        "infrastructure",
-        "bucket"
+        "storage"
       ],
       "icon": "si:googlecloudstorage",
-      "type": "dagster_community_components.GCSBucketAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/requirements.txt",
-      "component_type": "dagster_community_components.GCSBucketAssetComponent",
+      "type": "dagster_community_components.GcsBucketResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_bucket_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_bucket_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_bucket_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_bucket_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_bucket_resource/requirements.txt",
+      "component_type": "dagster_community_components.GcsBucketResourceComponent",
       "validation": {
         "level": "code",
         "last_validated": "2026-11-26"
@@ -30911,22 +30911,22 @@
         ]
       },
       "produces": [
-        "asset"
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "gcs_bucket_resource"
       ],
       "agent_hints": {
         "input_type": "None",
         "output_type": "Any",
-        "outputs": "MaterializeResult with bucket name, action, and existed/created status in metadata.",
+        "outputs": "Register a GcsBucketResource (bucket create/delete/ensure-exists) for use by other components",
         "requires_pip": [
           "google-cloud-storage"
         ]
       },
       "keywords": [
-        "infra",
-        "gcp",
-        "gcs",
-        "bucket",
-        "storage"
+        "connection",
+        "connect"
       ]
     },
     {
@@ -55071,25 +55071,24 @@
       "vertical": "streaming"
     },
     {
-      "id": "pubsub_topic_asset",
-      "name": "Pub/Sub Topic Asset",
-      "category": "infrastructure",
-      "description": "Ensure a Google Cloud Pub/Sub topic is present or absent -- create_topic/delete_topic, idempotent against AlreadyExists/NotFound.",
-      "path": "assets/infrastructure/pubsub_topic_asset",
+      "id": "pubsub_resource",
+      "name": "Pub/Sub Resource",
+      "category": "resource",
+      "description": "Register a reusable Google Cloud Pub/Sub topic/subscription lifecycle helper (create/delete, idempotent) for use by other components",
+      "path": "resources/pubsub_resource",
       "tags": [
+        "resource",
         "gcp",
-        "pubsub",
-        "messaging",
-        "infrastructure"
+        "pubsub"
       ],
-      "icon": "si:googlepubsub",
-      "type": "dagster_community_components.PubsubTopicAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_topic_asset/requirements.txt",
-      "component_type": "dagster_community_components.PubsubTopicAssetComponent",
+      "icon": "si:googlecloud",
+      "type": "dagster_community_components.PubsubResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pubsub_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pubsub_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pubsub_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pubsub_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pubsub_resource/requirements.txt",
+      "component_type": "dagster_community_components.PubsubResourceComponent",
       "validation": {
         "level": "code",
         "last_validated": "2026-11-26"
@@ -55103,73 +55102,22 @@
         ]
       },
       "produces": [
-        "asset"
+        "resource"
       ],
       "agent_hints": {
-        "input_type": "None",
-        "output_type": "Any",
-        "outputs": "MaterializeResult with the topic's final state in metadata.",
+        "outputs": "Register a reusable Google Cloud Pub/Sub topic/subscription lifecycle helper (create/delete, idempotent) for use by other components",
         "requires_pip": [
           "google-cloud-pubsub"
         ]
       },
+      "x-dagster-provides": [
+        "pubsub_resource"
+      ],
       "keywords": [
-        "infra",
+        "resource",
         "gcp",
         "pubsub",
         "topic",
-        "create",
-        "delete",
-        "airflow migration"
-      ]
-    },
-    {
-      "id": "pubsub_subscription_asset",
-      "name": "Pub/Sub Subscription Asset",
-      "category": "infrastructure",
-      "description": "Ensure a Google Cloud Pub/Sub subscription on a topic is present or absent -- create_subscription/delete_subscription, idempotent against AlreadyExists/NotFound.",
-      "path": "assets/infrastructure/pubsub_subscription_asset",
-      "tags": [
-        "gcp",
-        "pubsub",
-        "messaging",
-        "infrastructure"
-      ],
-      "icon": "si:googlepubsub",
-      "type": "dagster_community_components.PubsubSubscriptionAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pubsub_subscription_asset/requirements.txt",
-      "component_type": "dagster_community_components.PubsubSubscriptionAssetComponent",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-26"
-      },
-      "version": "1.0.0",
-      "author": "Eric Thomas",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "google-cloud-pubsub"
-        ]
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "None",
-        "output_type": "Any",
-        "outputs": "MaterializeResult with the subscription's final state in metadata.",
-        "requires_pip": [
-          "google-cloud-pubsub"
-        ]
-      },
-      "keywords": [
-        "infra",
-        "gcp",
-        "pubsub",
         "subscription",
         "create",
         "delete",
@@ -59477,25 +59425,25 @@
       "icon": "GitBranch"
     },
     {
-      "id": "s3_bucket_asset",
-      "name": "S3 Bucket",
-      "category": "infrastructure",
-      "description": "Create, delete, or idempotently ensure an S3 bucket exists, as a materializable Dagster asset -- the Airflow S3CreateBucketOperator/S3DeleteBucketOperator equivalent.",
-      "path": "assets/infrastructure/s3_bucket_asset",
+      "id": "s3_bucket_resource",
+      "name": "S3 Bucket Resource",
+      "category": "resource",
+      "description": "Register an S3BucketResource (bucket create/delete/ensure-exists) for use by other components -- the Airflow S3CreateBucketOperator/S3DeleteBucketOperator equivalent as reusable, injectable logic.",
+      "path": "resources/s3_bucket_resource",
       "tags": [
+        "resource",
         "aws",
         "s3",
-        "infrastructure",
-        "bucket"
+        "storage"
       ],
       "icon": "si:amazons3",
-      "type": "dagster_community_components.S3BucketAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/requirements.txt",
-      "component_type": "dagster_community_components.S3BucketAssetComponent",
+      "type": "dagster_community_components.S3BucketResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/s3_bucket_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/s3_bucket_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/s3_bucket_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/s3_bucket_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/s3_bucket_resource/requirements.txt",
+      "component_type": "dagster_community_components.S3BucketResourceComponent",
       "validation": {
         "level": "code",
         "last_validated": "2026-11-26"
@@ -59509,22 +59457,22 @@
         ]
       },
       "produces": [
-        "asset"
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "s3_bucket_resource"
       ],
       "agent_hints": {
         "input_type": "None",
         "output_type": "Any",
-        "outputs": "MaterializeResult with bucket name, action, and existed/created status in metadata.",
+        "outputs": "Register an S3BucketResource (bucket create/delete/ensure-exists) for use by other components",
         "requires_pip": [
           "boto3"
         ]
       },
       "keywords": [
-        "infra",
-        "aws",
-        "s3",
-        "bucket",
-        "storage"
+        "connection",
+        "connect"
       ]
     },
     {
@@ -78436,5 +78384,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1495
+  "total": 1493
 }

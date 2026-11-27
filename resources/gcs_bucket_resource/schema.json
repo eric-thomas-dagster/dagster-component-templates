@@ -1,0 +1,34 @@
+{
+  "component_type": "dagster_community_components.GcsBucketResourceComponent",
+  "description": "Register a GcsBucketResource (bucket create/delete/ensure-exists) for use by other components -- the Airflow GCSCreateBucketOperator/GCSDeleteBucketOperator equivalent as reusable, injectable logic.",
+  "category": "resource",
+  "icon": "si:googlecloudstorage",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "gcs_bucket_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "gcs_bucket_resource"
+    },
+    "credentials_env_var": {
+      "type": "string",
+      "label": "Credentials Env Var",
+      "description": "Env var holding a path to a GCP service account JSON key file. Unset uses application-default credentials (same convention as gcs_to_database_asset's credentials_env_var).",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "gcp",
+    "gcs",
+    "storage"
+  ],
+  "name": "GCS Bucket Resource"
+}

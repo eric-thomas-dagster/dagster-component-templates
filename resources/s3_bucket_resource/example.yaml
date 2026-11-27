@@ -1,0 +1,4 @@
+type: dagster_community_components.S3BucketResourceComponent
+attributes:
+  resource_key: s3_bucket_resource
+  region_name: us-west-2

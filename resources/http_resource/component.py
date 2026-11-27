@@ -17,6 +17,22 @@ def _require_env(name: str) -> str:
     return value
 
 
+def _optional_env_var_or_empty(name: Optional[str]):
+    """For a genuinely OPTIONAL credential (auth_header_env_var): if a name was given AND
+    that env var is actually set in this environment, return a `dg.EnvVar(name)` so Dagster
+    resolves it properly at run-launch config time (never baking the secret value in).
+    If the name was given but the env var is NOT set, return "" (treated as "not configured")
+    instead of the `dg.EnvVar(...)` placeholder -- wrapping an unresolvable name would make
+    Dagster's config resolution raise `DagsterInvalidConfigError` for every run in this code
+    location, even runs that never touch this resource. A REQUIRED credential for the
+    selected auth_type (basic/bearer/oauth2) is NOT run through this helper -- those should
+    keep failing clearly, since an unset required credential is a real misconfiguration, not
+    an absent optional one."""
+    if not name:
+        return ""
+    return dg.EnvVar(name) if dg.EnvVar(name).get_value() is not None else ""
+
+
 # Module-level (not instance/class-attribute) OAuth2 token cache, keyed by
 # (token_url, client_id_env_var) -- same convention as per_row_http_fetcher's own
 # cache: a resource instance can be long-lived across a run, but this still keys
@@ -175,6 +191,7 @@ class HTTPResource(dg.ConfigurableResource):
         path: str,
         *,
         headers: Optional[Dict[str, str]] = None,
+        params: Optional[Dict[str, Any]] = None,
         body: Optional[str] = None,
         json_body: Optional[Dict[str, Any]] = None,
         success_status_codes: Optional[List[int]] = None,
@@ -186,8 +203,10 @@ class HTTPResource(dg.ConfigurableResource):
         """One HTTP call, with a status-code (and optional response-field) success check,
         and retry-with-backoff on a retryable status code or connection error (when
         `retries` > 0) -- the Airflow `SimpleHttpOperator` equivalent as reusable code.
-        Raises `dg.Failure` on a non-matching final result unless `raise_on_failure=False`,
-        in which case the caller can inspect `result.success` itself."""
+        `params` is the query string (e.g. {"since": "2026-01-01"}), passed straight
+        through to `requests`. Raises `dg.Failure` on a non-matching final result unless
+        `raise_on_failure=False`, in which case the caller can inspect `result.success`
+        itself."""
         import requests
 
         session = self.get_session()
@@ -196,6 +215,8 @@ class HTTPResource(dg.ConfigurableResource):
 
         url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}" if not path.startswith(("http://", "https://")) else path
         request_kwargs: Dict[str, Any] = {"headers": dict(session.headers), "timeout": timeout_seconds or self.timeout_seconds}
+        if params is not None:
+            request_kwargs["params"] = params
         if json_body is not None:
             request_kwargs["json"] = json_body
         elif body is not None:
@@ -253,6 +274,41 @@ class HTTPResource(dg.ConfigurableResource):
             )
         return result
 
+    def poke(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: Optional[Dict[str, str]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        success_status_codes: Optional[List[int]] = None,
+        response_check: Optional[Any] = None,
+        timeout_seconds: Optional[int] = None,
+    ) -> bool:
+        """One HTTP call that answers "is the condition met yet?" as a plain bool, never
+        raising -- the Airflow `HttpSensor` equivalent. A connection error or timeout means
+        "not yet" (returns False), same as a sensor poke that hasn't succeeded. Default
+        success rule is a 2xx status code; pass `response_check` (a `requests.Response ->
+        bool` callable) for a custom rule (e.g. checking a response body field)."""
+        import requests
+
+        session = self.get_session()
+        if headers:
+            session.headers.update(headers)
+        url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}" if not path.startswith(("http://", "https://")) else path
+        request_kwargs: Dict[str, Any] = {"headers": dict(session.headers), "timeout": timeout_seconds or self.timeout_seconds}
+        if params is not None:
+            request_kwargs["params"] = params
+
+        try:
+            response = session.request(method, url, **request_kwargs)
+        except requests.RequestException:
+            return False
+
+        if response_check is not None:
+            return bool(response_check(response))
+        return _status_is_success(response.status_code, success_status_codes)
+
 
 class HTTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an HTTP resource (base URL + auth) for use by other components.
@@ -265,7 +321,7 @@ class HTTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     resource_key: str = Field(default="http_resource", description="Key used to register this resource. Other components reference it via resource_key.")
     base_url: str = Field(description="Base URL for all requests, e.g. 'https://api.example.com/v1'")
-    auth_header_env_var: Optional[str] = Field(default=None, description="Env var containing a fully-formed Authorization header value, e.g. 'Bearer token123'. Mutually exclusive with auth_type.")
+    auth_header_env_var: Optional[str] = Field(default=None, description="Env var containing a fully-formed Authorization header value, e.g. 'Bearer token123'. Mutually exclusive with auth_type. Genuinely optional: if this env var is not actually set in a given deployment, the resource proceeds with no auth header rather than failing the run -- use it if present, skip it otherwise.")
     auth_type: Literal["none", "basic", "bearer", "oauth2_client_credentials"] = Field(default="none", description="Auth scheme, as an alternative to auth_header_env_var: none/basic/bearer/oauth2_client_credentials.")
     auth_username_env_var: Optional[str] = Field(default=None, description="Required for auth_type='basic'.")
     auth_password_env_var: Optional[str] = Field(default=None, description="Required for auth_type='basic'.")
@@ -302,7 +358,7 @@ class HTTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
         resource = HTTPResource(
             base_url=self.base_url,
-            auth_header_value=dg.EnvVar(self.auth_header_env_var) if self.auth_header_env_var else "",
+            auth_header_value=_optional_env_var_or_empty(self.auth_header_env_var),
             auth_type=self.auth_type,
             auth_username=dg.EnvVar(self.auth_username_env_var) if self.auth_username_env_var else "",
             auth_password=dg.EnvVar(self.auth_password_env_var) if self.auth_password_env_var else "",

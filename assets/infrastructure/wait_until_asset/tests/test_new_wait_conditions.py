@@ -173,10 +173,10 @@ def test_http_ok_met_on_2xx(mod):
         poll_seconds=0.01, timeout_seconds=5,
     )
     mock_resp = MagicMock(status_code=200)
-    with patch("requests.Session.get", return_value=mock_resp) as mock_get:
+    with patch("requests.Session.request", return_value=mock_resp) as mock_request:
         result = materialize(component)
     assert result.success
-    mock_get.assert_called_with("http://service.example.com/healthz", timeout=10)
+    mock_request.assert_called_with("GET", "http://service.example.com/healthz", headers=None, timeout=10)
 
 
 def test_http_ok_times_out_on_non_2xx(mod):
@@ -185,7 +185,7 @@ def test_http_ok_times_out_on_non_2xx(mod):
         poll_seconds=0.01, timeout_seconds=0.05,
     )
     mock_resp = MagicMock(status_code=503)
-    with patch("requests.Session.get", return_value=mock_resp):
+    with patch("requests.Session.request", return_value=mock_resp):
         result = materialize(component, raise_on_error=False)
     assert not result.success
 
@@ -197,7 +197,7 @@ def test_http_ok_times_out_on_connection_error_not_hard_fail(mod):
         asset_name="t", condition="http_ok", http_url="http://service.example.com/healthz",
         poll_seconds=0.01, timeout_seconds=0.05,
     )
-    with patch("requests.Session.get", side_effect=requests.ConnectionError("refused")):
+    with patch("requests.Session.request", side_effect=requests.ConnectionError("refused")):
         result = materialize(component, raise_on_error=False)
     assert not result.success
 
@@ -212,11 +212,170 @@ def test_http_ok_bearer_auth_sets_header(mod, monkeypatch):
     mock_resp = MagicMock(status_code=200)
     captured = {}
 
-    def _fake_get(self, url, timeout):
+    def _fake_request(self, method, url, headers=None, timeout=None):
         captured["auth_header"] = self.headers.get("Authorization")
         return mock_resp
 
-    with patch("requests.Session.get", _fake_get):
+    with patch("requests.Session.request", _fake_request):
         result = materialize(component)
     assert result.success
     assert captured["auth_header"] == "Bearer tok123"
+
+
+def test_http_ok_custom_method_and_headers(mod):
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="http_ok", http_url="http://service.example.com/healthz",
+        http_method="HEAD", http_headers={"X-Probe": "1"},
+        poll_seconds=0.01, timeout_seconds=5,
+    )
+    mock_resp = MagicMock(status_code=200)
+    with patch("requests.Session.request", return_value=mock_resp) as mock_request:
+        result = materialize(component)
+    assert result.success
+    mock_request.assert_called_with("HEAD", "http://service.example.com/healthz", headers={"X-Probe": "1"}, timeout=10)
+
+
+def test_http_ok_success_status_codes_narrows_default_2xx(mod):
+    """202 is a 2xx status but not in the explicit allow-list -- should count as not-yet-met,
+    not success, unlike the old hardcoded 200<=code<300 check."""
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="http_ok", http_url="http://service.example.com/healthz",
+        http_success_status_codes=[200], poll_seconds=0.01, timeout_seconds=0.05,
+    )
+    mock_resp = MagicMock(status_code=202)
+    with patch("requests.Session.request", return_value=mock_resp):
+        result = materialize(component, raise_on_error=False)
+    assert not result.success
+
+
+def test_http_ok_success_status_codes_allows_non_2xx(mod):
+    """A caller can explicitly treat a 404 as success (e.g. 'this endpoint being gone IS the
+    signal we're waiting for')."""
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="http_ok", http_url="http://service.example.com/healthz",
+        http_success_status_codes=[404], poll_seconds=0.01, timeout_seconds=5,
+    )
+    mock_resp = MagicMock(status_code=404)
+    with patch("requests.Session.request", return_value=mock_resp):
+        result = materialize(component)
+    assert result.success
+
+
+# --- match_mode: prefix/wildcard (s3/gcs/sftp) -------------------------------------------
+
+def test_s3_key_exists_prefix_mode_succeeds_when_any_object_under_prefix(mod):
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="s3_key_exists", s3_match_mode="prefix",
+        s3_bucket="my-bucket", s3_key="incoming/2026-01-01/",
+        poll_seconds=0.01, timeout_seconds=5,
+    )
+    mock_client = MagicMock()
+    mock_client.list_objects_v2.return_value = {"KeyCount": 2}
+    with patch("boto3.client", return_value=mock_client):
+        result = materialize(component)
+    assert result.success
+    mock_client.list_objects_v2.assert_called_with(Bucket="my-bucket", Prefix="incoming/2026-01-01/", MaxKeys=1)
+
+
+def test_s3_key_exists_wildcard_mode_matches_via_fnmatch(mod):
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="s3_key_exists", s3_match_mode="wildcard",
+        s3_bucket="my-bucket", s3_key="incoming/*/ready.csv",
+        poll_seconds=0.01, timeout_seconds=5,
+    )
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [{"Contents": [{"Key": "incoming/2026-01-01/ready.csv"}]}]
+    mock_client = MagicMock()
+    mock_client.get_paginator.return_value = mock_paginator
+    with patch("boto3.client", return_value=mock_client):
+        result = materialize(component)
+    assert result.success
+    mock_paginator.paginate.assert_called_with(Bucket="my-bucket", Prefix="incoming/")
+
+
+def test_s3_key_exists_wildcard_mode_times_out_when_no_key_matches(mod):
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="s3_key_exists", s3_match_mode="wildcard",
+        s3_bucket="my-bucket", s3_key="incoming/*/ready.csv",
+        poll_seconds=0.01, timeout_seconds=0.05,
+    )
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [{"Contents": [{"Key": "incoming/2026-01-01/other.csv"}]}]
+    mock_client = MagicMock()
+    mock_client.get_paginator.return_value = mock_paginator
+    with patch("boto3.client", return_value=mock_client):
+        result = materialize(component, raise_on_error=False)
+    assert not result.success
+
+
+def test_gcs_object_exists_prefix_mode_succeeds_when_any_blob_under_prefix(mod):
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="gcs_object_exists", gcs_match_mode="prefix",
+        gcs_bucket="my-bucket", gcs_blob_name="incoming/2026-01-01/",
+        poll_seconds=0.01, timeout_seconds=5,
+    )
+    mock_bucket = MagicMock()
+    mock_client = MagicMock()
+    mock_client.bucket.return_value = mock_bucket
+    mock_client.list_blobs.return_value = iter([MagicMock()])
+    with patch("google.cloud.storage.Client", return_value=mock_client):
+        result = materialize(component)
+    assert result.success
+    mock_client.list_blobs.assert_called_with(mock_bucket, prefix="incoming/2026-01-01/", max_results=1)
+
+
+def test_gcs_object_exists_wildcard_mode_matches_via_fnmatch(mod):
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="gcs_object_exists", gcs_match_mode="wildcard",
+        gcs_bucket="my-bucket", gcs_blob_name="incoming/*/ready.csv",
+        poll_seconds=0.01, timeout_seconds=5,
+    )
+    matching_blob = MagicMock(name="incoming/2026-01-01/ready.csv")
+    matching_blob.name = "incoming/2026-01-01/ready.csv"
+    mock_bucket = MagicMock()
+    mock_client = MagicMock()
+    mock_client.bucket.return_value = mock_bucket
+    mock_client.list_blobs.return_value = iter([matching_blob])
+    with patch("google.cloud.storage.Client", return_value=mock_client):
+        result = materialize(component)
+    assert result.success
+    mock_client.list_blobs.assert_called_with(mock_bucket, prefix="incoming/")
+
+
+def test_sftp_file_exists_prefix_mode_lists_directory(mod, monkeypatch):
+    monkeypatch.setenv("SFTP_HOST", "host.example.com")
+    monkeypatch.setenv("SFTP_USER", "alice")
+    monkeypatch.setenv("SFTP_PASS", "secret")
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="sftp_file_exists", sftp_match_mode="prefix",
+        sftp_host_env_var="SFTP_HOST", sftp_username_env_var="SFTP_USER",
+        sftp_password_env_var="SFTP_PASS", sftp_path="/inbox/ready",
+        poll_seconds=0.01, timeout_seconds=5,
+    )
+    mock_sftp = MagicMock()
+    mock_sftp.listdir.return_value = ["ready_20260101.csv", "other.txt"]
+    mock_ssh = MagicMock()
+    mock_ssh.open_sftp.return_value = mock_sftp
+    with patch("paramiko.SSHClient", return_value=mock_ssh), patch("paramiko.AutoAddPolicy"):
+        result = materialize(component)
+    assert result.success
+    mock_sftp.listdir.assert_called_with("/inbox")
+
+
+def test_sftp_file_exists_wildcard_mode_matches_via_fnmatch(mod, monkeypatch):
+    monkeypatch.setenv("SFTP_HOST", "host.example.com")
+    monkeypatch.setenv("SFTP_USER", "alice")
+    monkeypatch.setenv("SFTP_PASS", "secret")
+    component = mod.WaitUntilAssetComponent(
+        asset_name="t", condition="sftp_file_exists", sftp_match_mode="wildcard",
+        sftp_host_env_var="SFTP_HOST", sftp_username_env_var="SFTP_USER",
+        sftp_password_env_var="SFTP_PASS", sftp_path="/inbox/*.csv",
+        poll_seconds=0.01, timeout_seconds=0.05,
+    )
+    mock_sftp = MagicMock()
+    mock_sftp.listdir.return_value = ["notes.txt"]
+    mock_ssh = MagicMock()
+    mock_ssh.open_sftp.return_value = mock_sftp
+    with patch("paramiko.SSHClient", return_value=mock_ssh), patch("paramiko.AutoAddPolicy"):
+        result = materialize(component, raise_on_error=False)
+    assert not result.success

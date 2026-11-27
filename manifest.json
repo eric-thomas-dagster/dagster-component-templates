@@ -25222,6 +25222,28 @@
       "keywords": ["infra", "aws", "emr", "spark", "hadoop", "step", "airflow migration", "resource"]
     },
     {
+      "id": "lambda_resource",
+      "name": "Lambda Resource",
+      "category": "resource",
+      "description": "Register a LambdaResource (invoke an AWS Lambda function) for use by other components -- a reusable, injectable invoke() method rather than a single-purpose asset.",
+      "path": "resources/lambda_resource",
+      "tags": ["resource", "aws", "lambda"],
+      "icon": "si:awslambda",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/lambda_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/lambda_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/lambda_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/lambda_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/lambda_resource/requirements.txt",
+      "x-dagster-provides": ["lambda_resource"],
+      "validation": {"level": "code", "last_validated": "2026-11-27"},
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {"pip": ["dagster", "boto3"]},
+      "produces": ["resource"],
+      "agent_hints": {"outputs": "LambdaResource.invoke(...) returns {status_code, function_error, payload, log_tail}.", "requires_pip": ["boto3"]},
+      "keywords": ["infra", "aws", "lambda", "invoke", "airflow migration", "resource"]
+    },
+    {
       "id": "enhanced_data_quality_checks",
       "name": "Enhanced Data Quality Checks",
       "category": "check",
@@ -78244,5 +78266,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1490
+  "total": 1491
 }

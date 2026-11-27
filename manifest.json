@@ -78004,9 +78004,116 @@
         "map",
         "streamsets"
       ]
+    },
+    {
+      "id": "dataproc_cluster_asset",
+      "name": "Dataproc Cluster Asset",
+      "category": "infrastructure",
+      "description": "Ensure a Google Cloud Dataproc cluster is present or absent -- create_cluster/delete_cluster, polled until it settles.",
+      "path": "assets/infrastructure/dataproc_cluster_asset",
+      "tags": [
+        "gcp",
+        "dataproc",
+        "infrastructure",
+        "spark",
+        "hadoop"
+      ],
+      "icon": "si:googlecloud",
+      "type": "dagster_community_components.DataprocClusterAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_cluster_asset/requirements.txt",
+      "component_type": "dagster_community_components.DataprocClusterAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-dataproc"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the cluster's final status in metadata.",
+        "requires_pip": [
+          "google-cloud-dataproc"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "gcp",
+        "dataproc",
+        "spark",
+        "hadoop cluster"
+      ]
+    },
+    {
+      "id": "dataproc_job_asset",
+      "name": "Dataproc Job Asset",
+      "category": "infrastructure",
+      "description": "Submit a PySpark/Spark/Hive/Pig job to an existing Dataproc cluster and wait for completion -- submit_job, polled via get_job until terminal.",
+      "path": "assets/infrastructure/dataproc_job_asset",
+      "tags": [
+        "gcp",
+        "dataproc",
+        "infrastructure",
+        "spark",
+        "hadoop",
+        "hive",
+        "pig"
+      ],
+      "icon": "si:googlecloud",
+      "type": "dagster_community_components.DataprocJobAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dataproc_job_asset/requirements.txt",
+      "component_type": "dagster_community_components.DataprocJobAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-dataproc"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the job's final status and driver output URI in metadata.",
+        "requires_pip": [
+          "google-cloud-dataproc"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "gcp",
+        "dataproc",
+        "pyspark",
+        "hive",
+        "pig"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1486
+  "total": 1488
 }

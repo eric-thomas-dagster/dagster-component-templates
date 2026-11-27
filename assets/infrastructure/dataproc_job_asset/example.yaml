@@ -1,0 +1,12 @@
+type: dagster_community_components.DataprocJobAssetComponent
+attributes:
+  asset_name: etl_pyspark_job
+  project_id: my-gcp-project
+  region: us-central1
+  cluster_name: etl-cluster
+  job_type: pyspark
+  main_python_file_uri: gs://my-bucket/jobs/transform.py
+  args: ["--date", "2026-11-26"]
+  deps: [etl_dataproc_cluster]
+  group_name: infrastructure
+  kinds: [gcp, dataproc]

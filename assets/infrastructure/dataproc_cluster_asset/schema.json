@@ -1,0 +1,317 @@
+{
+  "component_type": "dagster_community_components.DataprocClusterAssetComponent",
+  "name": "Dataproc Cluster Asset",
+  "category": "infrastructure",
+  "icon": "si:googlecloud",
+  "description": "Ensure a Google Cloud Dataproc cluster is present or absent -- create_cluster/delete_cluster, polled until it settles.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "any",
+      "description": "MaterializeResult with the cluster's final status in metadata"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset key.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "project_id": {
+      "description": "GCP project ID.",
+      "type": "string",
+      "label": "Project Id",
+      "required": true
+    },
+    "region": {
+      "description": "Dataproc region, e.g. 'us-central1'.",
+      "type": "string",
+      "label": "Region",
+      "required": true
+    },
+    "cluster_name": {
+      "description": "The Dataproc cluster name.",
+      "type": "string",
+      "label": "Cluster Name",
+      "required": true
+    },
+    "gcp_credentials_env_var": {
+      "type": "string",
+      "label": "Gcp Credentials Env Var",
+      "description": "Env var containing a GCP service account JSON string. Omit to use Application Default Credentials.",
+      "required": false
+    },
+    "desired_state": {
+      "type": "string",
+      "label": "Desired State",
+      "description": "'present' or 'absent'. Idempotent: a no-op if the cluster is already in this state.",
+      "required": false,
+      "default": "present",
+      "enum": ["present", "absent"],
+      "ui:widget": "select"
+    },
+    "master_machine_type": {
+      "type": "string",
+      "label": "Master Machine Type",
+      "description": "Machine type for the single master node.",
+      "required": false,
+      "default": "n2-standard-4"
+    },
+    "worker_machine_type": {
+      "type": "string",
+      "label": "Worker Machine Type",
+      "description": "Machine type for worker nodes.",
+      "required": false,
+      "default": "n2-standard-4"
+    },
+    "num_workers": {
+      "type": "integer",
+      "label": "Num Workers",
+      "description": "Number of primary worker nodes (Dataproc requires at least 2 for a standard cluster).",
+      "required": false,
+      "default": 2
+    },
+    "master_boot_disk_size_gb": {
+      "type": "integer",
+      "label": "Master Boot Disk Size Gb",
+      "description": "Master node boot disk size in GB. Omit to use the Dataproc default.",
+      "required": false,
+      "default": null
+    },
+    "worker_boot_disk_size_gb": {
+      "type": "integer",
+      "label": "Worker Boot Disk Size Gb",
+      "description": "Worker node boot disk size in GB. Omit to use the Dataproc default.",
+      "required": false,
+      "default": null
+    },
+    "zone": {
+      "type": "string",
+      "label": "Zone",
+      "description": "GCE zone URI or short name, e.g. 'us-central1-a'. Omit to let Dataproc auto-select a zone within the region.",
+      "required": false,
+      "default": null
+    },
+    "service_account": {
+      "type": "string",
+      "label": "Service Account",
+      "description": "GCE service account email for cluster VMs. Omit to use the project's default Compute Engine service account.",
+      "required": false,
+      "default": null
+    },
+    "network_tags": {
+      "type": "string",
+      "label": "Network Tags",
+      "description": "GCE network tags applied to cluster VMs (for firewall rules).",
+      "required": false,
+      "default": null
+    },
+    "image_version": {
+      "type": "string",
+      "label": "Image Version",
+      "description": "Dataproc image version, e.g. '2.2-debian12'. Omit to use Dataproc's current default image.",
+      "required": false,
+      "default": null
+    },
+    "software_properties": {
+      "description": "Cluster-wide software config properties, e.g. {'spark:spark.executor.memory': '4g'}.",
+      "label": "Software Properties",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value",
+      "default": null
+    },
+    "idle_delete_ttl_seconds": {
+      "type": "integer",
+      "label": "Idle Delete Ttl Seconds",
+      "description": "Auto-delete the cluster after this many seconds idle. Omit to disable.",
+      "required": false,
+      "default": null
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls while the create/delete operation is in flight.",
+      "required": false,
+      "default": 10.0
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max time to wait for the cluster to reach the target state (cluster creation commonly takes 5-15 minutes).",
+      "required": false,
+      "default": 1200
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'cron' | None.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "cron"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false,
+      "default": null
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    }
+  },
+  "tags": [
+    "gcp",
+    "dataproc",
+    "infrastructure",
+    "spark",
+    "hadoop"
+  ]
+}

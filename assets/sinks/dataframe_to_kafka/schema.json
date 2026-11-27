@@ -82,6 +82,28 @@
       "default": null,
       "x-dagster-widget": "column"
     },
+    "partition_strategy": {
+      "type": "string",
+      "label": "Partition Strategy",
+      "description": "Kafka partition strategy, mirroring StreamSets Kafka Producer's 'Partition Strategy' field: 'default' (no explicit partition is set -- key_column, if any, drives the client's own hash partitioner, else its default/round-robin behavior), 'round_robin' (explicitly cycle through the topic's partitions in order, ignoring key_column), 'random' (pick a random partition per message), or 'expression' (use partition_column's integer value as the exact partition number for that row -- StreamSets' Expression strategy).",
+      "enum": [
+        "default",
+        "round_robin",
+        "random",
+        "expression"
+      ],
+      "required": false,
+      "default": "default",
+      "ui:widget": "select"
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "description": "Column whose integer value is used as the explicit destination partition number. Required when partition_strategy='expression', ignored otherwise.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
     "batch_size": {
       "type": "integer",
       "label": "Batch Size",

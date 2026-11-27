@@ -22,6 +22,7 @@ DataframeToKafkaComponent = mod.DataframeToKafkaComponent
 
 class _FakeKafkaProducer:
     instances = []
+    partitions_by_topic = {}  # test-controlled: {topic: {0, 1, 2}}
 
     def __init__(self, **kwargs):
         self.config = kwargs
@@ -30,8 +31,11 @@ class _FakeKafkaProducer:
         self.closed = False
         _FakeKafkaProducer.instances.append(self)
 
-    def send(self, topic, value=None, key=None):
-        self.sent.append((topic, value, key))
+    def send(self, topic, value=None, key=None, partition=None):
+        self.sent.append((topic, value, key, partition))
+
+    def partitions_for(self, topic):
+        return _FakeKafkaProducer.partitions_by_topic.get(topic, {0, 1, 2})
 
     def flush(self):
         self.flush_calls += 1
@@ -83,7 +87,7 @@ def test_inline_bootstrap_servers_sends_one_message_per_row(monkeypatch):
     assert producer.config["bootstrap_servers"] == "broker1:9092,broker2:9092"
     assert producer.config["security_protocol"] == "PLAINTEXT"
     assert len(producer.sent) == 2
-    topic, value, key = producer.sent[0]
+    topic, value, key, partition = producer.sent[0]
     assert topic == "orders"
     assert json.loads(value.decode("utf-8")) == {"id": 1, "v": "a"}
     assert key is None  # no key_column set
@@ -100,7 +104,7 @@ def test_key_column_encodes_the_row_value_as_the_message_key(monkeypatch):
     r = _materialize(sink, [{"id": 42, "v": "a"}])
     assert r.success
     producer = _FakeKafkaProducer.instances[-1]
-    _, _, key = producer.sent[0]
+    _, _, key, _ = producer.sent[0]
     assert key == b"42"
 
 
@@ -206,7 +210,7 @@ def test_topic_column_routes_each_row_to_its_own_topic(monkeypatch):
     assert r.success
 
     producer = _FakeKafkaProducer.instances[-1]
-    assert [t for t, _, _ in producer.sent] == ["orders", "refunds", "orders"]
+    assert [t for t, _, _, _ in producer.sent] == ["orders", "refunds", "orders"]
 
     md = r.asset_materializations_for_node("orders_to_kafka")[0].metadata
     assert md["messages_sent"].value == 3
@@ -229,3 +233,88 @@ def test_topic_column_skips_rows_with_null_topic(monkeypatch):
     md = r.asset_materializations_for_node("orders_to_kafka")[0].metadata
     assert md["messages_sent"].value == 1
     assert md["messages_skipped"].value == 1
+
+
+def test_invalid_partition_strategy_raises():
+    with pytest.raises(ValueError, match="partition_strategy must be one of"):
+        _sink(bootstrap_servers="broker1:9092", partition_strategy="hash")
+
+
+def test_expression_strategy_requires_partition_column():
+    with pytest.raises(ValueError, match="partition_strategy='expression' requires 'partition_column'"):
+        _sink(bootstrap_servers="broker1:9092", partition_strategy="expression")
+
+
+def test_default_strategy_sets_no_explicit_partition(monkeypatch):
+    _install_fake_kafka(monkeypatch)
+    sink = _sink(bootstrap_servers="broker1:9092", key_column="id")
+    r = _materialize(sink, [{"id": 1}, {"id": 2}])
+    assert r.success
+    producer = _FakeKafkaProducer.instances[-1]
+    assert [p for _, _, _, p in producer.sent] == [None, None]
+
+
+def test_round_robin_strategy_cycles_through_partitions(monkeypatch):
+    _install_fake_kafka(monkeypatch)
+    _FakeKafkaProducer.partitions_by_topic = {"orders": {0, 1}}
+    sink = _sink(bootstrap_servers="broker1:9092", partition_strategy="round_robin")
+    rows = [{"id": i} for i in range(4)]
+    r = _materialize(sink, rows)
+    assert r.success
+    producer = _FakeKafkaProducer.instances[-1]
+    assert [p for _, _, _, p in producer.sent] == [0, 1, 0, 1]
+    _FakeKafkaProducer.partitions_by_topic = {}
+
+
+def test_round_robin_resets_per_topic(monkeypatch):
+    _install_fake_kafka(monkeypatch)
+    _FakeKafkaProducer.partitions_by_topic = {"orders": {0, 1}, "refunds": {0, 1}}
+    sink = _sink(bootstrap_servers="broker1:9092", topic_column="event_type", partition_strategy="round_robin")
+    rows = [
+        {"id": 1, "event_type": "orders"},
+        {"id": 2, "event_type": "refunds"},
+        {"id": 3, "event_type": "orders"},
+    ]
+    r = _materialize(sink, rows)
+    assert r.success
+    producer = _FakeKafkaProducer.instances[-1]
+    # each topic gets its own independent round-robin cursor
+    assert [p for _, _, _, p in producer.sent] == [0, 0, 1]
+    _FakeKafkaProducer.partitions_by_topic = {}
+
+
+def test_random_strategy_only_uses_known_partitions(monkeypatch):
+    _install_fake_kafka(monkeypatch)
+    _FakeKafkaProducer.partitions_by_topic = {"orders": {2, 5}}
+    sink = _sink(bootstrap_servers="broker1:9092", partition_strategy="random")
+    rows = [{"id": i} for i in range(10)]
+    r = _materialize(sink, rows)
+    assert r.success
+    producer = _FakeKafkaProducer.instances[-1]
+    assert set(p for _, _, _, p in producer.sent) <= {2, 5}
+    _FakeKafkaProducer.partitions_by_topic = {}
+
+
+def test_expression_strategy_uses_partition_column_value(monkeypatch):
+    _install_fake_kafka(monkeypatch)
+    sink = _sink(
+        bootstrap_servers="broker1:9092",
+        partition_strategy="expression",
+        partition_column="shard_id",
+    )
+    rows = [{"id": 1, "shard_id": 3}, {"id": 2, "shard_id": 7}]
+    r = _materialize(sink, rows)
+    assert r.success
+    producer = _FakeKafkaProducer.instances[-1]
+    assert [p for _, _, _, p in producer.sent] == [3, 7]
+
+
+def test_expression_strategy_raises_on_missing_value(monkeypatch):
+    _install_fake_kafka(monkeypatch)
+    sink = _sink(
+        bootstrap_servers="broker1:9092",
+        partition_strategy="expression",
+        partition_column="shard_id",
+    )
+    with pytest.raises(Exception, match="requires column 'shard_id'"):
+        _materialize(sink, [{"id": 1, "shard_id": None}])

@@ -157,6 +157,21 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
           topic_column: event_type   # each row's event_type value IS its topic
           group_name: producers
         ```
+
+        Or pin an explicit partition per row (e.g. migrating a StreamSets Kafka
+        Producer destination's "Expression" partition strategy):
+
+        ```yaml
+        type: dagster_community_components.DataframeToKafkaComponent
+        attributes:
+          asset_name: sharded_events_to_kafka
+          upstream_asset_key: sharded_events_raw
+          bootstrap_servers: localhost:9092
+          topic: events
+          partition_strategy: expression
+          partition_column: shard_id
+          group_name: producers
+        ```
     """
 
     asset_name: str = Field(description="Dagster asset name")
@@ -217,6 +232,27 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
             "(UTF-8 encoded). Messages with the same key land on the same "
             "partition, preserving per-key ordering. Unset: no key, round-robin "
             "partitioning."
+        ),
+    )
+    partition_strategy: str = Field(
+        default="default",
+        description=(
+            "Kafka partition strategy, mirroring StreamSets Kafka Producer's "
+            "'Partition Strategy' field: 'default' (no explicit partition is set -- "
+            "key_column, if any, drives the client's own hash partitioner, else its "
+            "default/round-robin behavior), 'round_robin' (explicitly cycle "
+            "through the topic's partitions in order, ignoring key_column), "
+            "'random' (pick a random partition per message), or 'expression' "
+            "(use partition_column's integer value as the exact partition number "
+            "for that row -- StreamSets' Expression strategy)."
+        ),
+    )
+    partition_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description=(
+            "Column whose integer value is used as the explicit destination "
+            "partition number. Required when partition_strategy='expression', "
+            "ignored otherwise."
         ),
     )
     batch_size: int = Field(
@@ -300,6 +336,13 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
             )
         if bool(self.topic) == bool(self.topic_column):
             raise ValueError("Set exactly one of 'topic' or 'topic_column', not both and not neither.")
+        if self.partition_strategy not in ("default", "round_robin", "random", "expression"):
+            raise ValueError(
+                f"partition_strategy must be one of 'default', 'round_robin', 'random', "
+                f"'expression' -- got {self.partition_strategy!r}."
+            )
+        if self.partition_strategy == "expression" and not self.partition_column:
+            raise ValueError("partition_strategy='expression' requires 'partition_column' to be set.")
 
         partitions_def = None
         if self.partition_type:
@@ -361,6 +404,8 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
         sasl_password_env_var = self.sasl_password_env_var
         resource_key = self.resource_key
         key_column = self.key_column
+        partition_strategy = self.partition_strategy
+        partition_column = self.partition_column
         batch_size = self.batch_size
         group_name = self.group_name
         description = self.description or (
@@ -425,6 +470,20 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
             sent = 0
             skipped = 0
             topics_used: set = set()
+            partitions_cache: Dict[str, List[int]] = {}
+            rr_counters: Dict[str, int] = {}
+
+            def _partitions_for(row_topic: str) -> List[int]:
+                if row_topic not in partitions_cache:
+                    parts = producer.partitions_for(row_topic)
+                    if not parts:
+                        raise ValueError(
+                            f"partition_strategy={partition_strategy!r} needs the broker's partitions for "
+                            f"topic {row_topic!r}, but none were returned."
+                        )
+                    partitions_cache[row_topic] = sorted(parts)
+                return partitions_cache[row_topic]
+
             try:
                 for i, row in enumerate(records):
                     if topic_column is not None:
@@ -443,7 +502,29 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
                     key = None
                     if key_column is not None and key_column in row:
                         key = str(row[key_column]).encode("utf-8")
-                    producer.send(row_topic, value=json.dumps(row, default=str).encode("utf-8"), key=key)
+
+                    send_kwargs: Dict[str, Any] = {
+                        "value": json.dumps(row, default=str).encode("utf-8"),
+                        "key": key,
+                    }
+                    if partition_strategy == "round_robin":
+                        parts = _partitions_for(row_topic)
+                        idx = rr_counters.get(row_topic, 0)
+                        send_kwargs["partition"] = parts[idx % len(parts)]
+                        rr_counters[row_topic] = idx + 1
+                    elif partition_strategy == "random":
+                        import random
+
+                        send_kwargs["partition"] = random.choice(_partitions_for(row_topic))
+                    elif partition_strategy == "expression":
+                        if partition_column not in row or row[partition_column] is None:
+                            raise ValueError(
+                                f"row {i}: partition_strategy='expression' requires column "
+                                f"{partition_column!r} to be present and non-null."
+                            )
+                        send_kwargs["partition"] = int(row[partition_column])
+
+                    producer.send(row_topic, **send_kwargs)
                     sent += 1
                     if (i + 1) % batch_size == 0:
                         producer.flush()
@@ -462,6 +543,7 @@ class DataframeToKafkaComponent(Component, Model, Resolvable):
                     "key_column": MetadataValue.text(
                         str(key_column) if key_column is not None else "(none — round-robin partitioning)"
                     ),
+                    "partition_strategy": MetadataValue.text(partition_strategy),
                 }
             )
 

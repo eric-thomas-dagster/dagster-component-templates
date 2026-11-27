@@ -57,6 +57,8 @@ Producer destination, or seeding a topic with synthetic/replay events).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `partition_strategy` | `str` | `"default"` | Kafka partition strategy, mirroring StreamSets Kafka Producer's 'Partition Strategy' field: 'default' (no explicit partition is set -- key_column, if any, drives the client's own hash partitioner, else its default/round-… _(full docs in schema.json + component README)_ |
+| `partition_column` | `Union[str, int]` | — | Column whose integer value is used as the explicit destination partition number. Required when partition_strategy='expression', ignored otherwise. |
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
@@ -123,4 +125,17 @@ focused beats a single fat component with conditional auth/config.
 
 ## Partitioning
 
-When `partition_type` is set, Dagster partitions the asset itself (daily/weekly/monthly/hourly/static/dynamic) the same way every other sink in this registry does — this does not affect per-message Kafka partitioning, which is controlled entirely by `key_column`.
+When `partition_type` is set, Dagster partitions the asset itself (daily/weekly/monthly/hourly/static/dynamic) the same way every other sink in this registry does — this does not affect per-message Kafka partitioning, which `partition_strategy` + `key_column` control.
+
+### Per-message Kafka partition strategy
+
+`partition_strategy` mirrors StreamSets Kafka Producer destination's "Partition Strategy" field:
+
+| `partition_strategy` | Behavior |
+|---|---|
+| `default` (default) | No explicit partition is set. `key_column`, if given, drives the client's own hash partitioner (same key → same partition, preserving per-key ordering); with no key, the client's own default/round-robin behavior applies. |
+| `round_robin` | Explicitly cycles through the topic's partitions in order (`0, 1, 2, ..., 0, 1, ...`), ignoring `key_column`. |
+| `random` | Picks a random partition per message. |
+| `expression` | Uses `partition_column`'s integer value as the exact destination partition for that row — the StreamSets "Expression" equivalent. Requires `partition_column`; a row with a missing/null value raises. |
+
+`round_robin` and `random` query the topic's partitions via the producer client (`partitions_for`), so they require a reachable broker at materialization time.

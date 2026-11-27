@@ -354,3 +354,43 @@ def test_poke_timeout_seconds_zero_is_not_replaced_by_default(mod, monkeypatch):
     resource = mod.HTTPResource(base_url="https://api.example.com", timeout_seconds=30)
     resource.poke("GET", "/ready", timeout_seconds=0)
     assert seen_timeout[0] == 0
+
+
+def test_connection_uri_env_var_derives_base_url_and_basic_auth(mod, monkeypatch):
+    monkeypatch.setenv("TEST_HTTP_CONN_URI", "https://alice:s3cr%40t@api.example.com:8443/v2?x=1")
+    component = mod.HTTPResourceComponent(connection_uri_env_var="TEST_HTTP_CONN_URI")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["http_resource"]
+    assert resource.base_url == "https://api.example.com:8443/v2"
+    assert resource.auth_type == "basic"
+    assert resource.auth_username == "alice"
+    assert resource.auth_password == "s3cr@t"
+
+
+def test_explicit_base_url_wins_over_connection_uri_env_var(mod, monkeypatch):
+    monkeypatch.setenv("TEST_HTTP_CONN_URI2", "https://alice:pw@other-host.example.com")
+    component = mod.HTTPResourceComponent(base_url="https://explicit.example.com", connection_uri_env_var="TEST_HTTP_CONN_URI2")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["http_resource"]
+    assert resource.base_url == "https://explicit.example.com"
+    # Login from the URI is still used for auth since auth_type wasn't explicitly set.
+    assert resource.auth_type == "basic"
+    assert resource.auth_username == "alice"
+
+
+def test_connection_uri_env_var_does_not_override_explicit_auth_type(mod, monkeypatch):
+    monkeypatch.setenv("TEST_HTTP_CONN_URI3", "https://alice:pw@api.example.com")
+    monkeypatch.setenv("TEST_HTTP_TOKEN", "tok123")
+    component = mod.HTTPResourceComponent(
+        connection_uri_env_var="TEST_HTTP_CONN_URI3", auth_type="bearer", auth_token_env_var="TEST_HTTP_TOKEN",
+    )
+    defs = component.build_defs(context=None)
+    resource = defs.resources["http_resource"]
+    assert resource.auth_type == "bearer"
+    assert resource.auth_token.get_value() == "tok123"
+
+
+def test_missing_base_url_and_connection_uri_raises(mod):
+    import pytest
+    with pytest.raises(ValueError, match="base_url"):
+        mod.HTTPResourceComponent().build_defs(context=None)

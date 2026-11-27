@@ -1,9 +1,26 @@
 """HTTP Resource component."""
 import time as _time
 from typing import Any, Dict, List, Literal, Optional
+from urllib.parse import urlsplit, unquote
 
 import dagster as dg
 from pydantic import Field
+
+
+def _parse_connection_uri(uri: str) -> Dict[str, Any]:
+    """Parse an Airflow-style connection URI
+    ('scheme://login:password@host:port/schema?param=value&...', per
+    https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html)
+    into its parts. Login/password are percent-decoded."""
+    parts = urlsplit(uri)
+    return {
+        "scheme": parts.scheme or None,
+        "login": unquote(parts.username) if parts.username else None,
+        "password": unquote(parts.password) if parts.password else None,
+        "host": parts.hostname,
+        "port": parts.port,
+        "schema": parts.path.lstrip("/") or None,
+    }
 
 
 def _require_env(name: str) -> str:
@@ -320,7 +337,8 @@ class HTTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     resource_key: str = Field(default="http_resource", description="Key used to register this resource. Other components reference it via resource_key.")
-    base_url: str = Field(description="Base URL for all requests, e.g. 'https://api.example.com/v1'")
+    base_url: Optional[str] = Field(default=None, description="Base URL for all requests, e.g. 'https://api.example.com/v1'. Set this OR connection_uri_env_var.")
+    connection_uri_env_var: Optional[str] = Field(default=None, description="Env var holding an Airflow-style connection URI ('https://login:password@host:port/path?...') as an alternative to setting base_url/auth_* individually. base_url, if also set, wins; otherwise base_url is derived from the URI's scheme+host+port+path, and a login/password in the URI is used for basic auth unless auth_type/auth_header_env_var is explicitly set to something else.")
     auth_header_env_var: Optional[str] = Field(default=None, description="Env var containing a fully-formed Authorization header value, e.g. 'Bearer token123'. Mutually exclusive with auth_type. Genuinely optional: if this env var is not actually set in a given deployment, the resource proceeds with no auth header rather than failing the run -- use it if present, skip it otherwise.")
     auth_type: Literal["none", "basic", "bearer", "oauth2_client_credentials"] = Field(default="none", description="Auth scheme, as an alternative to auth_header_env_var: none/basic/bearer/oauth2_client_credentials.")
     auth_username_env_var: Optional[str] = Field(default=None, description="Required for auth_type='basic'.")
@@ -356,12 +374,40 @@ class HTTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                 "oauth2_client_id_env_var, and oauth2_client_secret_env_var."
             )
 
+        base_url = self.base_url
+        auth_type = self.auth_type
+        uri_username: Optional[str] = None
+        uri_password: Optional[str] = None
+        if self.connection_uri_env_var:
+            uri_value = dg.EnvVar(self.connection_uri_env_var).get_value()
+            if uri_value:
+                parsed = _parse_connection_uri(uri_value)
+                if not base_url and parsed["host"]:
+                    scheme = parsed["scheme"] or "https"
+                    port_part = f":{parsed['port']}" if parsed["port"] else ""
+                    path_part = f"/{parsed['schema']}" if parsed["schema"] else ""
+                    base_url = f"{scheme}://{parsed['host']}{port_part}{path_part}"
+                uri_username, uri_password = parsed["login"], parsed["password"]
+        if not base_url:
+            raise ValueError("Set either 'base_url' or 'connection_uri_env_var' (with a URI that includes a host).")
+        if (
+            auth_type == "none"
+            and not self.auth_header_env_var
+            and uri_username is not None
+        ):
+            # A login was present in the connection URI and no other auth was
+            # explicitly configured -- treat it as HTTP basic auth, same as
+            # Airflow's generic HTTP connection does with a login/password.
+            auth_type = "basic"
+
         resource = HTTPResource(
-            base_url=self.base_url,
+            base_url=base_url,
             auth_header_value=_optional_env_var_or_empty(self.auth_header_env_var),
-            auth_type=self.auth_type,
-            auth_username=dg.EnvVar(self.auth_username_env_var) if self.auth_username_env_var else "",
-            auth_password=dg.EnvVar(self.auth_password_env_var) if self.auth_password_env_var else "",
+            auth_type=auth_type,
+            auth_username=(dg.EnvVar(self.auth_username_env_var) if self.auth_username_env_var
+                            else (uri_username or "")),
+            auth_password=(dg.EnvVar(self.auth_password_env_var) if self.auth_password_env_var
+                            else (uri_password or "")),
             auth_token=dg.EnvVar(self.auth_token_env_var) if self.auth_token_env_var else "",
             # Passed through as raw env var NAMES (not pre-resolved) -- resolved lazily
             # per call via _require_env, same as per_row_http_fetcher's oauth2 path.

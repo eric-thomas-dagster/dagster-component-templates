@@ -44,16 +44,25 @@ class DockerContainerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     asset_name: str = Field(description="Dagster asset name.")
     image: str = Field(description="Docker image.")
-    command: Optional[List[str]] = Field(default=None, description="Container command.")
+    entrypoint: Optional[List[str]] = Field(default=None, description="Override the container ENTRYPOINT (separate from command/CMD).")
+    command: Optional[List[str]] = Field(default=None, description="Container command (CMD).")
     env_vars: Optional[Dict[str, str]] = Field(default=None, description="Env vars.")
     network: Optional[str] = Field(default=None, description="Docker network name.")
+    registry: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Credentials for a non-public Docker registry to pull `image` from. Keys: 'url', 'username', 'password' (dagster-docker's execute_docker_container 'registry' param).",
+    )
+    container_kwargs: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Raw key-value pairs passed straight through to the Docker Python SDK's containers.create() (https://docker-py.readthedocs.io/en/stable/containers.html) -- e.g. volumes, labels, working_dir, user, mem_limit. Not simplified into dedicated fields since the available options vary too much.",
+    )
     group_name: str = Field(default="docker", description="Asset group.")
     deps: Optional[List[str]] = Field(default=None, description="Upstream asset keys.")
 
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('deps',), csv=(), tags=())
+        return coerce_field_shapes(data, lists=('deps', 'entrypoint', 'command'), csv=(), tags=('registry',))
 
     @classmethod
     def get_form_config(cls):
@@ -63,7 +72,16 @@ class DockerContainerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_docker import execute_docker_container
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (self.deps or [])]
-        image = self.image; cmd = self.command; env_vars = self.env_vars; network = self.network
+        image = self.image; entrypoint = self.entrypoint; cmd = self.command
+        env_vars = self.env_vars; network = self.network
+        registry = self.registry; container_kwargs = self.container_kwargs
+
+        # execute_docker_container's env_vars is List[str] of "KEY=value" (DockerContainerContext
+        # treats a bare "KEY" entry with no "=" as "read this var name from the LAUNCHER's own
+        # environment"), NOT a dict -- passing a dict directly iterates its KEYS only, each one
+        # a bare var name, which silently pulls from the launcher's environment instead of the
+        # user-configured value. Same real bug class fixed in k8s_job_asset earlier this session.
+        env_var_list = [f"{k}={v}" for k, v in env_vars.items()] if env_vars else None
 
         @dg.asset(
             key=dg.AssetKey.from_user_string(self.asset_name),
@@ -73,8 +91,9 @@ class DockerContainerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _docker_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             execute_docker_container(
-                context=context, image=image, command=cmd or None,
-                env_vars=env_vars or None, networks=[network] if network else None,
+                context=context, image=image, entrypoint=entrypoint or None, command=cmd or None,
+                env_vars=env_var_list, networks=[network] if network else None,
+                registry=registry or None, container_kwargs=container_kwargs or None,
             )
             return dg.MaterializeResult(metadata={"image": dg.MetadataValue.text(image)})
         return dg.Definitions(assets=[_docker_asset])

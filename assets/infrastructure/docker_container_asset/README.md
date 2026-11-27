@@ -26,9 +26,12 @@ Wraps the official `dagster-docker` package.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `command` | `List[str]` | — | Container command. |
+| `entrypoint` | `List[str]` | — | Override the container ENTRYPOINT (separate from command/CMD). |
+| `command` | `List[str]` | — | Container command (CMD). |
 | `env_vars` | `Dict[str, str]` | — | Env vars. |
 | `network` | `str` | — | Docker network name. |
+| `registry` | `Dict[str, str]` | — | Credentials for a non-public Docker registry to pull `image` from. Keys: 'url', 'username', 'password' (dagster-docker's execute_docker_container 'registry' param). |
+| `container_kwargs` | `Dict[str, Any]` | — | Raw key-value pairs passed straight through to the Docker Python SDK's containers.create() (https://docker-py.readthedocs.io/en/stable/containers.html) -- e.g. volumes, labels, working_dir, user, mem_limit. Not simplifie… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

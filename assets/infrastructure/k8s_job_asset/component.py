@@ -211,6 +211,38 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Raise if the Job takes longer than this many seconds -- enforced natively by dagster-k8s's execute_k8s_job (timeout=) or PipesK8sClient (pod_wait_timeout=, use_pipes=True), not a client-side watchdog.",
     )
+    args: Optional[List[str]] = Field(
+        default=None,
+        description="Container args, appended after the resolved command (not a replacement for it) -- Kubernetes' args field, analogous to Airflow's KubernetesPodOperator arguments.",
+    )
+    labels: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Kubernetes labels applied to the Job's Pod metadata.",
+    )
+    node_selector: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Kubernetes nodeSelector for the Pod (e.g. {'disktype': 'ssd'}) -- constrains scheduling to nodes with matching labels.",
+    )
+    tolerations: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Raw Kubernetes Toleration specs for the Pod (https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core), e.g. [{'key': 'dedicated', 'operator': 'Equal', 'value': 'ml', 'effect': 'NoSchedule'}]. Pass straight through.",
+    )
+    affinity: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Raw Kubernetes Affinity spec for the Pod (https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core), e.g. node/pod affinity or anti-affinity rules. Pass straight through -- not simplified, since affinity shapes vary too much.",
+    )
+    env_from_config_maps: Optional[List[str]] = Field(
+        default=None,
+        description="Names of Kubernetes ConfigMaps whose entire contents are injected as env vars into the container (dagster-k8s execute_k8s_job's 'env_config_maps' / Kubernetes' envFrom.configMapRef).",
+    )
+    env_from_secrets: Optional[List[str]] = Field(
+        default=None,
+        description="Names of Kubernetes Secrets whose entire contents are injected as env vars into the container (dagster-k8s execute_k8s_job's 'env_secrets' / Kubernetes' envFrom.secretRef).",
+    )
+    kubeconfig_file: Optional[str] = Field(
+        default=None,
+        description="Path to a kubeconfig file for out-of-cluster execution (e.g. a local dev machine or a CI runner outside the target cluster). When set, in-cluster config loading is disabled in favor of this file.",
+    )
     use_pipes: bool = Field(
         default=False,
         description=(
@@ -256,7 +288,12 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds', 'image_pull_secrets'), csv=('partition_values',), tags=('asset_tags',))
+        return coerce_field_shapes(
+            data,
+            lists=('deps', 'owners', 'kinds', 'image_pull_secrets', 'args', 'env_from_config_maps', 'env_from_secrets'),
+            csv=('partition_values',),
+            tags=('asset_tags', 'labels', 'node_selector'),
+        )
 
     @classmethod
     def get_form_config(cls):
@@ -279,6 +316,14 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         timeout_seconds = self.timeout_seconds
         use_pipes = self.use_pipes
         pipes_extras = self.pipes_extras
+        args = self.args
+        labels = self.labels
+        node_selector = self.node_selector
+        tolerations = self.tolerations
+        affinity = self.affinity
+        env_from_config_maps = self.env_from_config_maps
+        env_from_secrets = self.env_from_secrets
+        kubeconfig_file = self.kubeconfig_file
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
@@ -340,6 +385,13 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     container_overrides["volume_mounts"] = volume_mounts
                 if image_pull_policy:
                     container_overrides["image_pull_policy"] = image_pull_policy
+                if args:
+                    container_overrides["args"] = args
+                if env_from_config_maps or env_from_secrets:
+                    container_overrides["env_from"] = (
+                        [{"config_map_ref": {"name": n}} for n in (env_from_config_maps or [])]
+                        + [{"secret_ref": {"name": n}} for n in (env_from_secrets or [])]
+                    )
 
                 base_pod_spec: Dict[str, Any] = {}
                 if container_overrides:
@@ -350,8 +402,19 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     base_pod_spec["service_account_name"] = service_account_name
                 if image_pull_secrets:
                     base_pod_spec["image_pull_secrets"] = image_pull_secrets
+                if node_selector:
+                    base_pod_spec["node_selector"] = node_selector
+                if tolerations:
+                    base_pod_spec["tolerations"] = tolerations
+                if affinity:
+                    base_pod_spec["affinity"] = affinity
 
-                client = PipesK8sClient()
+                base_pod_meta = {"labels": labels} if labels else None
+
+                client = PipesK8sClient(
+                    load_incluster_config=False if kubeconfig_file else None,
+                    kubeconfig_file=kubeconfig_file,
+                )
                 return client.run(
                     context=context,
                     image=image,
@@ -359,6 +422,7 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     namespace=ns,
                     env=env_vars or None,
                     extras=pipes_extras,
+                    base_pod_meta=base_pod_meta,
                     base_pod_spec=base_pod_spec or None,
                     pod_wait_timeout=float(timeout_seconds) if timeout_seconds else 86400.0,
                 ).get_materialize_result()
@@ -371,20 +435,35 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             # read from the LAUNCHER's own environment, not the literal value the user configured.
             env_var_list = [f"{k}={v}" for k, v in env_vars.items()] or None
 
+            _pod_spec_config: Dict[str, Any] = {}
+            if node_selector:
+                _pod_spec_config["node_selector"] = node_selector
+            if tolerations:
+                _pod_spec_config["tolerations"] = tolerations
+            if affinity:
+                _pod_spec_config["affinity"] = affinity
+
             execute_k8s_job(
                 context=context,
                 image=image,
                 command=cmd,
+                args=args,
                 k8s_job_name=context.run.run_id[:32],
                 namespace=ns,
                 resources=resources,
                 env_vars=env_var_list,
+                env_config_maps=env_from_config_maps,
+                env_secrets=env_from_secrets,
                 image_pull_policy=image_pull_policy,
                 image_pull_secrets=image_pull_secrets,
                 service_account_name=service_account_name,
                 volumes=volumes,
                 volume_mounts=volume_mounts,
+                labels=labels,
                 timeout=timeout_seconds,
+                pod_spec_config=_pod_spec_config or None,
+                kubeconfig_file=kubeconfig_file,
+                load_incluster_config=kubeconfig_file is None,
             )
             return dg.MaterializeResult(metadata={"image": dg.MetadataValue.text(image), "namespace": dg.MetadataValue.text(ns)})
         return dg.Definitions(assets=[_k8s_asset])

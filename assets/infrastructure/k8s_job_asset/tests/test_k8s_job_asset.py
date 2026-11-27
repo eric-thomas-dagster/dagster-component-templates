@@ -194,6 +194,104 @@ def test_use_pipes_timeout_maps_to_pod_wait_timeout(mod, monkeypatch):
     assert pipes_calls[0]["pod_wait_timeout"] == 90.0
 
 
+# --- new fields: args / labels / node_selector / tolerations / affinity / envFrom / kubeconfig ---
+
+def test_args_labels_envfrom_passthrough_to_execute_k8s_job(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", args=["--verbose"], labels={"team": "ml"},
+        env_from_config_maps=["app-config"], env_from_secrets=["app-secret"],
+    )
+    materialize(component)
+    assert calls[0]["args"] == ["--verbose"]
+    assert calls[0]["labels"] == {"team": "ml"}
+    assert calls[0]["env_config_maps"] == ["app-config"]
+    assert calls[0]["env_secrets"] == ["app-secret"]
+
+
+def test_node_selector_tolerations_affinity_build_pod_spec_config(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    tolerations = [{"key": "dedicated", "operator": "Equal", "value": "ml", "effect": "NoSchedule"}]
+    affinity = {"node_affinity": {"requiredDuringSchedulingIgnoredDuringExecution": {}}}
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", node_selector={"disktype": "ssd"},
+        tolerations=tolerations, affinity=affinity,
+    )
+    materialize(component)
+    assert calls[0]["pod_spec_config"] == {
+        "node_selector": {"disktype": "ssd"}, "tolerations": tolerations, "affinity": affinity,
+    }
+
+
+def test_no_scheduling_overrides_passes_no_pod_spec_config(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
+    materialize(component)
+    assert calls[0]["pod_spec_config"] is None
+
+
+def test_kubeconfig_file_disables_incluster_config(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1", kubeconfig_file="/home/me/.kube/config")
+    materialize(component)
+    assert calls[0]["kubeconfig_file"] == "/home/me/.kube/config"
+    assert calls[0]["load_incluster_config"] is False
+
+
+def test_no_kubeconfig_file_keeps_incluster_config_true(mod, monkeypatch):
+    calls = _patch_execute(monkeypatch, mod)
+    component = mod.K8sJobAssetComponent(asset_name="t", image="img:v1")
+    materialize(component)
+    assert calls[0]["kubeconfig_file"] is None
+    assert calls[0]["load_incluster_config"] is True
+
+
+def test_use_pipes_args_labels_and_scheduling_fields_build_base_pod_spec_and_meta(mod, monkeypatch):
+    import dagster as dg
+    pipes_calls = _patch_pipes_client(monkeypatch, mod, materialize_result=dg.MaterializeResult())
+    tolerations = [{"key": "dedicated", "operator": "Equal", "value": "ml", "effect": "NoSchedule"}]
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", use_pipes=True,
+        args=["--verbose"], labels={"team": "ml"}, node_selector={"disktype": "ssd"},
+        tolerations=tolerations, env_from_config_maps=["app-config"], env_from_secrets=["app-secret"],
+    )
+    materialize(component)
+    spec = pipes_calls[0]["base_pod_spec"]
+    assert spec["containers"][0]["args"] == ["--verbose"]
+    assert spec["containers"][0]["env_from"] == [
+        {"config_map_ref": {"name": "app-config"}}, {"secret_ref": {"name": "app-secret"}},
+    ]
+    assert spec["node_selector"] == {"disktype": "ssd"}
+    assert spec["tolerations"] == tolerations
+    assert pipes_calls[0]["base_pod_meta"] == {"labels": {"team": "ml"}}
+
+
+def test_use_pipes_kubeconfig_file_passed_to_client_constructor(mod, monkeypatch):
+    import dagster as dg
+    kwargs_seen = {}
+
+    class FakeInvocation:
+        def get_materialize_result(self):
+            return dg.MaterializeResult()
+
+    class FakePipesK8sClient:
+        def __init__(self, **kwargs):
+            kwargs_seen.update(kwargs)
+
+        def run(self, **kwargs):
+            return FakeInvocation()
+
+    import dagster_k8s
+    monkeypatch.setattr(dagster_k8s, "PipesK8sClient", FakePipesK8sClient)
+
+    component = mod.K8sJobAssetComponent(
+        asset_name="t", image="img:v1", use_pipes=True, kubeconfig_file="/home/me/.kube/config",
+    )
+    materialize(component)
+    assert kwargs_seen["kubeconfig_file"] == "/home/me/.kube/config"
+    assert kwargs_seen["load_incluster_config"] is False
+
+
 def test_static_partition_type_wires_through(mod, monkeypatch):
     import dagster as dg
     _patch_execute(monkeypatch, mod)

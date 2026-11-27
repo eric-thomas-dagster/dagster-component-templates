@@ -265,6 +265,68 @@
       "type": "string",
       "x-dagster-widget": "cron"
     },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Args",
+      "description": "Container args, appended after the resolved command (not a replacement for it) -- Kubernetes' args field, analogous to Airflow's KubernetesPodOperator arguments.",
+      "required": false
+    },
+    "labels": {
+      "type": "object",
+      "label": "Labels",
+      "description": "Kubernetes labels applied to the Job's Pod metadata.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "node_selector": {
+      "type": "object",
+      "label": "Node Selector",
+      "description": "Kubernetes nodeSelector for the Pod (e.g. {'disktype': 'ssd'}) -- constrains scheduling to nodes with matching labels.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "tolerations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Tolerations",
+      "description": "Raw Kubernetes Toleration specs for the Pod, e.g. [{'key': 'dedicated', 'operator': 'Equal', 'value': 'ml', 'effect': 'NoSchedule'}]. Pass straight through.",
+      "required": false
+    },
+    "affinity": {
+      "type": "object",
+      "label": "Affinity",
+      "description": "Raw Kubernetes Affinity spec for the Pod -- node/pod affinity or anti-affinity rules. Pass straight through -- not simplified, since affinity shapes vary too much.",
+      "required": false
+    },
+    "env_from_config_maps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Env From Config Maps",
+      "description": "Names of Kubernetes ConfigMaps whose entire contents are injected as env vars into the container (Kubernetes' envFrom.configMapRef).",
+      "required": false
+    },
+    "env_from_secrets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Env From Secrets",
+      "description": "Names of Kubernetes Secrets whose entire contents are injected as env vars into the container (Kubernetes' envFrom.secretRef).",
+      "required": false
+    },
+    "kubeconfig_file": {
+      "type": "string",
+      "label": "Kubeconfig File",
+      "description": "Path to a kubeconfig file for out-of-cluster execution (e.g. a local dev machine or a CI runner outside the target cluster). When set, in-cluster config loading is disabled in favor of this file.",
+      "required": false
+    },
     "use_pipes": {
       "type": "boolean",
       "label": "Use Pipes",

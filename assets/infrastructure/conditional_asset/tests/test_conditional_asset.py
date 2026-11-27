@@ -249,16 +249,30 @@ def test_two_branch_instances_in_one_project_do_not_clash(mod):
 def test_branch_mode_decision_asset_always_materializes(mod):
     """Regression: branch mode had no asset representing the decision itself -- only the
     chosen branch's own asset materialized, with nothing a consumer could depend on to know
-    a decision was made at all."""
+    a decision was made at all. The auto-derived key folds in the sorted branch leaf names
+    ("decision_a_b", not just "decision") -- see test_two_branch_instances_sharing_a_parent_do_not_clash."""
     component = mod.ConditionalAssetComponent(mode="branch", callable_path=f"{FIXTURES_PATH}:choose_a", branches={"a": "r/a", "b": "r/b"})
     branch_def = component.build_defs(context=None).assets[0]
     result = dg.materialize([branch_def], resources={"io_manager": dg.InMemoryIOManager()})
     assert result.success
     materialized = {str(e.asset_key) for e in result.get_asset_materialization_events()}
-    assert str(dg.AssetKey(["r", "decision"])) in materialized
+    assert str(dg.AssetKey(["r", "decision_a_b"])) in materialized
     assert str(dg.AssetKey(["r", "a"])) in materialized
-    decision_event = next(e for e in result.get_asset_materialization_events() if e.asset_key == dg.AssetKey(["r", "decision"]))
+    decision_event = next(e for e in result.get_asset_materialization_events() if e.asset_key == dg.AssetKey(["r", "decision_a_b"]))
     assert decision_event.materialization.metadata["chosen_branch"].value == "a"
+
+
+def test_two_branch_instances_sharing_a_parent_do_not_clash(mod):
+    """Regression: two SEPARATE component instances whose branches share a common parent
+    path (e.g. both under "p/") used to both auto-derive the identical "p/decision" key and
+    crash at repository-build time with DagsterInvalidDefinitionError: Duplicate asset key."""
+    c1 = mod.ConditionalAssetComponent(mode="branch", callable_path=f"{FIXTURES_PATH}:choose_a", branches={"a": "p/a", "b": "p/b"})
+    c2 = mod.ConditionalAssetComponent(mode="branch", callable_path=f"{FIXTURES_PATH}:choose_b", branches={"a": "p/c", "b": "p/d"})
+    merged = dg.Definitions.merge(c1.build_defs(context=None), c2.build_defs(context=None))
+    repo = merged.get_repository_def()  # raises DagsterInvalidDefinitionError if it clashes
+    keys = {str(k) for k in repo.asset_graph.get_all_asset_keys()}
+    assert str(dg.AssetKey(["p", "decision_a_b"])) in keys
+    assert str(dg.AssetKey(["p", "decision_c_d"])) in keys
 
 
 def test_short_circuit_falsy_still_materializes_a_decision_asset(mod):

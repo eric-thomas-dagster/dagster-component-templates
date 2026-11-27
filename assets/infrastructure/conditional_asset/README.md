@@ -182,6 +182,7 @@ Mix freely with plain (undecorated) ops/assets: a bare value flowing into `af_ga
 | `kwargs` | `Dict[str, Any]` | — | Static keyword arguments passed to the callable. |
 | `inputs` | `Dict[str, str]` | — | {name: upstream_asset_key}. Each entry's value is loaded via the IO manager and bound to a parameter of that name if the callable's signature declares one (TaskFlow-style) -- same shape as python_callable_asset's `inputs`. |
 | `branches` | `Dict[str, str]` | — | mode='branch' only (required then): {branch_name: asset_key}. asset_key is slash-delimited. The callable must return one of these branch_name values. |
+| `decision_asset_key` | `str` | — | Slash-delimited key for an always-materialized decision asset, recording the outcome as metadata -- whether the gate passed (short_circuit) or which branch was chosen (branch) -- regardless of whether the gated/branch as… _(full docs in schema.json + component README)_ |
 | `pool` | `str` | — | Dagster's native named concurrency pool (e.g. Airflow's `pool` -- a fixed number of slots shared across every asset/op using the same pool name). The pool's own slot count is configured at the deployment level (dagster.y… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

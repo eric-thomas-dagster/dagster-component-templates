@@ -36,6 +36,12 @@
       "description": "mode='branch' only (required then): {branch_name: asset_key}. asset_key is slash-delimited. The callable must return one of these branch_name values.",
       "required": false
     },
+    "decision_asset_key": {
+      "type": "string",
+      "label": "Decision Asset Key",
+      "description": "Slash-delimited key for an always-materialized decision asset, recording the outcome as metadata -- whether the gate passed (short_circuit) or which branch was chosen (branch) -- regardless of whether the gated/branch asset(s) materialize. Auto-derived if omitted: short_circuit -> '<asset_key>_decision'; branch -> '<branches' common parent path>/decision' (required explicitly if the branches don't share one).",
+      "required": false
+    },
     "args": {
       "type": "array",
       "label": "Args",

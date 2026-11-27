@@ -6,12 +6,15 @@ from pydantic import Field
 
 
 class SMTPResource(dg.ConfigurableResource):
-    """Provides an authenticated smtplib connection factory."""
+    """Provides an smtplib connection factory. `username`/`password` are optional --
+    when both are unset, connects without calling `.login()` (a local relay/sandbox
+    SMTP server that needs no auth). Setting only one of the two is a misconfiguration
+    and raises at send time."""
 
     host: str
     port: int = 587
-    username: str
-    password: str
+    username: Optional[str] = None
+    password: Optional[str] = None
     use_tls: bool = True
 
     def send_email(
@@ -35,9 +38,15 @@ class SMTPResource(dg.ConfigurableResource):
         import smtplib
         from email.message import EmailMessage
 
+        if bool(self.username) != bool(self.password):
+            raise ValueError(
+                "smtp_resource: set both username and password to authenticate, or neither to "
+                "connect without a login -- got only one of the two."
+            )
+
         msg = EmailMessage()
         msg["Subject"] = subject
-        msg["From"] = from_addr or self.username
+        msg["From"] = from_addr or self.username or ""
         msg["To"] = to
         if cc:
             msg["Cc"] = ", ".join(cc)
@@ -56,8 +65,9 @@ class SMTPResource(dg.ConfigurableResource):
         with smtplib.SMTP(self.host, self.port, timeout=timeout_seconds) as server:
             if self.use_tls:
                 server.starttls()
-            server.login(self.username, self.password)
-            server.send_message(msg, from_addr=from_addr or self.username, to_addrs=recipients)
+            if self.username and self.password:
+                server.login(self.username, self.password)
+            server.send_message(msg, from_addr=from_addr or self.username or "", to_addrs=recipients)
 
 
 class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -66,8 +76,8 @@ class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     resource_key: str = Field(default="smtp_resource", description="Key used to register this resource. Other components reference it via resource_key.")
     host: str = Field(description="SMTP server host, e.g. 'smtp.gmail.com'")
     port: int = Field(default=587, description="SMTP port (587 for STARTTLS, 465 for SSL, 25 for plain)")
-    username: str = Field(description="SMTP username / sender email address")
-    password_env_var: str = Field(description="Environment variable holding the SMTP password")
+    username: Optional[str] = Field(default=None, description="SMTP username / sender email address. Omit along with password_env_var to connect without a login.")
+    password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the SMTP password. Omit along with username to connect without a login.")
     use_tls: bool = Field(default=True, description="Enable STARTTLS encryption")
 
     @classmethod
@@ -80,7 +90,7 @@ class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             host=self.host,
             port=self.port,
             username=self.username,
-            password=dg.EnvVar(self.password_env_var),
+            password=dg.EnvVar(self.password_env_var) if self.password_env_var else None,
             use_tls=self.use_tls,
         )
         return dg.Definitions(resources={self.resource_key: resource})

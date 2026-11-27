@@ -3,12 +3,28 @@ small poll_seconds/timeout_seconds so the suite stays fast. No mocking: the one 
 surface (shell/file/time) is free/local (this repo's "mock only the paid/external call" rule).
 """
 import importlib
+import sys
 import time
+from pathlib import Path
 
 import dagster as dg
 import pytest
 
 from .conftest import materialize
+
+# `callable_path` is a real dotted-import path (matches production: component.py's
+# _resolve_callable() does the same `importlib.import_module(mod_path)`), so it needs
+# the repo root on sys.path -- true when pytest runs from the repo root, not guaranteed
+# when invoked from elsewhere (e.g. a single component's own directory). Make it robust
+# to either by walking up from this file to the repo root (marked by manifest.json) and
+# adding it to sys.path ourselves, rather than relying on the caller's cwd.
+_repo_root = Path(__file__).resolve()
+for _parent in _repo_root.parents:
+    if (_parent / "manifest.json").exists():
+        _repo_root = _parent
+        break
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
 FIXTURES_PATH = "assets.infrastructure.wait_until_asset.tests.fixture_callables"
 

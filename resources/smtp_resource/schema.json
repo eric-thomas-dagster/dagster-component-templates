@@ -31,14 +31,14 @@
     "username": {
       "type": "string",
       "label": "Username",
-      "description": "SMTP username / sender email address",
-      "required": true
+      "description": "SMTP username / sender email address. Omit along with password_env_var to connect without a login.",
+      "required": false
     },
     "password_env_var": {
       "type": "string",
       "label": "Password Env Var",
-      "description": "Environment variable holding the SMTP password",
-      "required": true,
+      "description": "Environment variable holding the SMTP password. Omit along with username to connect without a login.",
+      "required": false,
       "ui:widget": "env_var"
     },
     "use_tls": {

@@ -1,0 +1,15 @@
+type: dagster_community_components.SparkSubmitAssetComponent
+attributes:
+  asset_name: run_daily_aggregation
+  application: s3://my-bucket/jobs/daily_aggregation.py
+  master: yarn
+  deploy_mode: cluster
+  conf:
+    spark.executor.memoryOverhead: 512m
+  executor_memory: 4g
+  num_executors: 10
+  application_args:
+    - --date
+    - '2024-01-01'
+  group_name: spark
+  kinds: [spark]

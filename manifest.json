@@ -25137,6 +25137,29 @@
       ]
     },
     {
+      "id": "emr_step_asset",
+      "name": "EMR Step",
+      "category": "infrastructure",
+      "description": "Add a step to an AWS EMR cluster and poll it to completion as a Dagster asset -- the Airflow EmrAddStepsOperator + EmrStepSensor equivalent in one asset.",
+      "path": "assets/infrastructure/emr_step_asset",
+      "tags": ["aws", "emr", "infrastructure", "spark"],
+      "icon": "si:amazonaws",
+      "type": "dagster_community_components.EmrStepAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/emr_step_asset/requirements.txt",
+      "component_type": "dagster_community_components.EmrStepAssetComponent",
+      "validation": {"level": "code", "last_validated": "2026-11-26"},
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {"pip": ["dagster", "boto3"]},
+      "produces": ["asset"],
+      "agent_hints": {"input_type": "None", "output_type": "Any", "outputs": "MaterializeResult with the cluster id, step id, and terminal state in metadata.", "requires_pip": ["boto3"]},
+      "keywords": ["infra", "aws", "emr", "spark", "hadoop", "step", "airflow migration"]
+    },
+    {
       "id": "enhanced_data_quality_checks",
       "name": "Enhanced Data Quality Checks",
       "category": "check",
@@ -30693,6 +30716,57 @@
         "infra"
       ],
       "icon": "si:googlecloud"
+    },
+    {
+      "id": "gcs_bucket_asset",
+      "name": "GCS Bucket",
+      "category": "infrastructure",
+      "description": "Create, delete, or idempotently ensure a GCS bucket exists, as a materializable Dagster asset -- the Airflow GCSCreateBucketOperator/GCSDeleteBucketOperator equivalent.",
+      "path": "assets/infrastructure/gcs_bucket_asset",
+      "tags": [
+        "gcp",
+        "gcs",
+        "infrastructure",
+        "bucket"
+      ],
+      "icon": "si:googlecloudstorage",
+      "type": "dagster_community_components.GCSBucketAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcs_bucket_asset/requirements.txt",
+      "component_type": "dagster_community_components.GCSBucketAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-storage"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with bucket name, action, and existed/created status in metadata.",
+        "requires_pip": [
+          "google-cloud-storage"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "gcp",
+        "gcs",
+        "bucket",
+        "storage"
+      ]
     },
     {
       "id": "gcs_cleanup_job",
@@ -59242,6 +59316,57 @@
       "icon": "GitBranch"
     },
     {
+      "id": "s3_bucket_asset",
+      "name": "S3 Bucket",
+      "category": "infrastructure",
+      "description": "Create, delete, or idempotently ensure an S3 bucket exists, as a materializable Dagster asset -- the Airflow S3CreateBucketOperator/S3DeleteBucketOperator equivalent.",
+      "path": "assets/infrastructure/s3_bucket_asset",
+      "tags": [
+        "aws",
+        "s3",
+        "infrastructure",
+        "bucket"
+      ],
+      "icon": "si:amazons3",
+      "type": "dagster_community_components.S3BucketAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/s3_bucket_asset/requirements.txt",
+      "component_type": "dagster_community_components.S3BucketAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "boto3"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with bucket name, action, and existed/created status in metadata.",
+        "requires_pip": [
+          "boto3"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "aws",
+        "s3",
+        "bucket",
+        "storage"
+      ]
+    },
+    {
       "id": "s3_cleanup_job",
       "name": "s3_cleanup_job",
       "category": "jobs",
@@ -66171,6 +66296,29 @@
         "batch"
       ],
       "vendor": "Apache Spark"
+    },
+    {
+      "id": "spark_submit_asset",
+      "name": "Spark Submit",
+      "category": "infrastructure",
+      "description": "Run spark-submit as a Dagster asset -- the Airflow SparkSubmitOperator equivalent, for a Spark cluster reached via a local spark-submit install.",
+      "path": "assets/infrastructure/spark_submit_asset",
+      "tags": ["spark", "infrastructure", "submit"],
+      "icon": "si:apachespark",
+      "type": "dagster_community_components.SparkSubmitAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_submit_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_submit_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_submit_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_submit_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_submit_asset/requirements.txt",
+      "component_type": "dagster_community_components.SparkSubmitAssetComponent",
+      "validation": {"level": "code", "last_validated": "2026-11-26"},
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {"pip": ["dagster"]},
+      "produces": ["asset"],
+      "agent_hints": {"input_type": "None", "output_type": "Any", "outputs": "MaterializeResult with exit code, command, and stdout preview in metadata.", "requires_pip": []},
+      "keywords": ["infra", "spark", "spark-submit", "hadoop", "yarn", "k8s", "airflow migration"]
     },
     {
       "id": "spatial_cluster",
@@ -77860,5 +78008,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1481
+  "total": 1486
 }

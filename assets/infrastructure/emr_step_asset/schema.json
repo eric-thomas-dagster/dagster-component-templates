@@ -1,0 +1,271 @@
+{
+  "component_type": "dagster_community_components.EmrStepAssetComponent",
+  "name": "EMR Step",
+  "category": "infrastructure",
+  "icon": "si:amazonaws",
+  "description": "Add a step to an AWS EMR cluster and poll it to completion as a Dagster asset -- the Airflow EmrAddStepsOperator + EmrStepSensor equivalent in one asset.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "any",
+      "description": "MaterializeResult with the cluster id, step id, and terminal state in metadata"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset key.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "region_name": {
+      "description": "AWS region, e.g. 'us-east-1'.",
+      "type": "string",
+      "label": "AWS Region",
+      "required": true
+    },
+    "aws_profile": {
+      "type": "string",
+      "label": "Aws Profile",
+      "description": "Named AWS profile. Omit to use the default boto3 credential chain (env vars, instance role, etc.).",
+      "required": false
+    },
+    "cluster_id": {
+      "type": "string",
+      "label": "Cluster Id",
+      "description": "Existing EMR cluster id, e.g. 'j-XXXXXXXXXXXXX'. Set this or cluster_name.",
+      "required": false
+    },
+    "cluster_name": {
+      "type": "string",
+      "label": "Cluster Name",
+      "description": "Existing EMR cluster name, resolved to a cluster id via list_clusters (must match exactly one STARTING/BOOTSTRAPPING/RUNNING/WAITING cluster). Set this or cluster_id.",
+      "required": false
+    },
+    "step_name": {
+      "type": "string",
+      "label": "Step Name",
+      "description": "Step name shown in the EMR console. Defaults to asset_name.",
+      "required": false
+    },
+    "action_on_failure": {
+      "type": "string",
+      "label": "Action On Failure",
+      "description": "'TERMINATE_JOB_FLOW' | 'TERMINATE_CLUSTER' | 'CANCEL_AND_WAIT' | 'CONTINUE'.",
+      "required": false,
+      "default": "CONTINUE",
+      "enum": ["TERMINATE_JOB_FLOW", "TERMINATE_CLUSTER", "CANCEL_AND_WAIT", "CONTINUE"],
+      "ui:widget": "select"
+    },
+    "jar": {
+      "type": "string",
+      "label": "Jar",
+      "description": "Jar for the step. Defaults to EMR's bundled command-runner.jar, which runs args as a shell command (e.g. spark-submit) without a custom jar.",
+      "required": false,
+      "default": "command-runner.jar"
+    },
+    "main_class": {
+      "type": "string",
+      "label": "Main Class",
+      "description": "Main class, for a custom jar step. Omit when using command-runner.jar.",
+      "required": false
+    },
+    "args": {
+      "description": "Step arguments, e.g. ['spark-submit', '--deploy-mode', 'cluster', 's3://bucket/job.py'].",
+      "items": {
+        "type": "string"
+      },
+      "label": "Args",
+      "required": true,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "properties": {
+      "description": "Extra Hadoop job properties for the step.",
+      "label": "Properties",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "Poll the step to a terminal state. False fires the step and materializes immediately with just the step id.",
+      "required": false,
+      "default": true
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls.",
+      "required": false,
+      "default": 15.0
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max time to wait for the step to reach a terminal state.",
+      "required": false,
+      "default": 3600
+    },
+    "fail_on_step_failure": {
+      "type": "boolean",
+      "label": "Fail On Step Failure",
+      "description": "Raise if the step ends CANCELLED/FAILED/INTERRUPTED. False materializes anyway with the state in metadata.",
+      "required": false,
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'cron' | None.",
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic", "cron"],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false,
+      "default": null
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": ["exponential", "linear", "fixed"],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    }
+  },
+  "tags": ["aws", "emr", "infrastructure", "spark"]
+}

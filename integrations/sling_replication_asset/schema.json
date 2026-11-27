@@ -27,6 +27,12 @@
       "type": "string",
       "label": "Name",
       "required": true
+    },
+    "emit_incremental_watermarks": {
+      "type": "boolean",
+      "label": "Emit Incremental Watermarks",
+      "description": "For streams configured with Sling's `mode: incremental` and an `update_key`, query the target table's MAX(update_key) after each materialization and attach it as asset metadata (`incremental_watermark`, `update_key`). Sling has no separate per-stream state file by default -- the target table is its state -- so this surfaces the same watermark value Sling itself would use as the next run's starting point.",
+      "required": false
     }
   },
   "tags": [

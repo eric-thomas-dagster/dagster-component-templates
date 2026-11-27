@@ -37,6 +37,7 @@ Both wrap the official `dagster-sling` `@sling_assets` decorator internally. Sam
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `name` | `str` | `"sling_replication"` | Op name for the replication run. |
+| `emit_incremental_watermarks` | `bool` | `true` | For streams configured with Sling's `mode: incremental` and an `update_key`, query the target table's MAX(update_key) after each materialization and attach it as asset metadata (`incremental_watermark`, `update_key`). Sl… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 
@@ -101,10 +102,29 @@ streams:
 ```
 
 Each matched table still becomes its own Dagster asset (Sling's `@sling_assets` already does this
-for every stream, wildcard-expanded or not) with its own incremental watermark (`update_key`,
-tracked by Sling per-stream, independent of Dagster's own partitioning) — this is what "one asset
-per table with its own watermark" already means in practice here, no extra configuration on this
-component's own fields.
+for every stream, wildcard-expanded or not), and with `emit_incremental_watermarks` on (the
+default) each one's materialization carries its own `incremental_watermark` metadata — see
+below for exactly what that value is and where it comes from.
+
+## Per-table incremental watermark metadata
+
+Sling has **no separate state file by default** — for `mode: incremental` streams it picks each
+run's starting point by querying `MAX(update_key)` directly on the *target* table (confirmed
+against [Sling's own docs](https://docs.slingdata.io/examples/database-to-database/incremental);
+setting `SLING_STATE` redirects this to an external store instead, which this component doesn't
+currently read). The target table **is** Sling's state.
+
+So for every stream with `mode: incremental` and an `update_key` set (checked per-stream, falling
+back to the replication's `defaults` block), this component queries that same value back after
+materializing and attaches it to the asset's metadata:
+
+- `incremental_watermark` — the `MAX(update_key)` value currently in the target table for that
+  stream, as a string.
+- `update_key` — which column that watermark came from.
+
+Set `emit_incremental_watermarks: false` to skip this (it costs one extra query per incremental
+stream per run). Streams not in incremental mode, or without an `update_key`, never get this
+metadata.
 
 ## Companion components
 

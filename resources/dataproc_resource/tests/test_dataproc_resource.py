@@ -250,6 +250,56 @@ def test_create_batch_and_wait_raises_on_failed(monkeypatch):
         r.create_batch_and_wait("proj", "us-central1", "my-batch", batch_config={"spark_batch": {"main_class": "Main"}})
 
 
+# ---- cluster_config_overrides -------------------------------------------
+
+def test_ensure_cluster_flat_fields_only_unchanged(monkeypatch):
+    client = FakeClusterClient(existing=None)
+    monkeypatch.setattr(mod.DataprocResource, "_cluster_client", lambda self, region: client)
+    r = _resource()
+
+    r.ensure_cluster("proj", "us-central1", "my-cluster", cluster_config={"num_workers": 3})
+    create_call = next(c for c in client.calls if c[0] == "create_cluster")
+    config = create_call[3]["config"]
+    assert config["worker_config"]["num_instances"] == 3
+    assert "autoscaling_config" not in config
+
+
+def test_ensure_cluster_overrides_only_adds_real_clusterconfig_fields(monkeypatch):
+    client = FakeClusterClient(existing=None)
+    monkeypatch.setattr(mod.DataprocResource, "_cluster_client", lambda self, region: client)
+    r = _resource()
+
+    r.ensure_cluster(
+        "proj", "us-central1", "my-cluster",
+        cluster_config_overrides={"autoscaling_config": {"policy_uri": "my-policy"}},
+    )
+    create_call = next(c for c in client.calls if c[0] == "create_cluster")
+    config = create_call[3]["config"]
+    assert config["autoscaling_config"] == {"policy_uri": "my-policy"}
+    # flat-field defaults are still applied underneath the override
+    assert config["worker_config"]["num_instances"] == 2
+
+
+def test_ensure_cluster_overrides_win_on_conflict_with_flat_fields(monkeypatch):
+    client = FakeClusterClient(existing=None)
+    monkeypatch.setattr(mod.DataprocResource, "_cluster_client", lambda self, region: client)
+    r = _resource()
+
+    r.ensure_cluster(
+        "proj", "us-central1", "my-cluster",
+        cluster_config={"num_workers": 2, "master_machine_type": "n2-standard-4"},
+        cluster_config_overrides={"master_config": {"machine_type_uri": "n2-standard-16"}},
+    )
+    create_call = next(c for c in client.calls if c[0] == "create_cluster")
+    config = create_call[3]["config"]
+    # override wins over the flat field's generated value
+    assert config["master_config"]["machine_type_uri"] == "n2-standard-16"
+    # sibling keys within the same nested dict, not touched by the override, survive the merge
+    assert config["master_config"]["num_instances"] == 1
+    # unrelated flat field is untouched
+    assert config["worker_config"]["num_instances"] == 2
+
+
 # ---- component registration ----------------------------------------------
 
 def test_component_registers_resource_under_key():

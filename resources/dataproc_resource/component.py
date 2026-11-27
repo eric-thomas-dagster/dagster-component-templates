@@ -76,6 +76,22 @@ def _build_cluster_config(
     return config
 
 
+def _deep_merge_overrides(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge `overrides` onto `base`; override values win on conflict.
+
+    Two dicts at the same key are merged recursively; any other type (list,
+    scalar, or a dict meeting a non-dict) is replaced outright by the
+    override's value."""
+    merged = dict(base)
+    for key, override_value in overrides.items():
+        base_value = merged.get(key)
+        if isinstance(base_value, dict) and isinstance(override_value, dict):
+            merged[key] = _deep_merge_overrides(base_value, override_value)
+        else:
+            merged[key] = override_value
+    return merged
+
+
 def _build_job_body(cluster_name: str, job_type: str, job_config: Dict[str, Any]) -> Dict[str, Any]:
     job: Dict[str, Any] = {"placement": {"cluster_name": cluster_name}}
     labels = job_config.get("labels")
@@ -201,6 +217,7 @@ class DataprocResource(dg.ConfigurableResource):
         region: str,
         cluster_name: str,
         cluster_config: Optional[Dict[str, Any]] = None,
+        cluster_config_overrides: Optional[Dict[str, Any]] = None,
         timeout_seconds: int = 1200,
         log=None,
     ) -> Dict[str, Any]:
@@ -210,7 +227,18 @@ class DataprocResource(dg.ConfigurableResource):
         kwargs (master_machine_type, worker_machine_type, num_workers,
         master_boot_disk_size_gb, worker_boot_disk_size_gb, zone,
         service_account, network_tags, image_version, software_properties,
-        idle_delete_ttl_seconds).
+        idle_delete_ttl_seconds) -- a convenience subset of the real Dataproc
+        `ClusterConfig` message for common cases.
+
+        `cluster_config_overrides` is the real `ClusterConfig` shape (any of
+        its fields -- autoscaling_config, initialization_actions,
+        lifecycle_config, secondary_worker_config, endpoint_config, etc.),
+        deep-merged ON TOP of whatever `cluster_config`'s flat fields
+        generated: an override wins wherever it sets a key the flat fields
+        also set (nested dicts merge recursively; any other value, including
+        a list, is replaced outright), so you get the flat fields'
+        convenience for common cases plus the full API for anything they
+        don't cover.
 
         Returns {"action": "created"|"none", "cluster_status": <state name or None>}.
         """
@@ -221,10 +249,13 @@ class DataprocResource(dg.ConfigurableResource):
                 log.info(f"dataproc_resource: cluster {cluster_name!r} already present.")
             return {"action": "none", "cluster_status": existing.status.state.name}
 
+        generated_config = _build_cluster_config(**(cluster_config or {}))
+        if cluster_config_overrides:
+            generated_config = _deep_merge_overrides(generated_config, cluster_config_overrides)
         cluster = {
             "project_id": project_id,
             "cluster_name": cluster_name,
-            "config": _build_cluster_config(**(cluster_config or {})),
+            "config": generated_config,
         }
         if log:
             log.info(f"dataproc_resource: creating cluster {cluster_name!r}, waiting up to {timeout_seconds}s.")

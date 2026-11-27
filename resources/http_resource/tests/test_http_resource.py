@@ -3,6 +3,7 @@ extracted from the (now-removed) http_step_asset. Mocks only requests.Session.re
 the one external OAuth2 token-fetch call, matching this repo's "mock only the external
 call" convention.
 """
+import dagster as dg
 import pytest
 
 from .conftest import FakeResponse, run_request
@@ -223,3 +224,107 @@ def test_raise_on_failure_false_returns_result_instead_of_raising(mod, monkeypat
     assert success  # the probe asset itself succeeds
     assert result.success is False
     assert result.status_code == 500
+
+
+def test_params_passed_through_as_query_string(mod, monkeypatch):
+    seen_params = []
+
+    def fake_request(self, method, url, **kwargs):
+        seen_params.append(kwargs.get("params"))
+        return FakeResponse(status_code=200)
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    component = mod.HTTPResourceComponent(base_url="https://api.example.com")
+    result, success = run_request(mod, component, call_kwargs={
+        "method": "GET", "path": "/search", "params": {"since": "2026-01-01", "limit": 50},
+    })
+    assert success and result.success
+    assert seen_params[0] == {"since": "2026-01-01", "limit": 50}
+
+
+def test_optional_auth_header_env_var_unset_does_not_crash_the_run(mod, monkeypatch):
+    """auth_header_env_var is genuinely optional: an unset name must not blow up the whole
+    run via DagsterInvalidConfigError -- it should just proceed with no Authorization
+    header, same as if auth_header_env_var had never been set."""
+    monkeypatch.delenv("DEFINITELY_UNSET_HEADER_VAR_XYZ", raising=False)
+    seen_headers = []
+
+    def fake_request(self, method, url, **kwargs):
+        seen_headers.append(dict(self.headers))
+        return FakeResponse(status_code=200)
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    component = mod.HTTPResourceComponent(base_url="https://api.example.com", auth_header_env_var="DEFINITELY_UNSET_HEADER_VAR_XYZ")
+    result, success = run_request(mod, component)
+    assert success and result.success
+    assert "Authorization" not in seen_headers[0]
+
+
+def test_required_bearer_token_env_var_unset_still_fails_clearly(mod, monkeypatch):
+    """A credential that IS required for the selected auth_type must still fail clearly
+    when its env var is unset -- only the genuinely-optional auth_header_env_var gets the
+    graceful-degradation treatment."""
+    monkeypatch.delenv("DEFINITELY_UNSET_TOKEN_VAR_XYZ", raising=False)
+    component = mod.HTTPResourceComponent(base_url="https://api.example.com", auth_type="bearer", auth_token_env_var="DEFINITELY_UNSET_TOKEN_VAR_XYZ")
+    defs = component.build_defs(context=None)
+    resource = defs.resources[component.resource_key]
+
+    @dg.asset
+    def _probe(http_resource: mod.HTTPResource):
+        http_resource.get_session()
+        return dg.MaterializeResult()
+
+    with pytest.raises(dg.DagsterInvalidConfigError):
+        dg.materialize([_probe], resources={"http_resource": resource})
+
+
+def test_poke_returns_true_on_default_2xx_success(mod, monkeypatch):
+    def fake_request(self, method, url, **kwargs):
+        return FakeResponse(status_code=200)
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    resource = mod.HTTPResource(base_url="https://api.example.com")
+    assert resource.poke("GET", "/ready") is True
+
+
+def test_poke_returns_false_on_non_matching_status(mod, monkeypatch):
+    def fake_request(self, method, url, **kwargs):
+        return FakeResponse(status_code=404)
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    resource = mod.HTTPResource(base_url="https://api.example.com")
+    assert resource.poke("GET", "/ready") is False
+
+
+def test_poke_returns_false_on_connection_error_instead_of_raising(mod, monkeypatch):
+    import requests
+
+    def fake_request(self, method, url, **kwargs):
+        raise requests.exceptions.ConnectionError("refused")
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    resource = mod.HTTPResource(base_url="https://api.example.com")
+    assert resource.poke("GET", "/ready") is False
+
+
+def test_poke_uses_custom_response_check(mod, monkeypatch):
+    def fake_request(self, method, url, **kwargs):
+        return FakeResponse(status_code=200, json_data={"status": "pending"})
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    resource = mod.HTTPResource(base_url="https://api.example.com")
+    assert resource.poke("GET", "/job/1", response_check=lambda r: r.json()["status"] == "done") is False
+    assert resource.poke("GET", "/job/1", response_check=lambda r: r.json()["status"] == "pending") is True
+
+
+def test_poke_passes_params(mod, monkeypatch):
+    seen_params = []
+
+    def fake_request(self, method, url, **kwargs):
+        seen_params.append(kwargs.get("params"))
+        return FakeResponse(status_code=200)
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+    resource = mod.HTTPResource(base_url="https://api.example.com")
+    resource.poke("GET", "/ready", params={"check": "1"})
+    assert seen_params[0] == {"check": "1"}

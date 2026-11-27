@@ -1,0 +1,40 @@
+{
+  "component_type": "dagster_community_components.SQLUrlResourceComponent",
+  "description": "Register a SQLUrlResource (connect via a single SQLAlchemy connection URL, dialect-agnostic) for use by other components",
+  "category": "resource",
+  "icon": "si:postgresql",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "sql_url_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "sql_url_resource"
+    },
+    "connection_url": {
+      "type": "string",
+      "label": "Connection Url",
+      "description": "Full SQLAlchemy connection URL (literal), e.g. 'postgresql://user:pass@host:5432/dbname'. Set this OR connection_url_env_var.",
+      "required": false,
+      "default": null
+    },
+    "connection_url_env_var": {
+      "type": "string",
+      "label": "Connection Url Env Var",
+      "description": "Env var holding the full connection URL. Set this OR connection_url.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "sql",
+    "database"
+  ],
+  "name": "SQL URL Resource"
+}

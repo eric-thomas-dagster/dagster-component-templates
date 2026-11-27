@@ -1,0 +1,4 @@
+type: dagster_community_components.SQLUrlResourceComponent
+attributes:
+  resource_key: sql_url_resource
+  connection_url_env_var: DATABASE_URL

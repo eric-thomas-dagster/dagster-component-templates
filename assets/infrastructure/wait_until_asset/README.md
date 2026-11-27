@@ -119,20 +119,26 @@ for a single-asset op, same convention as `shell_command_asset`'s `skip_on_exit_
 | `sftp_password_env_var` | `str` | — | condition='sftp_file_exists': env var with the SFTP password. Set this OR sftp_private_key_env_var. |
 | `sftp_private_key_env_var` | `str` | — | condition='sftp_file_exists': env var with a path to an SSH private key file. Set this OR sftp_password_env_var. |
 | `sftp_port` | `int` | `22` | condition='sftp_file_exists': SFTP port. |
-| `sftp_path` | `str` | — | condition='sftp_file_exists' only (required then): exact remote file path checked via SFTP stat each poll (no glob support -- SFTP has no native wildcard listing the way local file_exists does). |
+| `sftp_path` | `str` | — | condition='sftp_file_exists' only (required then): remote file path checked via SFTP each poll. Exact path for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched against a directory listing (see sftp_match_mode). |
+| `sftp_match_mode` | `Literal['exact', 'prefix', 'wildcard']` | `"exact"` | condition='sftp_file_exists': 'exact' stats sftp_path directly. 'prefix' lists sftp_path's directory and succeeds if any entry's name starts with sftp_path's basename. 'wildcard' lists the same directory and succeeds if… _(full docs in schema.json + component README)_ |
 | `s3_bucket` | `str` | — | condition='s3_key_exists' only (required then): S3 bucket name. |
-| `s3_key` | `str` | — | condition='s3_key_exists' only (required then): exact S3 object key checked via head_object each poll. |
+| `s3_key` | `str` | — | condition='s3_key_exists' only (required then): checked each poll. Exact object key for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched via list_objects_v2. |
+| `s3_match_mode` | `Literal['exact', 'prefix', 'wildcard']` | `"exact"` | condition='s3_key_exists': 'exact' calls head_object on s3_key directly. 'prefix' lists objects under s3_key as a prefix and succeeds if at least one exists. 'wildcard' lists objects under the portion of s3_key before it… _(full docs in schema.json + component README)_ |
 | `aws_region` | `str` | — | condition='s3_key_exists': AWS region. Unset uses boto3's default credential/region chain. |
 | `gcs_bucket` | `str` | — | condition='gcs_object_exists' only (required then): GCS bucket name. |
-| `gcs_blob_name` | `str` | — | condition='gcs_object_exists' only (required then): exact GCS object name checked each poll. |
+| `gcs_blob_name` | `str` | — | condition='gcs_object_exists' only (required then): checked each poll. Exact object name for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched via list_blobs. |
+| `gcs_match_mode` | `Literal['exact', 'prefix', 'wildcard']` | `"exact"` | condition='gcs_object_exists': 'exact' checks gcs_blob_name directly via blob.exists(). 'prefix' lists blobs under gcs_blob_name as a prefix and succeeds if at least one exists. 'wildcard' lists blobs under the portion o… _(full docs in schema.json + component README)_ |
 | `gcs_credentials_env_var` | `str` | — | condition='gcs_object_exists': env var with a path to a GCP service account JSON key file. Unset uses application-default credentials. Same convention as gcs_to_database_asset's credentials_env_var. |
-| `http_url` | `str` | — | condition='http_ok' only (required then): URL checked via GET each poll. A 2xx response means met; anything else (including a connection error) means not yet met. |
-| `http_auth_type` | `Literal['none', 'basic', 'bearer']` | `"none"` | condition='http_ok': auth to attach to the GET request. Same convention as per_row_http_fetcher's auth_type (oauth2 not offered here -- a poll check has no use for a short-lived token refresh loop). |
+| `http_url` | `str` | — | condition='http_ok' only (required then): URL checked each poll. A response whose status is in http_success_status_codes (default 2xx) means met; anything else (including a connection error) means not yet met. |
+| `http_method` | `str` | `"GET"` | condition='http_ok': HTTP method used for each poll (GET, POST, HEAD, ...). |
+| `http_headers` | `Dict[str, str]` | — | condition='http_ok': extra headers sent with each poll request, on top of any auth header from http_auth_type. |
+| `http_success_status_codes` | `List[int]` | — | condition='http_ok': explicit list of status codes that count as met (e.g. [200] if 202/404 should mean 'not yet' rather than success). Unset defaults to any 2xx status, matching prior behavior. |
+| `http_auth_type` | `Literal['none', 'basic', 'bearer']` | `"none"` | condition='http_ok': auth to attach to the request. Same convention as per_row_http_fetcher's auth_type (oauth2 not offered here -- a poll check has no use for a short-lived token refresh loop). |
 | `http_auth_username_env_var` | `str` | — | condition='http_ok', http_auth_type='basic' only (required then): env var with the basic-auth username. |
 | `http_auth_password_env_var` | `str` | — | condition='http_ok', http_auth_type='basic' only (required then): env var with the basic-auth password. |
 | `http_auth_token_env_var` | `str` | — | condition='http_ok', http_auth_type='bearer' only (required then): env var with the bearer token. |
-| `http_timeout_seconds` | `float` | `10` | condition='http_ok': request timeout in seconds for each poll's GET. |
-| `on_timeout` | `Literal['fail', 'skip']` | `"fail"` | 'fail' (default): raise and fail the run. 'skip': materialize successfully with metadata timed_out=true (Dagster has no native per-asset 'skipped' status; same convention as shell_command_asset's skip_on_exit_code). |
+| `http_timeout_seconds` | `float` | `10` | condition='http_ok': request timeout in seconds for each poll. |
+| `on_timeout` | `Literal['fail', 'skip']` | `"fail"` | 'fail' (default): raise and fail the run. 'skip': a real Dagster structural skip (AssetOut(is_required=False), the output is never yielded) -- this asset and every downstream asset depending on it are marked skipped, not… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

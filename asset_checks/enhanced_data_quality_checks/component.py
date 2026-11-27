@@ -1483,7 +1483,17 @@ class RangeCheckConfig(BaseCheckConfig):
 
 class UniquenessCheckConfig(BaseCheckConfig):
     """Configuration for uniqueness validation checks."""
-    columns: List[Dict[str, Any]] = Field(..., description="Column configurations for uniqueness checks")
+    columns: List[Dict[str, Any]] = Field(..., description="Column configurations for uniqueness checks. Each entry may set 'max_duplicates' (int, default 0) and/or 'max_duplicate_pct' (float 0-100, default None) to tolerate some duplication instead of requiring zero duplicates.")
+
+
+class DistinctCheckConfig(BaseCheckConfig):
+    """Configuration for distinct-value-count/ratio checks (asserts how many/what proportion of
+    distinct values a column has, as opposed to uniqueness_check's strict zero-duplicates check)."""
+    column: Union[str, int] = Field(..., description="Column to analyze for distinct value count/ratio")
+    min_distinct_count: Optional[int] = Field(None, description="Minimum number of distinct values expected")
+    max_distinct_count: Optional[int] = Field(None, description="Maximum number of distinct values expected")
+    min_distinct_pct: Optional[float] = Field(None, description="Minimum distinct-value ratio expected, as a percentage of total (non-null) rows (0-100)")
+    max_distinct_pct: Optional[float] = Field(None, description="Maximum distinct-value ratio expected, as a percentage of total (non-null) rows (0-100)")
 
 
 class PredictedRangeConfig(BaseCheckConfig):
@@ -1644,6 +1654,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
     data_type_check: Optional[List[DataTypeCheckConfig]] = Field(None, description="List of data type validation checks for columns")
     range_check: Optional[List[RangeCheckConfig]] = Field(None, description="List of range validation checks (min/max values for columns)")
     uniqueness_check: Optional[List[UniquenessCheckConfig]] = Field(None, description="List of uniqueness validation checks for column combinations")
+    distinct_check: Optional[List[DistinctCheckConfig]] = Field(None, description="List of distinct-value-count/ratio checks (how many/what proportion of distinct values a column has)")
     predicted_range: Optional[List[PredictedRangeConfig]] = Field(None, description="List of predicted range checks using historical data")
     percent_delta: Optional[List[PercentDeltaConfig]] = Field(None, description="List of percent delta checks comparing current vs historical values")
     distribution_change: Optional[List[DistributionChangeConfig]] = Field(None, description="List of distribution change checks using statistical tests")
@@ -2187,6 +2198,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
                 component_data['uniqueness_allowed_failures'] = check_config['allowed_failures']
             if 'blocking' in check_config:
                 component_data['uniqueness_blocking'] = check_config['blocking']
+
+        elif check_name == 'distinct_check':
+            if 'column' in check_config:
+                component_data['distinct_column'] = check_config['column']
+            if 'min_distinct_count' in check_config:
+                component_data['distinct_min_distinct_count'] = check_config['min_distinct_count']
+            if 'max_distinct_count' in check_config:
+                component_data['distinct_max_distinct_count'] = check_config['max_distinct_count']
+            if 'min_distinct_pct' in check_config:
+                component_data['distinct_min_distinct_pct'] = check_config['min_distinct_pct']
+            if 'max_distinct_pct' in check_config:
+                component_data['distinct_max_distinct_pct'] = check_config['max_distinct_pct']
+            if 'group_by' in check_config:
+                component_data['distinct_group_by'] = check_config['group_by']
+            if 'allowed_failures' in check_config:
+                component_data['distinct_allowed_failures'] = check_config['allowed_failures']
+            if 'blocking' in check_config:
+                component_data['distinct_blocking'] = check_config['blocking']
                 
         elif check_name == 'duration_anomaly_check':
             # Duration anomaly reads config from _current_check_config at execution time.
@@ -2333,6 +2362,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             ('data_type_check', self._create_data_type_check),
             ('range_check', self._create_range_check),
             ('uniqueness_check', self._create_uniqueness_check),
+            ('distinct_check', self._create_distinct_check),
             ('predicted_range', self._create_predicted_range_check),
             ('percent_delta', self._create_percent_delta_check),
             ('distribution_change', self._create_distribution_change_check),
@@ -2923,6 +2953,30 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
                 def dataframe_uniqueness_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_uniqueness_check(context, df)
                 return dataframe_uniqueness_check
+
+    def _create_distinct_check(self, asset_key: AssetKey, component=None):
+        """Create distinct-value-count/ratio check - ALWAYS requires dataframe processing."""
+        if component is None:
+            component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
+
+        check_name = self._get_check_name(asset_key, component, "distinct_check")
+        if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
+            def dataframe_distinct_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
+                return component._execute_dataframe_distinct_check(context, df)
+            return dataframe_distinct_check
+        else:
+            if component.database_resource_key:
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
+                def database_distinct_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
+                    return component._execute_database_to_dataframe_distinct_check(context)
+                return database_distinct_check
+            else:
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
+                def dataframe_distinct_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
+                    return component._execute_dataframe_distinct_check(context, df)
+                return dataframe_distinct_check
 
     def _create_custom_sql_check(self, asset_key: AssetKey, check_cfg: Union[dict, CustomSqlCheckConfig], idx: int):
         """Create a custom SQL check (database-only)."""
@@ -4633,6 +4687,74 @@ len(result['failed_column_names'])
             return AssetCheckResult(
                 passed=False,
                 description=f"Uniqueness validation failed: {str(e)}",
+                metadata={"error": MetadataValue.text(str(e))}
+            )
+
+    def _execute_dataframe_distinct_check(self, context: AssetCheckExecutionContext, df) -> AssetCheckResult:
+        """Execute distinct-value-count/ratio validation on dataframe."""
+        try:
+            filtered_df = self._filter_dataframe(df)
+
+            column = self._get_check_config_value('column')
+            min_distinct_count = self._get_check_config_value('min_distinct_count')
+            max_distinct_count = self._get_check_config_value('max_distinct_count')
+            min_distinct_pct = self._get_check_config_value('min_distinct_pct')
+            max_distinct_pct = self._get_check_config_value('max_distinct_pct')
+
+            actual_column = _get_actual_column_name(filtered_df, column)
+            total_rows = len(filtered_df)
+            if _is_polars(filtered_df):
+                distinct_count = int(filtered_df[actual_column].n_unique())
+            else:
+                distinct_count = int(filtered_df[actual_column].nunique(dropna=True))
+            distinct_pct = (distinct_count / total_rows * 100.0) if total_rows else 0.0
+
+            failure_reasons = []
+            if min_distinct_count is not None and distinct_count < min_distinct_count:
+                failure_reasons.append(f"distinct_count {distinct_count} < min {min_distinct_count}")
+            if max_distinct_count is not None and distinct_count > max_distinct_count:
+                failure_reasons.append(f"distinct_count {distinct_count} > max {max_distinct_count}")
+            if min_distinct_pct is not None and distinct_pct < min_distinct_pct:
+                failure_reasons.append(f"distinct_pct {distinct_pct:.2f} < min {min_distinct_pct}")
+            if max_distinct_pct is not None and distinct_pct > max_distinct_pct:
+                failure_reasons.append(f"distinct_pct {distinct_pct:.2f} > max {max_distinct_pct}")
+
+            passed = len(failure_reasons) == 0
+
+            return AssetCheckResult(
+                passed=passed,
+                description=f"Distinct check on {column!r}: {distinct_count} distinct values ({distinct_pct:.2f}%) ({'PASSED' if passed else 'FAILED'})",
+                metadata={
+                    "column": MetadataValue.text(str(column)),
+                    "distinct_count": MetadataValue.int(distinct_count),
+                    "distinct_pct": MetadataValue.float(float(distinct_pct)),
+                    "total_rows": MetadataValue.int(int(total_rows)),
+                    "failure_reasons": MetadataValue.json(failure_reasons),
+                    "min_distinct_count": MetadataValue.int(min_distinct_count) if min_distinct_count is not None else MetadataValue.null(),
+                    "max_distinct_count": MetadataValue.int(max_distinct_count) if max_distinct_count is not None else MetadataValue.null(),
+                    "min_distinct_pct": MetadataValue.float(min_distinct_pct) if min_distinct_pct is not None else MetadataValue.null(),
+                    "max_distinct_pct": MetadataValue.float(max_distinct_pct) if max_distinct_pct is not None else MetadataValue.null(),
+                    "dataframe_type": MetadataValue.text(type(filtered_df).__module__.split('.')[0]),
+                    "filtered": MetadataValue.bool(filtered_df is not df),
+                }
+            )
+        except Exception as e:
+            return AssetCheckResult(
+                passed=False,
+                description=f"Distinct check failed: {str(e)}",
+                metadata={"error": MetadataValue.text(str(e))}
+            )
+
+    def _execute_database_to_dataframe_distinct_check(self, context: AssetCheckExecutionContext) -> AssetCheckResult:
+        """Execute distinct check by fetching data from database and processing as dataframe."""
+        try:
+            database_resource = getattr(context.resources, self.database_resource_key)
+            df = self._fetch_data_as_dataframe(database_resource)
+            return self._execute_dataframe_distinct_check(context, df)
+        except Exception as e:
+            return AssetCheckResult(
+                passed=False,
+                description=f"Database distinct check failed: {str(e)}",
                 metadata={"error": MetadataValue.text(str(e))}
             )
 
@@ -7330,13 +7452,24 @@ len(result['failed_column_names'])
                 else:
                     duplicate_count = 0
                 
-                # Check if validation passed (no duplicates)
-                passed = duplicate_count == 0
-                
+                # Check if validation passed, allowing an optional tolerance instead of requiring
+                # zero duplicates: 'max_duplicates' (absolute row count, default 0 -- preserves
+                # the original strict behavior) and/or 'max_duplicate_pct' (percentage of total rows).
+                max_duplicates = column_config.get("max_duplicates", 0)
+                max_duplicate_pct = column_config.get("max_duplicate_pct")
+                total_rows = len(df)
+                duplicate_pct = (duplicate_count / total_rows * 100.0) if total_rows else 0.0
+                passed = duplicate_count <= max_duplicates
+                if max_duplicate_pct is not None:
+                    passed = passed and duplicate_pct <= max_duplicate_pct
+
                 uniqueness_validation_results[check_name] = {
                     "passed": bool(passed),
                     "columns": columns_to_check,
                     "duplicate_count": int(duplicate_count),
+                    "duplicate_pct": float(duplicate_pct),
+                    "max_duplicates": int(max_duplicates),
+                    "max_duplicate_pct": max_duplicate_pct,
                     "total_rows": int(len(df)),
                     "description": f"Uniqueness validation: {duplicate_count} duplicate rows found"
                 }

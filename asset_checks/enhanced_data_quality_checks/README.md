@@ -124,7 +124,9 @@ value_set_validation:
 ```
 
 #### 7. Uniqueness Check
-Validates uniqueness of column combinations.
+Validates uniqueness of column combinations. Each column config may optionally set `max_duplicates`
+(absolute row count tolerated, default 0 -- preserves strict zero-duplicates behavior) and/or
+`max_duplicate_pct` (percentage of total rows tolerated) instead of requiring exactly zero duplicates.
 
 ```yaml
 uniqueness_check:
@@ -134,6 +136,28 @@ uniqueness_check:
   - name: "order_uniqueness"
     columns:
       - columns: ["user_id", "order_id"]  # Composite key
+    blocking: true
+  - name: "sku_uniqueness_with_tolerance"
+    columns:
+      - column: "sku"
+        max_duplicates: 5        # tolerate up to 5 duplicate rows
+        max_duplicate_pct: 1.0   # and/or up to 1% of total rows
+```
+
+#### 7b. Distinct Check
+Asserts how many (or what proportion of) distinct values a column has -- unlike uniqueness_check's
+strict zero-duplicates check, this validates a count/ratio expectation (e.g. "status should have
+between 2 and 5 distinct values", or "at least 90% of customer_id values should be distinct").
+
+```yaml
+distinct_check:
+  - name: "status_cardinality"
+    column: "status"
+    min_distinct_count: 2
+    max_distinct_count: 5
+  - name: "customer_id_distinctness"
+    column: "customer_id"
+    min_distinct_pct: 90.0
     blocking: true
 ```
 

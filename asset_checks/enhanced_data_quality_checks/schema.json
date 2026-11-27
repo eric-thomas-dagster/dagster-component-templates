@@ -252,6 +252,17 @@
       "default": null,
       "ui:widget": "list"
     },
+    "distinct_check": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Distinct Check",
+      "description": "List of distinct-value-count/ratio checks (how many/what proportion of distinct values a column has)",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
     "predicted_range": {
       "type": "array",
       "items": {

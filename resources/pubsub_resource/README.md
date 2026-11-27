@@ -69,6 +69,7 @@ Available methods:
 - `delete_topic(project_id, topic_id)` — delete the topic if present (idempotent against `NotFound`).
 - `ensure_subscription(project_id, topic_id, subscription_id, ack_deadline_seconds=10, push_endpoint=None)` — create a pull subscription (default) or push subscription (when `push_endpoint` is set), idempotent against `AlreadyExists`.
 - `delete_subscription(project_id, subscription_id)` — delete the subscription if present (idempotent against `NotFound`).
+- `publish(project_id, topic_id, data, attributes=None, ordering_key=None)` — publish one message and block until it's acknowledged. `data` is UTF-8 encoded if given as `str`; pass `bytes` directly for binary payloads. Returns the real message id.
 
 All four are idempotent: calling `ensure_*` a second time, or `delete_*` against something already gone, is a no-op rather than an error (the real `google-cloud-pubsub` client raises `AlreadyExists`/`NotFound` rather than silently no-op'ing — this resource catches both).
 

@@ -56,6 +56,32 @@ class FakePublisherClient:
         del self.topics[name]
 
 
+class FakeFuture:
+    def __init__(self, message_id=None, exc=None):
+        self._message_id = message_id
+        self._exc = exc
+
+    def result(self):
+        if self._exc is not None:
+            raise self._exc
+        return self._message_id
+
+
+class FakeFuturePublisherClient(FakePublisherClient):
+    """FakePublisherClient plus a fake .publish() for the publish() method tests."""
+
+    def __init__(self, *a, message_id="msg-1", publish_exc=None, **kw):
+        super().__init__(*a, **kw)
+        self._message_id = message_id
+        self._publish_exc = publish_exc
+
+    def publish(self, topic, data, **attrs):
+        self.calls.append(("publish", topic, data, attrs))
+        if self._publish_exc is not None:
+            return FakeFuture(exc=self._publish_exc)
+        return FakeFuture(message_id=self._message_id)
+
+
 class FakeSubscription:
     def __init__(self, name, topic):
         self.name = name
@@ -204,6 +230,50 @@ def test_real_client_topic_and_subscription_path_format():
     """Not mocked -- confirms the real google-cloud-pubsub client's path formats (static methods)."""
     assert pubsub_v1.PublisherClient.topic_path("proj", "orders") == "projects/proj/topics/orders"
     assert pubsub_v1.SubscriberClient.subscription_path("proj", "orders-worker") == "projects/proj/subscriptions/orders-worker"
+
+
+# --- Publish ---
+
+def test_publish_encodes_str_data_and_returns_message_id():
+    client = FakeFuturePublisherClient(message_id="msg-42")
+    r = _resource(publisher=client)
+
+    message_id = r.publish("proj", "orders", "hello world", attributes={"source": "test"})
+
+    assert message_id == "msg-42"
+    name, topic, data, attrs = client.calls[0]
+    assert name == "publish"
+    assert topic == "projects/proj/topics/orders"
+    assert data == b"hello world"
+    assert attrs == {"source": "test"}
+
+
+def test_publish_passes_bytes_data_through_unchanged():
+    client = FakeFuturePublisherClient(message_id="msg-7")
+    r = _resource(publisher=client)
+
+    r.publish("proj", "orders", b"\x00\x01binary")
+
+    _, _, data, _ = client.calls[0]
+    assert data == b"\x00\x01binary"
+
+
+def test_publish_passes_ordering_key():
+    client = FakeFuturePublisherClient(message_id="msg-9")
+    r = _resource(publisher=client)
+
+    r.publish("proj", "orders", "x", ordering_key="customer-123")
+
+    _, _, _, attrs = client.calls[0]
+    assert attrs["ordering_key"] == "customer-123"
+
+
+def test_publish_propagates_future_failure():
+    client = FakeFuturePublisherClient(publish_exc=RuntimeError("broker unavailable"))
+    r = _resource(publisher=client)
+
+    with pytest.raises(RuntimeError, match="broker unavailable"):
+        r.publish("proj", "orders", "x")
 
 
 # --- Component registration ---

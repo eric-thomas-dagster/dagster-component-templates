@@ -1,0 +1,34 @@
+{
+  "component_type": "dagster_community_components.DataprocResourceComponent",
+  "description": "Register a DataprocResource (Google Cloud Dataproc cluster lifecycle + job submission) for use by other components",
+  "category": "resource",
+  "icon": "si:googlecloud",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "dataproc_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "dataproc_resource"
+    },
+    "gcp_credentials_env_var": {
+      "type": "string",
+      "label": "Gcp Credentials Env Var",
+      "description": "Env var containing a GCP service account JSON string. Omit to use Application Default Credentials.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "gcp",
+    "dataproc",
+    "spark"
+  ],
+  "name": "Dataproc Resource"
+}

@@ -30853,6 +30853,60 @@
       ]
     },
     {
+      "id": "sql_url_resource",
+      "name": "SQL URL Resource",
+      "category": "resource",
+      "description": "Register a SQLUrlResource (connect via a single SQLAlchemy connection URL, dialect-agnostic) for use by other components -- the 'SQL by URL' shape Airflow's generic SQL hooks/connections typically use, as reusable, injectable logic.",
+      "path": "resources/sql_url_resource",
+      "tags": [
+        "resource",
+        "sql",
+        "database"
+      ],
+      "icon": "si:postgresql",
+      "type": "dagster_community_components.SQLUrlResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sql_url_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sql_url_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sql_url_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sql_url_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sql_url_resource/requirements.txt",
+      "component_type": "dagster_community_components.SQLUrlResourceComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-27"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "produces": [
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "sql_url_resource"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "Register a SQLUrlResource (execute(), get_engine()) for use by other components",
+        "requires_pip": [
+          "sqlalchemy"
+        ]
+      },
+      "keywords": [
+        "sql",
+        "database",
+        "connection url",
+        "dsn",
+        "sqlalchemy",
+        "resource"
+      ]
+    },
+    {
       "id": "gcs_cleanup_job",
       "name": "gcs_cleanup_job",
       "category": "jobs",
@@ -78318,5 +78372,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1492
+  "total": 1493
 }

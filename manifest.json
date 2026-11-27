@@ -59399,6 +59399,58 @@
       ]
     },
     {
+      "id": "ssh_resource",
+      "name": "SSH Resource",
+      "category": "resource",
+      "description": "Register an SSHResource (run_command over a real paramiko SSH connection) for use by other components -- the Airflow SSHOperator equivalent as reusable, injectable logic.",
+      "path": "resources/ssh_resource",
+      "tags": [
+        "resource",
+        "ssh",
+        "infrastructure"
+      ],
+      "icon": "si:gnubash",
+      "type": "dagster_community_components.SSHResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ssh_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ssh_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ssh_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ssh_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ssh_resource/requirements.txt",
+      "component_type": "dagster_community_components.SSHResourceComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-27"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "paramiko"
+        ]
+      },
+      "produces": [
+        "resource"
+      ],
+      "x-dagster-provides": [
+        "ssh_resource"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "Register an SSHResource (run_command) for use by other components",
+        "requires_pip": [
+          "paramiko"
+        ]
+      },
+      "keywords": [
+        "ssh",
+        "remote command",
+        "airflow parity",
+        "resource"
+      ]
+    },
+    {
       "id": "s3_cleanup_job",
       "name": "s3_cleanup_job",
       "category": "jobs",
@@ -78266,5 +78318,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1491
+  "total": 1492
 }

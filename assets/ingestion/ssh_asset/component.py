@@ -1,5 +1,6 @@
 import io
 import os
+import shlex
 import tempfile
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
 
@@ -163,6 +164,18 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+def _build_command_with_environment(command: str, environment: Optional[Dict[str, str]]) -> str:
+    """Prefix `command` with `export K=V; ` for each entry in `environment`, safely
+    shell-quoted. Deliberately NOT using paramiko's `exec_command(environment=...)`
+    kwarg -- that silently does nothing unless the remote sshd's `AcceptEnv` config
+    allows each specific variable name, which is rarely true outside a controlled
+    fleet. A shell-level export always works regardless of server config."""
+    if not environment:
+        return command
+    exports = " ".join(f"{k}={shlex.quote(str(v))}" for k, v in environment.items())
+    return f"export {exports}; {command}"
+
+
 class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Run shell commands on a remote host via SSH as a Dagster asset.
 
@@ -234,6 +247,15 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     fail_on_non_zero: bool = Field(
         default=True,
         description="Raise an exception when any command exits with a non-zero status code.",
+    )
+    environment: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Environment variables set on each remote command via a safe "
+            "'export K=V; ' shell prefix -- NOT paramiko's exec_command(environment=...) "
+            "kwarg, which many sshd configs silently ignore unless AcceptEnv lists each "
+            "variable name."
+        ),
     )
     capture_output: bool = Field(
         default=True,
@@ -645,6 +667,7 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         full_cmd = _substitute(cmd, pk)
                         if working_dir:
                             full_cmd = f"cd {working_dir} && {full_cmd}"
+                        full_cmd = _build_command_with_environment(full_cmd, component.environment)
 
                         context.log.info(f"[SSH] Running: {full_cmd}")
                         stdin, stdout, stderr = client.exec_command(

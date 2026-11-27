@@ -103,3 +103,22 @@ def test_single_run_backfill_runs_once_per_key_over_one_reused_connection(mod, m
     assert fake_client.exec_calls == ["echo store_a", "echo store_b", "echo store_c"]
     assert fake_client.connected
     assert fake_client.closed
+
+
+def test_environment_is_exported_via_shell_prefix(mod, monkeypatch):
+    fake_client = FakeSSHClient({"export FOO=bar BAZ='qux quux'; echo {partition_key}": ([], 0)})
+    component = _make_component(
+        mod, monkeypatch,
+        environment={"FOO": "bar", "BAZ": "qux quux"},
+    )
+    result = _materialize(mod, component, fake_client, monkeypatch)
+    assert result.success
+    assert fake_client.exec_calls == ["export FOO=bar BAZ='qux quux'; echo {partition_key}"]
+
+
+def test_no_environment_leaves_command_unprefixed(mod, monkeypatch):
+    fake_client = FakeSSHClient({"echo {partition_key}": ([], 0)})
+    component = _make_component(mod, monkeypatch)
+    result = _materialize(mod, component, fake_client, monkeypatch)
+    assert result.success
+    assert fake_client.exec_calls == ["echo {partition_key}"]

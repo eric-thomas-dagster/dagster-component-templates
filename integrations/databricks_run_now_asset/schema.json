@@ -1,0 +1,115 @@
+{
+  "component_type": "dagster_community_components.DatabricksRunNowAssetComponent",
+  "name": "Databricks Run Now",
+  "category": "integrations",
+  "icon": "si:databricks",
+  "description": "Trigger an existing Databricks job by job_id via the real jobs.run_now API and wait for completion -- the Airflow DatabricksRunNowOperator equivalent.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "any",
+      "description": "MaterializeResult with the Databricks run id, result state, and run page URL in metadata"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset key.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "job_id": {
+      "description": "Existing Databricks job id to trigger via run_now.",
+      "type": "integer",
+      "label": "Job Id",
+      "required": true
+    },
+    "workspace_host": {
+      "description": "Databricks workspace URL, e.g. 'https://dbc-abc123.cloud.databricks.com'.",
+      "type": "string",
+      "label": "Workspace Host",
+      "required": true
+    },
+    "workspace_token_env_var": {
+      "description": "Env var holding a Databricks personal access token (or workspace-scoped token).",
+      "type": "string",
+      "label": "Workspace Token Env Var",
+      "required": true
+    },
+    "job_parameters": {
+      "type": "object",
+      "label": "Job Parameters",
+      "description": "Named job parameters (the modern run_now API) -- values are coerced to strings. Mutually independent of notebook_params/python_params.",
+      "required": false
+    },
+    "notebook_params": {
+      "type": "object",
+      "label": "Notebook Params",
+      "description": "Notebook widget parameters, for jobs whose task is a notebook_task.",
+      "required": false
+    },
+    "python_params": {
+      "type": "array",
+      "label": "Python Params",
+      "description": "Positional command-line parameters, for jobs whose task is a python/spark_python_task.",
+      "required": false
+    },
+    "idempotency_token": {
+      "type": "string",
+      "label": "Idempotency Token",
+      "description": "An idempotent run_now request with the same token and job_id returns the already-running/completed run instead of starting a new one.",
+      "required": false
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout Seconds",
+      "description": "Maximum time to wait for the job run to reach a terminal state before this asset itself raises a timeout error.",
+      "required": false,
+      "default": 3600
+    },
+    "fail_on_non_success": {
+      "type": "boolean",
+      "label": "Fail On Non Success",
+      "description": "Raise if the job run's result_state isn't SUCCESS. False materializes anyway with the result state in metadata.",
+      "required": false,
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Extra asset tags.",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Defaults to ['databricks'].",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys.",
+      "required": false
+    }
+  }
+}

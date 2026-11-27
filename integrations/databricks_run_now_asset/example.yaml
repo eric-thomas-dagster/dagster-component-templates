@@ -1,0 +1,11 @@
+type: dagster_community_components.DatabricksRunNowAssetComponent
+attributes:
+  asset_name: nightly_etl_job
+  job_id: 123456789
+  workspace_host: https://dbc-abc123.cloud.databricks.com
+  workspace_token_env_var: DATABRICKS_TOKEN
+  job_parameters:
+    run_date: "2026-01-15"
+  poll_timeout_seconds: 7200
+  group_name: databricks
+  kinds: [databricks]

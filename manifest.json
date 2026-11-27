@@ -9539,6 +9539,167 @@
       "icon": "si:googlebigquery"
     },
     {
+      "id": "bigquery_dataset_asset",
+      "name": "Big Query Dataset Asset",
+      "category": "infrastructure",
+      "description": "Create, ensure-exists, recreate, or delete a BigQuery dataset as a Dagster asset -- the Airflow BigQueryCreateEmptyDatasetOperator / BigQueryDeleteDatasetOperator equivalent.",
+      "path": "assets/infrastructure/bigquery_dataset_asset",
+      "tags": [
+        "gcp",
+        "bigquery",
+        "infrastructure",
+        "dataset"
+      ],
+      "icon": "si:googlebigquery",
+      "type": "dagster_community_components.BigQueryDatasetAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_dataset_asset/requirements.txt",
+      "component_type": "dagster_community_components.BigQueryDatasetAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the dataset id, mode, location, and labels in metadata.",
+        "requires_pip": [
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "gcp",
+        "bigquery",
+        "dataset",
+        "lifecycle"
+      ]
+    },
+    {
+      "id": "bigquery_table_asset",
+      "name": "Big Query Table Asset",
+      "category": "infrastructure",
+      "description": "Create, ensure-exists, recreate, or delete an empty BigQuery table (explicit schema, optional time partitioning + clustering) as a Dagster asset -- the Airflow BigQueryCreateEmptyTableOperator / BigQueryDeleteTableOperator / BigQueryTableExistenceSensor equivalent.",
+      "path": "assets/infrastructure/bigquery_table_asset",
+      "tags": [
+        "gcp",
+        "bigquery",
+        "infrastructure",
+        "table"
+      ],
+      "icon": "si:googlebigquery",
+      "type": "dagster_community_components.BigQueryTableAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_table_asset/requirements.txt",
+      "component_type": "dagster_community_components.BigQueryTableAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the table ref, mode, and resulting columns in metadata.",
+        "requires_pip": [
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "gcp",
+        "bigquery",
+        "table",
+        "lifecycle",
+        "ddl"
+      ]
+    },
+    {
+      "id": "bigquery_value_check_asset",
+      "name": "Big Query Value Check Asset",
+      "category": "infrastructure",
+      "description": "Run a scalar SQL query against BigQuery and assert the result against an expectation -- the Airflow BigQueryCheckOperator / BigQueryValueCheckOperator data-quality-check equivalent.",
+      "path": "assets/infrastructure/bigquery_value_check_asset",
+      "tags": [
+        "gcp",
+        "bigquery",
+        "infrastructure",
+        "data-quality"
+      ],
+      "icon": "si:googlebigquery",
+      "type": "dagster_community_components.BigQueryValueCheckAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bigquery_value_check_asset/requirements.txt",
+      "component_type": "dagster_community_components.BigQueryValueCheckAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the actual value, expected value, comparison, and check_passed in metadata.",
+        "requires_pip": [
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "gcp",
+        "bigquery",
+        "data quality",
+        "check",
+        "assertion"
+      ]
+    },
+    {
       "id": "bigquery_dry_run_check",
       "name": "Bigquery Dry Run Check",
       "category": "check",
@@ -78006,6 +78167,106 @@
       ]
     },
     {
+      "id": "databricks_run_now_asset",
+      "name": "Databricks Run Now",
+      "category": "integrations",
+      "description": "Trigger an existing Databricks job by job_id via the real jobs.run_now API and wait for completion -- the Airflow DatabricksRunNowOperator equivalent.",
+      "path": "integrations/databricks_run_now_asset",
+      "tags": [
+        "databricks",
+        "integrations",
+        "run_now"
+      ],
+      "icon": "si:databricks",
+      "type": "dagster_community_components.DatabricksRunNowAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_run_now_asset/requirements.txt",
+      "component_type": "dagster_community_components.DatabricksRunNowAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "databricks-sdk"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the Databricks run id, result state, and run page URL in metadata.",
+        "requires_pip": [
+          "databricks-sdk"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "databricks",
+        "run now",
+        "job trigger",
+        "airflow parity"
+      ]
+    },
+    {
+      "id": "http_step_asset",
+      "name": "HTTP Step",
+      "category": "infrastructure",
+      "description": "One synchronous HTTP call as a Dagster asset -- the Airflow SimpleHttpOperator equivalent. A single request, a status-code (and optional response-field) success check, materialize with response metadata.",
+      "path": "assets/infrastructure/http_step_asset",
+      "tags": [
+        "http",
+        "infrastructure",
+        "api"
+      ],
+      "icon": "Globe",
+      "type": "dagster_community_components.HttpStepAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/requirements.txt",
+      "component_type": "dagster_community_components.HttpStepAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-26"
+      },
+      "version": "1.0.0",
+      "author": "Eric Thomas",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the response status code, body/JSON, and extracted response_value in metadata.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "http",
+        "api",
+        "webhook",
+        "step"
+      ]
+    },
+    {
       "id": "dataproc_cluster_asset",
       "name": "Dataproc Cluster Asset",
       "category": "infrastructure",
@@ -78117,3 +78378,4 @@
   "schema_spec_local": "schema-spec.json",
   "total": 1488
 }
+

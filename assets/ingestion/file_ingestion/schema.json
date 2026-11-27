@@ -365,6 +365,35 @@
       "label": "Azure Connection String Env Var",
       "description": "Only used when the resolved URI is an abfs://.../abfss://... URI. Takes precedence over azure_account_key_env_var.",
       "required": false
+    },
+    "http_auth_type": {
+      "type": "string",
+      "enum": [
+        "none",
+        "basic",
+        "bearer"
+      ],
+      "label": "Http Auth Type",
+      "description": "Auth for an http:// or https:// file_path (or resolved from_upstream/from_run_config URI). 'basic' requires http_auth_username_env_var + http_auth_password_env_var; 'bearer' requires http_auth_token_env_var. Ignored for non-HTTP(S) URIs. 'none' (default) makes an unauthenticated request, same as before this field existed.",
+      "required": false
+    },
+    "http_auth_username_env_var": {
+      "type": "string",
+      "label": "Http Auth Username Env Var",
+      "description": "Required for http_auth_type='basic'.",
+      "required": false
+    },
+    "http_auth_password_env_var": {
+      "type": "string",
+      "label": "Http Auth Password Env Var",
+      "description": "Required for http_auth_type='basic'.",
+      "required": false
+    },
+    "http_auth_token_env_var": {
+      "type": "string",
+      "label": "Http Auth Token Env Var",
+      "description": "Required for http_auth_type='bearer'.",
+      "required": false
     }
   },
   "name": "File Ingestion"

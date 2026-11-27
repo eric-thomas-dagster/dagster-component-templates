@@ -7,12 +7,20 @@ Unified tabular-file → pandas DataFrame ingestion. Replaces the separate `csv_
 Exactly one of:
 
 ```yaml
-# 1. Fixed path / URI — works for local paths and any fsspec scheme
+# 1. Fixed path / URI — works for local paths, any fsspec scheme, and http(s) URLs
 file_path: /data/customers.csv
 file_path: s3://my-bucket/customers.csv
 file_path: gs://my-bucket/2024/data.parquet
 file_path: abfss://container@account.dfs.core.windows.net/2024/data.csv  # ADLS Gen2
+file_path: https://api.example.com/exports/customers.csv
 ```
+
+An `http://`/`https://` `file_path` (or a resolved `from_upstream`/`from_run_config` URI with that
+scheme) is read directly — no extra dependency, pandas handles the request itself. Add
+`http_auth_type: basic` or `bearer` plus the matching `http_auth_*_env_var` field(s) when the URL
+needs an `Authorization` header; `none` (the default) makes an unauthenticated request. There's no
+`oauth2_client_credentials` option here — if a source needs a token-refresh flow, pair it with
+`per_row_http_fetcher` or fetch upstream of this component instead.
 
 ```yaml
 # 2. Resolve from an upstream asset's dict — pairs with archive_fetcher etc.
@@ -94,7 +102,7 @@ from_run_config:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `format` | `str` | `"auto"` | File format: 'auto' (detect from extension), 'csv', 'tsv', 'json' (one object/array per file), 'jsonl' (one JSON object per line — also accepts .ndjson), 'parquet', 'excel'. Default 'auto' inspects the URI's extension. |
-| `file_path` | `str` | — | Path to the CSV file to ingest. Mutually exclusive with `from_upstream` — set exactly one. |
+| `file_path` | `str` | — | Path to the CSV file to ingest — a local path, fsspec URI (s3://, gs://, abfss://, …), or an http(s):// URL. Mutually exclusive with `from_upstream` — set exactly one. |
 
 ### Other
 
@@ -105,6 +113,10 @@ from_run_config:
 | `azure_account_name_env_var` | `str` | — | Only used when file_path (or the resolved from_upstream/from_run_config URI) is an abfs://.../abfss://... URI. |
 | `azure_account_key_env_var` | `str` | — | Only used when the resolved URI is an abfs://.../abfss://... URI (ignored if azure_connection_string_env_var is also set). |
 | `azure_connection_string_env_var` | `str` | — | Only used when the resolved URI is an abfs://.../abfss://... URI. Takes precedence over azure_account_key_env_var. |
+| `http_auth_type` | `Literal['none', 'basic', 'bearer']` | `"none"` | Auth for an http:// or https:// file_path (or resolved from_upstream/from_run_config URI). 'basic' requires http_auth_username_env_var + http_auth_password_env_var; 'bearer' requires http_auth_token_env_var. Ignored for… _(full docs in schema.json + component README)_ |
+| `http_auth_username_env_var` | `str` | — | Required for http_auth_type='basic'. |
+| `http_auth_password_env_var` | `str` | — | Required for http_auth_type='basic'. |
+| `http_auth_token_env_var` | `str` | — | Required for http_auth_type='bearer'. |
 | `delimiter` | `str` | `","` | CSV delimiter character |
 | `encoding` | `str` | `"utf-8"` | File encoding |
 | `skip_rows` | `int` | `0` | Number of rows to skip at the start |

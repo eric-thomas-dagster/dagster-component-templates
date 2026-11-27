@@ -221,8 +221,12 @@ _SUPPORTED_FORMATS = ("auto", "csv", "tsv", "json", "jsonl", "parquet", "excel",
 
 
 def _detect_format_from_uri(uri: str) -> str:
-    """Pick a reader from a URI's extension. Strips compound `.gz`/`.bz2`."""
+    """Pick a reader from a URI's extension. Strips compound `.gz`/`.bz2`,
+    and an http(s) URL's query string/fragment (e.g. ".csv?token=abc")."""
     lower = uri.lower()
+    for sep in ("?", "#"):
+        if sep in lower:
+            lower = lower.split(sep, 1)[0]
     if lower.endswith((".gz", ".bz2", ".xz", ".zip")):
         lower = lower.rsplit(".", 1)[0]
     for ext, fmt in (
@@ -389,6 +393,34 @@ def _azure_storage_options(uri: str, *, account_name_env_var=None, account_key_e
 # END azure storage options
 
 
+# BEGIN http auth headers (inlined per component; keep copies identical -- see
+# tests/test_http_url_source.py. Pandas forwards `storage_options` straight through
+# as request headers for an http://.../https://... URI (see
+# pandas.io.common.get_handle's `urllib.request.Request(filepath_or_buffer,
+# headers=storage_options)`) -- so the dict this returns IS the headers dict, not a
+# nested fsspec-style storage_options shape the way the Azure/remote-filesystem
+# schemes above use. Built only when http_auth_type is 'basic' or 'bearer'; returns
+# None for a non-HTTP(S) URI or auth_type='none' (unauthenticated requests go
+# through unchanged, same as before this field existed).
+def _http_auth_headers(uri: str, *, auth_type: str = "none", username_env_var=None, password_env_var=None, token_env_var=None) -> Optional[Dict[str, str]]:
+    if not uri.lower().startswith(("http://", "https://")):
+        return None
+    if auth_type == "none":
+        return None
+    if auth_type == "basic":
+        if not (username_env_var and password_env_var):
+            raise ValueError("http_auth_type='basic' requires http_auth_username_env_var + http_auth_password_env_var.")
+        import base64
+        creds = f"{_require_env(username_env_var)}:{_require_env(password_env_var)}".encode()
+        return {"Authorization": f"Basic {base64.b64encode(creds).decode()}"}
+    if auth_type == "bearer":
+        if not token_env_var:
+            raise ValueError("http_auth_type='bearer' requires http_auth_token_env_var.")
+        return {"Authorization": f"Bearer {_require_env(token_env_var)}"}
+    raise ValueError(f"unknown http_auth_type: {auth_type!r}")
+# END http auth headers
+
+
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
 from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
@@ -443,7 +475,8 @@ class FileIngestionComponent(Component, Model, Resolvable):
     / Excel into a pandas DataFrame.
 
     Three input modes (mutually exclusive — set exactly one):
-      - `file_path:` — a fixed local path or fsspec URI (s3://, gs://, …)
+      - `file_path:` — a fixed local path, fsspec URI (s3://, gs://, …), or
+        http(s):// URL (see `http_auth_type` for an authenticated URL)
       - `from_upstream:` — resolve path(s) from an upstream asset's dict value
       - `from_run_config:` — resolve a URI from sensor-injected RunConfig,
         with optional `{partition_key}` interpolation for dynamic-partition flows.
@@ -465,8 +498,9 @@ class FileIngestionComponent(Component, Model, Resolvable):
     file_path: Optional[str] = Field(
         default=None,
         description=(
-            "Path to the CSV file to ingest. Mutually exclusive with "
-            "`from_upstream` — set exactly one."
+            "Path to the CSV file to ingest — a local path, fsspec URI "
+            "(s3://, gs://, abfss://, …), or an http(s):// URL. Mutually "
+            "exclusive with `from_upstream` — set exactly one."
         ),
     )
     from_upstream: Optional[Dict[str, Any]] = Field(
@@ -520,6 +554,20 @@ class FileIngestionComponent(Component, Model, Resolvable):
         default=None,
         description="Only used when the resolved URI is an abfs://.../abfss://... URI. Takes precedence over azure_account_key_env_var.",
     )
+    http_auth_type: Literal["none", "basic", "bearer"] = Field(
+        default="none",
+        description=(
+            "Auth for an http:// or https:// file_path (or resolved "
+            "from_upstream/from_run_config URI). 'basic' requires "
+            "http_auth_username_env_var + http_auth_password_env_var; "
+            "'bearer' requires http_auth_token_env_var. Ignored for "
+            "non-HTTP(S) URIs. 'none' (default) makes an unauthenticated "
+            "request, same as before this field existed."
+        ),
+    )
+    http_auth_username_env_var: Optional[str] = Field(default=None, description="Required for http_auth_type='basic'.")
+    http_auth_password_env_var: Optional[str] = Field(default=None, description="Required for http_auth_type='basic'.")
+    http_auth_token_env_var: Optional[str] = Field(default=None, description="Required for http_auth_type='bearer'.")
     description: Optional[str] = Field(
         default="",
         description="Description of the asset"
@@ -795,12 +843,24 @@ class FileIngestionComponent(Component, Model, Resolvable):
         azure_account_name_env_var = self.azure_account_name_env_var
         azure_account_key_env_var = self.azure_account_key_env_var
         azure_connection_string_env_var = self.azure_connection_string_env_var
+        http_auth_type = self.http_auth_type
+        http_auth_username_env_var = self.http_auth_username_env_var
+        http_auth_password_env_var = self.http_auth_password_env_var
+        http_auth_token_env_var = self.http_auth_token_env_var
 
         def _storage_options_for(uri: str) -> Optional[Dict[str, str]]:
-            return _azure_storage_options(
+            azure_opts = _azure_storage_options(
                 uri, account_name_env_var=azure_account_name_env_var,
                 account_key_env_var=azure_account_key_env_var,
                 connection_string_env_var=azure_connection_string_env_var,
+            )
+            if azure_opts is not None:
+                return azure_opts
+            return _http_auth_headers(
+                uri, auth_type=http_auth_type,
+                username_env_var=http_auth_username_env_var,
+                password_env_var=http_auth_password_env_var,
+                token_env_var=http_auth_token_env_var,
             )
         file_format = (self.format or "auto").lower()
         if file_format not in _SUPPORTED_FORMATS:

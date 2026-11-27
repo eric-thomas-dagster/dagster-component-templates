@@ -1,8 +1,0 @@
-version: 2
-models:
-  - name: good_model
-    columns:
-      - name: id
-        tests:
-          - not_null
-          - unique

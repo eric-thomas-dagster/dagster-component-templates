@@ -1,6 +1,0 @@
-name: dbt_command_asset_fixture
-version: '1.0'
-config-version: 2
-profile: dbt_command_asset_fixture
-model-paths: ["models"]
-clean-targets: ["target", "dbt_packages"]

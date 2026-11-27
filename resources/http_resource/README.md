@@ -1,6 +1,9 @@
 # Http Resource
 
-Register an HTTP resource (base URL + auth header) for use by other components
+Register an HTTP resource (base URL + auth: raw header, basic, bearer, or OAuth2
+client-credentials) with retry-with-backoff and a one-shot `request()` helper, for use by
+other components -- the reusable operator logic behind the Airflow `SimpleHttpOperator`
+equivalent, injectable into any op/asset rather than tied to one pre-built asset shape.
 
 ## Installation
 
@@ -28,11 +31,28 @@ Register an HTTP resource (base URL + auth header) for use by other components
 |---|---|---|---|
 | `timeout_seconds` | `int` | `30` | Request timeout in seconds |
 
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_on_status_codes` | `List[int]` | `lambda: [429, 500, 502, 503, 504]()` | Response status codes that trigger a retry (in addition to connection/timeout errors, which always retry). Only takes effect when retries > 0. |
+| `retry_backoff_seconds` | `float` | `0.5` | Base delay for exponential backoff between retries (delay = base * 2**attempt). |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `auth_header_env_var` | `str` | — | Env var containing the Authorization header value, e.g. 'Bearer token123' |
+| `auth_header_env_var` | `str` | — | Env var containing a fully-formed Authorization header value, e.g. 'Bearer token123'. Mutually exclusive with auth_type. |
+| `auth_type` | `Literal['none', 'basic', 'bearer', 'oauth2_client_credentia…` | `"none"` | Auth scheme, as an alternative to auth_header_env_var: none/basic/bearer/oauth2_client_credentials. |
+| `auth_username_env_var` | `str` | — | Required for auth_type='basic'. |
+| `auth_password_env_var` | `str` | — | Required for auth_type='basic'. |
+| `auth_token_env_var` | `str` | — | Required for auth_type='bearer'. |
+| `oauth2_token_url` | `str` | — | Token endpoint. Required for auth_type='oauth2_client_credentials'. |
+| `oauth2_client_id_env_var` | `str` | — | Env var holding the OAuth2 client ID. Required for auth_type='oauth2_client_credentials'. |
+| `oauth2_client_secret_env_var` | `str` | — | Env var holding the OAuth2 client secret. Required for auth_type='oauth2_client_credentials'. |
+| `oauth2_scope` | `str` | — | Optional OAuth2 scope to request. |
+| `oauth2_audience` | `str` | — | Optional OAuth2 audience parameter. |
+| `retries` | `int` | `0` | Retry count per request on a retryable status code / connection error (with exponential backoff). Only applies to request(), not get()/post(). |
 
 [//]: # (FIELDS:END)
 
@@ -57,7 +77,33 @@ attributes:
   resource_key: http_resource
 ```
 
+From Python (an op or asset requesting `HTTPResource` by parameter type):
+
+```python
+def my_asset(http_resource: HTTPResource):
+    result = http_resource.request(
+        "GET", "/status",
+        response_json_path="data.status",
+        response_json_success_value="ready",
+    )
+    # result.status_code, result.json, result.response_value
+```
+
+`request()` raises `dg.Failure` on a non-matching status code / response value by default
+(`raise_on_failure=True`) -- pass `raise_on_failure=False` to inspect `result.success`
+yourself instead. Retries (`retries`, `retry_on_status_codes`, `retry_backoff_seconds`)
+apply only to `request()`, not the lower-level `get()`/`post()` helpers.
+
 ## Authentication
+
+Two shapes, set one or the other (not both):
+
+- `auth_header_env_var` -- a fully-formed `Authorization` header value already in an env var.
+- `auth_type: none|basic|bearer|oauth2_client_credentials` -- `basic` needs
+  `auth_username_env_var`/`auth_password_env_var`; `bearer` needs `auth_token_env_var`;
+  `oauth2_client_credentials` needs `oauth2_token_url`, `oauth2_client_id_env_var`,
+  `oauth2_client_secret_env_var` (fetches and caches an access token, refreshing before it
+  expires), plus optional `oauth2_scope`/`oauth2_audience`.
 
 All secret fields accept an **environment variable name** (not the secret value itself).
 Set the corresponding environment variable before running Dagster:

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.HTTPResourceComponent",
-  "description": "Register an HTTP resource (base URL + auth header) for use by other components",
+  "description": "Register an HTTP resource (base URL + auth: raw header, basic, bearer, or OAuth2 client-credentials) with retry-with-backoff and a one-shot request() helper, for use by other components",
   "category": "resource",
   "icon": "si:curl",
   "x-dagster-io": {},
@@ -35,6 +35,95 @@
       "description": "Request timeout in seconds",
       "required": false,
       "default": 30
+    },
+    "auth_type": {
+      "type": "string",
+      "label": "Auth Type",
+      "description": "Auth scheme, as an alternative to auth_header_env_var: none/basic/bearer/oauth2_client_credentials.",
+      "required": false,
+      "default": "none",
+      "enum": [
+        "none",
+        "basic",
+        "bearer",
+        "oauth2_client_credentials"
+      ],
+      "ui:widget": "select"
+    },
+    "auth_username_env_var": {
+      "type": "string",
+      "label": "Auth Username Env Var",
+      "description": "Required for auth_type='basic'.",
+      "required": false,
+      "ui:widget": "env_var"
+    },
+    "auth_password_env_var": {
+      "type": "string",
+      "label": "Auth Password Env Var",
+      "description": "Required for auth_type='basic'.",
+      "required": false,
+      "ui:widget": "env_var"
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "Auth Token Env Var",
+      "description": "Required for auth_type='bearer'.",
+      "required": false,
+      "ui:widget": "env_var"
+    },
+    "oauth2_token_url": {
+      "type": "string",
+      "label": "Oauth2 Token Url",
+      "description": "Token endpoint. Required for auth_type='oauth2_client_credentials'.",
+      "required": false
+    },
+    "oauth2_client_id_env_var": {
+      "type": "string",
+      "label": "Oauth2 Client Id Env Var",
+      "description": "Env var holding the OAuth2 client ID. Required for auth_type='oauth2_client_credentials'.",
+      "required": false,
+      "ui:widget": "env_var"
+    },
+    "oauth2_client_secret_env_var": {
+      "type": "string",
+      "label": "Oauth2 Client Secret Env Var",
+      "description": "Env var holding the OAuth2 client secret. Required for auth_type='oauth2_client_credentials'.",
+      "required": false,
+      "ui:widget": "env_var"
+    },
+    "oauth2_scope": {
+      "type": "string",
+      "label": "Oauth2 Scope",
+      "description": "Optional OAuth2 scope to request.",
+      "required": false
+    },
+    "oauth2_audience": {
+      "type": "string",
+      "label": "Oauth2 Audience",
+      "description": "Optional OAuth2 audience parameter.",
+      "required": false
+    },
+    "retries": {
+      "type": "integer",
+      "label": "Retries",
+      "description": "Retry count per request on a retryable status code / connection error (with exponential backoff). Only applies to request(), not get()/post().",
+      "required": false,
+      "default": 0
+    },
+    "retry_on_status_codes": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "label": "Retry On Status Codes",
+      "description": "Response status codes that trigger a retry (in addition to connection/timeout errors, which always retry). Only takes effect when retries > 0.",
+      "required": false,
+      "default": [429, 500, 502, 503, 504]
+    },
+    "retry_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Backoff Seconds",
+      "description": "Base delay for exponential backoff between retries (delay = base * 2**attempt).",
+      "required": false,
+      "default": 0.5
     }
   },
   "tags": [

@@ -78217,56 +78217,6 @@
       ]
     },
     {
-      "id": "http_step_asset",
-      "name": "HTTP Step",
-      "category": "infrastructure",
-      "description": "One synchronous HTTP call as a Dagster asset -- the Airflow SimpleHttpOperator equivalent. A single request, a status-code (and optional response-field) success check, materialize with response metadata.",
-      "path": "assets/infrastructure/http_step_asset",
-      "tags": [
-        "http",
-        "infrastructure",
-        "api"
-      ],
-      "icon": "Globe",
-      "type": "dagster_community_components.HttpStepAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/http_step_asset/requirements.txt",
-      "component_type": "dagster_community_components.HttpStepAssetComponent",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-11-26"
-      },
-      "version": "1.0.0",
-      "author": "Eric Thomas",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "requests"
-        ]
-      },
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "None",
-        "output_type": "Any",
-        "outputs": "MaterializeResult with the response status code, body/JSON, and extracted response_value in metadata.",
-        "requires_pip": [
-          "requests"
-        ]
-      },
-      "keywords": [
-        "infra",
-        "http",
-        "api",
-        "webhook",
-        "step"
-      ]
-    },
-    {
       "id": "dataproc_cluster_asset",
       "name": "Dataproc Cluster Asset",
       "category": "infrastructure",

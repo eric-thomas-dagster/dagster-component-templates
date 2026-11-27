@@ -354,7 +354,7 @@ from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
 
 
-def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=(), strs=()):
     """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
     if not isinstance(data, dict):
         return data
@@ -375,6 +375,14 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
             v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
         if isinstance(v, dict):
             out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    for k in strs:  # str (or Dict[str, str]) fields: a numeric-looking YAML scalar resolves to int/float/bool
+        v = out.get(k)
+        if isinstance(v, bool):
+            out[k] = "true" if v else "false"
+        elif isinstance(v, (int, float)):
+            out[k] = str(v)
+        elif isinstance(v, dict):
+            out[k] = {str(a): (("true" if b is True else "false") if isinstance(b, bool) else (str(b) if isinstance(b, (int, float)) else b)) for a, b in v.items()}
     return out
 # END field-shape normalization
 

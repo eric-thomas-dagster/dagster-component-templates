@@ -104,3 +104,35 @@ def test_component_registers_resource(mod):
     component = mod.SlackResourceComponent(token_env_var="SLACK_TOKEN")
     defs = component.build_defs(context=None)
     assert isinstance(defs.resources["slack_resource"], mod.SlackPostResource)
+
+
+def test_connection_uri_env_var_json_blob_token(mod, monkeypatch):
+    monkeypatch.setenv("TEST_SLACK_BLOB", '{"token": "xoxb-from-blob"}')
+    component = mod.SlackResourceComponent(connection_uri_env_var="TEST_SLACK_BLOB")
+
+    seen = {}
+
+    def fake_chat_post_message(self, channel, text=None, blocks=None, **kwargs):
+        seen["token"] = self.token
+        return {"ok": True}
+
+    monkeypatch.setattr("slack_sdk.WebClient.chat_postMessage", fake_chat_post_message)
+    result = run_probe(mod, component, {"channel": "#general", "text": "hi"})
+    assert result == {"ok": True}
+    assert seen["token"] == "xoxb-from-blob"
+
+
+def test_explicit_token_env_var_wins_over_connection_uri_env_var(mod, monkeypatch):
+    monkeypatch.setenv("TEST_SLACK_BLOB2", '{"token": "xoxb-from-blob"}')
+    monkeypatch.setenv("TEST_SLACK_TOKEN", "xoxb-explicit")
+    component = mod.SlackResourceComponent(token_env_var="TEST_SLACK_TOKEN", connection_uri_env_var="TEST_SLACK_BLOB2")
+
+    seen = {}
+
+    def fake_chat_post_message(self, channel, text=None, blocks=None, **kwargs):
+        seen["token"] = self.token
+        return {"ok": True}
+
+    monkeypatch.setattr("slack_sdk.WebClient.chat_postMessage", fake_chat_post_message)
+    run_probe(mod, component, {"channel": "#general", "text": "hi"})
+    assert seen["token"] == "xoxb-explicit"

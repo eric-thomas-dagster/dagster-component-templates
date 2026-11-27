@@ -1,8 +1,19 @@
 """Slack Resource component."""
+import json
 from typing import Any, Dict, Optional
 
 import dagster as dg
 from pydantic import Field
+
+
+def _parse_connection_json(value: str) -> Dict[str, Optional[str]]:
+    """Parse a JSON blob ('{"token": "xoxb-..."}' or '{"webhook_url": "https://..."}')
+    for Slack credentials. A URI shape doesn't fit Slack auth well (it's one opaque
+    bot token OR one webhook URL, neither of which maps naturally onto
+    scheme://login:password@host), so this resource supports a JSON blob instead of
+    the Airflow-style connection URI the other resources in this repo use."""
+    data = json.loads(value)
+    return {"token": data.get("token"), "webhook_url": data.get("webhook_url")}
 
 
 class SlackPostResource(dg.ConfigurableResource):
@@ -75,6 +86,7 @@ class SlackResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     resource_key: str = Field(default="slack_resource", description="Key used to register this resource. Other components reference it via resource_key.")
     token_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Slack bot token (xoxb-...). Omit if using webhook_url_env_var instead.")
     webhook_url_env_var: Optional[str] = Field(default=None, description="Environment variable holding a Slack incoming-webhook URL. Omit if using token_env_var instead.")
+    connection_uri_env_var: Optional[str] = Field(default=None, description="Env var holding a JSON blob ('{\"token\": \"xoxb-...\"}' or '{\"webhook_url\": \"https://...\"}') as an alternative to token_env_var/webhook_url_env_var. A Slack bot token or webhook URL doesn't map onto an Airflow-style connection URI the way other resources' fields do, so this is JSON rather than a URI. Explicit token_env_var/webhook_url_env_var, if also set, win over the blob's corresponding value.")
 
     @classmethod
     def get_form_config(cls):
@@ -82,8 +94,15 @@ class SlackResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label='Slack Resource', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        resource = SlackPostResource(
-            token=dg.EnvVar(self.token_env_var) if self.token_env_var else None,
-            webhook_url=dg.EnvVar(self.webhook_url_env_var) if self.webhook_url_env_var else None,
-        )
+        token: Any = dg.EnvVar(self.token_env_var) if self.token_env_var else None
+        webhook_url: Any = dg.EnvVar(self.webhook_url_env_var) if self.webhook_url_env_var else None
+        if self.connection_uri_env_var:
+            blob_value = dg.EnvVar(self.connection_uri_env_var).get_value()
+            if blob_value:
+                parsed = _parse_connection_json(blob_value)
+                if token is None and parsed["token"]:
+                    token = parsed["token"]
+                if webhook_url is None and parsed["webhook_url"]:
+                    webhook_url = parsed["webhook_url"]
+        resource = SlackPostResource(token=token, webhook_url=webhook_url)
         return dg.Definitions(resources={self.resource_key: resource})

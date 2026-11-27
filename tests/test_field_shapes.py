@@ -108,6 +108,18 @@ def test_tag_fields():
     assert f({"asset_tags": ["team=a", "tier: gold"]}, tags=("asset_tags",))["asset_tags"] == {"team": "a", "tier": "gold"}
 
 
+def test_str_fields():
+    f = _fn()
+    assert f({"my_str": 1}, strs=("my_str",))["my_str"] == "1"
+    assert f({"my_str": 1.5}, strs=("my_str",))["my_str"] == "1.5"
+    assert f({"my_str": True}, strs=("my_str",))["my_str"] == "true"
+    assert f({"my_str": False}, strs=("my_str",))["my_str"] == "false"
+    assert f({"my_str": "already"}, strs=("my_str",))["my_str"] == "already"
+    assert f({"my_str": None}, strs=("my_str",))["my_str"] is None
+    assert f({"env_vars": {"N": 1, "B": True, "S": "x"}}, strs=("env_vars",))["env_vars"] == {
+        "N": "1", "B": "true", "S": "x"}
+
+
 def test_non_dict_input_passes_through():
     assert _fn()("not a dict", lists=("kinds",)) == "not a dict"
 

@@ -66,6 +66,8 @@ Run shell commands on a remote host via SSH as a first-class Dagster asset. Uses
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
 | `partition_date_column` | `Union[str, int]` | — | Unused by this component -- there is no DataFrame to filter here (it runs shell commands over SSH). `commands`/`working_dir` support `{partition_key}` templating directly instead -- see partition_type. Kept for schema co… _(full docs in schema.json + component README)_ |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -89,6 +91,7 @@ Run shell commands on a remote host via SSH as a first-class Dagster asset. Uses
 | `known_hosts_check` | `bool` | `false` | When False (default), ``AutoAddPolicy`` is applied so the client accepts any host key without prompting. Set to True to use the system known_hosts file and reject unknown host keys — recommended for security-sensitive environments. |
 | `working_dir` | `str` | — | Remote directory to change into before running commands. Prepended as ``cd <working_dir> && `` to each command. |
 | `fail_on_non_zero` | `bool` | `true` | Raise an exception when any command exits with a non-zero status code. |
+| `environment` | `Dict[str, str]` | — | Environment variables set on each remote command via a safe 'export K=V; ' shell prefix -- NOT paramiko's exec_command(environment=...) kwarg, which many sshd configs silently ignore unless AcceptEnv lists each variable name. |
 | `capture_output` | `bool` | `true` | Stream each command's stdout to the Dagster run log as INFO messages. |
 | `sftp_upload` | `dict` | — | If provided, upload a local file to the remote host via SFTP before running commands. Expected keys: ``local_path`` (str) and ``remote_path`` (str). |
 | `sftp_download` | `dict` | — | If provided, download a remote file to the local filesystem via SFTP after all commands complete. Expected keys: ``remote_path`` (str) and ``local_path`` (str). |

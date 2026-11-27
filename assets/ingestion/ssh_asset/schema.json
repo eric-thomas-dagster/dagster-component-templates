@@ -100,6 +100,12 @@
       "default": true,
       "ui:widget": "checkbox"
     },
+    "environment": {
+      "type": "object",
+      "label": "Environment",
+      "description": "Environment variables set on each remote command via a safe 'export K=V; ' shell prefix -- NOT paramiko's exec_command(environment=...) kwarg, which many sshd configs silently ignore unless AcceptEnv lists each variable name.",
+      "required": false
+    },
     "capture_output": {
       "type": "boolean",
       "label": "Capture Output",

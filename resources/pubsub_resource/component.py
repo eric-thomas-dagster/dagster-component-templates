@@ -147,6 +147,48 @@ class PubsubResource(dg.ConfigurableResource):
             action = "none"
         return {"subscription_path": subscription_path, "action": action, "type": "push" if push_endpoint else "pull"}
 
+    def publish(
+        self,
+        project_id: str,
+        topic_id: str,
+        data: Any,
+        attributes: Optional[Dict[str, str]] = None,
+        ordering_key: Optional[str] = None,
+    ) -> str:
+        """Publish one message to a topic and block until it's acknowledged by the
+        service (or the publish fails). `data` is encoded to bytes (UTF-8) if given as
+        a str; pass bytes directly for binary payloads. Returns the real message id.
+        """
+        client = self._publisher_client()
+        topic_path = client.topic_path(project_id, topic_id)
+        payload = data.encode("utf-8") if isinstance(data, str) else data
+        kwargs: Dict[str, Any] = dict(attributes or {})
+        if ordering_key is not None:
+            kwargs["ordering_key"] = ordering_key
+        future = client.publish(topic_path, payload, **kwargs)
+        return future.result()
+
+    def publish(
+        self,
+        project_id: str,
+        topic_id: str,
+        data: Any,
+        attributes: Optional[Dict[str, str]] = None,
+        ordering_key: Optional[str] = None,
+    ) -> str:
+        """Publish one message to a topic and block until it's acknowledged by the
+        service (or the publish fails). `data` is encoded to bytes (UTF-8) if given as
+        a str; pass bytes directly for binary payloads. Returns the real message id.
+        """
+        client = self._publisher_client()
+        topic_path = client.topic_path(project_id, topic_id)
+        payload = data.encode("utf-8") if isinstance(data, str) else data
+        kwargs: Dict[str, Any] = dict(attributes or {})
+        if ordering_key is not None:
+            kwargs["ordering_key"] = ordering_key
+        future = client.publish(topic_path, payload, **kwargs)
+        return future.result()
+
     def delete_subscription(self, project_id: str, subscription_id: str) -> Dict[str, Any]:
         """Delete the subscription if present (idempotent). Returns {"subscription_path", "action": "deleted"|"none"}."""
         from google.api_core import exceptions as gax_exceptions

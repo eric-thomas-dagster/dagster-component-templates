@@ -1,0 +1,13 @@
+type: dagster_community_components.HttpStepAssetComponent
+attributes:
+  asset_name: notify_pipeline_complete
+  url: https://api.example.com/v1/notifications
+  method: POST
+  json_body:
+    message: "nightly pipeline complete"
+  auth_type: bearer
+  auth_token_env_var: NOTIFY_API_TOKEN
+  response_json_path: status
+  response_json_success_value: "ok"
+  group_name: infrastructure
+  kinds: [python, http]

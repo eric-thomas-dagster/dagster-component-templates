@@ -1,5 +1,5 @@
 """SMTP Resource component."""
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import dagster as dg
 from pydantic import Field
@@ -21,20 +21,26 @@ class SMTPResource(dg.ConfigurableResource):
         self,
         to: str,
         subject: str,
-        body: str,
+        body: str = "",
         from_addr: str = "",
         cc: Optional[List[str]] = None,
         bcc: Optional[List[str]] = None,
         html_body: Optional[str] = None,
         reply_to: Optional[str] = None,
         attachments: Optional[List[Tuple[str, bytes, str]]] = None,
+        custom_headers: Optional[Dict[str, str]] = None,
         timeout_seconds: int = 30,
     ) -> None:
         """Send one email. `to` accepts a single address or a comma-separated list.
+        `body` defaults to an empty string so an HTML-only email (`html_body` set, no plain-text
+        part) can be sent without a caller having to pass a dummy body string themselves --
+        `msg.set_content("")` still produces a valid empty plain-text alternative part.
         `attachments` is a list of (filename, content_bytes, mime_type) tuples, e.g.
         ("report.csv", b"a,b\\n1,2", "text/csv"). `bcc` recipients get the message (they're
         passed to send_message's own to_addrs) but are never added as a header, same as any
-        real BCC."""
+        real BCC. `custom_headers` sets arbitrary extra headers (e.g. Reply-To overrides,
+        X-Priority, tracking headers) -- set after the standard headers so a custom header can
+        override Reply-To/Cc if both are given."""
         import smtplib
         from email.message import EmailMessage
 
@@ -52,6 +58,10 @@ class SMTPResource(dg.ConfigurableResource):
             msg["Cc"] = ", ".join(cc)
         if reply_to:
             msg["Reply-To"] = reply_to
+        for header_name, header_value in (custom_headers or {}).items():
+            if header_name in msg:
+                del msg[header_name]
+            msg[header_name] = header_value
         msg.set_content(body)
         if html_body:
             msg.add_alternative(html_body, subtype="html")

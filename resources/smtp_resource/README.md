@@ -57,6 +57,17 @@ attributes:
   resource_key: smtp_resource
 ```
 
+`send_email`'s `body` defaults to `""`, so an HTML-only email needs no plain-text part:
+
+```python
+context.resources.smtp_resource.send_email(
+    to="a@b.com",
+    subject="Report ready",
+    html_body="<b>see attached</b>",
+    custom_headers={"Reply-To": "no-reply@example.com", "X-Priority": "1"},
+)
+```
+
 ## Authentication
 
 All secret fields accept an **environment variable name** (not the secret value itself).

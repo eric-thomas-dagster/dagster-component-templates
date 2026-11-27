@@ -138,6 +138,34 @@ def test_only_password_set_raises(mod):
         resource.send_email(to="a@b.com", subject="s", body="b")
 
 
+def test_html_only_email_with_no_body_arg(mod):
+    resource = _resource(mod)
+    resource.send_email(to="a@b.com", subject="Hi", html_body="<b>hello</b>")
+
+    fake = _FakeSMTP.instances[-1]
+    msg = fake.sent["msg"]
+    assert msg.is_multipart()
+    assert msg.get_body(preferencelist=("plain",)).get_content().strip() == ""
+    html_parts = [p for p in msg.walk() if p.get_content_type() == "text/html"]
+    assert html_parts and "hello" in html_parts[0].get_content()
+
+
+def test_custom_headers_are_set(mod):
+    resource = _resource(mod)
+    resource.send_email(
+        to="a@b.com",
+        subject="Hi",
+        body="hello",
+        reply_to="replies@example.com",
+        custom_headers={"X-Priority": "1", "Reply-To": "override@example.com"},
+    )
+
+    fake = _FakeSMTP.instances[-1]
+    msg = fake.sent["msg"]
+    assert msg["X-Priority"] == "1"
+    assert msg["Reply-To"] == "override@example.com"  # custom_headers applied after reply_to, can override
+
+
 def test_component_allows_omitting_username_and_password_env_var(mod):
     component = mod.SMTPResourceComponent(host="smtp.example.com")
     defs = component.build_defs(context=None)

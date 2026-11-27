@@ -127,8 +127,9 @@ class SQLUrlResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     resource_key: str = Field(default="sql_url_resource", description="Key used to register this resource. Other components reference it via resource_key.")
-    connection_url: Optional[str] = Field(default=None, description="Full SQLAlchemy connection URL (literal), e.g. 'postgresql://user:pass@host:5432/dbname'. Set this OR connection_url_env_var.")
+    connection_url: Optional[str] = Field(default=None, description="Full SQLAlchemy connection URL (literal), e.g. 'postgresql://user:pass@host:5432/dbname'. Set this OR connection_url_env_var OR connection_uri_env_var.")
     connection_url_env_var: Optional[str] = Field(default=None, description="Env var holding the full connection URL. Set this OR connection_url.")
+    connection_uri_env_var: Optional[str] = Field(default=None, description="Alias for connection_url_env_var, named to match this repo's other resources' Airflow-style 'connection_uri_env_var' field -- a SQLAlchemy connection URL already IS the native 'connection URI' shape for this resource, so this is a plain alias, not a separate parsing path. Set this OR connection_url OR connection_url_env_var.")
 
     @classmethod
     def get_form_config(cls):
@@ -140,7 +141,9 @@ class SQLUrlResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             url = self.connection_url
         elif self.connection_url_env_var:
             url = dg.EnvVar(self.connection_url_env_var)
+        elif self.connection_uri_env_var:
+            url = dg.EnvVar(self.connection_uri_env_var)
         else:
-            raise ValueError("Set either 'connection_url' or 'connection_url_env_var'.")
+            raise ValueError("Set either 'connection_url', 'connection_url_env_var', or 'connection_uri_env_var'.")
         resource = SQLUrlResource(connection_url=url)
         return dg.Definitions(resources={self.resource_key: resource})

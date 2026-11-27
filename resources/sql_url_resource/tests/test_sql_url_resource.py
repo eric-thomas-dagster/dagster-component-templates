@@ -220,3 +220,27 @@ def test_execute_literal_colon_alongside_real_params_is_a_known_limitation(mod, 
 
     with pytest.raises(StatementError):
         resource.execute("SELECT ':unbound', name FROM users WHERE id = :id", {"id": 1})
+
+
+def test_connection_uri_env_var_is_an_alias_for_connection_url_env_var(mod, db_url, monkeypatch):
+    monkeypatch.setenv("TEST_SQL_CONN_URI", db_url)
+    component = mod.SQLUrlResourceComponent(connection_uri_env_var="TEST_SQL_CONN_URI")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["sql_url_resource"]
+
+    box = {}
+
+    @dg.asset
+    def _probe(sql_url_resource: mod.SQLUrlResource):
+        box["rows"] = sql_url_resource.execute("SELECT 1 AS one")
+        return dg.MaterializeResult()
+
+    result = dg.materialize([_probe], resources={"sql_url_resource": resource})
+    assert result.success
+    assert box["rows"] == [{"one": 1}]
+
+
+def test_missing_all_url_options_raises(mod):
+    import pytest
+    with pytest.raises(ValueError, match="connection_url"):
+        mod.SQLUrlResourceComponent().build_defs(context=None)

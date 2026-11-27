@@ -5,7 +5,7 @@ attributes:
   dataset_id: analytics
   table_id: orders
   mode: ensure_exists
-  schema:
+  table_schema:
     - { name: order_id, type: STRING, mode: REQUIRED }
     - { name: order_date, type: DATE, mode: REQUIRED }
     - { name: amount, type: NUMERIC }

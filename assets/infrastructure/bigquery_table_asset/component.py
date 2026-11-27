@@ -203,12 +203,13 @@ def _schema_fields(schema):
 class BigQueryTableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Create, ensure-exists, recreate, or delete an empty BigQuery table.
 
-    `mode='ensure_exists'` (default) creates the table from `schema` if
+    `mode='ensure_exists'` (default) creates the table from `table_schema` if
     missing (idempotent, `exists_ok=True`) and is a no-op otherwise --
     existing columns are never altered. `mode='recreate'` drops and
-    recreates it from `schema`. `mode='delete'` just drops it (`schema` not
-    required). This is schema/DDL lifecycle only -- it never loads rows; see
-    `sql_to_database_asset`/`bigquery_load_from_gcs_asset` for data loading.
+    recreates it from `table_schema`. `mode='delete'` just drops it
+    (`table_schema` not required). This is schema/DDL lifecycle only -- it
+    never loads rows; see `sql_to_database_asset`/`bigquery_load_from_gcs_asset`
+    for data loading.
     """
 
     asset_name: str = Field(description="Dagster asset key.")
@@ -218,8 +219,8 @@ class BigQueryTableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     dataset_id: str = Field(description="Dataset id, e.g. 'analytics' (uses project_id) or 'my-project.analytics'.")
     table_id: str = Field(description="Table name (unqualified).")
     location: Optional[str] = Field(default=None, description="BigQuery location, e.g. 'US' or 'EU'.")
-    mode: Literal["ensure_exists", "recreate", "delete"] = Field(default="ensure_exists", description="'ensure_exists' creates from schema if missing (idempotent, never alters an existing table). 'recreate' drops and recreates. 'delete' just drops the table.")
-    schema: Optional[List[Dict[str, Any]]] = Field(default=None, description="Column list for mode='ensure_exists'/'recreate': [{name, type, mode, description}], e.g. [{name: 'id', type: 'INTEGER', mode: 'REQUIRED'}]. Not required for mode='delete'.")
+    mode: Literal["ensure_exists", "recreate", "delete"] = Field(default="ensure_exists", description="'ensure_exists' creates from table_schema if missing (idempotent, never alters an existing table). 'recreate' drops and recreates. 'delete' just drops the table.")
+    table_schema: Optional[List[Dict[str, Any]]] = Field(default=None, description="Column list for mode='ensure_exists'/'recreate': [{name, type, mode, description}], e.g. [{name: 'id', type: 'INTEGER', mode: 'REQUIRED'}]. Not required for mode='delete'.")
     table_partition_field: Optional[str] = Field(default=None, description="Column to time-partition the table by (adds BigQuery native time partitioning). Unrelated to the Dagster partition_type fields below.")
     table_partition_type: Literal["DAY", "HOUR", "MONTH", "YEAR"] = Field(default="DAY", description="BigQuery time-partitioning granularity, used when table_partition_field is set.")
     cluster_fields: Optional[List[str]] = Field(default=None, description="Columns to cluster on (max 4).")
@@ -261,8 +262,8 @@ class BigQueryTableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     @model_validator(mode="after")
     def _validate_schema_present(self):
-        if self.mode in ("ensure_exists", "recreate") and not self.schema:
-            raise ValueError(f"mode={self.mode!r} requires a non-empty `schema`.")
+        if self.mode in ("ensure_exists", "recreate") and not self.table_schema:
+            raise ValueError(f"mode={self.mode!r} requires a non-empty `table_schema`.")
         return self
 
     @classmethod
@@ -331,7 +332,7 @@ class BigQueryTableAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             result_table = None
             if self.mode in ("ensure_exists", "recreate"):
-                table = bigquery.Table(table_ref, schema=_schema_fields(self.schema))
+                table = bigquery.Table(table_ref, schema=_schema_fields(self.table_schema))
                 if self.table_partition_field:
                     table.time_partitioning = bigquery.TimePartitioning(
                         type_=getattr(bigquery.TimePartitioningType, self.table_partition_type),

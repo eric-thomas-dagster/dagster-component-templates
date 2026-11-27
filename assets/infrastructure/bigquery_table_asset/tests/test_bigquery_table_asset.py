@@ -29,7 +29,7 @@ def test_ensure_exists_builds_schema_fields_and_partitioning(mock_client_cls, _m
 
     component = mod.BigQueryTableAssetComponent(
         asset_name="bq_tbl", credentials=CREDS, dataset_id="analytics", table_id="orders",
-        mode="ensure_exists", schema=SCHEMA, table_partition_field="created", cluster_fields=["id"],
+        mode="ensure_exists", table_schema=SCHEMA, table_partition_field="created", cluster_fields=["id"],
     )
     result = materialize(component)
     assert result.success
@@ -52,7 +52,7 @@ def test_recreate_deletes_then_creates(mock_client_cls, _mock_creds, mod):
 
     component = mod.BigQueryTableAssetComponent(
         asset_name="bq_tbl", credentials=CREDS, dataset_id="analytics", table_id="orders",
-        mode="recreate", schema=SCHEMA,
+        mode="recreate", table_schema=SCHEMA,
     )
     result = materialize(component)
     assert result.success

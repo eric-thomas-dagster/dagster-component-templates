@@ -18,7 +18,7 @@ attributes:
   cluster_fields: [order_id]
 ```
 
-`mode='ensure_exists'` (default) creates the table from `schema` if missing (idempotent, never alters an existing table's columns). `mode='recreate'` drops and recreates it from `schema`. `mode='delete'` just drops it (`schema` not required for that mode).
+`mode='ensure_exists'` (default) creates the table from `table_schema` if missing (idempotent, never alters an existing table's columns). `mode='recreate'` drops and recreates it from `table_schema`. `mode='delete'` just drops it (`table_schema` not required for that mode).
 
 Pairs with [`bigquery_dataset_asset`](../bigquery_dataset_asset/) for dataset-level lifecycle and [`bigquery_value_check_asset`](../bigquery_value_check_asset/) for data-quality assertions on the table's contents.
 
@@ -33,12 +33,6 @@ Pairs with [`bigquery_dataset_asset`](../bigquery_dataset_asset/) for dataset-le
 | `asset_name` | `str` | Dagster asset key. |
 | `dataset_id` | `str` | Dataset id, e.g. 'analytics' (uses project_id) or 'my-project.analytics'. |
 | `table_id` | `str` | Table name (unqualified). |
-
-### Connection
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `schema` | `List[Dict[str, Any]]` | — | Column list for mode='ensure_exists'/'recreate': [{name, type, mode, description}], e.g. [{name: 'id', type: 'INTEGER', mode: 'REQUIRED'}]. Not required for mode='delete'. |
 
 ### Catalog metadata
 
@@ -84,7 +78,8 @@ Pairs with [`bigquery_dataset_asset`](../bigquery_dataset_asset/) for dataset-le
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `mode` | `Literal['ensure_exists', 'recreate', 'delete']` | `"ensure_exists"` | 'ensure_exists' creates from schema if missing (idempotent, never alters an existing table). 'recreate' drops and recreates. 'delete' just drops the table. |
+| `mode` | `Literal['ensure_exists', 'recreate', 'delete']` | `"ensure_exists"` | 'ensure_exists' creates from table_schema if missing (idempotent, never alters an existing table). 'recreate' drops and recreates. 'delete' just drops the table. |
+| `table_schema` | `List[Dict[str, Any]]` | — | Column list for mode='ensure_exists'/'recreate': [{name, type, mode, description}], e.g. [{name: 'id', type: 'INTEGER', mode: 'REQUIRED'}]. Not required for mode='delete'. |
 | `table_partition_field` | `str` | — | Column to time-partition the table by (adds BigQuery native time partitioning). Unrelated to the Dagster partition_type fields below. |
 | `table_partition_type` | `Literal['DAY', 'HOUR', 'MONTH', 'YEAR']` | `"DAY"` | BigQuery time-partitioning granularity, used when table_partition_field is set. |
 | `table_description` | `str` | — | BigQuery table description (distinct from the Dagster asset's own `description`). |

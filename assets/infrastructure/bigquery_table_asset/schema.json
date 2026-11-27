@@ -13,10 +13,10 @@
     }
   },
   "attributes": {
-    "schema": {
+    "table_schema": {
       "type": "array",
       "items": { "type": "object" },
-      "label": "Schema",
+      "label": "Table Schema",
       "description": "Column list for mode='ensure_exists'/'recreate': [{name, type, mode, description}], e.g. [{name: 'id', type: 'INTEGER', mode: 'REQUIRED'}]. Not required for mode='delete'.",
       "required": false
     },

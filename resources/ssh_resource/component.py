@@ -4,13 +4,15 @@ Reusable SSH command-execution logic -- the real action behind this repo's
 asset-shaped `ssh_asset` (`assets/ingestion/ssh_asset`), extracted as a
 `ConfigurableResource` so any op or asset a user writes can call it directly,
 instead of being locked inside one pre-built asset. Same `paramiko`-based
-connection conventions as `ssh_asset`: host/username/port via env vars, and
-the same private-key-path / private-key-content / password auth cascade.
+connection conventions as `ssh_asset`: host/username/port via env vars (or a
+literal value), and the same private-key-path / private-key-content / password
+auth cascade.
 """
 import io
 import os
 import shlex
 import tempfile
+import warnings
 from typing import Any, Dict, Optional
 
 import dagster as dg
@@ -27,6 +29,21 @@ def _build_command_with_environment(command: str, environment: Optional[Dict[str
         return command
     exports = " ".join(f"{k}={shlex.quote(str(v))}" for k, v in environment.items())
     return f"export {exports}; {command}"
+
+
+def _load_private_key_with_fallback(loader):
+    """Try RSA, then Ed25519, then ECDSA -- the same fallback chain used for
+    PEM-content keys, applied to key-FILE loading too so both input paths support
+    all three key types consistently. `loader(key_cls)` performs the actual load."""
+    import paramiko
+
+    last_exc: Optional[Exception] = None
+    for key_cls in (paramiko.RSAKey, paramiko.Ed25519Key, paramiko.ECDSAKey):
+        try:
+            return loader(key_cls)
+        except paramiko.SSHException as exc:
+            last_exc = exc
+    raise last_exc  # type: ignore[misc]
 
 
 class SSHResource(dg.ConfigurableResource):
@@ -48,15 +65,9 @@ class SSHResource(dg.ConfigurableResource):
         pkey = None
         tmp_key_file: Optional[str] = None
         if self.private_key_path:
-            pkey = paramiko.RSAKey.from_private_key_file(self.private_key_path)
+            pkey = _load_private_key_with_fallback(lambda key_cls: key_cls.from_private_key_file(self.private_key_path))
         elif self.private_key:
-            try:
-                pkey = paramiko.RSAKey.from_private_key(io.StringIO(self.private_key))
-            except paramiko.SSHException:
-                try:
-                    pkey = paramiko.Ed25519Key.from_private_key(io.StringIO(self.private_key))
-                except paramiko.SSHException:
-                    pkey = paramiko.ECDSAKey.from_private_key(io.StringIO(self.private_key))
+            pkey = _load_private_key_with_fallback(lambda key_cls: key_cls.from_private_key(io.StringIO(self.private_key)))
             with tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False) as kf:
                 kf.write(self.private_key)
                 tmp_key_file = kf.name
@@ -64,6 +75,12 @@ class SSHResource(dg.ConfigurableResource):
 
         client = paramiko.SSHClient()
         if not self.known_hosts_check:
+            warnings.warn(
+                "ssh_resource: known_hosts_check=False -- accepting ANY remote host key "
+                "(paramiko.AutoAddPolicy). This accepts a man-in-the-middle host silently. "
+                "Set known_hosts_check=True for any security-sensitive connection.",
+                stacklevel=2,
+            )
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             client.load_system_host_keys()
@@ -93,7 +110,7 @@ class SSHResource(dg.ConfigurableResource):
         try:
             full_command = command
             if working_dir:
-                full_command = f"cd {working_dir} && {full_command}"
+                full_command = f"cd {shlex.quote(working_dir)} && {full_command}"
             full_command = _build_command_with_environment(full_command, environment)
 
             if log:
@@ -120,19 +137,22 @@ class SSHResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     as reusable, injectable logic rather than a single-purpose asset.
 
     Reuses `ssh_asset`'s exact auth env-var convention: `host_env_var`/
-    `username_env_var` required; auth via `private_key_path_env_var` (file already
-    on disk, takes precedence), `private_key_env_var` (PEM content, written to a
-    secure temp file), or `password_env_var` (fallback), in that order.
+    `username_env_var` (or the literal `host`/`username`) required; auth via
+    `private_key_path_env_var` (file already on disk, takes precedence),
+    `private_key_env_var` (PEM content, written to a secure temp file), or
+    `password_env_var` (fallback), in that order.
     """
 
     resource_key: str = Field(default="ssh_resource", description="Key used to register this resource. Other components/assets reference it via resource_key.")
-    host_env_var: str = Field(description="Env var containing the SSH host/IP.")
-    username_env_var: str = Field(description="Env var containing the SSH username.")
+    host: Optional[str] = Field(default=None, description="SSH host/IP, as a literal value. Set this OR host_env_var.")
+    host_env_var: Optional[str] = Field(default=None, description="Env var containing the SSH host/IP. Set this OR host.")
+    username: Optional[str] = Field(default=None, description="SSH username, as a literal value. Set this OR username_env_var.")
+    username_env_var: Optional[str] = Field(default=None, description="Env var containing the SSH username. Set this OR username.")
     port: int = Field(default=22, description="SSH port.")
     password_env_var: Optional[str] = Field(default=None, description="Env var containing the SSH password. Fallback when no private key option is set.")
     private_key_env_var: Optional[str] = Field(default=None, description="Env var containing PEM-encoded private key content.")
     private_key_path_env_var: Optional[str] = Field(default=None, description="Env var containing a path to a private key file already on disk. Takes precedence over private_key_env_var when both are set.")
-    known_hosts_check: bool = Field(default=False, description="When False (default), accept any host key (AutoAddPolicy). When True, use the system known_hosts file and reject unknown host keys.")
+    known_hosts_check: bool = Field(default=False, description="When False (default), accept any host key (AutoAddPolicy) -- logs a warning on every connection. When True, use the system known_hosts file and reject unknown host keys.")
     timeout_seconds: int = Field(default=300, description="Default connection + per-command timeout in seconds.")
 
     @classmethod
@@ -141,9 +161,23 @@ class SSHResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label='SSH Resource', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if self.host:
+            host = self.host
+        elif self.host_env_var:
+            host = dg.EnvVar(self.host_env_var)
+        else:
+            raise ValueError("Set either 'host' or 'host_env_var'.")
+
+        if self.username:
+            username = self.username
+        elif self.username_env_var:
+            username = dg.EnvVar(self.username_env_var)
+        else:
+            raise ValueError("Set either 'username' or 'username_env_var'.")
+
         resource = SSHResource(
-            host=dg.EnvVar(self.host_env_var),
-            username=dg.EnvVar(self.username_env_var),
+            host=host,
+            username=username,
             port=self.port,
             password=dg.EnvVar(self.password_env_var) if self.password_env_var else "",
             private_key=dg.EnvVar(self.private_key_env_var) if self.private_key_env_var else "",

@@ -9,21 +9,32 @@ the resource, it does not materialize anything on its own. See
 
 Real databricks-sdk API, verified directly against the installed
 `databricks.sdk.service.jobs` module: `JobsAPI.run_now(job_id=..., ...) ->
-Wait[Run]`, whose `.response` is a `RunNowResponse(run_id=...)`, followed by
-`JobsAPI.wait_get_run_job_terminated_or_skipped(run_id=...) -> Run`. `Run.state`
-is a `RunState(life_cycle_state, result_state, state_message)`; success is
-`result_state == RunResultState.SUCCESS`. `JobsAPI.submit(**run_json) ->
-Wait[Run]` (the Airflow `DatabricksSubmitRunOperator` equivalent -- an ad-hoc
-run with no pre-existing job, `tasks` entries converted to `SubmitTask` via
-`SubmitTask.from_dict`), `JobsAPI.list(name=...) -> Iterator[BaseJob]` (job-id
-lookup by name), and `JobsAPI.repair_run(run_id=..., rerun_tasks=..., ...) ->
-Wait[Run]` (re-run only the failed tasks of a prior run) are all confirmed
-directly against the installed SDK's real signatures, not guessed.
+Wait[Run]`, whose `.response` is a `RunNowResponse(run_id=...)`. Polling is
+done ourselves via `JobsAPI.get_run(run_id=...) -> Run` rather than the SDK's
+own `wait_get_run_job_terminated_or_skipped` helper, which hard-codes its own
+poll cadence with no way to control it -- our own loop is what makes
+`poll_interval_seconds` actually mean something. `Run.state` is a
+`RunState(life_cycle_state, result_state, state_message)`; success is
+`result_state == RunResultState.SUCCESS`; terminal `life_cycle_state` values
+are `TERMINATED`, `SKIPPED`, `INTERNAL_ERROR` (confirmed against the real
+`RunLifeCycleState` enum). `JobsAPI.submit(**run_json) -> Wait[Run]` (the
+Airflow `DatabricksSubmitRunOperator` equivalent -- an ad-hoc run with no
+pre-existing job, `tasks` entries converted to `SubmitTask` via
+`SubmitTask.from_dict`; `idempotency_token` IS a real `submit` parameter,
+confirmed against the installed SDK), `JobsAPI.list(name=...) ->
+Iterator[BaseJob]` (job-id lookup by name), and `JobsAPI.repair_run(run_id=...,
+rerun_tasks=..., ...) -> Wait[Run]` (re-run only the failed tasks of a prior
+run; its real signature has NO `idempotency_token` parameter, confirmed
+directly -- `submit`/`run_now` support it, `repair_run` does not) are all
+confirmed directly against the installed SDK's real signatures, not guessed.
 """
+import time
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field
+
+_TERMINAL_LIFE_CYCLE_STATES = {"TERMINATED", "SKIPPED", "INTERNAL_ERROR"}
 
 
 class DatabricksJobsResource(dg.ConfigurableResource):
@@ -60,13 +71,26 @@ class DatabricksJobsResource(dg.ConfigurableResource):
             )
         return matches[0].job_id
 
-    def _wait_and_summarize(self, client, waiter, poll_timeout_seconds: int, fail_on_non_success: bool, label: str) -> Dict[str, Any]:
-        from datetime import timedelta
-
+    def _wait_and_summarize(
+        self, client, waiter, poll_timeout_seconds: int, fail_on_non_success: bool, label: str,
+        poll_interval_seconds: float = 5.0,
+    ) -> Dict[str, Any]:
+        """Polls `jobs.get_run` ourselves (not the SDK's own
+        `wait_get_run_job_terminated_or_skipped`, which hard-codes its own poll cadence
+        with no way to control it) so `poll_interval_seconds` is actually honored."""
         run_id = waiter.response.run_id
-        final_run = client.jobs.wait_get_run_job_terminated_or_skipped(
-            run_id=run_id, timeout=timedelta(seconds=poll_timeout_seconds)
-        )
+        deadline = (time.monotonic() + poll_timeout_seconds) if poll_timeout_seconds is not None else None
+        while True:
+            final_run = client.jobs.get_run(run_id=run_id)
+            life_cycle_state = final_run.state.life_cycle_state if final_run.state else None
+            if life_cycle_state is not None and str(life_cycle_state).split(".")[-1] in _TERMINAL_LIFE_CYCLE_STATES:
+                break
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"Databricks {label} (run_id={run_id}) did not reach a terminal state within "
+                    f"{poll_timeout_seconds}s (last life_cycle_state={life_cycle_state!r})."
+                )
+            time.sleep(poll_interval_seconds)
 
         state = final_run.state
         life_cycle_state = str(state.life_cycle_state) if state and state.life_cycle_state else "UNKNOWN"
@@ -101,6 +125,7 @@ class DatabricksJobsResource(dg.ConfigurableResource):
         spark_submit_params: Optional[List[str]] = None,
         idempotency_token: Optional[str] = None,
         poll_timeout_seconds: int = 3600,
+        poll_interval_seconds: float = 5.0,
         fail_on_non_success: bool = True,
     ) -> Dict[str, Any]:
         """Trigger a job (by `job_id`, or by `job_name` looked up via `jobs.list`) via
@@ -128,13 +153,15 @@ class DatabricksJobsResource(dg.ConfigurableResource):
         waiter = client.jobs.run_now(**run_now_kwargs)
         return self._wait_and_summarize(
             client, waiter, poll_timeout_seconds, fail_on_non_success,
-            label=f"job {resolved_job_id}",
+            label=f"job {resolved_job_id}", poll_interval_seconds=poll_interval_seconds,
         )
 
     def submit_run_and_wait(
         self,
         run_json: Dict[str, Any],
+        idempotency_token: Optional[str] = None,
         poll_timeout_seconds: int = 3600,
+        poll_interval_seconds: float = 5.0,
         fail_on_non_success: bool = True,
     ) -> Dict[str, Any]:
         """Submit a one-time, ad-hoc run from a JSON body (the Airflow
@@ -142,7 +169,11 @@ class DatabricksJobsResource(dg.ConfigurableResource):
         wait for a terminal state, return the same result shape as `run_now_and_wait`.
         `run_json` matches the Databricks Jobs API's "submit a one-time run" request
         body (e.g. {"run_name": ..., "tasks": [{...}], "timeout_seconds": ...});
-        each entry in `tasks` is converted to a `SubmitTask` via `SubmitTask.from_dict`."""
+        each entry in `tasks` is converted to a `SubmitTask` via `SubmitTask.from_dict`.
+        `idempotency_token` is a real `jobs.submit` parameter (confirmed against the
+        installed SDK) -- pass it here instead of burying it in `run_json`, or leave
+        both unset. The explicit argument takes precedence over any `idempotency_token`
+        key already present in `run_json`."""
         from databricks.sdk.service.jobs import SubmitTask
 
         client = self._client()
@@ -153,11 +184,14 @@ class DatabricksJobsResource(dg.ConfigurableResource):
                 t if isinstance(t, SubmitTask) else SubmitTask.from_dict(t)
                 for t in submit_kwargs["tasks"]
             ]
+        if idempotency_token:
+            submit_kwargs["idempotency_token"] = idempotency_token
 
         waiter = client.jobs.submit(**submit_kwargs)
         return self._wait_and_summarize(
             client, waiter, poll_timeout_seconds, fail_on_non_success,
             label=f"submitted run {run_json.get('run_name', '')!r}".strip(),
+            poll_interval_seconds=poll_interval_seconds,
         )
 
     def repair_run_and_wait(
@@ -167,11 +201,15 @@ class DatabricksJobsResource(dg.ConfigurableResource):
         rerun_all_failed_tasks: Optional[bool] = None,
         job_parameters: Optional[Dict[str, Any]] = None,
         poll_timeout_seconds: int = 3600,
+        poll_interval_seconds: float = 5.0,
         fail_on_non_success: bool = True,
     ) -> Dict[str, Any]:
         """Repair a prior run -- re-run only `rerun_tasks` (or all failed tasks, via
         `rerun_all_failed_tasks=True`) -- wait for a terminal state, return the same
-        result shape as `run_now_and_wait`."""
+        result shape as `run_now_and_wait`. No `idempotency_token` parameter here: the
+        installed databricks-sdk's `JobsAPI.repair_run` signature has no such argument
+        (confirmed directly, not guessed) -- `jobs.submit`/`jobs.run_now` support it,
+        `jobs.repair_run` does not."""
         client = self._client()
 
         repair_kwargs: Dict[str, Any] = {"run_id": run_id}
@@ -185,7 +223,7 @@ class DatabricksJobsResource(dg.ConfigurableResource):
         waiter = client.jobs.repair_run(**repair_kwargs)
         return self._wait_and_summarize(
             client, waiter, poll_timeout_seconds, fail_on_non_success,
-            label=f"repair of run {run_id}",
+            label=f"repair of run {run_id}", poll_interval_seconds=poll_interval_seconds,
         )
 
 

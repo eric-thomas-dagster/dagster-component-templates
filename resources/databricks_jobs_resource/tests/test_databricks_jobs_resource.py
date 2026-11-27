@@ -43,15 +43,16 @@ class _FakeBaseJob:
 
 
 class FakeJobsAPI:
-    def __init__(self, final_run=None, jobs_by_name=None):
+    def __init__(self, final_run=None, jobs_by_name=None, pending_runs=0):
         self.run_now_calls = []
-        self.wait_calls = []
+        self.wait_calls = []  # kept as the name for get_run polling calls, for test-diff minimality
         self.list_calls = []
         self.submit_calls = []
         self.repair_run_calls = []
         self._final_run = final_run or _FakeRun()
         self._run_id = 999
         self._jobs_by_name = jobs_by_name or {}
+        self._pending_runs = pending_runs  # how many RUNNING get_run calls before the final one
 
     def run_now(self, **kwargs):
         self.run_now_calls.append(kwargs)
@@ -69,14 +70,17 @@ class FakeJobsAPI:
         self.list_calls.append({"name": name, **kwargs})
         return iter([_FakeBaseJob(job_id) for job_id in self._jobs_by_name.get(name, [])])
 
-    def wait_get_run_job_terminated_or_skipped(self, **kwargs):
-        self.wait_calls.append(kwargs)
+    def get_run(self, run_id=None, **kwargs):
+        self.wait_calls.append({"run_id": run_id, **kwargs})
+        if self._pending_runs > 0:
+            self._pending_runs -= 1
+            return _FakeRun(life_cycle_state="RUNNING", result_state=None)
         return self._final_run
 
 
 class FakeDatabricksClient:
-    def __init__(self, final_run=None, jobs_by_name=None):
-        self.jobs = FakeJobsAPI(final_run=final_run, jobs_by_name=jobs_by_name)
+    def __init__(self, final_run=None, jobs_by_name=None, pending_runs=0):
+        self.jobs = FakeJobsAPI(final_run=final_run, jobs_by_name=jobs_by_name, pending_runs=pending_runs)
 
 
 def _resource(monkeypatch, client, **kw):
@@ -137,13 +141,22 @@ def test_idempotency_token_is_passed_through(monkeypatch):
     assert client.jobs.run_now_calls[0]["idempotency_token"] == "my-token"
 
 
-def test_poll_timeout_seconds_is_passed_to_wait(monkeypatch):
-    from datetime import timedelta
-
-    client = FakeDatabricksClient()
+def test_poll_timeout_raises_timeout_error_when_never_terminal(monkeypatch):
+    client = FakeDatabricksClient(final_run=_FakeRun(life_cycle_state="RUNNING", result_state=None))
     resource = _resource(monkeypatch, client)
-    resource.run_now_and_wait(job_id=123, poll_timeout_seconds=42)
-    assert client.jobs.wait_calls[0]["timeout"] == timedelta(seconds=42)
+    with pytest.raises(TimeoutError, match="did not reach a terminal state"):
+        resource.run_now_and_wait(job_id=123, poll_timeout_seconds=0, poll_interval_seconds=0)
+
+
+def test_poll_interval_seconds_is_honored_between_polls(monkeypatch):
+    client = FakeDatabricksClient(final_run=_FakeRun(result_state="SUCCESS"), pending_runs=2)
+    resource = _resource(monkeypatch, client)
+    sleep_calls = []
+    monkeypatch.setattr(mod.time, "sleep", lambda s: sleep_calls.append(s))
+    result = resource.run_now_and_wait(job_id=123, poll_interval_seconds=7)
+    assert result["result_state"] == "SUCCESS"
+    assert len(client.jobs.wait_calls) == 3  # 2 RUNNING polls + 1 terminal
+    assert sleep_calls == [7, 7]
 
 
 def test_missing_token_env_var_raises_actionable_error(monkeypatch):
@@ -222,6 +235,23 @@ def test_submit_run_and_wait_converts_tasks_and_waits(monkeypatch):
     assert submit_call["timeout_seconds"] == 600
     assert submit_call["tasks"][0].task_key == "t1"
     assert client.jobs.wait_calls[0]["run_id"] == 999
+
+
+def test_submit_run_and_wait_passes_idempotency_token(monkeypatch):
+    client = FakeDatabricksClient(final_run=_FakeRun(result_state="SUCCESS"))
+    resource = _resource(monkeypatch, client)
+    resource.submit_run_and_wait({"run_name": "x", "tasks": []}, idempotency_token="my-submit-token")
+    assert client.jobs.submit_calls[0]["idempotency_token"] == "my-submit-token"
+
+
+def test_submit_run_and_wait_explicit_idempotency_token_overrides_run_json(monkeypatch):
+    client = FakeDatabricksClient(final_run=_FakeRun(result_state="SUCCESS"))
+    resource = _resource(monkeypatch, client)
+    resource.submit_run_and_wait(
+        {"run_name": "x", "tasks": [], "idempotency_token": "from-run-json"},
+        idempotency_token="explicit-token",
+    )
+    assert client.jobs.submit_calls[0]["idempotency_token"] == "explicit-token"
 
 
 def test_submit_run_and_wait_raises_on_failure(monkeypatch):

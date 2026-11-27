@@ -71,6 +71,29 @@ returns an empty list). Any SQLAlchemy URL scheme whose driver is installed work
 postgresql, mysql, mssql, sqlite, snowflake, bigquery, a `postgresql+psycopg2://` URL for
 Redshift, duckdb, and others -- this resource doesn't restrict the dialect itself.
 
+`params` accepts a dict (named placeholders) or a list/tuple (positional placeholders --
+whatever the underlying DBAPI driver's own paramstyle is, e.g. `?` for sqlite, `%s` for
+psycopg2 -- passed through as-is, matching `sql_asset`'s convention).
+
+`execute(..., autocommit=False)` skips the final commit -- since each call opens and
+closes its own connection, this only lets you observe a statement's effect within that one
+call without persisting it; it does not defer a commit to later. `execute(..., max_rows=N)`
+caps how many rows get materialized into the returned list, to avoid pulling an unbounded
+result set fully into memory.
+
+`execute_many(statements, params_list=None)` runs several statements inside ONE
+transaction -- all commit together, or all roll back together if any one of them raises --
+and returns each statement's rows (`list[list[dict]]`, same order as `statements`). Use this
+instead of several separate `execute()` calls whenever the statements need to succeed or
+fail as a group:
+
+```python
+rows = sql_url_resource.execute_many(
+    ["INSERT INTO t (id) VALUES (:id)", "SELECT id FROM t"],
+    [{"id": 1}, None],
+)
+```
+
 **A note on `:name` syntax and string literals.** When `params` is omitted, the query is
 sent straight to the DBAPI driver, so a literal colon inside a string -- `SELECT ':ab'` --
 is never mistaken for a bind parameter. When `params` IS supplied, the query goes through

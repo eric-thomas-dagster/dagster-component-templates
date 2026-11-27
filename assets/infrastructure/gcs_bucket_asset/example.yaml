@@ -1,0 +1,9 @@
+type: dagster_community_components.GCSBucketAssetComponent
+attributes:
+  asset_name: raw_landing_bucket
+  bucket_name: my-raw-landing-bucket
+  action: ensure_exists
+  location: US
+  storage_class: STANDARD
+  group_name: infrastructure
+  kinds: [gcp, gcs]

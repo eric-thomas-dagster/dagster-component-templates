@@ -62,16 +62,49 @@ class FakeSSHClient:
         self.closed = True
 
 
-def install_fake_paramiko(monkeypatch, fake_client_factory):
+class _FakeSSHException(Exception):
+    pass
+
+
+def _make_key_cls(name, accepts):
+    """A fake paramiko key class whose from_private_key/from_private_key_file raise
+    _FakeSSHException unless `accepts` is True -- lets tests simulate "this PEM/file
+    is actually an Ed25519 key, so RSA (tried first) raises and Ed25519 succeeds"."""
+
+    class _Key:
+        loaded_via = None
+
+        @classmethod
+        def from_private_key(cls, stream):
+            if not accepts:
+                raise _FakeSSHException(f"not a valid {name} key")
+            cls.loaded_via = "content"
+            return object()
+
+        @classmethod
+        def from_private_key_file(cls, path):
+            if not accepts:
+                raise _FakeSSHException(f"not a valid {name} key")
+            cls.loaded_via = "file"
+            return object()
+
+    _Key.__name__ = name
+    return _Key
+
+
+def install_fake_paramiko(monkeypatch, fake_client_factory, *, key_accepts=("RSAKey", "Ed25519Key", "ECDSAKey")):
+    """`key_accepts` lists which key classes (by name) successfully load a key --
+    the rest raise, simulating the real RSA-then-Ed25519-then-ECDSA fallback chain."""
     fake_mod = types.ModuleType("paramiko")
     fake_mod.SSHClient = fake_client_factory
     fake_mod.AutoAddPolicy = lambda *a, **kw: object()
     fake_mod.PKey = object
-    fake_mod.RSAKey = type("RSAKey", (), {})
-    fake_mod.Ed25519Key = type("Ed25519Key", (), {})
-    fake_mod.ECDSAKey = type("ECDSAKey", (), {})
-    fake_mod.SSHException = Exception
+    fake_mod.RSAKey = _make_key_cls("RSAKey", "RSAKey" in key_accepts)
+    fake_mod.Ed25519Key = _make_key_cls("Ed25519Key", "Ed25519Key" in key_accepts)
+    fake_mod.ECDSAKey = _make_key_cls("ECDSAKey", "ECDSAKey" in key_accepts)
+    fake_mod.SSHException = _FakeSSHException
     monkeypatch.setitem(sys.modules, "paramiko", fake_mod)
+    return fake_mod
 
 
 def load_component_module() -> ModuleType:

@@ -27,6 +27,13 @@
       "label": "Account ID",
       "description": "dbt Cloud account ID (numeric)",
       "required": true
+    },
+    "disable_schedule_on_trigger": {
+      "type": "boolean",
+      "label": "Disable Schedule On Trigger",
+      "description": "Whether triggering a job run through this resource also disables that job's own cron schedule in dbt Cloud. The underlying dagster-dbt DbtCloudResource defaults this to True; this component defaults it to False instead, matching Airflow's dbt Cloud operators, which never disable a job's schedule as a side effect of triggering it.",
+      "required": false,
+      "default": false
     }
   },
   "tags": [

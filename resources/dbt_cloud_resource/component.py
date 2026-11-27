@@ -9,6 +9,15 @@ class DbtCloudResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     resource_key: str = Field(default="dbt_cloud_resource", description="Key used to register this resource. Other components reference it via resource_key.")
     auth_token_env_var: str = Field(description="Environment variable holding the dbt Cloud API token")
     account_id: int = Field(description="dbt Cloud account ID (numeric)")
+    disable_schedule_on_trigger: bool = Field(
+        default=False,
+        description=(
+            "Whether triggering a job run through this resource also disables that job's own "
+            "cron schedule in dbt Cloud. The underlying dagster-dbt DbtCloudResource defaults "
+            "this to True; this component defaults it to False instead, matching Airflow's dbt "
+            "Cloud operators, which never disable a job's schedule as a side effect of triggering it."
+        ),
+    )
 
     @classmethod
     def get_form_config(cls):
@@ -20,5 +29,6 @@ class DbtCloudResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         resource = DbtCloudResource(
             auth_token=dg.EnvVar(self.auth_token_env_var),
             account_id=self.account_id,
+            disable_schedule_on_trigger=self.disable_schedule_on_trigger,
         )
         return dg.Definitions(resources={self.resource_key: resource})

@@ -21,11 +21,16 @@ sandbox against a malicious author:
   filesystem, or network access available to that subprocess's user. Treat script content with
   the same trust level you'd give any other custom code you deploy.
 
-**Groovy is not supported.** Unlike this registry's PySpark/Snowpark pipeline components
-(which bundle their own JVM/driver via a plain `pip install`), running Groovy needs a
-system-level JVM *and* a separately-installed Groovy distribution — neither is pip-installable,
-so this registry has no way to package or verify it. Revisit if real demand shows up with a
-concrete, reproducible install story.
+- **`language: groovy`** shells out to a system-installed `groovy` CLI (and JVM) via a small,
+  fixed Groovy driver script, one subprocess per materialization, with the same
+  `timeout_seconds` wall-clock backstop as jython mode (enforced directly on the `groovy`
+  subprocess call, so a timeout can't orphan a hung JVM). **Not pip-installable** — unlike this
+  registry's PySpark/Snowpark pipeline components (which bundle their own JVM/driver via a plain
+  `pip install`), Groovy needs a system-level JVM *and* a separately-installed Groovy
+  distribution. Install it yourself before using this mode (e.g. `brew install groovy` on
+  macOS, which also installs a JVM) — `build_defs` raises a clear `ImportError` at
+  definition-load time if the `groovy` binary isn't found on `PATH`. Same trust model as jython:
+  no sandboxing, treat script content like any other custom code you deploy.
 
 ## Jython mode semantics (matched to the real StreamSets engine)
 
@@ -44,16 +49,26 @@ concrete, reproducible install story.
 Standard JS: `/` always true-divides (no floor), objects/arrays use normal JS syntax
 (`record.c = record.a + record.b`, `list.push(...)`).
 
-## Shared primitives (both languages)
+## Groovy mode semantics
 
-- **`userParams`** — a plain dict (JMap in Jython, a plain JS object in JavaScript) from the
-  `user_params` config field.
+`record`/`records` are **real `java.util.Map`/`List` objects** (parsed by Groovy's own
+`JsonSlurper`), so both dot/bracket syntax (`record.foo`, `record['foo']`) *and* Java
+collection methods (`.get()`/`.put()`/`.containsKey()`/`.add()`) work natively — unlike jython
+mode, no `JMap`/`JList` emulation shim is needed here. `/` uses Groovy's own real semantics:
+Integer/Integer division promotes to a `BigDecimal` (e.g. `7 / 2 == 3.5`), which is **different
+from Jython's floor division** — that's genuine Groovy behavior, not something normalized to
+match jython mode.
+
+## Shared primitives (all languages)
+
+- **`userParams`** — a plain dict (JMap in Jython, a plain JS object in JavaScript, a real
+  `Map` in Groovy) from the `user_params` config field.
 - **`state`** — persisted across **runs** (not just batches) via a small local JSON file at
   `state_path`, the same pattern `s3_monitor` already uses for its dynamic-partition pruning
   state. Leave `state_path` unset and `state` starts empty every run with no persistence.
 - **`init_script`** runs once before the first record/batch; **`destroy_script`** runs once
   after the last. Both optional.
-- **Events**: a script can call `events.add({...})` (Jython) / `events.push({...})`
+- **Events**: a script can call `events.add({...})` (Jython, Groovy) / `events.push({...})`
   (JavaScript) to emit an out-of-band event dict. These surface in this asset's
   `MaterializeResult` metadata (`events_sample`), not as a second physical Dagster output —
   this repo has no existing multi-output-asset precedent for transform components, so rich
@@ -95,6 +110,24 @@ attributes:
   timeout_seconds: 30
 ```
 
+```yaml
+type: dagster_community_components.ScriptEvaluatorComponent
+attributes:
+  asset_name: enriched_orders_groovy
+  upstream_asset_key: raw_orders
+  language: groovy
+  mode: record
+  script: |
+    record.total = record.price * record.qty
+    if (record.total > 1000) {
+      record.tier = 'gold'
+    }
+    state.count = (state.count ?: 0) + 1
+  state_path: ./script_evaluator_state.json
+  on_script_error: record_error
+  timeout_seconds: 60
+```
+
 ## Fields
 
 <!-- FIELDS:START -->
@@ -103,7 +136,7 @@ attributes:
 | `asset_name` | string | yes | — | Output Dagster asset name |
 | `upstream_asset_key` | string | no | — | Upstream asset providing the input DataFrame |
 | `upstream_asset_keys` | array of string | no | — | Deprecated alias; use `upstream_asset_key` |
-| `language` | `jython` \| `javascript` | yes | — | Execution engine; see Security model above |
+| `language` | `jython` \| `javascript` \| `groovy` | yes | — | Execution engine; see Security model above |
 | `mode` | `record` \| `batch` | no | `record` | Per-row vs. whole-batch script execution |
 | `script` | string | yes | — | The transform script body |
 | `init_script` | string | no | — | Runs once before the first record/batch |

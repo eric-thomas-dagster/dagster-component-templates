@@ -22,12 +22,24 @@ a security sandbox against a malicious author:
     network access available to that subprocess's user. Treat script content
     with the same trust level you'd give any other custom code you deploy.
 
-  Groovy is NOT supported. Unlike this registry's PySpark/Snowpark pipeline
-  components (which bundle their own JVM/driver via a pure `pip install`),
-  running Groovy needs a system-level JVM *and* a separately-installed Groovy
-  distribution -- neither is pip-installable, so this registry has no way to
-  package or verify it. Revisit if real demand shows up with a concrete,
-  reproducible install story.
+  - `language: groovy` shells out to a system-installed `groovy` CLI (and JVM) via a
+    small, fixed (non-templated) Groovy driver script that reads the whole payload as
+    JSON over stdin and writes the result as JSON to stdout -- one `groovy` subprocess
+    per materialization, with the same wall-clock `timeout_seconds` backstop as jython
+    mode (enforced on the `groovy` subprocess call itself, not a second nested
+    timeout). This is NOT pip-installable -- unlike this registry's PySpark/Snowpark
+    pipeline components (which bundle their own JVM/driver via a pure `pip install`),
+    Groovy needs a system-level JVM *and* a separately-installed Groovy distribution.
+    Install it yourself before using this mode (e.g. `brew install groovy` on macOS,
+    which also pulls in a JVM); `build_defs` raises a clear `ImportError` at
+    definition-load time if the `groovy` binary isn't found on `PATH`.
+    Groovy's `record`/`records` are REAL `java.util.Map`/`List` objects (produced by
+    Groovy's own `JsonSlurper`), so both dot/bracket syntax (`record.foo`,
+    `record['foo']`) and Java collection methods (`.get()`/`.put()`/`.containsKey()`/
+    `.add()`) work natively -- no `JMap`/`JList` emulation shim is needed here, unlike
+    jython mode. Division (`/`) uses Groovy's own real semantics (promotes
+    Integer/Integer to a `BigDecimal`, unlike Jython's floor division) -- that's
+    genuine Groovy behavior, not something to "fix" to match jython mode.
 
 Semantics matched to the real StreamSets Script Evaluator stage:
   - Jython mode: record fields that are lists/dicts are exposed as Java-collection-
@@ -75,6 +87,7 @@ Example:
 import ast
 import json
 import os
+import shutil
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
@@ -426,6 +439,134 @@ def _run_javascript(init_script, script, destroy_script, records, user_params, s
     return {"records": out_records, "errors": errors, "events": events, "state": final_state}
 
 
+# BEGIN Groovy driver (inlined per component; fixed, non-templated -- user script text is
+# never embedded into this source, only passed as a JSON string value over stdin at runtime)
+_GROOVY_DRIVER_SRC = r"""
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+
+def payload
+try {
+    payload = new JsonSlurper().parse(System.in)
+} catch (Exception e) {
+    println JsonOutput.toJson([ok: false, error: "payload parse error: ${e.class.name}: ${e.message}"])
+    return
+}
+
+def binding = new Binding()
+binding.setVariable('userParams', payload.user_params ?: [:])
+binding.setVariable('state', payload.state ?: [:])
+binding.setVariable('events', [])
+
+def shell = new GroovyShell(binding)
+
+try {
+    def compiledInit = payload.init_script ? shell.parse(payload.init_script) : null
+    def compiledScript = shell.parse(payload.script)
+    def compiledDestroy = payload.destroy_script ? shell.parse(payload.destroy_script) : null
+
+    def errors = []
+    def outRecords = []
+
+    if (compiledInit != null) {
+        compiledInit.run()
+    }
+
+    if (payload.mode == 'batch') {
+        binding.setVariable('records', payload.records)
+        try {
+            compiledScript.run()
+            outRecords = binding.getVariable('records')
+        } catch (Exception e) {
+            if (payload.on_script_error == 'fail') { throw e }
+            errors << [index: null, message: "${e.class.name}: ${e.message}"]
+            outRecords = payload.records
+        }
+    } else {
+        payload.records.eachWithIndex { rec, i ->
+            binding.setVariable('record', rec)
+            try {
+                compiledScript.run()
+                outRecords << binding.getVariable('record')
+            } catch (Exception e) {
+                if (payload.on_script_error == 'fail') { throw e }
+                errors << [index: i, message: "${e.class.name}: ${e.message}"]
+            }
+        }
+    }
+
+    if (compiledDestroy != null) {
+        compiledDestroy.run()
+    }
+
+    def result = [
+        records: outRecords,
+        errors: errors,
+        events: binding.getVariable('events'),
+        state: binding.getVariable('state'),
+    ]
+    println JsonOutput.toJson([ok: true, result: result])
+} catch (Exception e) {
+    println JsonOutput.toJson([ok: false, error: "${e.class.name}: ${e.message}"])
+}
+"""
+
+
+def _execute_groovy_isolated(init_script, script, destroy_script, records, user_params, state, mode, on_script_error, timeout_seconds):
+    """Runs the whole materialization's worth of Groovy script execution in ONE real
+    `groovy` CLI subprocess -- never go through the `python3 <this file>
+    --script-evaluator-worker` hop the jython/javascript paths use, since that would
+    nest a `groovy` child process inside it and a parent-level `subprocess.run(timeout=)`
+    only kills its direct child, not grandchildren, which could orphan a hung JVM. This
+    path calls `groovy` directly, so its own `timeout=timeout_seconds` kills the actual
+    JVM process on expiry."""
+    import subprocess
+    import tempfile
+
+    groovy_bin = shutil.which("groovy")
+    if not groovy_bin:
+        raise RuntimeError(
+            "script_evaluator: language='groovy' requires the 'groovy' CLI (and a JVM) "
+            "installed and on PATH -- e.g. `brew install groovy` on macOS. This is not "
+            "pip-installable; see the module docstring for why."
+        )
+
+    payload = json.dumps({
+        "script": script, "init_script": init_script, "destroy_script": destroy_script,
+        "records": records, "user_params": user_params, "state": state,
+        "mode": mode, "on_script_error": on_script_error,
+    })
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".groovy", delete=False) as f:
+        f.write(_GROOVY_DRIVER_SRC)
+        driver_path = f.name
+    try:
+        try:
+            proc = subprocess.run(
+                [groovy_bin, driver_path], input=payload, capture_output=True, text=True,
+                timeout=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as e:
+            raise TimeoutError(
+                f"script_evaluator: groovy script execution exceeded timeout_seconds={timeout_seconds}"
+            ) from e
+    finally:
+        os.unlink(driver_path)
+
+    if proc.returncode != 0:
+        raise RuntimeError(f"script_evaluator: groovy worker failed (exit {proc.returncode}): {proc.stderr[-4000:]}")
+    try:
+        out = json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"script_evaluator: groovy worker produced non-JSON output: {proc.stdout[-2000:]!r} / stderr: {proc.stderr[-2000:]}"
+        ) from e
+    if not out["ok"]:
+        raise RuntimeError(f"script_evaluator: {out['error']}")
+    return out["result"]
+# END Groovy driver
+
+
 def _execute_isolated(language, init_script, script, destroy_script, records, user_params, state, mode, on_script_error, timeout_seconds, memory_limit_bytes):
     """Runs the whole materialization's worth of script execution in ONE real OS
     subprocess (not one per record -- per-record spawning is real isolation too,
@@ -438,7 +579,14 @@ def _execute_isolated(language, init_script, script, destroy_script, records, us
     path rather than as a real installed package (exactly how this repo's own
     test harness loads every component.py) -- invoking the file directly as a
     subprocess sidesteps that entirely, with a textbook `subprocess.run(...,
-    timeout=...)` for the hard wall-clock kill."""
+    timeout=...)` for the hard wall-clock kill. (language='groovy' never reaches this
+    function's subprocess logic below -- see the early return.)"""
+    if language == "groovy":
+        return _execute_groovy_isolated(
+            init_script, script, destroy_script, records, user_params, state,
+            mode, on_script_error, timeout_seconds,
+        )
+
     import subprocess
     import sys
 
@@ -509,10 +657,12 @@ class ScriptEvaluatorComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: Optional[Union[str, List[str]]] = Field(default=None, description="Upstream asset providing the input DataFrame")
 
-    language: Literal["jython", "javascript"] = Field(
+    language: Literal["jython", "javascript", "groovy"] = Field(
         description="jython: real CPython in a subprocess, with a Java-collection emulation shim and "
                     "Jython-style integer division. javascript: QuickJS (quickjs-ng) -- no filesystem/network/"
-                    "process access by construction. Groovy is not supported (see module docstring)."
+                    "process access by construction. groovy: shells out to a system-installed 'groovy' CLI "
+                    "(and JVM) -- not pip-installable, install it yourself (e.g. `brew install groovy`); "
+                    "record/records are real java.util.Map/List, no emulation shim needed. See module docstring."
     )
     mode: Literal["record", "batch"] = Field(
         default="record",
@@ -589,6 +739,12 @@ class ScriptEvaluatorComponent(Component, Model, Resolvable):
                     "ScriptEvaluatorComponent language='javascript' requires the 'quickjs-ng' package. "
                     "Run: pip install quickjs-ng"
                 ) from e
+        if language == "groovy" and not shutil.which("groovy"):
+            raise ImportError(
+                "ScriptEvaluatorComponent language='groovy' requires the 'groovy' CLI (and a JVM) "
+                "installed and on PATH. This is not pip-installable -- e.g. on macOS: "
+                "`brew install groovy`. See the module docstring for why."
+            )
 
         @asset(
             key=AssetKey.from_user_string(asset_name),

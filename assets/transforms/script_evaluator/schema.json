@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.ScriptEvaluatorComponent",
-  "description": "Run a customer-authored Jython- or JavaScript-style transform script per record or per batch against an upstream DataFrame.",
+  "description": "Run a customer-authored Jython-, JavaScript-, or Groovy-style transform script per record or per batch against an upstream DataFrame.",
   "category": "transformation",
   "icon": "Code",
   "x-dagster-io": {
@@ -36,9 +36,9 @@
     },
     "language": {
       "type": "string",
-      "enum": ["jython", "javascript"],
+      "enum": ["jython", "javascript", "groovy"],
       "label": "Language",
-      "description": "jython: real CPython in a subprocess, with a Java-collection emulation shim and Jython-style integer division. javascript: QuickJS (quickjs-ng) -- no filesystem/network/process access by construction. Groovy is not supported.",
+      "description": "jython: real CPython in a subprocess, with a Java-collection emulation shim and Jython-style integer division. javascript: QuickJS (quickjs-ng) -- no filesystem/network/process access by construction. groovy: shells out to a system-installed 'groovy' CLI (and JVM) -- not pip-installable, install it yourself (e.g. `brew install groovy`); record/records are real java.util.Map/List, no emulation shim needed.",
       "required": true
     },
     "mode": {

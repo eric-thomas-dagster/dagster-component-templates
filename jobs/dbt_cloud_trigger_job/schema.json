@@ -7,8 +7,8 @@
     "job_name": {
       "type": "string",
       "label": "Job Name",
-      "description": "Dagster op-job name. Sensors/schedules target this string.",
-      "required": true
+      "description": "Dagster op-job name. Use this in sensor/schedule `job_name:` fields to target this job for triggering. Required unless `asset_name` is set.",
+      "required": false
     },
     "dbt_cloud_job_id": {
       "type": "integer",

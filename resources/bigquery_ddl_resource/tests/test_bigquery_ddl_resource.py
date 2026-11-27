@@ -84,6 +84,74 @@ def test_requires_credentials(mod):
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = env_backup
 
 
+@patch("google.oauth2.service_account.Credentials.from_service_account_info", return_value=MagicMock())
+@patch("google.cloud.bigquery.Client")
+def test_credentials_env_var_parsed_as_json(mock_client_cls, mock_from_info, mod, monkeypatch):
+    import json
+
+    monkeypatch.setenv("MY_BQ_CREDS", json.dumps(CREDS))
+    mock_client = MagicMock()
+    mock_client_cls.return_value = mock_client
+    created = MagicMock()
+    created.location = "US"
+    created.labels = {}
+    mock_client.create_dataset.return_value = created
+
+    resource = mod.BigQueryDdlResource(credentials_env_var="MY_BQ_CREDS", project_id="my-proj")
+    resource.ensure_dataset("analytics")
+
+    mock_from_info.assert_called_once_with(CREDS)
+
+
+def test_credentials_env_var_missing_raises(mod, monkeypatch):
+    monkeypatch.delenv("MY_BQ_CREDS", raising=False)
+    resource = mod.BigQueryDdlResource(credentials_env_var="MY_BQ_CREDS")
+    with pytest.raises(ValueError, match="MY_BQ_CREDS"):
+        resource.ensure_dataset("analytics")
+
+
+@patch("google.oauth2.service_account.Credentials.from_service_account_info", return_value=MagicMock())
+@patch("google.cloud.bigquery.Client")
+def test_credentials_dict_takes_precedence_over_env_var(mock_client_cls, mock_from_info, mod, monkeypatch):
+    import json
+
+    other_creds = dict(CREDS, project_id="other-proj")
+    monkeypatch.setenv("MY_BQ_CREDS", json.dumps(other_creds))
+    mock_client = MagicMock()
+    mock_client_cls.return_value = mock_client
+    created = MagicMock()
+    created.location = "US"
+    created.labels = {}
+    mock_client.create_dataset.return_value = created
+
+    resource = mod.BigQueryDdlResource(credentials=CREDS, credentials_env_var="MY_BQ_CREDS", project_id="my-proj")
+    resource.ensure_dataset("analytics")
+
+    mock_from_info.assert_called_once_with(CREDS)
+
+
+@patch("google.oauth2.service_account.Credentials.from_service_account_info", return_value=MagicMock())
+@patch("google.cloud.bigquery.Client")
+def test_credentials_path_takes_precedence_over_env_var(mock_client_cls, mock_from_info, mod, monkeypatch, tmp_path):
+    import json
+
+    other_creds = dict(CREDS, project_id="other-proj")
+    monkeypatch.setenv("MY_BQ_CREDS", json.dumps(other_creds))
+    cred_file = tmp_path / "creds.json"
+    cred_file.write_text(json.dumps(CREDS))
+    mock_client = MagicMock()
+    mock_client_cls.return_value = mock_client
+    created = MagicMock()
+    created.location = "US"
+    created.labels = {}
+    mock_client.create_dataset.return_value = created
+
+    resource = mod.BigQueryDdlResource(credentials_path=str(cred_file), credentials_env_var="MY_BQ_CREDS", project_id="my-proj")
+    resource.ensure_dataset("analytics")
+
+    mock_from_info.assert_called_once_with(CREDS)
+
+
 # --- table lifecycle -----------------------------------------------------
 
 @patch("google.oauth2.service_account.Credentials.from_service_account_info", return_value=MagicMock())

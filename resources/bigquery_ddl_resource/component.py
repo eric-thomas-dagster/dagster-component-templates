@@ -28,7 +28,7 @@ _COMPARISONS = {
 }
 
 
-def _bigquery_client(credentials, credentials_path, project_id, location):
+def _bigquery_client(credentials, credentials_path, credentials_env_var, project_id, location):
     import json
     import os
 
@@ -36,13 +36,21 @@ def _bigquery_client(credentials, credentials_path, project_id, location):
     from google.oauth2 import service_account
 
     creds_dict = credentials
+    if creds_dict is None and credentials_path:
+        with open(credentials_path, "r") as fh:
+            creds_dict = json.load(fh)
+    if creds_dict is None and credentials_env_var:
+        raw = os.environ.get(credentials_env_var)
+        if not raw:
+            raise ValueError(f"Env var {credentials_env_var!r} (credentials_env_var) is not set.")
+        creds_dict = json.loads(raw)
     if creds_dict is None:
-        cred_path = credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         if cred_path:
             with open(cred_path, "r") as fh:
                 creds_dict = json.load(fh)
     if creds_dict is None:
-        raise ValueError("provide credentials, credentials_path, or set GOOGLE_APPLICATION_CREDENTIALS.")
+        raise ValueError("provide credentials, credentials_path, credentials_env_var, or set GOOGLE_APPLICATION_CREDENTIALS.")
     sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
     project = project_id or creds_dict.get("project_id")
     return bigquery.Client(credentials=sa_creds, project=project, location=location), project
@@ -67,11 +75,12 @@ class BigQueryDdlResource(dg.ConfigurableResource):
 
     credentials: Optional[Dict[str, Any]] = None
     credentials_path: Optional[str] = None
+    credentials_env_var: Optional[str] = None
     project_id: Optional[str] = None
     location: Optional[str] = None
 
     def _client(self):
-        return _bigquery_client(self.credentials, self.credentials_path, self.project_id, self.location)
+        return _bigquery_client(self.credentials, self.credentials_path, self.credentials_env_var, self.project_id, self.location)
 
     def _qualified_dataset_id(self, dataset_id, project):
         return dataset_id if "." in dataset_id else f"{project}.{dataset_id}"
@@ -233,7 +242,8 @@ class BigQueryDdlResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     resource_key: str = Field(default="bigquery_ddl_resource", description="Key used to register this resource. Other components reference it via resource_key.")
     credentials: Optional[Dict[str, Any]] = Field(default=None, description="Service-account JSON as a dict.")
-    credentials_path: Optional[str] = Field(default=None, description="Path to a service-account JSON file. Falls back to GOOGLE_APPLICATION_CREDENTIALS.")
+    credentials_path: Optional[str] = Field(default=None, description="Path to a service-account JSON file.")
+    credentials_env_var: Optional[str] = Field(default=None, description="Env var containing the service-account JSON as a string (same convention as bigquery_resource's/dataproc_resource's gcp_credentials_env_var). Checked after credentials and credentials_path; falls back to GOOGLE_APPLICATION_CREDENTIALS if none of the three are set.")
     project_id: Optional[str] = Field(default=None, description="GCP project. Defaults to the service account's own project.")
     location: Optional[str] = Field(default=None, description="Default BigQuery location, e.g. 'US' or 'EU'. Can be overridden per ensure_dataset() call.")
 
@@ -246,6 +256,7 @@ class BigQueryDdlResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         resource = BigQueryDdlResource(
             credentials=self.credentials,
             credentials_path=self.credentials_path,
+            credentials_env_var=self.credentials_env_var,
             project_id=self.project_id,
             location=self.location,
         )

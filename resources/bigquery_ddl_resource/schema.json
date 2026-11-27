@@ -25,7 +25,14 @@
     "credentials_path": {
       "type": "string",
       "label": "Credentials Path",
-      "description": "Path to a service-account JSON file. Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
+      "description": "Path to a service-account JSON file.",
+      "required": false,
+      "default": null
+    },
+    "credentials_env_var": {
+      "type": "string",
+      "label": "Credentials Env Var",
+      "description": "Env var containing the service-account JSON as a string (same convention as bigquery_resource's/dataproc_resource's gcp_credentials_env_var). Checked after credentials and credentials_path; falls back to GOOGLE_APPLICATION_CREDENTIALS if none of the three are set.",
       "required": false,
       "default": null
     },

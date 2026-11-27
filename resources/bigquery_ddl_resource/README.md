@@ -17,14 +17,15 @@ An Airflow Operator is reusable action code, not itself a data asset -- this res
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"bigquery_ddl_resource"` | Key used to register this resource. Other components reference it via resource_key. |
-| `credentials` | `Dict[str, Any]` | — | Service-account JSON as a dict. |
-| `credentials_path` | `str` | — | Path to a service-account JSON file. Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
-| `project_id` | `str` | — | GCP project. Defaults to the service account's own project. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `credentials` | `Dict[str, Any]` | — | Service-account JSON as a dict. |
+| `credentials_path` | `str` | — | Path to a service-account JSON file. |
+| `credentials_env_var` | `str` | — | Env var containing the service-account JSON as a string (same convention as bigquery_resource's/dataproc_resource's gcp_credentials_env_var). Checked after credentials and credentials_path; falls back to GOOGLE_APPLICATI… _(full docs in schema.json + component README)_ |
+| `project_id` | `str` | — | GCP project. Defaults to the service account's own project. |
 | `location` | `str` | — | Default BigQuery location, e.g. 'US' or 'EU'. Can be overridden per ensure_dataset() call. |
 
 [//]: # (FIELDS:END)

@@ -171,3 +171,28 @@ def test_component_allows_omitting_username_and_password_env_var(mod):
     defs = component.build_defs(context=None)
     resource = defs.resources["smtp_resource"]
     assert resource.username is None and resource.password is None
+
+
+def test_connection_uri_env_var_derives_host_port_credentials(mod, monkeypatch):
+    monkeypatch.setenv("TEST_SMTP_URI", "smtp://bob:p%40ss@mail.example.com:2525")
+    component = mod.SMTPResourceComponent(connection_uri_env_var="TEST_SMTP_URI")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["smtp_resource"]
+    assert resource.host == "mail.example.com"
+    assert resource.port == 2525
+    assert resource.username == "bob"
+    assert resource.password == "p@ss"
+
+
+def test_explicit_host_wins_over_connection_uri_env_var(mod, monkeypatch):
+    monkeypatch.setenv("TEST_SMTP_URI2", "smtp://x:y@other.example.com:25")
+    component = mod.SMTPResourceComponent(host="explicit.example.com", connection_uri_env_var="TEST_SMTP_URI2")
+    defs = component.build_defs(context=None)
+    resource = defs.resources["smtp_resource"]
+    assert resource.host == "explicit.example.com"
+
+
+def test_missing_host_and_connection_uri_raises(mod):
+    import pytest
+    with pytest.raises(ValueError, match="host"):
+        mod.SMTPResourceComponent().build_defs(context=None)

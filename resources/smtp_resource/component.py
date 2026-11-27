@@ -1,8 +1,24 @@
 """SMTP Resource component."""
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlsplit, unquote
 
 import dagster as dg
 from pydantic import Field
+
+
+def _parse_connection_uri(uri: str) -> Dict[str, Any]:
+    """Parse an Airflow-style connection URI
+    ('smtp://login:password@host:port', per
+    https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html)
+    into its parts. Login/password are percent-decoded."""
+    parts = urlsplit(uri)
+    return {
+        "scheme": parts.scheme or None,
+        "login": unquote(parts.username) if parts.username else None,
+        "password": unquote(parts.password) if parts.password else None,
+        "host": parts.hostname,
+        "port": parts.port,
+    }
 
 
 class SMTPResource(dg.ConfigurableResource):
@@ -84,7 +100,8 @@ class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an SMTP resource for sending emails from other components."""
 
     resource_key: str = Field(default="smtp_resource", description="Key used to register this resource. Other components reference it via resource_key.")
-    host: str = Field(description="SMTP server host, e.g. 'smtp.gmail.com'")
+    host: Optional[str] = Field(default=None, description="SMTP server host, e.g. 'smtp.gmail.com'. Set this OR connection_uri_env_var.")
+    connection_uri_env_var: Optional[str] = Field(default=None, description="Env var holding an Airflow-style connection URI ('smtp://login:password@host:port') as an alternative to setting host/port/username/password_env_var individually. Explicit fields, if also set, win over the URI's corresponding value.")
     port: int = Field(default=587, description="SMTP port (587 for STARTTLS, 465 for SSL, 25 for plain)")
     username: Optional[str] = Field(default=None, description="SMTP username / sender email address. Omit along with password_env_var to connect without a login.")
     password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the SMTP password. Omit along with username to connect without a login.")
@@ -96,11 +113,30 @@ class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label='SMTP Resource', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        host = self.host
+        port = self.port
+        username = self.username
+        password: Optional[Any] = dg.EnvVar(self.password_env_var) if self.password_env_var else None
+        if self.connection_uri_env_var:
+            uri_value = dg.EnvVar(self.connection_uri_env_var).get_value()
+            if uri_value:
+                parsed = _parse_connection_uri(uri_value)
+                if not host:
+                    host = parsed["host"]
+                if port == 587 and parsed["port"]:
+                    port = parsed["port"]
+                if username is None and parsed["login"] is not None:
+                    username = parsed["login"]
+                if password is None and parsed["password"] is not None:
+                    password = parsed["password"]
+        if not host:
+            raise ValueError("Set either 'host' or 'connection_uri_env_var' (with a URI that includes a host).")
+
         resource = SMTPResource(
-            host=self.host,
-            port=self.port,
-            username=self.username,
-            password=dg.EnvVar(self.password_env_var) if self.password_env_var else None,
+            host=host,
+            port=port,
+            username=username,
+            password=password,
             use_tls=self.use_tls,
         )
         return dg.Definitions(resources={self.resource_key: resource})

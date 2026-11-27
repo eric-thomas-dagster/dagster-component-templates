@@ -7,8 +7,10 @@ URL, or `local[*]`), exposed as an injectable resource method rather than
 baked into a single-purpose asset component.
 
 Builds the real `spark-submit` command line (`--master`, `--deploy-mode`,
-`--class`, `--conf key=value` per entry, `--packages`/`--jars`/`--py-files`
-as comma-joined lists, then the application path and its args), matching
+`--class`, `--conf key=value` per entry, `--packages`/`--exclude-packages`/
+`--repositories`/`--jars`/`--py-files`/`--files`/`--archives` as comma-joined
+lists, `--driver-class-path`, `--executor-cores`, `--verbose`,
+`--properties-file`, then the application path and its args), matching
 `spark-submit --help`'s documented flags -- not guessed. Streams stdout/
 stderr through the parent process and raises `dg.Failure` with the captured
 stderr on a non-zero exit code (unless the code is in `success_exit_codes`)
@@ -26,6 +28,10 @@ def _build_spark_submit_command(
     num_executors: Optional[int], total_executor_cores: Optional[int], queue: Optional[str],
     packages: Optional[List[str]], jars: Optional[List[str]], py_files: Optional[List[str]],
     conf: Optional[Dict[str, str]], extra_args: Optional[List[str]], application_args: Optional[List[str]],
+    exclude_packages: Optional[List[str]] = None, repositories: Optional[List[str]] = None,
+    files: Optional[List[str]] = None, archives: Optional[List[str]] = None,
+    driver_class_path: Optional[str] = None, executor_cores: Optional[int] = None,
+    verbose: bool = False, properties_file: Optional[str] = None,
 ) -> List[str]:
     cmd: List[str] = [spark_submit_binary]
     if master:
@@ -44,16 +50,32 @@ def _build_spark_submit_command(
         cmd += ["--num-executors", str(num_executors)]
     if total_executor_cores is not None:
         cmd += ["--total-executor-cores", str(total_executor_cores)]
+    if executor_cores is not None:
+        cmd += ["--executor-cores", str(executor_cores)]
     if queue:
         cmd += ["--queue", queue]
     if packages:
         cmd += ["--packages", ",".join(packages)]
+    if exclude_packages:
+        cmd += ["--exclude-packages", ",".join(exclude_packages)]
+    if repositories:
+        cmd += ["--repositories", ",".join(repositories)]
     if jars:
         cmd += ["--jars", ",".join(jars)]
     if py_files:
         cmd += ["--py-files", ",".join(py_files)]
+    if files:
+        cmd += ["--files", ",".join(files)]
+    if archives:
+        cmd += ["--archives", ",".join(archives)]
+    if driver_class_path:
+        cmd += ["--driver-class-path", driver_class_path]
+    if properties_file:
+        cmd += ["--properties-file", properties_file]
     for k, v in (conf or {}).items():
         cmd += ["--conf", f"{k}={v}"]
+    if verbose:
+        cmd.append("--verbose")
     cmd += list(extra_args or [])
     cmd.append(application)
     cmd += list(application_args or [])
@@ -90,6 +112,14 @@ class SparkSubmitResource(dg.ConfigurableResource):
         env_vars: Optional[Dict[str, str]] = None,
         timeout_seconds: Optional[int] = None,
         success_exit_codes: Optional[List[int]] = None,
+        exclude_packages: Optional[List[str]] = None,
+        repositories: Optional[List[str]] = None,
+        files: Optional[List[str]] = None,
+        archives: Optional[List[str]] = None,
+        driver_class_path: Optional[str] = None,
+        executor_cores: Optional[int] = None,
+        verbose: bool = False,
+        properties_file: Optional[str] = None,
         log=None,
     ) -> Dict[str, Any]:
         """Run spark-submit and return {"exit_code", "command", "stdout_preview"}.
@@ -110,6 +140,9 @@ class SparkSubmitResource(dg.ConfigurableResource):
             class_name, name, driver_memory, executor_memory,
             num_executors, total_executor_cores, queue,
             packages, jars, py_files, conf, extra_args, application_args,
+            exclude_packages=exclude_packages, repositories=repositories,
+            files=files, archives=archives, driver_class_path=driver_class_path,
+            executor_cores=executor_cores, verbose=verbose, properties_file=properties_file,
         )
         merged_env = {**os.environ, **(env_vars or {})}
         if log:

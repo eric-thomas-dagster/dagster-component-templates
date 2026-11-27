@@ -22,16 +22,24 @@ _FLAGS_WITH_VALUE = (
     "--master", "--deploy-mode", "--class", "--name", "--driver-memory",
     "--executor-memory", "--num-executors", "--total-executor-cores",
     "--queue", "--packages", "--jars", "--py-files", "--conf",
+    "--exclude-packages", "--repositories", "--files", "--archives",
+    "--driver-class-path", "--executor-cores", "--properties-file",
 )
+
+_FLAGS_NO_VALUE = ("--verbose",)
 
 _SHIM_BODY = f"""#!{sys.executable}
 import sys, subprocess
 args = sys.argv[1:]
 flags_with_value = {_FLAGS_WITH_VALUE!r}
+flags_no_value = {_FLAGS_NO_VALUE!r}
 i = 0
 while i < len(args):
     if args[i] in flags_with_value:
         i += 2
+        continue
+    if args[i] in flags_no_value:
+        i += 1
         continue
     app, app_args = args[i], args[i + 1:]
     sys.exit(subprocess.call([{sys.executable!r}, app] + app_args))
@@ -145,6 +153,56 @@ def test_command_construction_matches_real_spark_submit_flags():
         "s3://bucket/job.py",
         "--date", "2024-01-01",
     ]
+
+
+def test_new_flags_construction_matches_real_spark_submit_help():
+    cmd = mod._build_spark_submit_command(
+        spark_submit_binary="spark-submit",
+        application="job.py",
+        master=None, deploy_mode=None, class_name=None, name=None,
+        driver_memory=None, executor_memory=None, num_executors=None,
+        total_executor_cores=None, queue=None, packages=None, jars=None,
+        py_files=None, conf=None, extra_args=None, application_args=None,
+        exclude_packages=["com.foo:bar"],
+        repositories=["https://repo.example.com/maven2"],
+        files=["data.csv", "lookup.json"],
+        archives=["bundle.zip"],
+        driver_class_path="/opt/extra/classes",
+        executor_cores=4,
+        verbose=True,
+        properties_file="/etc/spark/spark-defaults.conf",
+    )
+    assert cmd == [
+        "spark-submit",
+        "--executor-cores", "4",
+        "--exclude-packages", "com.foo:bar",
+        "--repositories", "https://repo.example.com/maven2",
+        "--files", "data.csv,lookup.json",
+        "--archives", "bundle.zip",
+        "--driver-class-path", "/opt/extra/classes",
+        "--properties-file", "/etc/spark/spark-defaults.conf",
+        "--verbose",
+        "job.py",
+    ]
+
+
+def test_submit_runs_real_subprocess_with_new_flags(tmp_path):
+    script = _write_script(tmp_path, """
+        print("ran with new flags")
+    """)
+    result = _resource(tmp_path).submit(
+        application=script,
+        exclude_packages=["com.foo:bar"],
+        repositories=["https://repo.example.com/maven2"],
+        files=["a.txt"],
+        archives=["b.zip"],
+        driver_class_path="/opt/classes",
+        executor_cores=2,
+        verbose=True,
+        properties_file="/etc/spark-defaults.conf",
+    )
+    assert result["exit_code"] == 0
+    assert "ran with new flags" in result["stdout_preview"]
 
 
 def test_component_registers_resource():

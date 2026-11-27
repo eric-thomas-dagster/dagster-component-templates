@@ -7,8 +7,10 @@ component. Requires a `spark-submit` binary on PATH (or
 `spark_submit_binary` pointed at one).
 
 Builds the real `spark-submit` command line (`--master`, `--deploy-mode`,
-`--class`, `--conf key=value` per entry, `--packages`/`--jars`/`--py-files`
-as comma-joined lists, then the application path and its args), streams
+`--class`, `--conf key=value` per entry, `--packages`/`--exclude-packages`/
+`--repositories`/`--jars`/`--py-files`/`--files`/`--archives` as comma-joined
+lists, `--driver-class-path`, `--executor-cores`, `--verbose`,
+`--properties-file`, then the application path and its args), streams
 stdout/stderr through the parent process, and raises `dg.Failure` on a
 non-zero exit code (unless it's in `success_exit_codes`) or a timeout.
 
@@ -39,7 +41,9 @@ def my_asset(spark: SparkSubmitResource):
 
 `application` (required), `master`, `deploy_mode` (`client`|`cluster`),
 `class_name`, `name`, `driver_memory`, `executor_memory`, `num_executors`,
-`total_executor_cores`, `queue`, `packages`, `jars`, `py_files`, `conf`,
+`total_executor_cores`, `executor_cores`, `queue`, `packages`,
+`exclude_packages`, `repositories`, `jars`, `py_files`, `files`, `archives`,
+`driver_class_path`, `properties_file`, `verbose`, `conf`,
 `extra_args`, `application_args`, `env_vars`, `timeout_seconds`,
 `success_exit_codes`, `log` (optional object with `.info(msg)`, e.g.
 `context.log`).

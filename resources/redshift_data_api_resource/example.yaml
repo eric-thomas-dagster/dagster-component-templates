@@ -1,0 +1,4 @@
+type: dagster_community_components.RedshiftDataApiResourceComponent
+attributes:
+  resource_key: redshift_data_api_resource
+  region_name: us-east-1

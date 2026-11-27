@@ -1,0 +1,4 @@
+type: dagster_community_components.AthenaResourceComponent
+attributes:
+  resource_key: athena_resource
+  region_name: us-east-1

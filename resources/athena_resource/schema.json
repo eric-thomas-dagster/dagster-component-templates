@@ -1,0 +1,38 @@
+{
+  "component_type": "dagster_community_components.AthenaResourceComponent",
+  "description": "Register an AthenaResource (Amazon Athena query + poll logic) for use by other components, ops, or assets",
+  "category": "resource",
+  "icon": "si:amazonaws",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "athena_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "athena_resource"
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region, e.g. 'us-east-1'.",
+      "required": true
+    },
+    "aws_profile": {
+      "type": "string",
+      "label": "Aws Profile",
+      "description": "Named AWS profile. Omit to use the default boto3 credential chain (env vars, instance role, etc.).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "resource",
+    "aws",
+    "athena"
+  ],
+  "name": "Athena Resource"
+}

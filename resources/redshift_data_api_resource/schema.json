@@ -1,0 +1,38 @@
+{
+  "component_type": "dagster_community_components.RedshiftDataApiResourceComponent",
+  "description": "Register a RedshiftDataApiResource (Redshift Data API execute + poll logic) for use by other components, ops, or assets",
+  "category": "resource",
+  "icon": "si:amazonredshift",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "redshift_data_api_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "redshift_data_api_resource"
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region, e.g. 'us-east-1'.",
+      "required": true
+    },
+    "aws_profile": {
+      "type": "string",
+      "label": "Aws Profile",
+      "description": "Named AWS profile. Omit to use the default boto3 credential chain (env vars, instance role, etc.).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "resource",
+    "aws",
+    "redshift"
+  ],
+  "name": "Redshift Data Api Resource"
+}

@@ -57,6 +57,16 @@ def _require_env(name: str) -> str:
     return value
 
 
+def _sanitize_identifier(s: str) -> str:
+    """Turn an arbitrary string (e.g. a slash-delimited asset key) into a valid Python
+    identifier, so it can be used to build a unique op/graph name per instance."""
+    import re as _re
+    out = _re.sub(r"\W", "_", s)
+    if not out or out[0].isdigit():
+        out = "_" + out
+    return out
+
+
 def _resolve_callable(callable_path: str):
     import importlib
     if ":" not in callable_path:
@@ -102,27 +112,33 @@ class WaitUntilAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     sftp_password_env_var: Optional[str] = Field(default=None, description="condition='sftp_file_exists': env var with the SFTP password. Set this OR sftp_private_key_env_var.")
     sftp_private_key_env_var: Optional[str] = Field(default=None, description="condition='sftp_file_exists': env var with a path to an SSH private key file. Set this OR sftp_password_env_var.")
     sftp_port: int = Field(default=22, description="condition='sftp_file_exists': SFTP port.")
-    sftp_path: Optional[str] = Field(default=None, description="condition='sftp_file_exists' only (required then): exact remote file path checked via SFTP stat each poll (no glob support -- SFTP has no native wildcard listing the way local file_exists does).")
+    sftp_path: Optional[str] = Field(default=None, description="condition='sftp_file_exists' only (required then): remote file path checked via SFTP each poll. Exact path for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched against a directory listing (see sftp_match_mode).")
+    sftp_match_mode: Literal["exact", "prefix", "wildcard"] = Field(default="exact", description="condition='sftp_file_exists': 'exact' stats sftp_path directly. 'prefix' lists sftp_path's directory and succeeds if any entry's name starts with sftp_path's basename. 'wildcard' lists the same directory and succeeds if any entry matches sftp_path's basename as an fnmatch glob (e.g. '*.csv').")
 
     s3_bucket: Optional[str] = Field(default=None, description="condition='s3_key_exists' only (required then): S3 bucket name.")
-    s3_key: Optional[str] = Field(default=None, description="condition='s3_key_exists' only (required then): exact S3 object key checked via head_object each poll.")
+    s3_key: Optional[str] = Field(default=None, description="condition='s3_key_exists' only (required then): checked each poll. Exact object key for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched via list_objects_v2.")
+    s3_match_mode: Literal["exact", "prefix", "wildcard"] = Field(default="exact", description="condition='s3_key_exists': 'exact' calls head_object on s3_key directly. 'prefix' lists objects under s3_key as a prefix and succeeds if at least one exists. 'wildcard' lists objects under the portion of s3_key before its first '*'/'?' and succeeds if any listed key matches the full s3_key pattern via fnmatch.")
     aws_region: Optional[str] = Field(default=None, description="condition='s3_key_exists': AWS region. Unset uses boto3's default credential/region chain.")
 
     gcs_bucket: Optional[str] = Field(default=None, description="condition='gcs_object_exists' only (required then): GCS bucket name.")
-    gcs_blob_name: Optional[str] = Field(default=None, description="condition='gcs_object_exists' only (required then): exact GCS object name checked each poll.")
+    gcs_blob_name: Optional[str] = Field(default=None, description="condition='gcs_object_exists' only (required then): checked each poll. Exact object name for match_mode='exact'; for 'prefix'/'wildcard' this is the pattern matched via list_blobs.")
+    gcs_match_mode: Literal["exact", "prefix", "wildcard"] = Field(default="exact", description="condition='gcs_object_exists': 'exact' checks gcs_blob_name directly via blob.exists(). 'prefix' lists blobs under gcs_blob_name as a prefix and succeeds if at least one exists. 'wildcard' lists blobs under the portion of gcs_blob_name before its first '*'/'?' and succeeds if any listed name matches the full gcs_blob_name pattern via fnmatch.")
     gcs_credentials_env_var: Optional[str] = Field(default=None, description="condition='gcs_object_exists': env var with a path to a GCP service account JSON key file. Unset uses application-default credentials. Same convention as gcs_to_database_asset's credentials_env_var.")
 
-    http_url: Optional[str] = Field(default=None, description="condition='http_ok' only (required then): URL checked via GET each poll. A 2xx response means met; anything else (including a connection error) means not yet met.")
-    http_auth_type: Literal["none", "basic", "bearer"] = Field(default="none", description="condition='http_ok': auth to attach to the GET request. Same convention as per_row_http_fetcher's auth_type (oauth2 not offered here -- a poll check has no use for a short-lived token refresh loop).")
+    http_url: Optional[str] = Field(default=None, description="condition='http_ok' only (required then): URL checked each poll. A response whose status is in http_success_status_codes (default 2xx) means met; anything else (including a connection error) means not yet met.")
+    http_method: str = Field(default="GET", description="condition='http_ok': HTTP method used for each poll (GET, POST, HEAD, ...).")
+    http_headers: Optional[Dict[str, str]] = Field(default=None, description="condition='http_ok': extra headers sent with each poll request, on top of any auth header from http_auth_type.")
+    http_success_status_codes: Optional[List[int]] = Field(default=None, description="condition='http_ok': explicit list of status codes that count as met (e.g. [200] if 202/404 should mean 'not yet' rather than success). Unset defaults to any 2xx status, matching prior behavior.")
+    http_auth_type: Literal["none", "basic", "bearer"] = Field(default="none", description="condition='http_ok': auth to attach to the request. Same convention as per_row_http_fetcher's auth_type (oauth2 not offered here -- a poll check has no use for a short-lived token refresh loop).")
     http_auth_username_env_var: Optional[str] = Field(default=None, description="condition='http_ok', http_auth_type='basic' only (required then): env var with the basic-auth username.")
     http_auth_password_env_var: Optional[str] = Field(default=None, description="condition='http_ok', http_auth_type='basic' only (required then): env var with the basic-auth password.")
     http_auth_token_env_var: Optional[str] = Field(default=None, description="condition='http_ok', http_auth_type='bearer' only (required then): env var with the bearer token.")
-    http_timeout_seconds: float = Field(default=10, description="condition='http_ok': request timeout in seconds for each poll's GET.")
+    http_timeout_seconds: float = Field(default=10, description="condition='http_ok': request timeout in seconds for each poll.")
     poll_seconds: float = Field(default=30, description="Seconds between condition checks.")
     timeout_seconds: float = Field(default=3600, description="Give up after this many seconds total.")
     on_timeout: Literal["fail", "skip"] = Field(
         default="fail",
-        description="'fail' (default): raise and fail the run. 'skip': materialize successfully with metadata timed_out=true (Dagster has no native per-asset 'skipped' status; same convention as shell_command_asset's skip_on_exit_code).",
+        description="'fail' (default): raise and fail the run. 'skip': a real Dagster structural skip (AssetOut(is_required=False), the output is never yielded) -- this asset and every downstream asset depending on it are marked skipped, not materialized, matching Airflow's soft_fail semantics. Same mechanism conditional_asset uses for its gate/branch outputs.",
     )
 
     group_name: str = Field(default="infrastructure", description="Dagster asset group name.")
@@ -167,17 +183,31 @@ class WaitUntilAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         component = self
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (component.deps or [])]
+        asset_key = dg.AssetKey.from_user_string(component.asset_name)
 
-        @dg.asset(
-            key=dg.AssetKey.from_user_string(component.asset_name),
+        # `on_timeout='skip'` needs a REAL Dagster structural skip -- AssetOut(is_required=False)
+        # plus not yielding an Output on timeout -- so this and every downstream asset are marked
+        # skipped (not materialized), matching Airflow's soft_fail. Same mechanism
+        # conditional_asset uses for its gate/branch outputs. 'fail' mode always yields or raises,
+        # so is_required=True there behaves identically to the previous plain @dg.asset.
+        out = dg.AssetOut(
+            key=asset_key,
             description=component.description or f"Wait until condition={component.condition!r} is met.",
-            group_name=component.group_name,
-            deps=deps_keys,
-            owners=component.owners or [],
+            is_required=(component.on_timeout != "skip"),
+            owners=component.owners or None,
             tags=component.asset_tags or None,
             kinds=set(component.kinds) if component.kinds else None,
         )
-        def _wait_until(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+
+        op_name = "_wait_until_" + _sanitize_identifier("_".join(asset_key.path))
+
+        @dg.multi_asset(
+            name=op_name,
+            outs={"result": out},
+            group_name=component.group_name,
+            deps=deps_keys,
+        )
+        def _wait_until(context: dg.AssetExecutionContext):
             deadline = time.monotonic() + component.timeout_seconds
             started_at = time.monotonic()
             reference_time = _resolve_reference_time(context)
@@ -188,22 +218,26 @@ class WaitUntilAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 if hard_fail:
                     raise dg.Failure(description=f"wait_until: condition check failed: {hard_fail}")
                 if met:
-                    return dg.MaterializeResult(metadata={
-                        "met": dg.MetadataValue.bool(True),
-                        "attempts": dg.MetadataValue.int(attempts),
-                        "waited_seconds": dg.MetadataValue.float(time.monotonic() - started_at),
-                    })
+                    yield dg.Output(
+                        None, output_name="result",
+                        metadata={
+                            "met": dg.MetadataValue.bool(True),
+                            "attempts": dg.MetadataValue.int(attempts),
+                            "waited_seconds": dg.MetadataValue.float(time.monotonic() - started_at),
+                        },
+                    )
+                    return
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     if component.on_timeout == "fail":
                         raise dg.Failure(
                             description=f"wait_until: condition={component.condition!r} not met after {component.timeout_seconds}s ({attempts} attempt(s))."
                         )
-                    return dg.MaterializeResult(metadata={
-                        "met": dg.MetadataValue.bool(False),
-                        "timed_out": dg.MetadataValue.bool(True),
-                        "attempts": dg.MetadataValue.int(attempts),
-                    })
+                    context.log.info(
+                        f"wait_until: condition={component.condition!r} not met after {component.timeout_seconds}s "
+                        f"({attempts} attempt(s)) -- on_timeout='skip', this asset and its downstream will be skipped."
+                    )
+                    return
                 context.log.info(f"wait_until: condition={component.condition!r} not yet met (attempt {attempts}), polling again in {min(component.poll_seconds, remaining):.1f}s")
                 time.sleep(min(component.poll_seconds, remaining))
 
@@ -259,6 +293,9 @@ def _check_condition(component, reference_time: datetime):
         return now >= target, None
 
     if component.condition == "sftp_file_exists":
+        import fnmatch
+        import posixpath
+
         import paramiko
 
         ssh = paramiko.SSHClient()
@@ -275,8 +312,15 @@ def _check_condition(component, reference_time: datetime):
             ssh.connect(_require_env(component.sftp_host_env_var), **connect_kwargs)
             sftp = ssh.open_sftp()
             try:
-                sftp.stat(component.sftp_path)
-                return True, None
+                if component.sftp_match_mode == "exact":
+                    sftp.stat(component.sftp_path)
+                    return True, None
+                dirname = posixpath.dirname(component.sftp_path) or "."
+                basename = posixpath.basename(component.sftp_path)
+                entries = sftp.listdir(dirname)
+                if component.sftp_match_mode == "prefix":
+                    return any(e.startswith(basename) for e in entries), None
+                return any(fnmatch.fnmatch(e, basename) for e in entries), None
             except FileNotFoundError:
                 return False, None
             finally:
@@ -289,6 +333,9 @@ def _check_condition(component, reference_time: datetime):
             ssh.close()
 
     if component.condition == "s3_key_exists":
+        import fnmatch
+        import re
+
         import boto3
         from botocore.exceptions import ClientError
 
@@ -297,8 +344,19 @@ def _check_condition(component, reference_time: datetime):
             s3_client_kwargs["region_name"] = component.aws_region
         s3_client = boto3.client("s3", **s3_client_kwargs)
         try:
-            s3_client.head_object(Bucket=component.s3_bucket, Key=component.s3_key)
-            return True, None
+            if component.s3_match_mode == "exact":
+                s3_client.head_object(Bucket=component.s3_bucket, Key=component.s3_key)
+                return True, None
+            if component.s3_match_mode == "prefix":
+                resp = s3_client.list_objects_v2(Bucket=component.s3_bucket, Prefix=component.s3_key, MaxKeys=1)
+                return resp.get("KeyCount", 0) > 0, None
+            literal_prefix = re.split(r"[*?]", component.s3_key, maxsplit=1)[0]
+            paginator = s3_client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=component.s3_bucket, Prefix=literal_prefix):
+                for obj in page.get("Contents", []):
+                    if fnmatch.fnmatch(obj["Key"], component.s3_key):
+                        return True, None
+            return False, None
         except ClientError as exc:
             status = exc.response.get("Error", {}).get("Code")
             if status in ("404", "NoSuchKey", "NotFound"):
@@ -306,7 +364,9 @@ def _check_condition(component, reference_time: datetime):
             return False, f"{type(exc).__name__}: {exc}"
 
     if component.condition == "gcs_object_exists":
+        import fnmatch
         import os
+        import re
 
         from google.cloud import storage
 
@@ -314,8 +374,16 @@ def _check_condition(component, reference_time: datetime):
             os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", _require_env(component.gcs_credentials_env_var))
         try:
             gcs_client = storage.Client()
-            blob = gcs_client.bucket(component.gcs_bucket).blob(component.gcs_blob_name)
-            return blob.exists(), None
+            bucket = gcs_client.bucket(component.gcs_bucket)
+            if component.gcs_match_mode == "exact":
+                return bucket.blob(component.gcs_blob_name).exists(), None
+            if component.gcs_match_mode == "prefix":
+                return next(iter(gcs_client.list_blobs(bucket, prefix=component.gcs_blob_name, max_results=1)), None) is not None, None
+            literal_prefix = re.split(r"[*?]", component.gcs_blob_name, maxsplit=1)[0]
+            for blob in gcs_client.list_blobs(bucket, prefix=literal_prefix):
+                if fnmatch.fnmatch(blob.name, component.gcs_blob_name):
+                    return True, None
+            return False, None
         except Exception as exc:  # noqa: BLE001
             return False, f"{type(exc).__name__}: {exc}"
 
@@ -328,7 +396,12 @@ def _check_condition(component, reference_time: datetime):
         elif component.http_auth_type == "bearer":
             session.headers["Authorization"] = f"Bearer {_require_env(component.http_auth_token_env_var)}"
         try:
-            resp = session.get(component.http_url, timeout=component.http_timeout_seconds)
+            resp = session.request(
+                component.http_method, component.http_url,
+                headers=component.http_headers, timeout=component.http_timeout_seconds,
+            )
+            if component.http_success_status_codes is not None:
+                return resp.status_code in component.http_success_status_codes, None
             return 200 <= resp.status_code < 300, None
         except requests.RequestException:
             return False, None

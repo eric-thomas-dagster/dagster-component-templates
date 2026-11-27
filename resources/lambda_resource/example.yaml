@@ -1,0 +1,4 @@
+type: dagster_community_components.LambdaResourceComponent
+attributes:
+  resource_key: lambda_resource
+  region_name: us-east-1

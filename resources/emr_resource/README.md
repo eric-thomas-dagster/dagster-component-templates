@@ -50,3 +50,28 @@ Returns `{"cluster_id", "step_id"}` immediately when
 `wait_for_completion=False`, or `{"cluster_id", "step_id", "state"}` once
 terminal. Raises `RuntimeError` on a `CANCELLED`/`FAILED`/`INTERRUPTED` step
 unless `fail_on_step_failure=False`.
+
+## `EmrResource.create_cluster_and_wait(...)` arguments
+
+`name`, `instances` (the real EMR `Instances` request shape, e.g.
+`{"InstanceCount": 3, "MasterInstanceType": "m5.xlarge", "SlaveInstanceType":
+"m5.xlarge", "KeepJobFlowAliveWhenNoSteps": True}` -- passed straight through),
+`release_label`, `applications` (list of application names, e.g. `["Spark",
+"Hive"]`), `job_flow_role`, `service_role`, `log_uri`, `visible_to_all_users`
+(default `True`), `extra_job_flow_args` (dict merged into the raw
+`run_job_flow` call for anything not named above, e.g. `Tags`,
+`Configurations`), `wait_for_running` (default `True`), `poll_interval_seconds`,
+`timeout_seconds`, `log`.
+
+Returns `{"cluster_id"}` immediately when `wait_for_running=False`, or
+`{"cluster_id", "state"}` once the cluster reaches `RUNNING`/`WAITING`.
+Raises `RuntimeError` if the cluster terminates with errors while waiting.
+
+## `EmrResource.terminate_cluster(...)` arguments
+
+`cluster_id` / `cluster_name` (one required), `wait_for_termination` (default
+`True`), `poll_interval_seconds`, `timeout_seconds`, `log`.
+
+Returns `{"cluster_id"}` immediately when `wait_for_termination=False`, or
+`{"cluster_id", "state"}` once the cluster reaches `TERMINATED` or
+`TERMINATED_WITH_ERRORS`.

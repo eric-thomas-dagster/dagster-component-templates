@@ -30,6 +30,10 @@ from pydantic import Field
 _SUCCESS_STATES = {"COMPLETED"}
 _FAILURE_STATES = {"CANCELLED", "FAILED", "INTERRUPTED"}
 
+_CLUSTER_READY_STATES = {"RUNNING", "WAITING"}
+_CLUSTER_TERMINAL_FAILURE_STATES = {"TERMINATED_WITH_ERRORS"}
+_CLUSTER_TERMINATED_STATES = {"TERMINATED", "TERMINATED_WITH_ERRORS"}
+
 
 class _NullLog:
     def info(self, msg):
@@ -72,6 +76,25 @@ def _add_step(
 
 def _describe_step(client, cluster_id: str, step_id: str) -> Dict[str, Any]:
     return client.describe_step(ClusterId=cluster_id, StepId=step_id)["Step"]
+
+
+def _describe_cluster(client, cluster_id: str) -> Dict[str, Any]:
+    return client.describe_cluster(ClusterId=cluster_id)["Cluster"]
+
+
+def _poll_cluster_until(client, cluster_id: str, target_states: set, log, poll_interval_seconds: float, timeout_seconds: int) -> Dict[str, Any]:
+    import time
+    deadline = time.monotonic() + timeout_seconds
+    cluster = _describe_cluster(client, cluster_id)
+    state = cluster["Status"]["State"]
+    while state not in target_states and state not in _CLUSTER_TERMINATED_STATES:
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"EMR cluster {cluster_id} did not reach {target_states} within {timeout_seconds}s (last state={state!r}).")
+        log.info(f"emr_resource: cluster {cluster_id} state={state!r}")
+        time.sleep(poll_interval_seconds)
+        cluster = _describe_cluster(client, cluster_id)
+        state = cluster["Status"]["State"]
+    return cluster
 
 
 def _poll_until_terminal(client, cluster_id: str, step_id: str, log, poll_interval_seconds: float, timeout_seconds: int) -> Dict[str, Any]:
@@ -164,6 +187,104 @@ class EmrResource(dg.ConfigurableResource):
                 f"EMR step {step_id} on cluster {resolved_cluster_id} ended {state!r} instead of 'COMPLETED'. "
                 f"Reason: {failure.get('Reason')!r} Message: {failure.get('Message')!r} LogFile: {failure.get('LogFile')!r}"
             )
+        return result
+
+    def create_cluster_and_wait(
+        self,
+        name: str,
+        instances: Dict[str, Any],
+        release_label: Optional[str] = None,
+        applications: Optional[List[str]] = None,
+        job_flow_role: Optional[str] = None,
+        service_role: Optional[str] = None,
+        log_uri: Optional[str] = None,
+        visible_to_all_users: bool = True,
+        extra_job_flow_args: Optional[Dict[str, Any]] = None,
+        wait_for_running: bool = True,
+        poll_interval_seconds: float = 15.0,
+        timeout_seconds: int = 1800,
+        log=None,
+    ) -> Dict[str, Any]:
+        """Launch an EMR job flow (`run_job_flow`) and (by default) poll until it's ready
+        for steps (RUNNING or WAITING).
+
+        `instances` is the real EMR `Instances` request shape (e.g.
+        `{"InstanceCount": 3, "MasterInstanceType": "m5.xlarge",
+        "SlaveInstanceType": "m5.xlarge", "KeepJobFlowAliveWhenNoSteps": True}`)
+        -- passed straight through, not re-validated, since the API itself
+        only requires `Name`/`Instances` at the top level and nothing inside
+        `Instances` is strictly required. `extra_job_flow_args` merges
+        additional top-level `run_job_flow` kwargs (e.g. `Tags`,
+        `Configurations`) you need beyond the named ones here.
+
+        Returns {"cluster_id"} immediately when wait_for_running=False, or
+        {"cluster_id", "state"} once ready. Raises RuntimeError if the
+        cluster terminates with errors while waiting.
+        """
+        log = log or _NullLog()
+        client = self._client()
+
+        kwargs: Dict[str, Any] = {"Name": name, "Instances": instances, "VisibleToAllUsers": visible_to_all_users}
+        if release_label:
+            kwargs["ReleaseLabel"] = release_label
+        if applications:
+            kwargs["Applications"] = [{"Name": a} for a in applications]
+        if job_flow_role:
+            kwargs["JobFlowRole"] = job_flow_role
+        if service_role:
+            kwargs["ServiceRole"] = service_role
+        if log_uri:
+            kwargs["LogUri"] = log_uri
+        if extra_job_flow_args:
+            kwargs.update(extra_job_flow_args)
+
+        response = client.run_job_flow(**kwargs)
+        cluster_id = response["JobFlowId"]
+        log.info(f"emr_resource: launched cluster_id={cluster_id}")
+
+        result: Dict[str, Any] = {"cluster_id": cluster_id}
+        if not wait_for_running:
+            return result
+
+        cluster = _poll_cluster_until(client, cluster_id, _CLUSTER_READY_STATES, log, poll_interval_seconds, timeout_seconds)
+        state = cluster["Status"]["State"]
+        result["state"] = state
+        if state in _CLUSTER_TERMINAL_FAILURE_STATES:
+            reason = cluster["Status"].get("StateChangeReason") or {}
+            raise RuntimeError(f"EMR cluster {cluster_id} ended {state!r} while waiting to become ready. Reason: {reason.get('Message')!r}")
+        return result
+
+    def terminate_cluster(
+        self,
+        cluster_id: Optional[str] = None,
+        cluster_name: Optional[str] = None,
+        wait_for_termination: bool = True,
+        poll_interval_seconds: float = 15.0,
+        timeout_seconds: int = 1800,
+        log=None,
+    ) -> Dict[str, Any]:
+        """Terminate an EMR job flow (`terminate_job_flows`) and (by default) poll until
+        it reaches a terminal state (TERMINATED or TERMINATED_WITH_ERRORS).
+
+        Returns {"cluster_id"} immediately when wait_for_termination=False, or
+        {"cluster_id", "state"} once terminal. Idempotent against a cluster
+        that's already terminating/terminated.
+        """
+        if not cluster_id and not cluster_name:
+            raise ValueError("Set either cluster_id or cluster_name.")
+        log = log or _NullLog()
+        client = self._client()
+        resolved_cluster_id = _resolve_cluster_id(client, cluster_id, cluster_name)
+
+        client.terminate_job_flows(JobFlowIds=[resolved_cluster_id])
+        log.info(f"emr_resource: requested termination of cluster_id={resolved_cluster_id}")
+
+        result: Dict[str, Any] = {"cluster_id": resolved_cluster_id}
+        if not wait_for_termination:
+            return result
+
+        cluster = _poll_cluster_until(client, resolved_cluster_id, _CLUSTER_TERMINATED_STATES, log, poll_interval_seconds, timeout_seconds)
+        result["state"] = cluster["Status"]["State"]
         return result
 
 

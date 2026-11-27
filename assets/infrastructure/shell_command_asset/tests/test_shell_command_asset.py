@@ -303,3 +303,24 @@ def test_cron_schedule_respects_custom_job_name_and_running_default_status(mod):
     assert defs.jobs[0].name == "my_job"
     assert defs.schedules[0].name == "my_job_schedule"
     assert defs.schedules[0].default_status == dg.DefaultScheduleStatus.RUNNING
+
+
+def test_cron_schedule_sanitizes_slash_delimited_asset_name(mod):
+    """Regression: a hierarchical asset_name like "sh/a" is a valid AssetKey but not a valid
+    Dagster job/schedule name on its own -- used to raise DagsterInvalidDefinitionError."""
+    component = mod.ShellCommandAssetComponent(
+        asset_name="sh/a", command="echo hello", cron_schedule="0 * * * *",
+    )
+    defs = component.build_defs(context=None)
+    assert defs.jobs[0].name == "sh__a_job"
+    assert defs.schedules[0].name == "sh__a_schedule"
+
+
+def test_cron_schedule_explicit_job_name_still_used_with_slash_asset_name(mod):
+    component = mod.ShellCommandAssetComponent(
+        asset_name="sh/a", command="echo hello", cron_schedule="0 * * * *",
+        schedule_job_name="my_job",
+    )
+    defs = component.build_defs(context=None)
+    assert defs.jobs[0].name == "my_job"
+    assert defs.schedules[0].name == "my_job_schedule"
